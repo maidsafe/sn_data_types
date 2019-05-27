@@ -7,7 +7,7 @@
 // permissions and limitations relating to use of the SAFE Network Software.
 
 use crate::{XorName, XOR_NAME_LEN};
-use rust_sodium::crypto::sign::{PublicKey, PUBLICKEYBYTES};
+use threshold_crypto::{PublicKey, PK_SIZE};
 use tiny_keccak;
 
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
@@ -24,9 +24,9 @@ impl UnpubImmutableData {
     /// Name.
     pub fn name(&self) -> XorName {
         // TODO: Use low-level arrays or slices instead of Vec.
-        let mut bytes = Vec::with_capacity(XOR_NAME_LEN + PUBLICKEYBYTES);
+        let mut bytes = Vec::with_capacity(XOR_NAME_LEN + PK_SIZE);
         bytes.extend_from_slice(&tiny_keccak::sha3_256(&self.data));
-        bytes.extend_from_slice(&self.owners.0);
+        bytes.extend_from_slice(&self.owners.to_bytes());
         tiny_keccak::sha3_256(&bytes)
     }
 }
@@ -34,14 +34,15 @@ impl UnpubImmutableData {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use threshold_crypto::SecretKey;
 
     #[test]
     fn deterministic_name() {
         let data1 = b"Hello".to_vec();
         let data2 = b"Goodbye".to_vec();
 
-        let owner1 = PublicKey([0; PUBLICKEYBYTES]);
-        let owner2 = PublicKey([1; PUBLICKEYBYTES]);
+        let owner1 = SecretKey::random().public_key();
+        let owner2 = SecretKey::random().public_key();
 
         let idata1 = UnpubImmutableData {
             data: data1.clone(),

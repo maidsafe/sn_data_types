@@ -8,10 +8,9 @@
 
 use crate::immutable_data::UnpubImmutableData;
 use crate::mutable_data::{MutableData, MutableDataRef};
-use crate::XorName;
-// use threshold_crypto::PublicKey;
 use crate::MessageId;
-use rust_sodium::crypto::sign::PublicKey;
+use crate::XorName;
+use threshold_crypto::PublicKey;
 
 /// RPC Request that is sent to vaults
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
