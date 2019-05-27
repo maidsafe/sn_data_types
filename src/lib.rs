@@ -9,9 +9,13 @@
 #[macro_use]
 extern crate serde_derive;
 
+pub mod immutable_data;
 pub mod mutable_data;
 pub mod request;
 pub mod response;
+
+/// Constant byte length of `XorName`.
+pub const XOR_NAME_LEN: usize = 32;
 
 /// A [`XOR_NAME_BITS`](constant.XOR_NAME_BITS.html)-bit number, viewed as a point in XOR space.
 ///
@@ -22,7 +26,7 @@ pub mod response;
 /// i. e. the points with IDs `x` and `y` are considered to have distance `x xor y`.
 ///
 /// [1]: https://en.wikipedia.org/wiki/Kademlia#System_details
-pub type XorName = [u8; 32];
+pub type XorName = [u8; XOR_NAME_LEN];
 
 /// Unique ID for messages
 ///
