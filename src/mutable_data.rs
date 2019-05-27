@@ -6,22 +6,22 @@
 // KIND, either express or implied. Please review the Licences for the specific language governing
 // permissions and limitations relating to use of the SAFE Network Software.
 
-use routing::XorName;
-// use serde::{Deserialize, Serialize};
+use crate::XorName;
 use std::collections::{BTreeMap, BTreeSet};
 use std::vec::Vec;
 // use threshold_crypto::PublicKey;
 use rust_sodium::crypto::sign::PublicKey;
 
-
+/// Used to differentiate between conflict-free and conflict aware variants.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub enum MutableDataKind {
-    // Unsequenced, unpublished Mutable Data
+    // Unsequenced, unpublished Mutable Data.
     Unsequenced { data: BTreeMap<Vec<u8>, Value> },
-    // Sequenced, unpublished Mutable Data
+    // Sequenced, unpublished Mutable Data.
     Sequenced { data: BTreeMap<Vec<u8>, Vec<u8>> },
 }
 
+/// Permissions given to a user / application for a mutable data field.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub enum Permission {
     Read,
@@ -31,40 +31,40 @@ pub enum Permission {
     ManagePermissions,
 }
 
+/// Mutable data that is unpublished on the network. This data can only be fetch be the owners / those in the permissions fiedls with `Permission::Read` access.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub struct UnpublishedMutableData {
-    /// Network address
+    /// Network address.
     name: XorName,
-    /// Type tag
+    /// Type tag.
     tag: u64,
-    /// Key-Value semantics
+    /// Key-Value semantics.
     data: MutableDataKind,
-    /// Maps an application key to a list of allowed or forbidden actions
+    /// Maps an application key to a list of allowed or forbidden actions.
     permissions: BTreeMap<User, BTreeSet<Permission>>,
-    /// Version should be increased for any changes to MutableData fields except for data
+    /// Version should be increased for any changes to MutableData fields except for data.
     version: u64,
     /// Contains a set of owners of this data. DataManagers enforce that a mutation request is
     /// coming from the MaidManager Authority of the Owner.
-    /// Currently limited to one owner to disallow multisig
+    /// Currently limited to one owner to disallow multisig.
     owners: PublicKey,
 }
 
 impl UnpublishedMutableData {
     pub fn new(
-    name: XorName,
-    tag: u64,
-    data: MutableDataKind,
-    permissions: BTreeMap<User, BTreeSet<Permission>>,
-    version: u64,
-    owners: PublicKey,
+        name: XorName,
+        tag: u64,
+        data: MutableDataKind,
+        permissions: BTreeMap<User, BTreeSet<Permission>>,
+        owners: PublicKey,
     ) -> Self {
         UnpublishedMutableData {
             name,
             tag,
             data,
             permissions,
-            version,
-            owners
+            version: 0,
+            owners,
         }
     }
 
@@ -83,8 +83,9 @@ impl UnpublishedMutableData {
     pub fn permissions(&self) -> BTreeMap<User, BTreeSet<Permission>> {
         self.permissions.clone()
     }
- }
+}
 
+/// A value in `UnpublishedMutableData`
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub struct Value {
     /// Actual data.
@@ -96,15 +97,18 @@ pub struct Value {
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub struct Permissions {
     permissions: BTreeMap<User, BTreeSet<Permission>>,
-    /// The current index of the data when this permission change happened
+    /// The current index of the data when this permission change happened.
     data_index: u64,
-    /// The current index of the owners when this permission change happened
+    /// The current index of the owners when this permission change happened.
     owner_entry_index: u64,
 }
 
+/// Subject of permissions
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub enum User {
+    /// Permissions apply to a single public key.
     Key(PublicKey),
+    /// Permissions apply to anyone.
     Anyone,
 }
 
@@ -118,10 +122,7 @@ pub struct MutableDataRef {
 
 impl MutableDataRef {
     pub fn new(name: XorName, tag: u64) -> Self {
-        MutableDataRef {
-            name,
-            tag
-        }
+        MutableDataRef { name, tag }
     }
 
     pub fn name(&self) -> XorName {
