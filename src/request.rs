@@ -6,7 +6,7 @@
 // KIND, either express or implied. Please review the Licences for the specific language governing
 // permissions and limitations relating to use of the SAFE Network Software.
 
-use crate::mutable_data::{MutableDataRef, UnpublishedMutableData};
+use crate::mutable_data::{MutableData, MutableDataRef};
 // use threshold_crypto::PublicKey;
 use crate::MessageId;
 use rust_sodium::crypto::sign::PublicKey;
@@ -23,7 +23,7 @@ pub enum Request {
     },
     PutUnseqMData {
         // Mutable Data to be stored
-        data: UnpublishedMutableData,
+        data: MutableData,
         // Requester public key
         requester: PublicKey,
         // Unique message Identifier

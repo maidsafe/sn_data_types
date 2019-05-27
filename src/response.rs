@@ -6,19 +6,18 @@
 // KIND, either express or implied. Please review the Licences for the specific language governing
 // permissions and limitations relating to use of the SAFE Network Software.
 
-use crate::errors::ClientError;
-use crate::mutable_data::UnpublishedMutableData;
+use crate::mutable_data::MutableData;
 use crate::MessageId;
 
 /// Rpc responses from vaults.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
-pub enum Response {
+pub enum Response<ErrorType> {
     GetUnseqMData {
-        res: Result<UnpublishedMutableData, ClientError>,
+        res: Result<MutableData, ErrorType>,
         msg_id: MessageId,
     },
     PutUnseqMData {
-        res: Result<(), ClientError>,
+        res: Result<(), ErrorType>,
         msg_id: MessageId,
     },
 }

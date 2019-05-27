@@ -33,7 +33,7 @@ pub enum Permission {
 
 /// Mutable data that is unpublished on the network. This data can only be fetch be the owners / those in the permissions fiedls with `Permission::Read` access.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
-pub struct UnpublishedMutableData {
+pub struct MutableData {
     /// Network address.
     name: XorName,
     /// Type tag.
@@ -50,7 +50,7 @@ pub struct UnpublishedMutableData {
     owners: PublicKey,
 }
 
-impl UnpublishedMutableData {
+impl MutableData {
     pub fn new(
         name: XorName,
         tag: u64,
@@ -58,7 +58,7 @@ impl UnpublishedMutableData {
         permissions: BTreeMap<User, BTreeSet<Permission>>,
         owners: PublicKey,
     ) -> Self {
-        UnpublishedMutableData {
+        MutableData {
             name,
             tag,
             data,
@@ -85,7 +85,7 @@ impl UnpublishedMutableData {
     }
 }
 
-/// A value in `UnpublishedMutableData`
+/// A value in `MutableData`
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub struct Value {
     /// Actual data.
