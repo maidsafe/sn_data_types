@@ -9,8 +9,7 @@
 use crate::XorName;
 use std::collections::{BTreeMap, BTreeSet};
 use std::vec::Vec;
-// use threshold_crypto::PublicKey;
-use rust_sodium::crypto::sign::PublicKey;
+use threshold_crypto::PublicKey;
 
 /// Used to differentiate between conflict-free and conflict aware variants.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]

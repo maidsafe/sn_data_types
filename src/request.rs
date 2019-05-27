@@ -6,14 +6,19 @@
 // KIND, either express or implied. Please review the Licences for the specific language governing
 // permissions and limitations relating to use of the SAFE Network Software.
 
+use crate::immutable_data::UnpubImmutableData;
 use crate::mutable_data::{MutableData, MutableDataRef};
-// use threshold_crypto::PublicKey;
 use crate::MessageId;
-use rust_sodium::crypto::sign::PublicKey;
+use crate::XorName;
+use threshold_crypto::PublicKey;
 
 /// RPC Request that is sent to vaults
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub enum Request {
+    GetUnpubIData(XorName),
+    PutUnpubIData(UnpubImmutableData),
+    DeleteUnpubIData(XorName),
+
     GetUnseqMData {
         // Address of the mutable data to be fetched
         address: MutableDataRef,
