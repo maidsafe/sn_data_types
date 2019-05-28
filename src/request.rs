@@ -15,6 +15,7 @@ use crate::XorName;
 use threshold_crypto::PublicKey;
 
 /// RPC Request that is sent to vaults
+#[allow(clippy::large_enum_variant)]
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub enum Request {
     GetUnpubIData(XorName),
