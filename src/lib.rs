@@ -56,6 +56,7 @@
 // FIXME - write docs
 #![allow(missing_docs)]
 
+pub mod appendable_data;
 pub mod errors;
 pub mod immutable_data;
 pub mod mutable_data;

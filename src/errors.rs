@@ -9,11 +9,11 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use std::error::Error;
+use std::error::Error as StdError;
 use std::fmt::{self, Display, Formatter};
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
-pub enum DataError {
+pub enum Error {
     /// Access is denied for a given requester
     AccessDenied,
     /// /// SAFE Account does not exist for client
@@ -37,6 +37,12 @@ pub enum DataError {
     /// Invalid version for performing a given mutating operation. Contains the
     /// current data version.
     InvalidSuccessor(u64),
+    /// Invalid version for performing a given mutating operation. Contains the
+    /// current owners version.
+    InvalidOwnersSuccessor(u64),
+    /// Invalid version for performing a given mutating operation. Contains the
+    /// current permissions version.
+    InvalidPermissionsSuccessor(u64),
     /// Invalid Operation such as a POST on ImmutableData
     InvalidOperation,
     /// Network error occurring at Vault level which has no bearing on clients, e.g. serialisation
@@ -44,52 +50,62 @@ pub enum DataError {
     NetworkOther(String),
 }
 
-impl<T: Into<String>> From<T> for DataError {
+impl<T: Into<String>> From<T> for Error {
     fn from(err: T) -> Self {
-        DataError::NetworkOther(err.into())
+        Error::NetworkOther(err.into())
     }
 }
 
-impl Display for DataError {
+impl Display for Error {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
-            DataError::AccessDenied => write!(f, "Access denied"),
-            DataError::NoSuchAccount => write!(f, "Account does not exist for client"),
-            DataError::AccountExists => write!(f, "Account already exists for client"),
-            DataError::NoSuchData => write!(f, "Requested data not found"),
-            DataError::DataExists => write!(f, "Data given already exists"),
-            DataError::NoSuchEntry => write!(f, "Requested entry not found"),
-            DataError::TooManyEntries => write!(f, "Exceeded a limit on a number of entries"),
-            DataError::InvalidEntryActions(ref errors) => {
+            Error::AccessDenied => write!(f, "Access denied"),
+            Error::NoSuchAccount => write!(f, "Account does not exist for client"),
+            Error::AccountExists => write!(f, "Account already exists for client"),
+            Error::NoSuchData => write!(f, "Requested data not found"),
+            Error::DataExists => write!(f, "Data given already exists"),
+            Error::NoSuchEntry => write!(f, "Requested entry not found"),
+            Error::TooManyEntries => write!(f, "Exceeded a limit on a number of entries"),
+            Error::InvalidEntryActions(ref errors) => {
                 write!(f, "Entry actions are invalid: {:?}", errors)
             }
-            DataError::NoSuchKey => write!(f, "Key does not exists"),
-            DataError::InvalidOwners => write!(f, "The list of owner keys is invalid"),
-            DataError::InvalidOperation => write!(f, "Requested operation is not allowed"),
-            DataError::InvalidSuccessor(_) => {
+            Error::NoSuchKey => write!(f, "Key does not exists"),
+            Error::InvalidOwners => write!(f, "The list of owner keys is invalid"),
+            Error::InvalidOperation => write!(f, "Requested operation is not allowed"),
+            Error::InvalidSuccessor(_) => {
                 write!(f, "Data given is not a valid successor of stored data")
             }
-            DataError::NetworkOther(ref error) => write!(f, "Error on Vault network: {}", error),
+            Error::InvalidOwnersSuccessor(_) => {
+                // TODO
+                write!(f, "Data given is not a valid successor of stored data")
+            }
+            Error::InvalidPermissionsSuccessor(_) => {
+                // TODO
+                write!(f, "Data given is not a valid successor of stored data")
+            }
+            Error::NetworkOther(ref error) => write!(f, "Error on Vault network: {}", error),
         }
     }
 }
 
-impl Error for DataError {
+impl StdError for Error {
     fn description(&self) -> &str {
         match *self {
-            DataError::AccessDenied => "Access denied",
-            DataError::NoSuchAccount => "No such account",
-            DataError::AccountExists => "Account exists",
-            DataError::NoSuchData => "No such data",
-            DataError::DataExists => "Data exists",
-            DataError::NoSuchEntry => "No such entry",
-            DataError::TooManyEntries => "Too many entries",
-            DataError::InvalidEntryActions(_) => "Invalid entry actions",
-            DataError::NoSuchKey => "No such key",
-            DataError::InvalidOwners => "Invalid owners",
-            DataError::InvalidSuccessor(_) => "Invalid data successor",
-            DataError::InvalidOperation => "Invalid operation",
-            DataError::NetworkOther(ref error) => error,
+            Error::AccessDenied => "Access denied",
+            Error::NoSuchAccount => "No such account",
+            Error::AccountExists => "Account exists",
+            Error::NoSuchData => "No such data",
+            Error::DataExists => "Data exists",
+            Error::NoSuchEntry => "No such entry",
+            Error::TooManyEntries => "Too many entries",
+            Error::InvalidEntryActions(_) => "Invalid entry actions",
+            Error::NoSuchKey => "No such key",
+            Error::InvalidOwners => "Invalid owners",
+            Error::InvalidSuccessor(_) => "Invalid data successor",
+            Error::InvalidOwnersSuccessor(_) => "Invalid owners successor",
+            Error::InvalidPermissionsSuccessor(_) => "Invalid permissions successor",
+            Error::InvalidOperation => "Invalid operation",
+            Error::NetworkOther(ref error) => error,
         }
     }
 }
