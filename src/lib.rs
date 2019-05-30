@@ -11,6 +11,7 @@
 #[macro_use]
 extern crate serde_derive;
 
+pub mod errors;
 pub mod immutable_data;
 pub mod mutable_data;
 pub mod request;
