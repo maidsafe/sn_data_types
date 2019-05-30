@@ -16,6 +16,8 @@ pub mod mutable_data;
 pub mod request;
 pub mod response;
 
+pub use immutable_data::{ImmutableData, UnpubImmutableData, MAX_IMMUTABLE_DATA_SIZE_IN_BYTES};
+
 /// Constant byte length of `XorName`.
 pub const XOR_NAME_LEN: usize = 32;
 
@@ -29,6 +31,19 @@ pub const XOR_NAME_LEN: usize = 32;
 ///
 /// [1]: https://en.wikipedia.org/wiki/Kademlia#System_details
 pub type XorName = [u8; XOR_NAME_LEN];
+
+// impl XorName {
+//     /// Private function exposed in fmt Debug {:?} and Display {} traits.
+//     fn get_debug_id(&self) -> String {
+//         format!("{:02x}{:02x}{:02x}..", self.0[0], self.0[1], self.0[2])
+//     }
+// }
+
+// impl fmt::Debug for XorName {
+//     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+//         write!(formatter, "{}", self.get_debug_id())
+//     }
+// }
 
 /// Unique ID for messages
 ///

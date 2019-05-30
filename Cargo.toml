@@ -10,8 +10,14 @@ authors = ["MaidSafe Developers <dev@maidsafe.net>"]
 edition = "2018"
 
 [dependencies]
-threshold_crypto = "~0.3.1"
+maidsafe_utilities = "~0.18.0"
+rust_sodium = "~0.10.2"
 serde = "~1.0.37"
 serde_derive = "~1.0.27"
-rust_sodium = "~0.10.2"
+threshold_crypto = "~0.3.1"
 tiny-keccak = "~1.4.2"
+
+[dev-dependencies]
+hex = "~0.3.1"
+rand = "~0.4.2"
+unwrap = "~1.2.0"
