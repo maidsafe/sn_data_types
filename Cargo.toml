@@ -15,7 +15,7 @@ rust_sodium = "~0.10.2"
 serde = "~1.0.37"
 serde_derive = "~1.0.27"
 threshold_crypto = "~0.3.1"
-rand = "~0.4.2"
+routing = { git = "https://github.com/lionel1704/routing", branch = "patch" }
 tiny-keccak = "~1.4.2"
 
 [dev-dependencies]

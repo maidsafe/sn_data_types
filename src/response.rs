@@ -9,8 +9,9 @@
 // of the SAFE Network Software.
 
 use crate::immutable_data::UnpubImmutableData;
-use crate::mutable_data::UnsequencedMutableData;
+use crate::mutable_data::{SequencedMutableData, UnsequencedMutableData};
 use crate::MessageId;
+use routing::ClientError;
 
 /// RPC responses from vaults.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
@@ -27,4 +28,29 @@ pub enum Response<ErrorType> {
         res: Result<(), ErrorType>,
         msg_id: MessageId,
     },
+    GetSeqMData {
+        res: Result<SequencedMutableData, ErrorType>,
+        msg_id: MessageId,
+    },
+    PutSeqMData {
+        res: Result<(), ErrorType>,
+        msg_id: MessageId,
+    },
+}
+
+use std::fmt;
+
+impl fmt::Debug for Response<ClientError> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let printable = match *self {
+            Response::GetUnpubIData { .. } => "Response::GetUnpubIData",
+            Response::PutUnpubIData { .. } => "Response::PutUnpubIData",
+            Response::DeleteUnpubIData { .. } => "Response::DeleteUnpubIData",
+            Response::GetUnseqMData { .. } => "Response::GetUnseqMData",
+            Response::PutUnseqMData { .. } => "Response::PutUnseqMData",
+            Response::GetSeqMData { .. } => "Response::GetSeqMData",
+            Response::PutSeqMData { .. } => "Response::PutSeqMData",
+        };
+        write!(f, "{}", printable)
+    }
 }
