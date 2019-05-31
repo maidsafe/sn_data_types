@@ -8,8 +8,10 @@
 // specific language governing permissions and limitations relating to use
 // of the SAFE Network Software.
 
+use crate::errors::{DataError, EntryError};
 use crate::XorName;
-use rand::{Rand, Rng};
+// use rand::{Rand, Rng};
+use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, BTreeSet};
 use std::mem;
 use std::vec::Vec;
@@ -26,7 +28,7 @@ pub struct SequencedMutableData {
     /// Key-Value semantics.
     data: BTreeMap<Vec<u8>, Value>,
     /// Maps an application key to a list of allowed or forbidden actions.
-    permissions: BTreeMap<User, PermissionSet>,
+    permissions: BTreeMap<PublicKey, PermissionSet>,
     /// Version should be increased for any changes to MutableData fields except for data.
     version: u64,
     /// Contains a set of owners of this data. DataManagers enforce that a mutation request is
@@ -54,7 +56,7 @@ pub struct UnsequencedMutableData {
     /// Key-Value semantics.
     data: BTreeMap<Vec<u8>, Vec<u8>>,
     /// Maps an application key to a list of allowed or forbidden actions.
-    permissions: BTreeMap<User, PermissionSet>,
+    permissions: BTreeMap<PublicKey, PermissionSet>,
     /// Version should be increased for any changes to MutableData fields except for data.
     version: u64,
     /// Contains a set of owners of this data. DataManagers enforce that a mutation request is
@@ -64,84 +66,52 @@ pub struct UnsequencedMutableData {
 }
 
 /// Set of user permissions.
-#[derive(
-    Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Default,
-)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Default)]
 pub struct PermissionSet {
-    insert: Option<bool>,
-    update: Option<bool>,
-    delete: Option<bool>,
-    manage_permissions: Option<bool>,
+    permissions: BTreeSet<Action>,
 }
 
 impl PermissionSet {
     /// Construct new permission set.
     pub fn new() -> PermissionSet {
         PermissionSet {
-            insert: None,
-            update: None,
-            delete: None,
-            manage_permissions: None,
+            permissions: Default::default(),
         }
     }
 
     /// Allow the given action.
     pub fn allow(mut self, action: Action) -> Self {
-        match action {
-            Action::Insert => self.insert = Some(true),
-            Action::Update => self.update = Some(true),
-            Action::Delete => self.delete = Some(true),
-            Action::ManagePermissions => self.manage_permissions = Some(true),
-        }
+        self.permissions.insert(action);
         self
     }
 
     /// Deny the given action.
     pub fn deny(mut self, action: Action) -> Self {
-        match action {
-            Action::Insert => self.insert = Some(false),
-            Action::Update => self.update = Some(false),
-            Action::Delete => self.delete = Some(false),
-            Action::ManagePermissions => self.manage_permissions = Some(false),
-        }
-        self
-    }
-
-    /// Clear the permission for the given action.
-    pub fn clear(mut self, action: Action) -> Self {
-        match action {
-            Action::Insert => self.insert = None,
-            Action::Update => self.update = None,
-            Action::Delete => self.delete = None,
-            Action::ManagePermissions => self.manage_permissions = None,
-        }
+        self.permissions.remove(&action);
         self
     }
 
     /// Is the given action allowed according to this permission set?
-    pub fn is_allowed(self, action: &Action) -> Option<bool> {
-        match action {
-            Action::Insert => self.insert,
-            Action::Update => self.update,
-            Action::Delete => self.delete,
-            Action::ManagePermissions => self.manage_permissions,
-        }
+    pub fn is_allowed(self, action: &Action) -> bool {
+        self.permissions.contains(action)
     }
 }
 
-impl Rand for PermissionSet {
-    fn rand<R: Rng>(rng: &mut R) -> PermissionSet {
-        PermissionSet {
-            insert: Rand::rand(rng),
-            update: Rand::rand(rng),
-            delete: Rand::rand(rng),
-            manage_permissions: Rand::rand(rng),
-        }
-    }
-}
+// impl Rand for PermissionSet {
+//     fn rand<R: Rng>(rng: &mut R) -> PermissionSet {
+//         let permissions = PermissionSet::new();
+//         let mut rng = rand::thread_rng();
+//         permissions.insert(rng.gen());
+//         permissions.insert(rng.gen());
+//         permissions
+//     }
+// }
 
 /// Set of Actions that can be performed on the Data
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum Action {
+    /// Permission to read entries
+    Read,
     /// Permission to insert new entries.
     Insert,
     /// Permission to update existing entries.
@@ -192,18 +162,18 @@ impl UnsequencedMutableData {
     }
 
     /// Gets a complete list of permissions
-    pub fn permissions(&self) -> BTreeMap<User, PermissionSet> {
+    pub fn permissions(&self) -> BTreeMap<PublicKey, PermissionSet> {
         self.permissions.clone()
     }
 
-    pub fn user_permissions(&self, user: &User) -> Result<&PermissionSet, DataError> {
+    pub fn user_permissions(&self, user: &PublicKey) -> Result<&PermissionSet, DataError> {
         self.permissions.get(user).ok_or(DataError::NoSuchKey)
     }
 
     /// Insert or update permissions for the provided user.
     pub fn set_user_permissions(
         &mut self,
-        user: User,
+        user: PublicKey,
         permissions: PermissionSet,
         version: u64,
         requester: PublicKey,
@@ -222,7 +192,7 @@ impl UnsequencedMutableData {
     /// Delete permissions for the provided user.
     pub fn del_user_permissions(
         &mut self,
-        user: &User,
+        user: &PublicKey,
         version: u64,
         requester: PublicKey,
     ) -> Result<(), DataError> {
@@ -241,20 +211,17 @@ impl UnsequencedMutableData {
     }
 
     /// Delete user permissions without performing any validation.
-    pub fn del_user_permissions_without_validation(&mut self, user: &User, version: u64) -> bool {
+    pub fn del_user_permissions_without_validation(
+        &mut self,
+        user: &PublicKey,
+        version: u64,
+    ) -> bool {
         if version <= self.version {
             return false;
         }
         let _ = self.permissions.remove(user);
         self.version = version;
         true
-    }
-
-    pub fn check_anyone_permissions(&self, action: &Action) -> bool {
-        match self.permissions.get(&User::Anyone) {
-            None => false,
-            Some(perms) => perms.is_allowed(action).unwrap_or(false),
-        }
     }
 
     /// Change owner of the mutable data.
@@ -282,11 +249,9 @@ impl UnsequencedMutableData {
         if self.owners == requester {
             return true;
         }
-        match self.permissions.get(&User::Key(requester)) {
-            Some(perms) => perms
-                .is_allowed(&action)
-                .unwrap_or_else(|| self.check_anyone_permissions(&action)),
-            None => self.check_anyone_permissions(&action),
+        match self.permissions.get(&requester) {
+            Some(perms) => perms.clone().is_allowed(&action),
+            None => false,
         }
     }
 }
@@ -326,18 +291,18 @@ impl SequencedMutableData {
     }
 
     /// Gets a complete list of permissions
-    pub fn permissions(&self) -> BTreeMap<User, PermissionSet> {
+    pub fn permissions(&self) -> BTreeMap<PublicKey, PermissionSet> {
         self.permissions.clone()
     }
 
-    pub fn user_permissions(&self, user: &User) -> Result<&PermissionSet, DataError> {
+    pub fn user_permissions(&self, user: &PublicKey) -> Result<&PermissionSet, DataError> {
         self.permissions.get(user).ok_or(DataError::NoSuchKey)
     }
 
     /// Insert or update permissions for the provided user.
     pub fn set_user_permissions(
         &mut self,
-        user: User,
+        user: PublicKey,
         permissions: PermissionSet,
         version: u64,
         requester: PublicKey,
@@ -356,7 +321,7 @@ impl SequencedMutableData {
     /// Delete permissions for the provided user.
     pub fn del_user_permissions(
         &mut self,
-        user: &User,
+        user: &PublicKey,
         version: u64,
         requester: PublicKey,
     ) -> Result<(), DataError> {
@@ -375,20 +340,17 @@ impl SequencedMutableData {
     }
 
     /// Delete user permissions without performing any validation.
-    pub fn del_user_permissions_without_validation(&mut self, user: &User, version: u64) -> bool {
+    pub fn del_user_permissions_without_validation(
+        &mut self,
+        user: &PublicKey,
+        version: u64,
+    ) -> bool {
         if version <= self.version {
             return false;
         }
         let _ = self.permissions.remove(user);
         self.version = version;
         true
-    }
-
-    pub fn check_anyone_permissions(&self, action: Action) -> bool {
-        match self.permissions.get(&User::Anyone) {
-            None => false,
-            Some(perms) => perms.is_allowed(&action).unwrap_or(false),
-        }
     }
 
     /// Change owner of the mutable data.
@@ -416,22 +378,11 @@ impl SequencedMutableData {
         if self.owners == requester {
             return true;
         }
-        match self.permissions.get(&User::Key(requester)) {
-            Some(perms) => perms
-                .is_allowed(&action)
-                .unwrap_or_else(|| self.check_anyone_permissions(action)),
-            None => self.check_anyone_permissions(action),
+        match self.permissions.get(&requester) {
+            Some(perms) => perms.clone().is_allowed(&action),
+            None => false,
         }
     }
-}
-
-/// Subject of permissions
-#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
-pub enum User {
-    /// Permissions apply to anyone.
-    Anyone,
-    /// Permissions apply to a single public key.
-    Key(PublicKey),
 }
 
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
@@ -543,7 +494,7 @@ impl UnsequencedMutableData {
     pub fn new(
         name: XorName,
         tag: u64,
-        permissions: BTreeMap<User, PermissionSet>,
+        permissions: BTreeMap<PublicKey, PermissionSet>,
         data: BTreeMap<Vec<u8>, Vec<u8>>,
         owners: PublicKey,
     ) -> UnsequencedMutableData {
@@ -557,9 +508,9 @@ impl UnsequencedMutableData {
         }
     }
 
-    /// Returns a value by the given key
+    /// Returns a value for the given key
     pub fn get(&self, requester: PublicKey, key: &[u8]) -> Result<Option<&Vec<u8>>, DataError> {
-        if self.owners == requester {
+        if self.is_action_allowed(requester, Action::Read) {
             Ok(self.data.get(key))
         } else {
             Err(DataError::AccessDenied)
@@ -568,7 +519,7 @@ impl UnsequencedMutableData {
 
     /// Returns values of all entries
     pub fn values(&self, requester: PublicKey) -> Result<Vec<&Vec<u8>>, DataError> {
-        if self.owners == requester {
+        if self.is_action_allowed(requester, Action::Read) {
             Ok(self.data.values().collect())
         } else {
             Err(DataError::AccessDenied)
@@ -577,7 +528,7 @@ impl UnsequencedMutableData {
 
     /// Returns all entries
     pub fn entries(&self, requester: PublicKey) -> Result<&BTreeMap<Vec<u8>, Vec<u8>>, DataError> {
-        if self.owners == requester {
+        if self.is_action_allowed(requester, Action::Read) {
             Ok(&self.data)
         } else {
             Err(DataError::AccessDenied)
@@ -589,7 +540,9 @@ impl UnsequencedMutableData {
         &mut self,
         requester: PublicKey,
     ) -> Result<BTreeMap<Vec<u8>, Vec<u8>>, DataError> {
-        if self.owners == requester {
+        if self.is_action_allowed(requester, Action::Read)
+            && self.is_action_allowed(requester, Action::Delete)
+        {
             Ok(mem::replace(&mut self.data, BTreeMap::new()))
         } else {
             Err(DataError::AccessDenied)
@@ -599,24 +552,28 @@ impl UnsequencedMutableData {
     pub fn mutate_entries(
         &mut self,
         actions: BTreeMap<Vec<u8>, EntryAction>,
-        requester: PublicKey
-    ) -> Result<(), DataError>{
+        requester: PublicKey,
+    ) -> Result<(), DataError> {
         let (insert, update, delete) = actions.into_iter().fold(
-            (BTreeMap::<Vec<u8>,Vec<u8>>::new(),BTreeMap::<Vec<u8>,Vec<u8>>::new(),BTreeMap::<Vec<u8>,u64>::new()),
+            (
+                BTreeMap::<Vec<u8>, Vec<u8>>::new(),
+                BTreeMap::<Vec<u8>, Vec<u8>>::new(),
+                BTreeMap::<Vec<u8>, u64>::new(),
+            ),
             |(mut insert, mut update, mut delete), (key, item)| {
                 match item {
                     EntryAction::InsUnseq(value) => {
                         let _ = insert.insert(key, value);
-                    },
+                    }
                     EntryAction::UpdateUnseq(value) => {
                         let _ = update.insert(key, value);
-                    },
+                    }
                     EntryAction::DelUnseq => {
-                        delete.insert(key,0 as u64);
-                    },
+                        delete.insert(key, 0 as u64);
+                    }
                     _ => {}
                 };
-                (insert,update,delete)
+                (insert, update, delete)
             },
         );
 
@@ -633,11 +590,8 @@ impl UnsequencedMutableData {
         for (key, val) in insert {
             match new_data.entry(key) {
                 Entry::Occupied(entry) => {
-                    let _ = errors.insert(
-                        entry.key().clone(),
-                        EntryError::EntryExists(0),
-                    );
-                },
+                    let _ = errors.insert(entry.key().clone(), EntryError::EntryExists(0));
+                }
                 Entry::Vacant(entry) => {
                     let _ = entry.insert(val);
                 }
@@ -648,7 +602,7 @@ impl UnsequencedMutableData {
             match new_data.entry(key) {
                 Entry::Occupied(mut entry) => {
                     let _ = entry.insert(val);
-                },
+                }
                 Entry::Vacant(entry) => {
                     let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
                 }
@@ -656,13 +610,10 @@ impl UnsequencedMutableData {
         }
 
         for (key, _version) in delete {
-            // TODO(nbaksalyar): find a way to decrease a number of entries after deletion.
-            // In the current implementation if a number of entries exceeds the limit
-            // there's no way for an owner to delete unneeded entries.
-            match new_data.entry(key) {
-                Entry::Occupied(mut entry) => {
-                    let _ = entry.insert(Vec::new());
-                },
+            match new_data.entry(key.clone()) {
+                Entry::Occupied(_) => {
+                    let _ = new_data.remove(&key);
+                }
                 Entry::Vacant(entry) => {
                     let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
                 }
@@ -683,7 +634,7 @@ impl SequencedMutableData {
     pub fn new(
         name: XorName,
         tag: u64,
-        permissions: BTreeMap<User, PermissionSet>,
+        permissions: BTreeMap<PublicKey, PermissionSet>,
         data: BTreeMap<Vec<u8>, Value>,
         owners: PublicKey,
     ) -> SequencedMutableData {
@@ -755,7 +706,7 @@ impl SequencedMutableData {
                     }
                     EntryAction::DelSeq(version) => {
                         let _ = delete.insert(key, version);
-                    },
+                    }
                     _ => {}
                 };
                 (insert, update, delete)
@@ -806,17 +757,11 @@ impl SequencedMutableData {
         }
 
         for (key, version) in delete {
-            // TODO(nbaksalyar): find a way to decrease a number of entries after deletion.
-            // In the current implementation if a number of entries exceeds the limit
-            // there's no way for an owner to delete unneeded entries.
-            match new_data.entry(key) {
-                Entry::Occupied(mut entry) => {
+            match new_data.entry(key.clone()) {
+                Entry::Occupied(entry) => {
                     let current_version = entry.get().version;
                     if version == current_version + 1 {
-                        let _ = entry.insert(Value {
-                            data: Vec::new(),
-                            version,
-                        });
+                        let _ = new_data.remove(&key);
                     } else {
                         let _ = errors.insert(
                             entry.key().clone(),
