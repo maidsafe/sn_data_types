@@ -9,10 +9,10 @@
 // of the SAFE Network Software.
 
 use crate::immutable_data::UnpubImmutableData;
-use crate::mutable_data::{MutableDataRef, UnsequencedMutableData};
+use crate::mutable_data::{MutableDataRef, SequencedMutableData, UnsequencedMutableData};
 use crate::MessageId;
 use crate::XorName;
-use threshold_crypto::PublicKey;
+use rust_sodium::crypto::sign;
 
 /// RPC Request that is sent to vaults
 #[allow(clippy::large_enum_variant)]
@@ -25,7 +25,7 @@ pub enum Request {
     GetUnseqMData {
         // Address of the mutable data to be fetched
         address: MutableDataRef,
-        requester: PublicKey,
+        requester: threshold_crypto::PublicKey,
         // Unique message Identifier
         message_id: MessageId,
     },
@@ -33,8 +33,37 @@ pub enum Request {
         // Mutable Data to be stored
         data: UnsequencedMutableData,
         // Requester public key
-        requester: PublicKey,
+        requester: sign::PublicKey,
         // Unique message Identifier
         message_id: MessageId,
     },
+
+    GetSeqMData {
+        address: MutableDataRef,
+        requester: threshold_crypto::PublicKey,
+        message_id: MessageId,
+    },
+
+    PutSeqMData {
+        data: SequencedMutableData,
+        requester: sign::PublicKey,
+        message_id: MessageId,
+    },
+}
+
+use std::fmt;
+
+impl fmt::Debug for Request {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let printable = match *self {
+            Request::GetUnpubIData { .. } => "Request::GetUnpubIData",
+            Request::PutUnpubIData { .. } => "Request::PutUnpubIData",
+            Request::DeleteUnpubIData { .. } => "Request::DeleteUnpubIData",
+            Request::GetUnseqMData { .. } => "Request::GetUnseqMData",
+            Request::PutUnseqMData { .. } => "Request::PutUnseqMData",
+            Request::GetSeqMData { .. } => "Request::GetSeqMData",
+            Request::PutSeqMData { .. } => "Request::PutSeqMData",
+        };
+        write!(f, "{}", printable)
+    }
 }
