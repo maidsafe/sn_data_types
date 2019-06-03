@@ -16,9 +16,9 @@ use std::mem;
 use std::vec::Vec;
 use threshold_crypto::*;
 
-/// Mutable data that is unpublished on the network. This data can only be fetch be the owners / those in the permissions fields with `Permission::Read` access.
+/// Mutable data that is unpublished on the network. This data can only be fetch by the owners / those in the permissions fields with `Permission::Read` access.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
-pub struct SequencedMutableData {
+pub struct SeqMutableData {
     /// Network address.
     name: XorName,
     /// Type tag.
@@ -43,9 +43,9 @@ pub struct Value {
     version: u64,
 }
 
-/// Mutable data that is unpublished on the network. This data can only be fetch be the owners / those in the permissions fields with `Permission::Read` access.
+/// Mutable data that is unpublished on the network. This data can only be fetch by the owners / those in the permissions fields with `Permission::Read` access.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
-pub struct UnsequencedMutableData {
+pub struct UnseqMutableData {
     /// Network address.
     name: XorName,
     /// Type tag.
@@ -109,15 +109,15 @@ pub enum Action {
 }
 
 /// Implements functions which are COMMON for both the mutable data
-impl UnsequencedMutableData {
+impl UnseqMutableData {
     pub fn new(
         name: XorName,
         tag: u64,
         permissions: BTreeMap<PublicKey, PermissionSet>,
         data: BTreeMap<Vec<u8>, Vec<u8>>,
         owners: PublicKey,
-    ) -> UnsequencedMutableData {
-        UnsequencedMutableData {
+    ) -> UnseqMutableData {
+        UnseqMutableData {
             name,
             tag,
             data,
@@ -170,27 +170,26 @@ impl UnsequencedMutableData {
 
     pub fn mutate_entries(
         &mut self,
-        actions: BTreeMap<Vec<u8>, EntryAction>,
+        actions: BTreeMap<Vec<u8>, UnseqEntryAction>,
         requester: PublicKey,
     ) -> Result<(), DataError> {
         let (insert, update, delete) = actions.into_iter().fold(
             (
                 BTreeMap::<Vec<u8>, Vec<u8>>::new(),
                 BTreeMap::<Vec<u8>, Vec<u8>>::new(),
-                BTreeMap::<Vec<u8>, u64>::new(),
+                BTreeSet::<Vec<u8>>::new(),
             ),
             |(mut insert, mut update, mut delete), (key, item)| {
                 match item {
-                    EntryAction::InsUnseq(value) => {
+                    UnseqEntryAction::Ins(value) => {
                         let _ = insert.insert(key, value);
                     }
-                    EntryAction::UpdateUnseq(value) => {
+                    UnseqEntryAction::Update(value) => {
                         let _ = update.insert(key, value);
                     }
-                    EntryAction::DelUnseq => {
-                        delete.insert(key, 0 as u64);
+                    UnseqEntryAction::Del => {
+                        delete.insert(key);
                     }
-                    _ => {}
                 };
                 (insert, update, delete)
             },
@@ -228,7 +227,7 @@ impl UnsequencedMutableData {
             }
         }
 
-        for (key, _version) in delete {
+        for key in delete {
             match new_data.entry(key.clone()) {
                 Entry::Occupied(_) => {
                     let _ = new_data.remove(&key);
@@ -260,7 +259,7 @@ impl UnsequencedMutableData {
 
     /// Returns the Shell of the data
     pub fn shell(&self) -> Self {
-        UnsequencedMutableData {
+        UnseqMutableData {
             name: self.name,
             tag: self.tag,
             data: BTreeMap::new(),
@@ -374,14 +373,14 @@ impl UnsequencedMutableData {
             return true;
         }
         match self.permissions.get(&requester) {
-            Some(perms) => perms.clone().is_allowed(action),
+            Some(perms) => perms.is_allowed(action),
             None => false,
         }
     }
 }
 
-/// Implements functions which are COMMON for both the mutable data
-impl SequencedMutableData {
+/// Implements functions for sequenced Mutable Data.
+impl SeqMutableData {
     pub fn new(
         name: XorName,
         tag: u64,
@@ -389,7 +388,7 @@ impl SequencedMutableData {
         data: BTreeMap<Vec<u8>, Value>,
         owners: PublicKey,
     ) -> Self {
-        SequencedMutableData {
+        SeqMutableData {
             name,
             tag,
             data,
@@ -441,7 +440,7 @@ impl SequencedMutableData {
     /// Mutates entries (key + value pairs) in bulk
     pub fn mutate_entries(
         &mut self,
-        actions: BTreeMap<Vec<u8>, EntryAction>,
+        actions: BTreeMap<Vec<u8>, SeqEntryAction>,
         requester: PublicKey,
     ) -> Result<(), DataError> {
         // Deconstruct actions into inserts, updates, and deletes
@@ -449,16 +448,15 @@ impl SequencedMutableData {
             (BTreeMap::new(), BTreeMap::new(), BTreeMap::new()),
             |(mut insert, mut update, mut delete), (key, item)| {
                 match item {
-                    EntryAction::InsSeq(value) => {
+                    SeqEntryAction::Ins(value) => {
                         let _ = insert.insert(key, value);
                     }
-                    EntryAction::UpdateSeq(value) => {
+                    SeqEntryAction::Update(value) => {
                         let _ = update.insert(key, value);
                     }
-                    EntryAction::DelSeq(version) => {
+                    SeqEntryAction::Del(version) => {
                         let _ = delete.insert(key, version);
                     }
-                    _ => {}
                 };
                 (insert, update, delete)
             },
@@ -545,7 +543,7 @@ impl SequencedMutableData {
     }
     /// Returns the Shell of the data
     pub fn shell(&self) -> Self {
-        SequencedMutableData {
+        SeqMutableData {
             name: self.name,
             tag: self.tag,
             data: BTreeMap::new(),
@@ -685,38 +683,42 @@ impl MutableDataRef {
 }
 
 #[derive(Debug, Clone)]
-pub enum EntryAction {
+pub enum SeqEntryAction {
     /// Inserts a new Sequenced entry
-    InsSeq(Value),
-    /// Inserts a new Unsequenced entry
-    InsUnseq(Vec<u8>),
+    Ins(Value),
     /// Updates an entry with a new value and version
-    UpdateSeq(Value),
+    Update(Value),
+    /// Deletes an entry
+    Del(u64),
+}
+
+#[derive(Debug, Clone)]
+pub enum UnseqEntryAction {
+    /// Inserts a new Unsequenced entry
+    Ins(Vec<u8>),
     /// Updates an entry with a new value
-    UpdateUnseq(Vec<u8>),
-    /// Deletes an entry by emptying its contents. Contains the version number
-    DelSeq(u64),
-    /// Deletes an entry by emptying its value
-    DelUnseq,
+    Update(Vec<u8>),
+    /// Deletes an entry
+    Del,
 }
 
 /// Helper struct to build entry actions on `MutableData`
 #[derive(Debug, Default, Clone)]
-pub struct EntryActions {
-    actions: BTreeMap<Vec<u8>, EntryAction>,
+pub struct SeqEntryActions {
+    actions: BTreeMap<Vec<u8>, SeqEntryAction>,
 }
 
-impl EntryActions {
+impl SeqEntryActions {
     /// Create a helper to simplify construction of `MutableData` actions
     pub fn new() -> Self {
         Default::default()
     }
 
     /// Insert a new key-value pair
-    pub fn ins_seq(mut self, key: Vec<u8>, content: Vec<u8>, version: u64) -> Self {
+    pub fn ins(mut self, key: Vec<u8>, content: Vec<u8>, version: u64) -> Self {
         let _ = self.actions.insert(
             key,
-            EntryAction::InsSeq(Value {
+            SeqEntryAction::Ins(Value {
                 data: content,
                 version,
             }),
@@ -724,17 +726,11 @@ impl EntryActions {
         self
     }
 
-    /// Insert a new key-value pair
-    pub fn ins_unseq(mut self, key: Vec<u8>, content: Vec<u8>) -> Self {
-        let _ = self.actions.insert(key, EntryAction::InsUnseq(content));
-        self
-    }
-
-    /// Update existing key-value pair
-    pub fn update_seq(mut self, key: Vec<u8>, content: Vec<u8>, version: u64) -> Self {
+    /// Update an existing key-value pair
+    pub fn update(mut self, key: Vec<u8>, content: Vec<u8>, version: u64) -> Self {
         let _ = self.actions.insert(
             key,
-            EntryAction::UpdateSeq(Value {
+            SeqEntryAction::Update(Value {
                 data: content,
                 version,
             }),
@@ -742,27 +738,46 @@ impl EntryActions {
         self
     }
 
-    /// Update existing key-value pair
-    pub fn update_unseq(mut self, key: Vec<u8>, content: Vec<u8>) -> Self {
-        let _ = self.actions.insert(key, EntryAction::UpdateUnseq(content));
-        self
-    }
-
-    /// Delete existing key
-    pub fn del_seq(mut self, key: Vec<u8>, version: u64) -> Self {
-        let _ = self.actions.insert(key, EntryAction::DelSeq(version));
-        self
-    }
-
-    /// Delete existing key
-    pub fn del_unseq(mut self, key: Vec<u8>) -> Self {
-        let _ = self.actions.insert(key, EntryAction::DelUnseq);
+    /// Delete an entry
+    pub fn del(mut self, key: Vec<u8>, version: u64) -> Self {
+        let _ = self.actions.insert(key, SeqEntryAction::Del(version));
         self
     }
 }
 
-impl Into<BTreeMap<Vec<u8>, EntryAction>> for EntryActions {
-    fn into(self) -> BTreeMap<Vec<u8>, EntryAction> {
+impl Into<BTreeMap<Vec<u8>, SeqEntryAction>> for SeqEntryActions {
+    fn into(self) -> BTreeMap<Vec<u8>, SeqEntryAction> {
+        self.actions
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct UnseqEntryActions {
+    actions: BTreeMap<Vec<u8>, UnseqEntryAction>,
+}
+
+impl UnseqEntryActions {
+    /// Insert a new key-value pair
+    pub fn ins(mut self, key: Vec<u8>, content: Vec<u8>) -> Self {
+        let _ = self.actions.insert(key, UnseqEntryAction::Ins(content));
+        self
+    }
+
+    /// Update existing key-value pair
+    pub fn update(mut self, key: Vec<u8>, content: Vec<u8>) -> Self {
+        let _ = self.actions.insert(key, UnseqEntryAction::Update(content));
+        self
+    }
+
+    /// Delete existing key
+    pub fn del(mut self, key: Vec<u8>) -> Self {
+        let _ = self.actions.insert(key, UnseqEntryAction::Del);
+        self
+    }
+}
+
+impl Into<BTreeMap<Vec<u8>, UnseqEntryAction>> for UnseqEntryActions {
+    fn into(self) -> BTreeMap<Vec<u8>, UnseqEntryAction> {
         self.actions
     }
 }

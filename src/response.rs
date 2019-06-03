@@ -9,7 +9,7 @@
 // of the SAFE Network Software.
 
 use crate::immutable_data::UnpubImmutableData;
-use crate::mutable_data::{SequencedMutableData, UnsequencedMutableData};
+use crate::mutable_data::{SeqMutableData, UnseqMutableData};
 use crate::MessageId;
 use routing::ClientError;
 
@@ -21,7 +21,7 @@ pub enum Response<ErrorType> {
     DeleteUnpubIData(Result<(), ErrorType>),
 
     GetUnseqMData {
-        res: Result<UnsequencedMutableData, ErrorType>,
+        res: Result<UnseqMutableData, ErrorType>,
         msg_id: MessageId,
     },
     PutUnseqMData {
@@ -29,7 +29,7 @@ pub enum Response<ErrorType> {
         msg_id: MessageId,
     },
     GetSeqMData {
-        res: Result<SequencedMutableData, ErrorType>,
+        res: Result<SeqMutableData, ErrorType>,
         msg_id: MessageId,
     },
     PutSeqMData {

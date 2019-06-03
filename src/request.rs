@@ -9,7 +9,7 @@
 // of the SAFE Network Software.
 
 use crate::immutable_data::UnpubImmutableData;
-use crate::mutable_data::{MutableDataRef, SequencedMutableData, UnsequencedMutableData};
+use crate::mutable_data::{MutableDataRef, SeqMutableData, UnseqMutableData};
 use crate::MessageId;
 use crate::XorName;
 use rust_sodium::crypto::sign;
@@ -31,7 +31,7 @@ pub enum Request {
     },
     PutUnseqMData {
         // Mutable Data to be stored
-        data: UnsequencedMutableData,
+        data: UnseqMutableData,
         // Requester public key
         requester: sign::PublicKey,
         // Unique message Identifier
@@ -45,7 +45,7 @@ pub enum Request {
     },
 
     PutSeqMData {
-        data: SequencedMutableData,
+        data: SeqMutableData,
         requester: sign::PublicKey,
         message_id: MessageId,
     },
