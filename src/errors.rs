@@ -45,6 +45,10 @@ pub enum Error {
     InvalidPermissionsSuccessor(u64),
     /// Invalid Operation such as a POST on ImmutableData
     InvalidOperation,
+    /// Mismatch between key type and signature type.
+    SigningKeyTypeMismatch,
+    /// Failed signature validation.
+    InvalidSignature,
     /// Network error occurring at Vault level which has no bearing on clients, e.g. serialisation
     /// failure or database failure
     NetworkOther(String),
@@ -83,6 +87,10 @@ impl Display for Error {
                 // TODO
                 write!(f, "Data given is not a valid successor of stored data")
             }
+            Error::SigningKeyTypeMismatch => {
+                write!(f, "Mismatch between key type and signature type")
+            }
+            Error::InvalidSignature => write!(f, "Failed signature validation"),
             Error::NetworkOther(ref error) => write!(f, "Error on Vault network: {}", error),
         }
     }
@@ -105,6 +113,8 @@ impl error::Error for Error {
             Error::InvalidOwnersSuccessor(_) => "Invalid owners successor",
             Error::InvalidPermissionsSuccessor(_) => "Invalid permissions successor",
             Error::InvalidOperation => "Invalid operation",
+            Error::SigningKeyTypeMismatch => "Key type and signature type mismatch",
+            Error::InvalidSignature => "Invalid signature",
             Error::NetworkOther(ref error) => error,
         }
     }
