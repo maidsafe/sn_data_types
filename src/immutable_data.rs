@@ -8,11 +8,12 @@
 // Software.
 
 use crate::{XorName, XOR_NAME_LEN};
-use maidsafe_utilities::serialisation;
+use bincode::serialize;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{self, Debug, Formatter};
 use threshold_crypto::{PublicKey, PK_SIZE};
 use tiny_keccak;
+use unwrap::unwrap;
 
 /// Maximum allowed size for a serialised Immutable Data (ID) to grow to
 pub const MAX_IMMUTABLE_DATA_SIZE_IN_BYTES: u64 = 1024 * 1024 + 10 * 1024;
@@ -73,7 +74,7 @@ impl ImmutableData {
 
     /// Returns size of this data after serialisation.
     pub fn serialised_size(&self) -> u64 {
-        serialisation::serialised_size(self)
+        unwrap!(serialize(self)).len() as u64
     }
 
     /// Return true if the size is valid
@@ -104,9 +105,11 @@ impl Debug for ImmutableData {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bincode::{deserialize as deserialise, serialize as serialise};
     use hex::encode;
-    use maidsafe_utilities::{serialisation, SeededRng};
-    use rand::Rng;
+    use rand::{self, Rng, SeedableRng};
+    use rand_xorshift::XorShiftRng;
+    use std::{env, iter, thread};
     use threshold_crypto::SecretKey;
     use unwrap::unwrap;
 
@@ -152,12 +155,33 @@ mod tests {
 
     #[test]
     fn serialisation() {
-        let mut rng = SeededRng::thread_rng();
+        let mut rng = get_rng();
         let len = rng.gen_range(1, 10_000);
-        let value = rng.gen_iter().take(len).collect();
+        let value = iter::repeat_with(|| rng.gen()).take(len).collect();
         let immutable_data = ImmutableData::new(value);
-        let serialised = unwrap!(serialisation::serialise(&immutable_data));
-        let parsed = unwrap!(serialisation::deserialise(&serialised));
+        let serialised = unwrap!(serialise(&immutable_data));
+        let parsed = unwrap!(deserialise(&serialised));
         assert_eq!(immutable_data, parsed);
+    }
+
+    fn get_rng() -> XorShiftRng {
+        let env_var_name = "RANDOM_SEED";
+        let seed = env::var(env_var_name)
+            .ok()
+            .map(|value| {
+                unwrap!(
+                    value.parse::<u64>(),
+                    "Env var 'RANDOM_SEED={}' is not a valid u64.",
+                    value
+                )
+            })
+            .unwrap_or_else(rand::random);
+        println!(
+            "To replay this '{}', set env var {}={}",
+            unwrap!(thread::current().name()),
+            env_var_name,
+            seed
+        );
+        XorShiftRng::seed_from_u64(seed)
     }
 }
