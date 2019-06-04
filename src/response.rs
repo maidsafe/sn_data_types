@@ -19,7 +19,6 @@ pub enum Response<ErrorType> {
     GetUnpubIData(Result<UnpubImmutableData, ErrorType>),
     PutUnpubIData(Result<(), ErrorType>),
     DeleteUnpubIData(Result<(), ErrorType>),
-
     GetUnseqMData {
         res: Result<UnseqMutableData, ErrorType>,
         msg_id: MessageId,
@@ -68,6 +67,10 @@ pub enum Response<ErrorType> {
         res: Result<Vec<Vec<u8>>, ErrorType>,
         msg_id: MessageId,
     },
+    DeleteMData {
+        res: Result<(), ErrorType>,
+        msg_id: MessageId,
+    },
 }
 
 use std::fmt;
@@ -78,12 +81,13 @@ impl<T> fmt::Debug for Response<T> {
             Response::GetUnpubIData { .. } => "Response::GetUnpubIData",
             Response::PutUnpubIData { .. } => "Response::PutUnpubIData",
             Response::DeleteUnpubIData { .. } => "Response::DeleteUnpubIData",
+            Response::DeleteMData { .. } => "Response::DeleteMData",
             Response::GetUnseqMData { .. } => "Response::GetUnseqMData",
             Response::PutUnseqMData { .. } => "Response::PutUnseqMData",
             Response::GetSeqMData { .. } => "Response::GetSeqMData",
             Response::PutSeqMData { .. } => "Response::PutSeqMData",
             Response::GetSeqMDataShell { .. } => "Response::GetMDataShell",
-            Response::GetUnSeqMDataShell { .. } => "Response::GetMDataShell",
+            Response::GetUnseqMDataShell { .. } => "Response::GetMDataShell",
             Response::GetMDataVersion { .. } => "Response::GetMDataVersion",
             Response::ListUnseqMDataEntries { .. } => "Response::ListUnseqMDataEntries",
             Response::ListSeqMDataEntries { .. } => "Response::ListSeqMDataEntries",
