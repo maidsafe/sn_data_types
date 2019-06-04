@@ -99,7 +99,7 @@ pub type XorName = [u8; XOR_NAME_LEN];
 /// routes, the same message will usually arrive more than once at any given node. A message with
 /// an ID that is already in the cache will be ignored.
 #[derive(Ord, PartialOrd, Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize, Hash)]
-pub struct MessageId(XorName);
+pub struct MessageId(pub XorName);
 
 // Impl this in SAFE Client Libs if we still need old routing Message IDs:
 //
