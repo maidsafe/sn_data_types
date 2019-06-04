@@ -10,14 +10,14 @@ authors = ["MaidSafe Developers <dev@maidsafe.net>"]
 edition = "2018"
 
 [dependencies]
-maidsafe_utilities = "~0.18.0"
-routing = { git = "https://github.com/lionel1704/routing", branch = "patch" }
 rust_sodium = "~0.10.2"
 serde = { version = "~1.0.92", features = ["derive"] }
 threshold_crypto = "~0.3.1"
 tiny-keccak = "~1.4.2"
+bincode = "~1.1.4"
+unwrap = "~1.2.1"
 
 [dev-dependencies]
 hex = "~0.3.2"
-rand = "~0.4.2"
-unwrap = "~1.2.1"
+rand = "~0.6.5"
+rand_xorshift = "~0.1.1"

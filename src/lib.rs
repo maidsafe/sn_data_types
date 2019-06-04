@@ -63,7 +63,6 @@ pub mod request;
 pub mod response;
 
 pub use immutable_data::{ImmutableData, UnpubImmutableData, MAX_IMMUTABLE_DATA_SIZE_IN_BYTES};
-use routing::MessageId as OldMessageId;
 use serde::{Deserialize, Serialize};
 
 /// Constant byte length of `XorName`.
@@ -101,16 +100,17 @@ pub type XorName = [u8; XOR_NAME_LEN];
 #[derive(Ord, PartialOrd, Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize, Hash)]
 pub struct MessageId(XorName);
 
-impl From<OldMessageId> for MessageId {
-    fn from(old_msg_id: OldMessageId) -> Self {
-        MessageId {
-            0: (old_msg_id.0).0,
-        }
-    }
-}
-
-impl Into<OldMessageId> for MessageId {
-    fn into(self) -> OldMessageId {
-        OldMessageId::from_name_array(self.0)
-    }
-}
+// Impl this in SAFE Client Libs if we still need old routing Message IDs:
+//
+// impl From<OldMessageId> for MessageId {
+//     fn from(old_msg_id: OldMessageId) -> Self {
+//         MessageId {
+//             0: (old_msg_id.0).0,
+//         }
+//     }
+// }
+// impl Into<OldMessageId> for MessageId {
+//     fn into(self) -> OldMessageId {
+//         OldMessageId::from_name_array(self.0)
+//     }
+// }

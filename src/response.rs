@@ -10,7 +10,6 @@
 use crate::immutable_data::UnpubImmutableData;
 use crate::mutable_data::{SeqMutableData, UnseqMutableData};
 use crate::MessageId;
-use routing::ClientError;
 use serde::{Deserialize, Serialize};
 
 /// RPC responses from vaults.
@@ -40,7 +39,7 @@ pub enum Response<ErrorType> {
 
 use std::fmt;
 
-impl fmt::Debug for Response<ClientError> {
+impl<T> fmt::Debug for Response<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let printable = match *self {
             Response::GetUnpubIData { .. } => "Response::GetUnpubIData",
