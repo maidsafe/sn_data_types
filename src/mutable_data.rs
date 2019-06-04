@@ -110,25 +110,209 @@ pub enum Action {
     ManagePermissions,
 }
 
+/// Defines common functions in both sequenced and unsequenced types
+pub trait MutableData {
+    fn name(&self) -> &XorName;
+
+    fn tag(&self) -> u64;
+
+    fn version(&self) -> u64;
+
+    fn owners(&self) -> &PublicKey;
+
+    fn keys(&self) -> BTreeSet<Vec<u8>>;
+
+    fn permissions(&self) -> BTreeMap<PublicKey, PermissionSet>;
+
+    fn user_permissions(&self, user: PublicKey) -> Result<&PermissionSet, DataError>;
+
+    fn set_user_permissions(
+        &mut self,
+        user: PublicKey,
+        permissions: PermissionSet,
+        version: u64,
+        requester: PublicKey,
+    ) -> Result<(), DataError>;
+
+    fn del_user_permissions(
+        &mut self,
+        user: PublicKey,
+        version: u64,
+        requester: PublicKey,
+    ) -> Result<(), DataError>;
+
+    fn del_user_permissions_without_validation(&mut self, user: PublicKey, version: u64) -> bool;
+
+    fn change_owner(&mut self, new_owner: PublicKey, version: u64) -> Result<(), DataError>;
+
+    fn change_owner_without_validation(&mut self, new_owner: PublicKey, version: u64) -> bool;
+
+    fn is_action_allowed(&self, requester: PublicKey, action: Action) -> bool;
+}
+
+macro_rules! impl_mutable_data {
+    ($flavour:ident) => {
+        impl $flavour {
+            pub fn new(name: XorName, tag: u64, owners: PublicKey) -> Self {
+                Self {
+                    name,
+                    tag,
+                    data: Default::default(),
+                    permissions: Default::default(),
+                    version: 0,
+                    owners,
+                }
+            }
+
+            /// Returns the Shell of the data
+            pub fn shell(&self) -> Self {
+                Self {
+                    name: self.name,
+                    tag: self.tag,
+                    data: BTreeMap::new(),
+                    permissions: self.permissions.clone(),
+                    version: self.version,
+                    owners: self.owners,
+                }
+            }
+        }
+
+        impl MutableData for $flavour {
+            /// Returns the name of the Mutable data
+            fn name(&self) -> &XorName {
+                &self.name
+            }
+
+            /// Returns the tag type of the Mutable data
+            fn tag(&self) -> u64 {
+                self.tag
+            }
+
+            /// Returns the version of the Mutable data
+            fn version(&self) -> u64 {
+                self.version
+            }
+
+            /// Returns the owner key
+            fn owners(&self) -> &PublicKey {
+                &self.owners
+            }
+
+            /// Returns all the keys in the data
+            fn keys(&self) -> BTreeSet<Vec<u8>> {
+                self.data.keys().cloned().collect()
+            }
+
+            /// Gets a complete list of permissions
+            fn permissions(&self) -> BTreeMap<PublicKey, PermissionSet> {
+                self.permissions.clone()
+            }
+
+            fn user_permissions(&self, user: PublicKey) -> Result<&PermissionSet, DataError> {
+                self.permissions.get(&user).ok_or(DataError::NoSuchKey)
+            }
+
+            /// Insert or update permissions for the provided user.
+            fn set_user_permissions(
+                &mut self,
+                user: PublicKey,
+                permissions: PermissionSet,
+                version: u64,
+                requester: PublicKey,
+            ) -> Result<(), DataError> {
+                if !self.is_action_allowed(requester, Action::ManagePermissions) {
+                    return Err(DataError::AccessDenied);
+                }
+                if version != self.version + 1 {
+                    return Err(DataError::InvalidSuccessor(self.version));
+                }
+                let _prev = self.permissions.insert(user, permissions);
+                self.version = version;
+                Ok(())
+            }
+
+            /// Delete permissions for the provided user.
+            fn del_user_permissions(
+                &mut self,
+                user: PublicKey,
+                version: u64,
+                requester: PublicKey,
+            ) -> Result<(), DataError> {
+                if !self.is_action_allowed(requester, Action::ManagePermissions) {
+                    return Err(DataError::AccessDenied);
+                }
+                if version != self.version + 1 {
+                    return Err(DataError::InvalidSuccessor(self.version));
+                }
+                if !self.permissions.contains_key(&user) {
+                    return Err(DataError::NoSuchKey);
+                }
+                let _ = self.permissions.remove(&user);
+                self.version = version;
+                Ok(())
+            }
+
+            /// Delete user permissions without performing any validation.
+            fn del_user_permissions_without_validation(
+                &mut self,
+                user: PublicKey,
+                version: u64,
+            ) -> bool {
+                if version <= self.version {
+                    return false;
+                }
+                let _ = self.permissions.remove(&user);
+                self.version = version;
+                true
+            }
+
+            /// Change owner of the mutable data.
+            fn change_owner(
+                &mut self,
+                new_owner: PublicKey,
+                version: u64,
+            ) -> Result<(), DataError> {
+                if version != self.version + 1 {
+                    return Err(DataError::InvalidSuccessor(self.version));
+                }
+                self.owners = new_owner;
+                self.version = version;
+                Ok(())
+            }
+
+            /// Change the owner without performing any validation.
+            fn change_owner_without_validation(
+                &mut self,
+                new_owner: PublicKey,
+                version: u64,
+            ) -> bool {
+                if version <= self.version {
+                    return false;
+                }
+
+                self.owners = new_owner;
+                self.version = version;
+                true
+            }
+
+            fn is_action_allowed(&self, requester: PublicKey, action: Action) -> bool {
+                if self.owners == requester {
+                    return true;
+                }
+                match self.permissions.get(&requester) {
+                    Some(perms) => perms.is_allowed(action),
+                    None => false,
+                }
+            }
+        }
+    };
+}
+
+impl_mutable_data!(SeqMutableData);
+impl_mutable_data!(UnseqMutableData);
+
 /// Implements functions which are COMMON for both the mutable data
 impl UnseqMutableData {
-    pub fn new(
-        name: XorName,
-        tag: u64,
-        permissions: BTreeMap<PublicKey, PermissionSet>,
-        data: BTreeMap<Vec<u8>, Vec<u8>>,
-        owners: PublicKey,
-    ) -> UnseqMutableData {
-        UnseqMutableData {
-            name,
-            tag,
-            data,
-            permissions,
-            version: 0,
-            owners,
-        }
-    }
-
     /// Returns a value for the given key
     pub fn get(&self, requester: PublicKey, key: &[u8]) -> Result<Option<&Vec<u8>>, DataError> {
         if self.is_action_allowed(requester, Action::Read) {
@@ -248,158 +432,10 @@ impl UnseqMutableData {
 
         Ok(())
     }
-
-    /// Returns the name of the Mutable data
-    pub fn name(&self) -> &XorName {
-        &self.name
-    }
-
-    /// Returns the tag type of the Mutable data
-    pub fn tag(&self) -> u64 {
-        self.tag
-    }
-
-    /// Returns the Shell of the data
-    pub fn shell(&self) -> Self {
-        UnseqMutableData {
-            name: self.name,
-            tag: self.tag,
-            data: BTreeMap::new(),
-            permissions: self.permissions.clone(),
-            version: self.version,
-            owners: self.owners,
-        }
-    }
-
-    /// Returns the version of the Mutable data
-    pub fn version(&self) -> u64 {
-        self.version
-    }
-
-    /// Returns the owner key
-    pub fn owners(&self) -> &PublicKey {
-        &self.owners
-    }
-
-    /// Returns all the keys in the data
-    pub fn keys(&self) -> BTreeSet<&Vec<u8>> {
-        self.data.keys().collect()
-    }
-
-    /// Gets a complete list of permissions
-    pub fn permissions(&self) -> BTreeMap<PublicKey, PermissionSet> {
-        self.permissions.clone()
-    }
-
-    pub fn user_permissions(&self, user: &PublicKey) -> Result<&PermissionSet, DataError> {
-        self.permissions.get(user).ok_or(DataError::NoSuchKey)
-    }
-
-    /// Insert or update permissions for the provided user.
-    pub fn set_user_permissions(
-        &mut self,
-        user: PublicKey,
-        permissions: PermissionSet,
-        version: u64,
-        requester: PublicKey,
-    ) -> Result<(), DataError> {
-        if !self.is_action_allowed(requester, Action::ManagePermissions) {
-            return Err(DataError::AccessDenied);
-        }
-        if version != self.version + 1 {
-            return Err(DataError::InvalidSuccessor(self.version));
-        }
-        let _prev = self.permissions.insert(user, permissions);
-        self.version = version;
-        Ok(())
-    }
-
-    /// Delete permissions for the provided user.
-    pub fn del_user_permissions(
-        &mut self,
-        user: &PublicKey,
-        version: u64,
-        requester: PublicKey,
-    ) -> Result<(), DataError> {
-        if !self.is_action_allowed(requester, Action::ManagePermissions) {
-            return Err(DataError::AccessDenied);
-        }
-        if version != self.version + 1 {
-            return Err(DataError::InvalidSuccessor(self.version));
-        }
-        if !self.permissions.contains_key(user) {
-            return Err(DataError::NoSuchKey);
-        }
-        let _ = self.permissions.remove(user);
-        self.version = version;
-        Ok(())
-    }
-
-    /// Delete user permissions without performing any validation.
-    pub fn del_user_permissions_without_validation(
-        &mut self,
-        user: &PublicKey,
-        version: u64,
-    ) -> bool {
-        if version <= self.version {
-            return false;
-        }
-        let _ = self.permissions.remove(user);
-        self.version = version;
-        true
-    }
-
-    /// Change owner of the mutable data.
-    pub fn change_owner(&mut self, new_owner: PublicKey, version: u64) -> Result<(), DataError> {
-        if version != self.version + 1 {
-            return Err(DataError::InvalidSuccessor(self.version));
-        }
-        self.owners = new_owner;
-        self.version = version;
-        Ok(())
-    }
-
-    /// Change the owner without performing any validation.
-    pub fn change_owner_without_validation(&mut self, new_owner: PublicKey, version: u64) -> bool {
-        if version <= self.version {
-            return false;
-        }
-
-        self.owners = new_owner;
-        self.version = version;
-        true
-    }
-
-    pub fn is_action_allowed(&self, requester: PublicKey, action: Action) -> bool {
-        if self.owners == requester {
-            return true;
-        }
-        match self.permissions.get(&requester) {
-            Some(perms) => perms.is_allowed(action),
-            None => false,
-        }
-    }
 }
 
 /// Implements functions for sequenced Mutable Data.
 impl SeqMutableData {
-    pub fn new(
-        name: XorName,
-        tag: u64,
-        permissions: BTreeMap<PublicKey, PermissionSet>,
-        data: BTreeMap<Vec<u8>, Value>,
-        owners: PublicKey,
-    ) -> Self {
-        SeqMutableData {
-            name,
-            tag,
-            data,
-            permissions,
-            version: 0,
-            owners,
-        }
-    }
-
     /// Returns a value by the given key
     pub fn get(&self, requester: PublicKey, key: &[u8]) -> Result<Option<&Value>, DataError> {
         if self.owners == requester {
@@ -533,132 +569,6 @@ impl SeqMutableData {
         let _old_data = mem::replace(&mut self.data, new_data);
 
         Ok(())
-    }
-
-    /// Returns the name of the Mutable data
-    pub fn name(&self) -> &XorName {
-        &self.name
-    }
-    /// Returns the tag type of the Mutable data
-    pub fn tag(&self) -> u64 {
-        self.tag
-    }
-    /// Returns the Shell of the data
-    pub fn shell(&self) -> Self {
-        SeqMutableData {
-            name: self.name,
-            tag: self.tag,
-            data: BTreeMap::new(),
-            permissions: self.permissions.clone(),
-            version: self.version,
-            owners: self.owners,
-        }
-    }
-    /// Returns the version of the Mutable data
-    pub fn version(&self) -> u64 {
-        self.version
-    }
-    /// Returns the owner key
-    pub fn owners(&self) -> &PublicKey {
-        &self.owners
-    }
-    /// Returns all the keys in the data
-    pub fn keys(&self) -> BTreeSet<&Vec<u8>> {
-        self.data.keys().collect()
-    }
-
-    /// Gets a complete list of permissions
-    pub fn permissions(&self) -> BTreeMap<PublicKey, PermissionSet> {
-        self.permissions.clone()
-    }
-
-    pub fn user_permissions(&self, user: &PublicKey) -> Result<&PermissionSet, DataError> {
-        self.permissions.get(user).ok_or(DataError::NoSuchKey)
-    }
-
-    /// Insert or update permissions for the provided user.
-    pub fn set_user_permissions(
-        &mut self,
-        user: PublicKey,
-        permissions: PermissionSet,
-        version: u64,
-        requester: PublicKey,
-    ) -> Result<(), DataError> {
-        if !self.is_action_allowed(requester, Action::ManagePermissions) {
-            return Err(DataError::AccessDenied);
-        }
-        if version != self.version + 1 {
-            return Err(DataError::InvalidSuccessor(self.version));
-        }
-        let _prev = self.permissions.insert(user, permissions);
-        self.version = version;
-        Ok(())
-    }
-
-    /// Delete permissions for the provided user.
-    pub fn del_user_permissions(
-        &mut self,
-        user: &PublicKey,
-        version: u64,
-        requester: PublicKey,
-    ) -> Result<(), DataError> {
-        if !self.is_action_allowed(requester, Action::ManagePermissions) {
-            return Err(DataError::AccessDenied);
-        }
-        if version != self.version + 1 {
-            return Err(DataError::InvalidSuccessor(self.version));
-        }
-        if !self.permissions.contains_key(user) {
-            return Err(DataError::NoSuchKey);
-        }
-        let _ = self.permissions.remove(user);
-        self.version = version;
-        Ok(())
-    }
-
-    /// Delete user permissions without performing any validation.
-    pub fn del_user_permissions_without_validation(
-        &mut self,
-        user: &PublicKey,
-        version: u64,
-    ) -> bool {
-        if version <= self.version {
-            return false;
-        }
-        let _ = self.permissions.remove(user);
-        self.version = version;
-        true
-    }
-
-    /// Change owner of the mutable data.
-    pub fn change_owner(&mut self, new_owner: PublicKey, version: u64) -> Result<(), DataError> {
-        if version != self.version + 1 {
-            return Err(DataError::InvalidSuccessor(self.version));
-        }
-        self.owners = new_owner;
-        self.version = version;
-        Ok(())
-    }
-
-    /// Change the owner without performing any validation.
-    pub fn change_owner_without_validation(&mut self, new_owner: PublicKey, version: u64) -> bool {
-        if version <= self.version {
-            return false;
-        }
-
-        self.owners = new_owner;
-        self.version = version;
-        true
-    }
-
-    pub fn is_action_allowed(&self, requester: PublicKey, action: Action) -> bool {
-        if self.owners == requester {
-            return true;
-        }
-        match self.permissions.get(&requester) {
-            Some(perms) => perms.clone().is_allowed(action),
-            None => false,
-        }
     }
 }
 
