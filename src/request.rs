@@ -78,6 +78,55 @@ pub enum Request {
         message_id: MessageId,
     },
 
+    GetSeqMDataShell {
+        address: MutableDataRef,
+        requester: threshold_crypto::PublicKey,
+        message_id: MessageId,
+    },
+
+    GetUnseqMDataShell {
+        address: MutableDataRef,
+        requester: threshold_crypto::PublicKey,
+        message_id: MessageId,
+    },
+
+    GetMDataVersion {
+        address: MutableDataRef,
+        requester: threshold_crypto::PublicKey,
+        message_id: MessageId,
+    },
+
+    ListUnseqMDataEntries {
+        address: MutableDataRef,
+        requester: threshold_crypto::PublicKey,
+        message_id: MessageId,
+    },
+
+    ListSeqMDataEntries {
+        address: MutableDataRef,
+        requester: threshold_crypto::PublicKey,
+        message_id: MessageId,
+    },
+
+    ListMDataKeys {
+        address: MutableDataRef,
+        requester: threshold_crypto::PublicKey,
+        message_id: MessageId,
+    },
+
+    ListUnseqMDataValues {
+        address: MutableDataRef,
+        requester: threshold_crypto::PublicKey,
+        message_id: MessageId,
+    },
+
+    ListSeqMDataValues {
+        address: MutableDataRef,
+        requester: threshold_crypto::PublicKey,
+        message_id: MessageId,
+    },
+}
+
     // ===== Append Only Data =====
     // Get a range of entries from an AppendOnlyData object on the network.
     GetADataRange {
@@ -228,6 +277,14 @@ impl fmt::Debug for Request {
             Request::PutUnseqMData { .. } => "Request::PutUnseqMData",
             Request::GetSeqMData { .. } => "Request::GetSeqMData",
             Request::PutSeqMData { .. } => "Request::PutSeqMData",
+            Request::GetSeqMDataShell { .. } => "Request::GetSeqMDataShell",
+            Request::GetUnseqMDataShell { .. } => "Request::GetUnseqMDataShell",
+            Request::GetMDataVersion { .. } => "Request::GetMDataVersion",
+            Request::ListUnseqMDataEntries { .. } => "Request::ListUnseqMDataEntries",
+            Request::ListSeqMDataEntries { .. } => "Request::ListSeqMDataEntries",
+            Request::ListMDataKeys { .. } => "Request::ListMDataKeys",
+            Request::ListUnseqMDataValues { .. } => "Request::ListUnseqMDataValues",
+            Request::ListSeqMDataValues { .. } => "Request::ListSeqMDataValues",
             // TODO
             ref _x => "Request",
         };
