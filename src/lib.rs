@@ -57,14 +57,25 @@
 #![allow(missing_docs)]
 
 pub mod appendable_data;
-pub mod errors;
-pub mod immutable_data;
+mod errors;
+mod identity;
+mod immutable_data;
 pub mod mutable_data;
+mod public_key;
 pub mod request;
 pub mod response;
 
+pub use errors::{EntryError, Error};
+pub use identity::{
+    client::FullId as ClientFullId, client::PublicId as ClientPublicId, node::FullId as NodeFullId,
+    node::PublicId as NodePublicId, PublicId,
+};
 pub use immutable_data::{ImmutableData, UnpubImmutableData, MAX_IMMUTABLE_DATA_SIZE_IN_BYTES};
+pub use public_key::{PublicKey, Signature};
 use serde::{Deserialize, Serialize};
+use std::fmt::{self, Debug, Display, Formatter};
+
+pub use sha3::Sha3_512 as Ed25519Digest;
 
 /// Constant byte length of `XorName`.
 pub const XOR_NAME_LEN: usize = 32;
@@ -78,20 +89,25 @@ pub const XOR_NAME_LEN: usize = 32;
 /// i. e. the points with IDs `x` and `y` are considered to have distance `x xor y`.
 ///
 /// [1]: https://en.wikipedia.org/wiki/Kademlia#System_details
-pub type XorName = [u8; XOR_NAME_LEN];
+#[derive(Clone, Copy, Default, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+pub struct XorName(pub [u8; XOR_NAME_LEN]);
 
-// impl XorName {
-//     /// Private function exposed in fmt Debug {:?} and Display {} traits.
-//     fn get_debug_id(&self) -> String {
-//         format!("{:02x}{:02x}{:02x}..", self.0[0], self.0[1], self.0[2])
-//     }
-// }
+impl Debug for XorName {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        write!(
+            formatter,
+            "{:02x}{:02x}{:02x}..",
+            self.0[0], self.0[1], self.0[2]
+        )
+    }
+}
 
-// impl fmt::Debug for XorName {
-//     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-//         write!(formatter, "{}", self.get_debug_id())
-//     }
-// }
+impl Display for XorName {
+    #[allow(trivial_casts)]
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        (self as &Debug).fmt(formatter)
+    }
+}
 
 /// Unique ID for messages
 ///

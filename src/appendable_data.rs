@@ -449,7 +449,7 @@ mod tests {
 
     #[test]
     fn append_permissions() {
-        let mut data = SeqAppendOnlyData::<UnpubPermissions>::new([1; 32], 10000);
+        let mut data = SeqAppendOnlyData::<UnpubPermissions>::new(XorName([1; 32]), 10000);
 
         // Append the first permission set with correct indexes - should pass.
         let res = data.append_permissions(UnpubPermissions {
@@ -493,7 +493,7 @@ mod tests {
         let mut rng = rand::thread_rng();
         let owners_pk_set = SecretKeySet::random(1, &mut rng);
 
-        let mut data = SeqAppendOnlyData::<UnpubPermissions>::new([1; 32], 10000);
+        let mut data = SeqAppendOnlyData::<UnpubPermissions>::new(XorName([1; 32]), 10000);
 
         // Append the first owner with correct indexes - should pass.
         let res = data.append_owners(Owners {
@@ -534,7 +534,7 @@ mod tests {
 
     #[test]
     fn seq_append_entries() {
-        let mut data = SeqAppendOnlyData::<PubPermissions>::new([1; 32], 10000);
+        let mut data = SeqAppendOnlyData::<PubPermissions>::new(XorName([1; 32]), 10000);
         let res = data.append(&[(b"hello".to_vec(), b"world".to_vec())], 0);
 
         match res {

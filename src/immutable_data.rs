@@ -34,7 +34,7 @@ impl UnpubImmutableData {
         let mut bytes = Vec::with_capacity(XOR_NAME_LEN + PK_SIZE);
         bytes.extend_from_slice(&tiny_keccak::sha3_256(&self.data));
         bytes.extend_from_slice(&self.owners.to_bytes());
-        tiny_keccak::sha3_256(&bytes)
+        XorName(tiny_keccak::sha3_256(&bytes))
     }
 }
 
@@ -52,7 +52,7 @@ impl ImmutableData {
     /// Creates a new instance of `ImmutableData`
     pub fn new(value: Vec<u8>) -> ImmutableData {
         ImmutableData {
-            name: tiny_keccak::sha3_256(&value),
+            name: XorName(tiny_keccak::sha3_256(&value)),
             value,
         }
     }
@@ -147,7 +147,7 @@ mod tests {
     fn deterministic_test() {
         let value = "immutable data value".to_owned().into_bytes();
         let immutable_data = ImmutableData::new(value);
-        let immutable_data_name = encode(immutable_data.name().as_ref());
+        let immutable_data_name = encode(immutable_data.name().0.as_ref());
         let expected_name = "fac2869677ee06277633c37ac7e8e5c655f3d652f707c7a79fab930d584a3016";
 
         assert_eq!(&expected_name, &immutable_data_name);
