@@ -1,22 +1,23 @@
 // Copyright 2019 MaidSafe.net limited.
 //
-// This SAFE Network Software is licensed to you under the MIT license
-// <LICENSE-MIT or http://opensource.org/licenses/MIT> or the Modified
-// BSD license <LICENSE-BSD or https://opensource.org/licenses/BSD-3-Clause>,
-// at your option. This file may not be copied, modified, or distributed
-// except according to those terms. Please review the Licences for the
-// specific language governing permissions and limitations relating to use
-// of the SAFE Network Software.
+// This SAFE Network Software is licensed to you under the MIT license <LICENSE-MIT
+// https://opensource.org/licenses/MIT> or the Modified BSD license <LICENSE-BSD
+// https://opensource.org/licenses/BSD-3-Clause>, at your option. This file may not be copied,
+// modified, or distributed except according to those terms. Please review the Licences for the
+// specific language governing permissions and limitations relating to use of the SAFE Network
+// Software.
 
 use crate::errors::{DataError, EntryError};
 use crate::XorName;
+use serde::{Deserialize, Serialize};
+
 use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, BTreeSet};
 use std::mem;
-use std::vec::Vec;
-use threshold_crypto::*;
+use threshold_crypto::PublicKey;
 
-/// Mutable data that is unpublished on the network. This data can only be fetch by the owners / those in the permissions fields with `Permission::Read` access.
+/// Mutable data that is unpublished on the network. This data can only be fetched by the owners or
+/// those in the permissions fields with `Permission::Read` access.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub struct SeqMutableData {
     /// Network address.
@@ -43,7 +44,8 @@ pub struct Value {
     version: u64,
 }
 
-/// Mutable data that is unpublished on the network. This data can only be fetch by the owners / those in the permissions fields with `Permission::Read` access.
+/// Mutable data that is unpublished on the network. This data can only be fetch by the owners or
+/// those in the permissions fields with `Permission::Read` access.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub struct UnseqMutableData {
     /// Network address.
@@ -77,13 +79,13 @@ impl PermissionSet {
 
     /// Allow the given action.
     pub fn allow(mut self, action: Action) -> Self {
-        self.permissions.insert(action);
+        let _ = self.permissions.insert(action);
         self
     }
 
     /// Deny the given action.
     pub fn deny(mut self, action: Action) -> Self {
-        self.permissions.remove(&action);
+        let _ = self.permissions.remove(&action);
         self
     }
 
@@ -188,7 +190,7 @@ impl UnseqMutableData {
                         let _ = update.insert(key, value);
                     }
                     UnseqEntryAction::Del => {
-                        delete.insert(key);
+                        let _ = delete.insert(key);
                     }
                 };
                 (insert, update, delete)

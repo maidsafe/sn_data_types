@@ -11,14 +11,13 @@ edition = "2018"
 
 [dependencies]
 maidsafe_utilities = "~0.18.0"
-rust_sodium = "~0.10.2"
-serde = "~1.0.37"
-serde_derive = "~1.0.27"
-threshold_crypto = "~0.3.1"
 routing = { git = "https://github.com/lionel1704/routing", branch = "patch" }
+rust_sodium = "~0.10.2"
+serde = { version = "~1.0.92", features = ["derive"] }
+threshold_crypto = "~0.3.1"
 tiny-keccak = "~1.4.2"
 
 [dev-dependencies]
-hex = "~0.3.1"
+hex = "~0.3.2"
 rand = "~0.4.2"
-unwrap = "~1.2.0"
+unwrap = "~1.2.1"
