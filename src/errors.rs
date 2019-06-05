@@ -9,7 +9,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use std::error::Error as StdError;
+use std::error;
 use std::fmt::{self, Display, Formatter};
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
@@ -88,7 +88,7 @@ impl Display for Error {
     }
 }
 
-impl StdError for Error {
+impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
             Error::AccessDenied => "Access denied",

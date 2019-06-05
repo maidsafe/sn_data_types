@@ -1,10 +1,11 @@
 // Copyright 2019 MaidSafe.net limited.
 //
-// This SAFE Network Software is licensed to you under The General Public License (GPL), version 3.
-// Unless required by applicable law or agreed to in writing, the SAFE Network Software distributed
-// under the GPL Licence is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied. Please review the Licences for the specific language governing
-// permissions and limitations relating to use of the SAFE Network Software.
+// This SAFE Network Software is licensed to you under the MIT license <LICENSE-MIT
+// https://opensource.org/licenses/MIT> or the Modified BSD license <LICENSE-BSD
+// https://opensource.org/licenses/BSD-3-Clause>, at your option. This file may not be copied,
+// modified, or distributed except according to those terms. Please review the Licences for the
+// specific language governing permissions and limitations relating to use of the SAFE Network
+// Software.
 
 use crate::errors::Error;
 use crate::request::{Request, Requester};
@@ -191,8 +192,8 @@ pub trait AppendOnlyData<P> {
     /// Return a value for the given key (if it is present).
     fn get(&self, key: &[u8]) -> Option<&Vec<u8>>;
 
-    /// Get a list of keys and values with the given indexes.
-    fn at(&self, start: Index, end: Index) -> Option<&[(Vec<u8>, Vec<u8>)]>;
+    /// Get a list of keys and values with the given indices.
+    fn in_range(&self, start: Index, end: Index) -> Option<&[(Vec<u8>, Vec<u8>)]>;
 
     /// Return all entries.
     fn entries(&self) -> &Vec<(Vec<u8>, Vec<u8>)>;
@@ -213,14 +214,14 @@ pub trait AppendOnlyData<P> {
     fn permissions_index(&self) -> u64;
 
     /// Get a complete list of permissions from the entry in the permissions list at the specified index.
-    fn permissions(&self, start: Index, end: Index) -> Option<&[P]>;
+    fn permissions_range(&self, start: Index, end: Index) -> Option<&[P]>;
 
     /// Add a new permissions entry.
     /// The `Permissions` struct should contain valid indexes.
     fn append_permissions(&mut self, permissions: P) -> Result<(), Error>;
 
     /// Get a complete list of owners from the entry in the permissions list at the specified index.
-    fn owners(&self, start: Index, end: Index) -> Option<&[Owners]>;
+    fn owners_range(&self, start: Index, end: Index) -> Option<&[Owners]>;
 
     /// Add a new permissions entry.
     /// The `Owners` struct should contain valid indexes.
@@ -307,7 +308,7 @@ macro_rules! impl_appendable_data {
                     .find_map(|(k, v)| if k.as_slice() == key { Some(v) } else { None })
             }
 
-            fn at(&self, start: Index, end: Index) -> Option<&[(Vec<u8>, Vec<u8>)]> {
+            fn in_range(&self, start: Index, end: Index) -> Option<&[(Vec<u8>, Vec<u8>)]> {
                 let idx_start = match start {
                     Index::FromStart(idx) => idx as usize,
                     Index::FromEnd(idx) => self.inner.data.len() - (idx as usize),
@@ -336,7 +337,7 @@ macro_rules! impl_appendable_data {
                 &self.inner.data
             }
 
-            fn permissions(&self, start: Index, end: Index) -> Option<&[P]> {
+            fn permissions_range(&self, start: Index, end: Index) -> Option<&[P]> {
                 // Check bounds
                 let idx_start = match start {
                     Index::FromStart(idx) => idx as usize,
@@ -360,7 +361,7 @@ macro_rules! impl_appendable_data {
                 Some(&self.inner.permissions[idx_start..idx_end])
             }
 
-            fn owners(&self, start: Index, end: Index) -> Option<&[Owners]> {
+            fn owners_range(&self, start: Index, end: Index) -> Option<&[Owners]> {
                 // Check bounds
                 let idx_start = match start {
                     Index::FromStart(idx) => idx as usize,
@@ -464,7 +465,7 @@ mod tests {
 
         // Verify that the permissions have been added.
         assert_eq!(
-            unwrap!(data.permissions(Index::FromStart(0), Index::FromEnd(0),)).len(),
+            unwrap!(data.permissions_range(Index::FromStart(0), Index::FromEnd(0),)).len(),
             1
         );
 
@@ -482,7 +483,7 @@ mod tests {
 
         // Verify that the number of permissions has not been changed.
         assert_eq!(
-            unwrap!(data.permissions(Index::FromStart(0), Index::FromEnd(0),)).len(),
+            unwrap!(data.permissions_range(Index::FromStart(0), Index::FromEnd(0),)).len(),
             1
         );
     }
@@ -508,7 +509,7 @@ mod tests {
 
         // Verify that the owner has been added.
         assert_eq!(
-            unwrap!(data.owners(Index::FromStart(0), Index::FromEnd(0),)).len(),
+            unwrap!(data.owners_range(Index::FromStart(0), Index::FromEnd(0),)).len(),
             1
         );
 
@@ -526,7 +527,7 @@ mod tests {
 
         // Verify that the number of owners has not been changed.
         assert_eq!(
-            unwrap!(data.owners(Index::FromStart(0), Index::FromEnd(0),)).len(),
+            unwrap!(data.owners_range(Index::FromStart(0), Index::FromEnd(0),)).len(),
             1
         );
     }
