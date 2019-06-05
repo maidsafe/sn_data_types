@@ -46,9 +46,29 @@ pub struct AppendOperation {
 #[allow(clippy::large_enum_variant)]
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub enum Request {
-    GetUnpubIData(XorName),
-    PutUnpubIData(UnpubImmutableData),
-    DeleteUnpubIData(XorName),
+    //
+    // ===== Immutable Data =====
+    //
+    /// Get unpublished IData from the network.
+    GetUnpubIData {
+        address: XorName,
+        requester: Requester,
+        message_id: MessageId,
+    },
+    PutUnpubIData {
+        data: UnpubImmutableData,
+        requester: Requester,
+        message_id: MessageId,
+    },
+    DeleteUnpubIData {
+        address: XorName,
+        requester: Requester,
+        message_id: MessageId,
+    },
+    //
+    // ===== Mutable Data =====
+    //
+    /// Delete MData from the network.
     DeleteMData {
         // Address of the mutable data to be fetched
         address: MutableDataRef,
@@ -132,9 +152,10 @@ pub enum Request {
         requester: Requester,
         message_id: MessageId,
     },
-
+    //
     // ===== Append Only Data =====
-    // Get a range of entries from an AppendOnlyData object on the network.
+    //
+    /// Get a range of entries from an AppendOnlyData object on the network.
     GetADataRange {
         // Type of AppendOnlyData (published/unpublished, sequenced/unsequenced).
         kind: AppendOnlyKind,
@@ -158,21 +179,21 @@ pub enum Request {
         requester: Requester,
     },
 
-    // Get current indexes: data, owners, permissions.
+    /// Get current indexes: data, owners, permissions.
     GetADataIndexes {
         kind: AppendOnlyKind,
         address: AppendOnlyDataRef,
         requester: Requester,
     },
 
-    // Get an entry with the current index.
+    /// Get an entry with the current index.
     GetADataLastEntry {
         kind: AppendOnlyKind,
         address: AppendOnlyDataRef,
         requester: Requester,
     },
 
-    // Get permissions at the provided index.
+    /// Get permissions at the provided index.
     GetADataPermissions {
         kind: AppendOnlyKind,
         address: AppendOnlyDataRef,
@@ -180,7 +201,7 @@ pub enum Request {
         requester: Requester,
     },
 
-    // Get permissions for a specified user(s).
+    /// Get permissions for a specified user(s).
     GetPubADataUserPermissions {
         kind: AppendOnlyKind,
         address: AppendOnlyDataRef,
@@ -189,7 +210,7 @@ pub enum Request {
         requester: Requester,
     },
 
-    // Get permissions for a specified public key.
+    /// Get permissions for a specified public key.
     GetUnpubADataUserPermissions {
         kind: AppendOnlyKind,
         address: AppendOnlyDataRef,
@@ -198,7 +219,7 @@ pub enum Request {
         requester: Requester,
     },
 
-    // Get owners at the provided index.
+    /// Get owners at the provided index.
     GetADataOwners {
         address: AppendOnlyDataRef,
         kind: AppendOnlyKind,
@@ -206,8 +227,8 @@ pub enum Request {
         requester: Requester,
     },
 
-    // Add a new `permissions` entry.
-    // The `Permissions` struct instance MUST contain a valid index.
+    /// Add a new `permissions` entry.
+    /// The `Permissions` struct instance MUST contain a valid index.
     AddPubADataPermissions {
         address: AppendOnlyDataRef,
         kind: AppendOnlyKind,
@@ -216,8 +237,8 @@ pub enum Request {
         requester: Requester,
     },
 
-    // Add a new `permissions` entry.
-    // The `Permissions` struct instance MUST contain a valid index.
+    /// Add a new `permissions` entry.
+    /// The `Permissions` struct instance MUST contain a valid index.
     AddUnpubADataPermissions {
         address: AppendOnlyDataRef,
         kind: AppendOnlyKind,
@@ -226,16 +247,16 @@ pub enum Request {
         requester: Requester,
     },
 
-    // Add a new `owners` entry.
-    // The `Owners` struct instance MUST contain a valid index.
-    // Only the current owner(s) can perform this action.
+    /// Add a new `owners` entry.
+    /// The `Owners` struct instance MUST contain a valid index.
+    /// Only the current owner(s) can perform this action.
     SetADataOwners {
         kind: AppendOnlyKind,
         address: AppendOnlyDataRef,
         owners: Owners,
     },
 
-    // Append operations
+    /// Append operations
     AppendPublishedSeq {
         append: AppendOperation,
         index: u64,
@@ -247,7 +268,7 @@ pub enum Request {
     AppendPublishedUnseq(AppendOperation),
     AppendUnpublishedUnseq(AppendOperation),
 
-    // Put a new AppendOnlyData on the network.
+    /// Put a new AppendOnlyData on the network.
     PutAData {
         // AppendOnlyData to be stored
         data: AppendOnlyData,
@@ -255,8 +276,8 @@ pub enum Request {
         requester: Requester,
     },
 
-    // Get `AppendOnlyData` shell at a certain point
-    // in history (`index` refers to the list of data).
+    /// Get `AppendOnlyData` shell at a certain point
+    /// in history (`index` refers to the list of data).
     GetADataShell {
         kind: AppendOnlyKind,
         address: AppendOnlyDataRef,
@@ -264,37 +285,40 @@ pub enum Request {
         requester: Requester,
     },
 
-    // Delete an unpublished unsequenced `AppendOnlyData`.
-    // Only the current owner(s) can perform this action.
+    /// Delete an unpublished unsequenced `AppendOnlyData`.
+    /// Only the current owner(s) can perform this action.
     DeleteUnseqAData(AppendOnlyDataRef),
-    // Delete an unpublished sequenced `AppendOnlyData`.
-    // This operation MUST return an error if applied to published AppendOnlyData.
-    // Only the current owner(s) can perform this action.
+    /// Delete an unpublished sequenced `AppendOnlyData`.
+    /// This operation MUST return an error if applied to published AppendOnlyData.
+    /// Only the current owner(s) can perform this action.
     DeleteSeqAData(AppendOnlyDataRef),
 }
 
 impl fmt::Debug for Request {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let printable = match *self {
-            Request::GetUnpubIData { .. } => "Request::GetUnpubIData",
-            Request::PutUnpubIData { .. } => "Request::PutUnpubIData",
-            Request::DeleteUnpubIData { .. } => "Request::DeleteUnpubIData",
-            Request::GetUnseqMData { .. } => "Request::GetUnseqMData",
-            Request::PutUnseqMData { .. } => "Request::PutUnseqMData",
-            Request::GetSeqMData { .. } => "Request::GetSeqMData",
-            Request::PutSeqMData { .. } => "Request::PutSeqMData",
-            Request::GetSeqMDataShell { .. } => "Request::GetSeqMDataShell",
-            Request::GetUnseqMDataShell { .. } => "Request::GetUnseqMDataShell",
-            Request::GetMDataVersion { .. } => "Request::GetMDataVersion",
-            Request::ListUnseqMDataEntries { .. } => "Request::ListUnseqMDataEntries",
-            Request::ListSeqMDataEntries { .. } => "Request::ListSeqMDataEntries",
-            Request::ListMDataKeys { .. } => "Request::ListMDataKeys",
-            Request::ListUnseqMDataValues { .. } => "Request::ListUnseqMDataValues",
-            Request::ListSeqMDataValues { .. } => "Request::ListSeqMDataValues",
-            Request::DeleteMData { .. } => "Request::DeleteMData",
-            // TODO
-            ref _x => "Request",
-        };
-        write!(f, "{}", printable)
+        write!(
+            f,
+            "{}",
+            match *self {
+                Request::GetUnpubIData { .. } => "Request::GetUnpubIData",
+                Request::PutUnpubIData { .. } => "Request::PutUnpubIData",
+                Request::DeleteUnpubIData { .. } => "Request::DeleteUnpubIData",
+                Request::GetUnseqMData { .. } => "Request::GetUnseqMData",
+                Request::PutUnseqMData { .. } => "Request::PutUnseqMData",
+                Request::GetSeqMData { .. } => "Request::GetSeqMData",
+                Request::PutSeqMData { .. } => "Request::PutSeqMData",
+                Request::GetSeqMDataShell { .. } => "Request::GetSeqMDataShell",
+                Request::GetUnseqMDataShell { .. } => "Request::GetUnseqMDataShell",
+                Request::GetMDataVersion { .. } => "Request::GetMDataVersion",
+                Request::ListUnseqMDataEntries { .. } => "Request::ListUnseqMDataEntries",
+                Request::ListSeqMDataEntries { .. } => "Request::ListSeqMDataEntries",
+                Request::ListMDataKeys { .. } => "Request::ListMDataKeys",
+                Request::ListUnseqMDataValues { .. } => "Request::ListUnseqMDataValues",
+                Request::ListSeqMDataValues { .. } => "Request::ListSeqMDataValues",
+                Request::DeleteMData { .. } => "Request::DeleteMData",
+                // TODO
+                ref _x => "Request",
+            }
+        )
     }
 }
