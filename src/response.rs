@@ -16,9 +16,25 @@ use std::collections::{BTreeMap, BTreeSet};
 /// RPC responses from vaults.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub enum Response<ErrorType> {
-    GetUnpubIData(Result<UnpubImmutableData, ErrorType>),
-    PutUnpubIData(Result<(), ErrorType>),
-    DeleteUnpubIData(Result<(), ErrorType>),
+    //
+    // ===== Immutable Data =====
+    //
+    GetUnpubIData {
+        res: Result<UnpubImmutableData, ErrorType>,
+        msg_id: MessageId,
+    },
+    PutUnpubIData {
+        res: Result<(), ErrorType>,
+        msg_id: MessageId,
+    },
+    DeleteUnpubIData {
+        res: Result<(), ErrorType>,
+        msg_id: MessageId,
+    },
+    //
+    // ===== Mutable Data =====
+    //
+    /// Get unsequenced Mutable Data.
     GetUnseqMData {
         res: Result<UnseqMutableData, ErrorType>,
         msg_id: MessageId,
@@ -77,24 +93,27 @@ use std::fmt;
 
 impl<T> fmt::Debug for Response<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let printable = match *self {
-            Response::GetUnpubIData { .. } => "Response::GetUnpubIData",
-            Response::PutUnpubIData { .. } => "Response::PutUnpubIData",
-            Response::DeleteUnpubIData { .. } => "Response::DeleteUnpubIData",
-            Response::DeleteMData { .. } => "Response::DeleteMData",
-            Response::GetUnseqMData { .. } => "Response::GetUnseqMData",
-            Response::PutUnseqMData { .. } => "Response::PutUnseqMData",
-            Response::GetSeqMData { .. } => "Response::GetSeqMData",
-            Response::PutSeqMData { .. } => "Response::PutSeqMData",
-            Response::GetSeqMDataShell { .. } => "Response::GetMDataShell",
-            Response::GetUnseqMDataShell { .. } => "Response::GetMDataShell",
-            Response::GetMDataVersion { .. } => "Response::GetMDataVersion",
-            Response::ListUnseqMDataEntries { .. } => "Response::ListUnseqMDataEntries",
-            Response::ListSeqMDataEntries { .. } => "Response::ListSeqMDataEntries",
-            Response::ListMDataKeys { .. } => "Response::ListMDataKeys",
-            Response::ListSeqMDataValues { .. } => "Response::ListSeqMDataValues",
-            Response::ListUnseqMDataValues { .. } => "Response::ListUnseqMDataValues",
-        };
-        write!(f, "{}", printable)
+        write!(
+            f,
+            "{}",
+            match *self {
+                Response::GetUnpubIData { .. } => "Response::GetUnpubIData",
+                Response::PutUnpubIData { .. } => "Response::PutUnpubIData",
+                Response::DeleteUnpubIData { .. } => "Response::DeleteUnpubIData",
+                Response::DeleteMData { .. } => "Response::DeleteMData",
+                Response::GetUnseqMData { .. } => "Response::GetUnseqMData",
+                Response::PutUnseqMData { .. } => "Response::PutUnseqMData",
+                Response::GetSeqMData { .. } => "Response::GetSeqMData",
+                Response::PutSeqMData { .. } => "Response::PutSeqMData",
+                Response::GetSeqMDataShell { .. } => "Response::GetMDataShell",
+                Response::GetUnseqMDataShell { .. } => "Response::GetMDataShell",
+                Response::GetMDataVersion { .. } => "Response::GetMDataVersion",
+                Response::ListUnseqMDataEntries { .. } => "Response::ListUnseqMDataEntries",
+                Response::ListSeqMDataEntries { .. } => "Response::ListSeqMDataEntries",
+                Response::ListMDataKeys { .. } => "Response::ListMDataKeys",
+                Response::ListSeqMDataValues { .. } => "Response::ListSeqMDataValues",
+                Response::ListUnseqMDataValues { .. } => "Response::ListUnseqMDataValues",
+            }
+        )
     }
 }
