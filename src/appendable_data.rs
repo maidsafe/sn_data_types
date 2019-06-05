@@ -49,7 +49,8 @@ pub struct UnpubPermissionSet {
 }
 
 impl UnpubPermissionSet {
-    fn is_allowed(&self, action: Action) -> bool {
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    pub fn is_allowed(&self, action: Action) -> bool {
         match action {
             Action::Read => self.read,
             Action::Append => self.append,
@@ -65,7 +66,8 @@ pub struct PubPermissionSet {
 }
 
 impl PubPermissionSet {
-    fn is_allowed(&self, action: Action) -> Option<bool> {
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    pub fn is_allowed(&self, action: Action) -> Option<bool> {
         match action {
             Action::Read => Some(true), // It's published data, so it's always allowed to read it.
             Action::Append => self.append,
