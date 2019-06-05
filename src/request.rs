@@ -53,7 +53,7 @@ pub enum Request {
         // Address of the mutable data to be fetched
         address: MutableDataRef,
         // Requester public key
-        requester: threshold_crypto::PublicKey,
+        requester: Requester,
         // Unique message Identifier
         message_id: MessageId,
     },
@@ -87,49 +87,49 @@ pub enum Request {
 
     GetSeqMDataShell {
         address: MutableDataRef,
-        requester: threshold_crypto::PublicKey,
+        requester: Requester,
         message_id: MessageId,
     },
 
     GetUnseqMDataShell {
         address: MutableDataRef,
-        requester: threshold_crypto::PublicKey,
+        requester: Requester,
         message_id: MessageId,
     },
 
     GetMDataVersion {
         address: MutableDataRef,
-        requester: threshold_crypto::PublicKey,
+        requester: Requester,
         message_id: MessageId,
     },
 
     ListUnseqMDataEntries {
         address: MutableDataRef,
-        requester: threshold_crypto::PublicKey,
+        requester: Requester,
         message_id: MessageId,
     },
 
     ListSeqMDataEntries {
         address: MutableDataRef,
-        requester: threshold_crypto::PublicKey,
+        requester: Requester,
         message_id: MessageId,
     },
 
     ListMDataKeys {
         address: MutableDataRef,
-        requester: threshold_crypto::PublicKey,
+        requester: Requester,
         message_id: MessageId,
     },
 
     ListUnseqMDataValues {
         address: MutableDataRef,
-        requester: threshold_crypto::PublicKey,
+        requester: Requester,
         message_id: MessageId,
     },
 
     ListSeqMDataValues {
         address: MutableDataRef,
-        requester: threshold_crypto::PublicKey,
+        requester: Requester,
         message_id: MessageId,
     },
 
