@@ -20,6 +20,8 @@ pub const MAX_IMMUTABLE_DATA_SIZE_IN_BYTES: u64 = 1024 * 1024 + 10 * 1024;
 
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub struct UnpubImmutableData {
+    /// Name.
+    name: XorName,
     /// Contained ImmutableData.
     data: Vec<u8>,
     /// Contains a set of owners of this data. DataManagers enforce that a DELETE or OWNED-GET type
@@ -28,13 +30,21 @@ pub struct UnpubImmutableData {
 }
 
 impl UnpubImmutableData {
-    /// Name.
-    pub fn name(&self) -> XorName {
+    pub fn new(data: Vec<u8>, owners: PublicKey) -> Self {
         // TODO: Use low-level arrays or slices instead of Vec.
         let mut bytes = Vec::with_capacity(XOR_NAME_LEN + PK_SIZE);
-        bytes.extend_from_slice(&tiny_keccak::sha3_256(&self.data));
-        bytes.extend_from_slice(&self.owners.to_bytes());
-        XorName(tiny_keccak::sha3_256(&bytes))
+        bytes.extend_from_slice(&tiny_keccak::sha3_256(&data));
+        bytes.extend_from_slice(&owners.to_bytes());
+        let name = XorName(tiny_keccak::sha3_256(&bytes));
+
+        Self { name, data, owners }
+    }
+}
+
+impl Debug for UnpubImmutableData {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        // TODO: Output owners?
+        write!(formatter, "UnpubImmutableData {:?}", self.name)
     }
 }
 
@@ -50,7 +60,7 @@ pub struct ImmutableData {
 
 impl ImmutableData {
     /// Creates a new instance of `ImmutableData`
-    pub fn new(value: Vec<u8>) -> ImmutableData {
+    pub fn new(value: Vec<u8>) -> Self {
         ImmutableData {
             name: XorName(tiny_keccak::sha3_256(&value)),
             value,
@@ -121,26 +131,16 @@ mod tests {
         let owner1 = SecretKey::random().public_key();
         let owner2 = SecretKey::random().public_key();
 
-        let idata1 = UnpubImmutableData {
-            data: data1.clone(),
-            owners: owner1,
-        };
-        let idata2 = UnpubImmutableData {
-            data: data1,
-            owners: owner2,
-        };
-        let idata3 = UnpubImmutableData {
-            data: data2,
-            owners: owner1,
-        };
+        let idata1 = UnpubImmutableData::new(data1.clone(), owner1);
+        let idata2 = UnpubImmutableData::new(data1, owner2);
+        let idata3 = UnpubImmutableData::new(data2.clone(), owner1);
+        let idata3_clone = UnpubImmutableData::new(data2, owner1);
 
-        assert_eq!(idata1.name(), idata1.name());
-        assert_eq!(idata2.name(), idata2.name());
-        assert_eq!(idata3.name(), idata3.name());
+        assert_eq!(idata3, idata3_clone);
 
-        assert_ne!(idata1.name(), idata2.name());
-        assert_ne!(idata1.name(), idata3.name());
-        assert_ne!(idata2.name(), idata3.name());
+        assert_ne!(idata1.name, idata2.name);
+        assert_ne!(idata1.name, idata3.name);
+        assert_ne!(idata2.name, idata3.name);
     }
 
     #[test]
