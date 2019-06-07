@@ -7,6 +7,7 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
+use crate::errors::Error;
 use crate::immutable_data::UnpubImmutableData;
 use crate::mutable_data::{SeqMutableData, UnseqMutableData, Value};
 use crate::MessageId;
@@ -14,21 +15,22 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
 /// RPC responses from vaults.
+#[allow(clippy::large_enum_variant)]
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
-pub enum Response<ErrorType> {
+pub enum Response {
     //
     // ===== Immutable Data =====
     //
     GetUnpubIData {
-        res: Result<UnpubImmutableData, ErrorType>,
+        res: Result<UnpubImmutableData, Error>,
         msg_id: MessageId,
     },
     PutUnpubIData {
-        res: Result<(), ErrorType>,
+        res: Result<(), Error>,
         msg_id: MessageId,
     },
     DeleteUnpubIData {
-        res: Result<(), ErrorType>,
+        res: Result<(), Error>,
         msg_id: MessageId,
     },
     //
@@ -36,62 +38,62 @@ pub enum Response<ErrorType> {
     //
     /// Get unsequenced Mutable Data.
     GetUnseqMData {
-        res: Result<UnseqMutableData, ErrorType>,
+        res: Result<UnseqMutableData, Error>,
         msg_id: MessageId,
     },
     PutUnseqMData {
-        res: Result<(), ErrorType>,
+        res: Result<(), Error>,
         msg_id: MessageId,
     },
     GetSeqMData {
-        res: Result<SeqMutableData, ErrorType>,
+        res: Result<SeqMutableData, Error>,
         msg_id: MessageId,
     },
     PutSeqMData {
-        res: Result<(), ErrorType>,
+        res: Result<(), Error>,
         msg_id: MessageId,
     },
     GetSeqMDataShell {
-        res: Result<SeqMutableData, ErrorType>,
+        res: Result<SeqMutableData, Error>,
         msg_id: MessageId,
     },
     GetUnseqMDataShell {
-        res: Result<UnseqMutableData, ErrorType>,
+        res: Result<UnseqMutableData, Error>,
         msg_id: MessageId,
     },
     GetMDataVersion {
-        res: Result<u64, ErrorType>,
+        res: Result<u64, Error>,
         msg_id: MessageId,
     },
     ListUnseqMDataEntries {
-        res: Result<BTreeMap<Vec<u8>, Vec<u8>>, ErrorType>,
+        res: Result<BTreeMap<Vec<u8>, Vec<u8>>, Error>,
         msg_id: MessageId,
     },
     ListSeqMDataEntries {
-        res: Result<BTreeMap<Vec<u8>, Value>, ErrorType>,
+        res: Result<BTreeMap<Vec<u8>, Value>, Error>,
         msg_id: MessageId,
     },
     ListMDataKeys {
-        res: Result<BTreeSet<Vec<u8>>, ErrorType>,
+        res: Result<BTreeSet<Vec<u8>>, Error>,
         msg_id: MessageId,
     },
     ListSeqMDataValues {
-        res: Result<Vec<Value>, ErrorType>,
+        res: Result<Vec<Value>, Error>,
         msg_id: MessageId,
     },
     ListUnseqMDataValues {
-        res: Result<Vec<Vec<u8>>, ErrorType>,
+        res: Result<Vec<Vec<u8>>, Error>,
         msg_id: MessageId,
     },
     DeleteMData {
-        res: Result<(), ErrorType>,
+        res: Result<(), Error>,
         msg_id: MessageId,
     },
 }
 
 use std::fmt;
 
-impl<T> fmt::Debug for Response<T> {
+impl fmt::Debug for Response {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
