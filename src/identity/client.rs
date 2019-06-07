@@ -18,7 +18,7 @@ use threshold_crypto::{
 };
 
 #[derive(Serialize, Deserialize)]
-enum Keypair {
+pub(super) enum Keypair {
     Ed25519(Ed25519Keypair),
     Bls(BlsKeypair),
     BlsShare(BlsKeypairShare),
@@ -27,7 +27,7 @@ enum Keypair {
 /// A struct holding a keypair variant and the corresponding public ID for a network Client.
 #[derive(Serialize, Deserialize)]
 pub struct FullId {
-    keypair: Keypair,
+    pub(super) keypair: Keypair,
     public_id: PublicId,
 }
 
@@ -136,12 +136,13 @@ impl<'de> Deserialize<'de> for PublicId {
 
 impl Debug for PublicId {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "Client({})", self.name)
+        write!(formatter, "Client({:?})", self.public_key)
     }
 }
 
 impl Display for PublicId {
+    #[allow(trivial_casts)]
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "{}", self.name)
+        (self as &Debug).fmt(formatter)
     }
 }

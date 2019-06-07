@@ -142,12 +142,13 @@ impl<'de> Deserialize<'de> for PublicId {
 
 impl Debug for PublicId {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "Node({})", self.name)
+        write!(formatter, "Node({:?})", self.ed25519)
     }
 }
 
 impl Display for PublicId {
+    #[allow(trivial_casts)]
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "{}", self.name)
+        (self as &Debug).fmt(formatter)
     }
 }
