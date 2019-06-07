@@ -7,6 +7,7 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
+pub mod app;
 pub mod client;
 pub mod node;
 
@@ -27,6 +28,8 @@ pub enum PublicId {
     Node(node::PublicId),
     /// The public identity of a network Client.
     Client(client::PublicId),
+    /// The public identity of a network App.
+    App(app::PublicId),
 }
 
 impl PublicId {
@@ -35,6 +38,7 @@ impl PublicId {
         match self {
             PublicId::Node(pub_id) => pub_id.name(),
             PublicId::Client(pub_id) => pub_id.name(),
+            PublicId::App(pub_id) => pub_id.owner_name(),
         }
     }
 }
@@ -44,13 +48,15 @@ impl Debug for PublicId {
         match self {
             PublicId::Node(pub_id) => write!(formatter, "{:?}", pub_id),
             PublicId::Client(pub_id) => write!(formatter, "{:?}", pub_id),
+            PublicId::App(pub_id) => write!(formatter, "{:?}", pub_id),
         }
     }
 }
 
 impl Display for PublicId {
+    #[allow(trivial_casts)]
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "{}", self.name())
+        (self as &Debug).fmt(formatter)
     }
 }
 
