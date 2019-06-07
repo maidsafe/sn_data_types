@@ -24,6 +24,8 @@ pub enum Error {
     NoSuchData,
     /// Attempt to create a mutable data when data with such a name already exists
     DataExists,
+    /// Insufficient balance for performing a given mutating operation
+    LowBalance,
     /// Requested entry not found
     NoSuchEntry,
     /// Exceeded a limit on a number of entries
@@ -68,6 +70,7 @@ impl Display for Error {
             Error::AccountExists => write!(f, "Account already exists for client"),
             Error::NoSuchData => write!(f, "Requested data not found"),
             Error::DataExists => write!(f, "Data given already exists"),
+            Error::LowBalance => write!(f, "Insufficient account balance for this operation"),
             Error::NoSuchEntry => write!(f, "Requested entry not found"),
             Error::TooManyEntries => write!(f, "Exceeded a limit on a number of entries"),
             Error::InvalidEntryActions(ref errors) => {
@@ -104,6 +107,7 @@ impl error::Error for Error {
             Error::AccountExists => "Account exists",
             Error::NoSuchData => "No such data",
             Error::DataExists => "Data exists",
+            Error::LowBalance => "Low account balance",
             Error::NoSuchEntry => "No such entry",
             Error::TooManyEntries => "Too many entries",
             Error::InvalidEntryActions(_) => "Invalid entry actions",
