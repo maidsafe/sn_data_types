@@ -11,12 +11,17 @@ use crate::appendable_data::{
     self, AppendOnlyDataRef, AppendOnlyKind, Index, Owners, PubPermissions, UnpubPermissions, User,
 };
 use crate::immutable_data::UnpubImmutableData;
-use crate::mutable_data::{MutableDataRef, SeqMutableData, UnseqMutableData};
+use crate::mutable_data::{
+    MutableDataRef, PermissionSet, SeqEntryAction, SeqMutableData, UnseqEntryAction,
+    UnseqMutableData,
+};
 use crate::MessageId;
 use crate::XorName;
+use crate::PublicKey;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::fmt;
-use threshold_crypto::{PublicKey, Signature};
+use threshold_crypto::Signature;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
 pub enum Requester {
@@ -151,6 +156,61 @@ pub enum Request {
         address: MutableDataRef,
         requester: Requester,
         message_id: MessageId,
+    },
+
+    SetMDataUserPermissions {
+        address: MutableDataRef,
+        user: PublicKey,
+        permissions: PermissionSet,
+        version: u64,
+        requester: Requester,
+        message_id: MessageId,
+    },
+
+    DelMDataUserPermissions {
+        address: MutableDataRef,
+        user: PublicKey,
+        requester: Requester,
+        message_id: MessageId,
+    },
+
+    ListMDataPermissions {
+        address: MutableDataRef,
+        requester: Requester,
+        message_id: MessageId,
+    },
+
+    ListMDataUserPermissions {
+        address: MutableDataRef,
+        user: PublicKey,
+        requester: Requester,
+        message_id: MessageId,
+    },
+
+    MutateSeqMDataEntries {
+        address: MutableDataRef,
+        actions: BTreeMap<Vec<u8>, SeqEntryAction>,
+        requester: Requester,
+        message_id: MessageId,
+    },
+
+    MutateUnseqMDataEntries {
+        address: MutableDataRef,
+        actions: BTreeMap<Vec<u8>, UnseqEntryAction>,
+        requester: Requester,
+        message_id: MessageId,
+    },
+
+    GetSeqMDataValue {
+        address: MutableDataRef,
+        key: Vec<u8>,
+        requester: Requester,
+    },
+
+    GetUnseqMDataValue {
+        address: MutableDataRef,
+        key: Vec<u8>,
+        requester: Requester,
     },
     //
     // ===== Append Only Data =====

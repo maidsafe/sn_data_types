@@ -8,13 +8,15 @@
 // Software.
 
 use crate::errors::{EntryError, Error};
+use crate::request::{Request, Requester};
 use crate::XorName;
+use crate::PublicKey;
+use maidsafe_utilities::serialisation::serialise;
 use serde::{Deserialize, Serialize};
-
 use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, BTreeSet};
 use std::mem;
-use threshold_crypto::PublicKey;
+use threshold_crypto::PublicKey as BlsPublicKey;
 
 /// Mutable data that is unpublished on the network. This data can only be fetched by the owners or
 /// those in the permissions fields with `Permission::Read` access.
@@ -32,7 +34,7 @@ pub struct SeqMutableData {
     version: u64,
     /// Contains a set of owners of this data. DataManagers enforce that a mutation request is
     /// coming from the MaidManager Authority of the Owner.
-    owners: PublicKey,
+    owners: BlsPublicKey,
 }
 
 /// A value in `Sequenced MutableData`
@@ -66,7 +68,7 @@ pub struct UnseqMutableData {
     version: u64,
     /// Contains a set of owners of this data. DataManagers enforce that a mutation request is
     /// coming from the MaidManager Authority of the Owner.
-    owners: PublicKey,
+    owners: BlsPublicKey,
 }
 
 /// Set of user permissions.
@@ -124,7 +126,7 @@ pub trait MutableData {
 
     fn version(&self) -> u64;
 
-    fn owners(&self) -> &PublicKey;
+    fn owners(&self) -> &BlsPublicKey;
 
     fn keys(&self) -> BTreeSet<Vec<u8>>;
 
@@ -132,34 +134,34 @@ pub trait MutableData {
 
     fn user_permissions(&self, user: PublicKey) -> Result<&PermissionSet, Error>;
 
+    fn check_permissions(&self, rpc: Request, requester: Requester) -> Result<(), Error>;
+
     fn set_user_permissions(
         &mut self,
         user: PublicKey,
         permissions: PermissionSet,
         version: u64,
-        requester: PublicKey,
     ) -> Result<(), Error>;
 
     fn del_user_permissions(
         &mut self,
         user: PublicKey,
         version: u64,
-        requester: PublicKey,
     ) -> Result<(), Error>;
 
     fn del_user_permissions_without_validation(&mut self, user: PublicKey, version: u64) -> bool;
 
-    fn change_owner(&mut self, new_owner: PublicKey, version: u64) -> Result<(), Error>;
+    fn change_owner(&mut self, new_owner: BlsPublicKey, version: u64) -> Result<(), Error>;
 
-    fn change_owner_without_validation(&mut self, new_owner: PublicKey, version: u64) -> bool;
+    fn change_owner_without_validation(&mut self, new_owner: BlsPublicKey, version: u64) -> bool;
 
-    fn is_action_allowed(&self, requester: PublicKey, action: Action) -> bool;
+    fn is_action_allowed(&self, requester: &PublicKey, action: Action) -> bool;
 }
 
 macro_rules! impl_mutable_data {
     ($flavour:ident) => {
         impl $flavour {
-            pub fn new(name: XorName, tag: u64, owners: PublicKey) -> Self {
+            pub fn new(name: XorName, tag: u64, owners: BlsPublicKey) -> Self {
                 Self {
                     name,
                     tag,
@@ -200,7 +202,7 @@ macro_rules! impl_mutable_data {
             }
 
             /// Returns the owner key
-            fn owners(&self) -> &PublicKey {
+            fn owners(&self) -> &BlsPublicKey {
                 &self.owners
             }
 
@@ -218,17 +220,26 @@ macro_rules! impl_mutable_data {
                 self.permissions.get(&user).ok_or(Error::NoSuchKey)
             }
 
+            fn check_permissions(
+                &self,
+                request: Request,
+                requester: Requester,
+            ) -> Result<(), Error> {
+                match requester {
+                    Requester::Key(key) => check_permissions_for_key(self.user_permissions(key)?, request),
+                    Requester::Owner(signature) => {
+                        verify_ownership(signature, *self.owners(), request)
+                    }
+                }
+            }
+
             /// Insert or update permissions for the provided user.
             fn set_user_permissions(
                 &mut self,
                 user: PublicKey,
                 permissions: PermissionSet,
                 version: u64,
-                requester: PublicKey,
             ) -> Result<(), Error> {
-                if !self.is_action_allowed(requester, Action::ManagePermissions) {
-                    return Err(Error::AccessDenied);
-                }
                 if version != self.version + 1 {
                     return Err(Error::InvalidSuccessor(self.version));
                 }
@@ -242,11 +253,7 @@ macro_rules! impl_mutable_data {
                 &mut self,
                 user: PublicKey,
                 version: u64,
-                requester: PublicKey,
             ) -> Result<(), Error> {
-                if !self.is_action_allowed(requester, Action::ManagePermissions) {
-                    return Err(Error::AccessDenied);
-                }
                 if version != self.version + 1 {
                     return Err(Error::InvalidSuccessor(self.version));
                 }
@@ -273,7 +280,7 @@ macro_rules! impl_mutable_data {
             }
 
             /// Change owner of the mutable data.
-            fn change_owner(&mut self, new_owner: PublicKey, version: u64) -> Result<(), Error> {
+            fn change_owner(&mut self, new_owner: BlsPublicKey, version: u64) -> Result<(), Error> {
                 if version != self.version + 1 {
                     return Err(Error::InvalidSuccessor(self.version));
                 }
@@ -285,7 +292,7 @@ macro_rules! impl_mutable_data {
             /// Change the owner without performing any validation.
             fn change_owner_without_validation(
                 &mut self,
-                new_owner: PublicKey,
+                new_owner: BlsPublicKey,
                 version: u64,
             ) -> bool {
                 if version <= self.version {
@@ -297,17 +304,64 @@ macro_rules! impl_mutable_data {
                 true
             }
 
-            fn is_action_allowed(&self, requester: PublicKey, action: Action) -> bool {
-                if self.owners == requester {
-                    return true;
-                }
-                match self.permissions.get(&requester) {
+            fn is_action_allowed(&self, requester: &PublicKey, action: Action) -> bool {
+                match self.permissions.get(requester) {
                     Some(perms) => perms.is_allowed(action),
                     None => false,
                 }
             }
         }
     };
+}
+fn check_permissions_for_key(permissions: &PermissionSet, request: Request) -> Result<(), Error> {
+    match request {
+        Request::GetUnseqMData { .. }
+        | Request::GetSeqMData { .. }
+        | Request::GetUnseqMDataShell { .. }
+        | Request::GetSeqMDataShell { .. }
+        | Request::GetMDataVersion { .. }
+        | Request::ListMDataKeys { .. }
+        | Request::ListSeqMDataEntries { .. }
+        | Request::ListSeqMDataValues { .. }
+        | Request::GetSeqMDataValue { .. }
+        | Request::ListUnseqMDataEntries { .. }
+        | Request::GetUnseqMDataValue { .. }
+        | Request::ListUnseqMDataValues { .. }
+        | Request::ListMDataPermissions { .. }
+        | Request::ListMDataUserPermissions { .. } => {
+            if permissions.is_allowed(Action::Read) {
+                Ok(())
+            } else {
+                Err(Error::AccessDenied)
+            }
+        }
+
+        Request::SetMDataUserPermissions { .. } | Request::DelMDataUserPermissions { .. } => {
+            if permissions.is_allowed(Action::ManagePermissions) {
+                Ok(())
+            } else {
+                Err(Error::AccessDenied)
+            }
+        }
+
+        // Mutation permissions are checked later
+        Request::MutateSeqMDataEntries { .. } | Request::MutateUnseqMDataEntries { .. } => Ok(()),
+
+        _ => Err(Error::InvalidOperation),
+    }
+}
+
+fn verify_ownership(
+    signature: threshold_crypto::Signature,
+    bls_key: BlsPublicKey,
+    request: Request,
+) -> Result<(), Error> {
+    let message = serialise(&request).unwrap_or_default();
+    if bls_key.verify(&signature, message) {
+        Ok(())
+    } else {
+        Err(Error::InvalidSignature)
+    }
 }
 
 impl_mutable_data!(SeqMutableData);
@@ -321,7 +375,7 @@ impl UnseqMutableData {
         tag: u64,
         data: BTreeMap<Vec<u8>, Vec<u8>>,
         permissions: BTreeMap<PublicKey, PermissionSet>,
-        owners: PublicKey,
+        owners: BlsPublicKey,
     ) -> Self {
         Self {
             name,
@@ -334,12 +388,8 @@ impl UnseqMutableData {
     }
 
     /// Returns a value for the given key
-    pub fn get(&self, requester: PublicKey, key: &[u8]) -> Result<Option<&Vec<u8>>, Error> {
-        if self.is_action_allowed(requester, Action::Read) {
-            Ok(self.data.get(key))
-        } else {
-            Err(Error::AccessDenied)
-        }
+    pub fn get(&self, key: &[u8]) -> Option<&Vec<u8>> {
+        self.data.get(key)
     }
 
     /// Returns values of all entries
@@ -355,15 +405,8 @@ impl UnseqMutableData {
     /// Removes and returns all entries
     pub fn take_entries(
         &mut self,
-        requester: PublicKey,
-    ) -> Result<BTreeMap<Vec<u8>, Vec<u8>>, Error> {
-        if self.is_action_allowed(requester, Action::Read)
-            && self.is_action_allowed(requester, Action::Delete)
-        {
-            Ok(mem::replace(&mut self.data, BTreeMap::new()))
-        } else {
-            Err(Error::AccessDenied)
-        }
+    ) -> BTreeMap<Vec<u8>, Vec<u8>> {
+            mem::replace(&mut self.data, BTreeMap::new())
     }
 
     pub fn mutate_entries(
@@ -393,9 +436,9 @@ impl UnseqMutableData {
             },
         );
 
-        if (!insert.is_empty() && !self.is_action_allowed(requester, Action::Insert))
-            || (!update.is_empty() && !self.is_action_allowed(requester, Action::Update))
-            || (!delete.is_empty() && !self.is_action_allowed(requester, Action::Delete))
+        if (!insert.is_empty() && !self.is_action_allowed(&requester, Action::Insert))
+            || (!update.is_empty() && !self.is_action_allowed(&requester, Action::Update))
+            || (!delete.is_empty() && !self.is_action_allowed(&requester, Action::Delete))
         {
             return Err(Error::AccessDenied);
         }
@@ -454,7 +497,7 @@ impl SeqMutableData {
         tag: u64,
         data: BTreeMap<Vec<u8>, Value>,
         permissions: BTreeMap<PublicKey, PermissionSet>,
-        owners: PublicKey,
+        owners: BlsPublicKey,
     ) -> Self {
         Self {
             name,
@@ -467,12 +510,8 @@ impl SeqMutableData {
     }
 
     /// Returns a value by the given key
-    pub fn get(&self, requester: PublicKey, key: &[u8]) -> Result<Option<&Value>, Error> {
-        if self.owners == requester {
-            Ok(self.data.get(key))
-        } else {
-            Err(Error::AccessDenied)
-        }
+    pub fn get(&self, key: &[u8]) -> Option<&Value> {
+        self.data.get(key)
     }
 
     /// Returns values of all entries
@@ -488,13 +527,8 @@ impl SeqMutableData {
     /// Removes and returns all entries
     pub fn take_entries(
         &mut self,
-        requester: PublicKey,
-    ) -> Result<BTreeMap<Vec<u8>, Value>, Error> {
-        if self.owners == requester {
-            Ok(mem::replace(&mut self.data, BTreeMap::new()))
-        } else {
-            Err(Error::AccessDenied)
-        }
+    ) -> BTreeMap<Vec<u8>, Value> {
+            mem::replace(&mut self.data, BTreeMap::new())
     }
 
     /// Mutates entries (key + value pairs) in bulk
@@ -522,9 +556,9 @@ impl SeqMutableData {
             },
         );
 
-        if (!insert.is_empty() && !self.is_action_allowed(requester, Action::Insert))
-            || (!update.is_empty() && !self.is_action_allowed(requester, Action::Update))
-            || (!delete.is_empty() && !self.is_action_allowed(requester, Action::Delete))
+        if (!insert.is_empty() && !self.is_action_allowed(&requester, Action::Insert))
+            || (!update.is_empty() && !self.is_action_allowed(&requester, Action::Update))
+            || (!delete.is_empty() && !self.is_action_allowed(&requester, Action::Delete))
         {
             return Err(Error::AccessDenied);
         }
@@ -616,7 +650,7 @@ impl MutableDataRef {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
 pub enum SeqEntryAction {
     /// Inserts a new Sequenced entry
     Ins(Value),
@@ -626,7 +660,7 @@ pub enum SeqEntryAction {
     Del(u64),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
 pub enum UnseqEntryAction {
     /// Inserts a new Unsequenced entry
     Ins(Vec<u8>),
@@ -637,16 +671,12 @@ pub enum UnseqEntryAction {
 }
 
 /// Helper struct to build entry actions on `MutableData`
-#[derive(Debug, Default, Clone)]
+#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
 pub struct SeqEntryActions {
     actions: BTreeMap<Vec<u8>, SeqEntryAction>,
 }
 
 impl SeqEntryActions {
-    /// Create a helper to simplify construction of `MutableData` actions
-    pub fn new() -> Self {
-        Default::default()
-    }
 
     /// Insert a new key-value pair
     pub fn ins(mut self, key: Vec<u8>, content: Vec<u8>, version: u64) -> Self {
@@ -685,7 +715,7 @@ impl Into<BTreeMap<Vec<u8>, SeqEntryAction>> for SeqEntryActions {
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
 pub struct UnseqEntryActions {
     actions: BTreeMap<Vec<u8>, UnseqEntryAction>,
 }
