@@ -12,12 +12,16 @@ use crate::appendable_data::{
 };
 use crate::coins::Coins;
 use crate::immutable_data::UnpubImmutableData;
-use crate::mutable_data::{MutableDataRef, SeqMutableData, UnseqMutableData};
-use crate::{AppPermissions, MessageId, XorName};
+use crate::mutable_data::{
+    MutableDataRef, PermissionSet, SeqEntryAction, SeqMutableData, UnseqEntryAction,
+    UnseqMutableData,
+};
+use crate::{AppPermissions, MessageId, PublicKey, XorName};
 use rust_sodium::crypto::sign;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::fmt;
-use threshold_crypto::{PublicKey, Signature};
+use threshold_crypto::Signature;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
 pub enum Requester {
@@ -115,6 +119,46 @@ pub enum Request {
         address: MutableDataRef,
     },
 
+    SetMDataUserPermissions {
+        address: MutableDataRef,
+        user: PublicKey,
+        permissions: PermissionSet,
+        version: u64,
+    },
+
+    DelMDataUserPermissions {
+        address: MutableDataRef,
+        user: PublicKey,
+    },
+
+    ListMDataPermissions {
+        address: MutableDataRef,
+    },
+
+    ListMDataUserPermissions {
+        address: MutableDataRef,
+        user: PublicKey,
+    },
+
+    MutateSeqMDataEntries {
+        address: MutableDataRef,
+        actions: BTreeMap<Vec<u8>, SeqEntryAction>,
+    },
+
+    MutateUnseqMDataEntries {
+        address: MutableDataRef,
+        actions: BTreeMap<Vec<u8>, UnseqEntryAction>,
+    },
+
+    GetSeqMDataValue {
+        address: MutableDataRef,
+        key: Vec<u8>,
+    },
+
+    GetUnseqMDataValue {
+        address: MutableDataRef,
+        key: Vec<u8>,
+    },
     //
     // ===== Append Only Data =====
     //
