@@ -54,6 +54,17 @@ pub enum Error {
     /// Network error occurring at Vault level which has no bearing on clients, e.g. serialisation
     /// failure or database failure
     NetworkOther(String),
+    /// While parsing or converting, precision would be lost.
+    LossOfPrecision,
+    /// The safecoin amount would exceed
+    /// [the maximum value for `Coin`](constant.MAX_COINS_VALUE.html).
+    ExcessiveValue,
+    /// Failed to parse the string as a `Coin`.
+    FailedToParse,
+    /// Transaction ID already exists.
+    TransactionIdExists,
+    /// Insufficient coins.
+    InsufficientBalance,
 }
 
 impl<T: Into<String>> From<T> for Error {
@@ -95,6 +106,16 @@ impl Display for Error {
             }
             Error::InvalidSignature => write!(f, "Failed signature validation"),
             Error::NetworkOther(ref error) => write!(f, "Error on Vault network: {}", error),
+            Error::LossOfPrecision => {
+                write!(f, "Lost precision on the number of coins during conversion")
+            }
+            Error::ExcessiveValue => write!(
+                f,
+                "Overflow on number of coins (check the MAX_COINS_VALUE const)"
+            ),
+            Error::FailedToParse => write!(f, "Failed to parse number of coins from a string"),
+            Error::TransactionIdExists => write!(f, "Transaction with a given ID already exists"),
+            Error::InsufficientBalance => write!(f, "Not enough coins to complete this operation"),
         }
     }
 }
@@ -120,6 +141,13 @@ impl error::Error for Error {
             Error::SigningKeyTypeMismatch => "Key type and signature type mismatch",
             Error::InvalidSignature => "Invalid signature",
             Error::NetworkOther(ref error) => error,
+            Error::LossOfPrecision => "Lost precision on the number of coins during conversion",
+            Error::ExcessiveValue => {
+                "Overflow on number of coins (check the MAX_COINS_VALUE const)"
+            }
+            Error::FailedToParse => "Failed to parse number of coins from a string",
+            Error::TransactionIdExists => "Transaction with a given ID already exists",
+            Error::InsufficientBalance => "Not enough coins to complete this operation",
         }
     }
 }
