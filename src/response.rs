@@ -9,8 +9,8 @@
 
 use crate::errors::Error;
 use crate::immutable_data::UnpubImmutableData;
-use crate::mutable_data::{SeqMutableData, UnseqMutableData, Value};
-use crate::MessageId;
+use crate::mutable_data::{PermissionSet, SeqMutableData, UnseqMutableData, Value};
+use crate::{MessageId, PublicKey};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -89,6 +89,30 @@ pub enum Response {
         res: Result<(), Error>,
         msg_id: MessageId,
     },
+    SetMDataUserPermissions {
+        res: Result<(), Error>,
+        msg_id: MessageId,
+    },
+    DelMDataUserPermissions {
+        res: Result<(), Error>,
+        msg_id: MessageId,
+    },
+    ListMDataUserPermissions {
+        res: Result<PermissionSet, Error>,
+        msg_id: MessageId,
+    },
+    ListMDataPermissions {
+        res: Result<BTreeMap<PublicKey, PermissionSet>, Error>,
+        msg_id: MessageId,
+    },
+    MutateSeqMDataEntries {
+        res: Result<(), Error>,
+        msg_id: MessageId,
+    },
+    MutateUnseqMDataEntries {
+        res: Result<(), Error>,
+        msg_id: MessageId,
+    },
 }
 
 use std::fmt;
@@ -115,6 +139,12 @@ impl fmt::Debug for Response {
                 Response::ListMDataKeys { .. } => "Response::ListMDataKeys",
                 Response::ListSeqMDataValues { .. } => "Response::ListSeqMDataValues",
                 Response::ListUnseqMDataValues { .. } => "Response::ListUnseqMDataValues",
+                Response::SetMDataUserPermissions { .. } => "Response::SetMDataUserPermissions",
+                Response::DelMDataUserPermissions { .. } => "Response::DelMDataUserPermissions",
+                Response::ListMDataPermissions { .. } => "Response::ListMDataPermissions",
+                Response::ListMDataUserPermissions { .. } => "Response::ListMDataUserPermissions",
+                Response::MutateSeqMDataEntries { .. } => "Response::MutateSeqMDataEntries",
+                Response::MutateUnseqMDataEntries { .. } => "Response::MutateUnseqMDataEntries",
             }
         )
     }

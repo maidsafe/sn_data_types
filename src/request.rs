@@ -16,8 +16,8 @@ use crate::mutable_data::{
     UnseqMutableData,
 };
 use crate::MessageId;
-use crate::XorName;
 use crate::PublicKey;
+use crate::XorName;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fmt;
@@ -170,6 +170,7 @@ pub enum Request {
     DelMDataUserPermissions {
         address: MutableDataRef,
         user: PublicKey,
+        version: u64,
         requester: Requester,
         message_id: MessageId,
     },
@@ -375,6 +376,7 @@ impl fmt::Debug for Request {
                 Request::ListMDataKeys { .. } => "Request::ListMDataKeys",
                 Request::ListUnseqMDataValues { .. } => "Request::ListUnseqMDataValues",
                 Request::ListSeqMDataValues { .. } => "Request::ListSeqMDataValues",
+                Request::SetMDataUserPermissions { .. } => "Request::SetMDataUserPermissions",
                 Request::DeleteMData { .. } => "Request::DeleteMData",
                 // TODO
                 ref _x => "Request",
