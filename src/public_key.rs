@@ -11,7 +11,9 @@ use crate::{Ed25519Digest, Error, XorName, XOR_NAME_LEN};
 use ed25519_dalek;
 use hex_fmt::HexFmt;
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 use std::fmt::{self, Debug, Display, Formatter};
+use std::hash::{Hash, Hasher};
 use threshold_crypto;
 
 #[derive(Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -22,7 +24,39 @@ pub enum PublicKey {
     BlsShare(threshold_crypto::PublicKeyShare),
 }
 
+#[allow(clippy::derive_hash_xor_eq)]
+impl Hash for PublicKey {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            PublicKey::Ed25519(ref pk) => pk.as_bytes().hash(state),
+            PublicKey::Bls(ref pk) => pk.hash(state),
+            PublicKey::BlsShare(ref pk) => pk.hash(state),
+        }
+    }
+}
+
+impl Ord for PublicKey {
+    fn cmp(&self, other: &PublicKey) -> Ordering {
+        (&*self.as_bytes()).cmp(&*other.as_bytes())
+    }
+}
+
+impl PartialOrd for PublicKey {
+    fn partial_cmp(&self, other: &PublicKey) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 impl PublicKey {
+    fn as_bytes(&self) -> Box<[u8]> {
+        // TODO: return &[u8] for efficiency
+        match self {
+            PublicKey::Ed25519(ref pk) => Box::new(*pk.as_bytes()),
+            PublicKey::Bls(ref pk) => Box::new(pk.to_bytes()),
+            PublicKey::BlsShare(ref pk) => Box::new(pk.to_bytes()),
+        }
+    }
+
     pub fn verify_detached<T: AsRef<[u8]>>(
         &self,
         signature: &Signature,
