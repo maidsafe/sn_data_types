@@ -7,12 +7,15 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::errors::Error;
-use crate::request::{Request, Requester};
-use crate::{PublicKey, XorName};
+use crate::{Error, PublicKey, Request, Requester, XorName};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use threshold_crypto::PublicKeySet;
+
+pub type PubSeqAppendOnlyData = SeqAppendOnlyData<PubPermissions>;
+pub type PubUnseqAppendOnlyData = UnseqAppendOnlyData<PubPermissions>;
+pub type UnpubSeqAppendOnlyData = SeqAppendOnlyData<UnpubPermissions>;
+pub type UnpubUnseqAppendOnlyData = UnseqAppendOnlyData<UnpubPermissions>;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum User {
@@ -93,8 +96,7 @@ impl UnpubPermissionSet {
         self.manage_permissions = manage_perms;
     }
 
-    #[allow(clippy::trivially_copy_pass_by_ref)]
-    pub fn is_allowed(&self, action: Action) -> bool {
+    pub fn is_allowed(self, action: Action) -> bool {
         match action {
             Action::Read => self.read,
             Action::Append => self.append,
@@ -132,34 +134,48 @@ impl PubPermissionSet {
     }
 }
 
-#[derive(Copy, Debug, Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
-pub struct AppendOnlyDataRef {
-    // Address of an AppendOnlyData object on the network.
-    pub name: XorName,
-    // Type tag.
-    pub tag: u64,
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
+pub enum Address {
+    PubSeq { name: XorName, tag: u64 },
+    PubUnseq { name: XorName, tag: u64 },
+    UnpubSeq { name: XorName, tag: u64 },
+    UnpubUnseq { name: XorName, tag: u64 },
 }
 
-impl AppendOnlyDataRef {
-    pub fn name(&self) -> XorName {
-        self.name
+impl Address {
+    pub fn new_pub_seq(name: XorName, tag: u64) -> Self {
+        Address::PubSeq { name, tag }
+    }
+
+    pub fn new_pub_unseq(name: XorName, tag: u64) -> Self {
+        Address::PubUnseq { name, tag }
+    }
+
+    pub fn new_unpub_seq(name: XorName, tag: u64) -> Self {
+        Address::UnpubSeq { name, tag }
+    }
+
+    pub fn new_unpub_unseq(name: XorName, tag: u64) -> Self {
+        Address::UnpubUnseq { name, tag }
+    }
+
+    pub fn name(&self) -> &XorName {
+        match self {
+            Address::PubSeq { ref name, .. }
+            | Address::PubUnseq { ref name, .. }
+            | Address::UnpubSeq { ref name, .. }
+            | Address::UnpubUnseq { ref name, .. } => name,
+        }
     }
 
     pub fn tag(&self) -> u64 {
-        self.tag
+        match self {
+            Address::PubSeq { tag, .. }
+            | Address::PubUnseq { tag, .. }
+            | Address::UnpubSeq { tag, .. }
+            | Address::UnpubUnseq { tag, .. } => *tag,
+        }
     }
-}
-
-#[derive(Copy, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub enum AppendOnlyKind {
-    /// Published, sequenced append-only data
-    PubSeq,
-    /// Published, unsequenced append-only data
-    PubUnseq,
-    /// Unpublished, sequenced append-only data
-    UnpubSeq,
-    /// Unpublished, unsequenced append-only data
-    UnpubUnseq,
 }
 
 pub trait Permissions {
@@ -292,8 +308,7 @@ pub struct Owners {
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
 struct AppendOnly<P: Permissions> {
-    name: XorName,
-    tag: u64,
+    address: Address,
     data: Vec<(Vec<u8>, Vec<u8>)>,
     permissions: Vec<P>,
     owners: Vec<Owners>,
@@ -316,8 +331,11 @@ pub trait AppendOnlyData<P> {
     /// Return all entries.
     fn entries(&self) -> &Vec<(Vec<u8>, Vec<u8>)>;
 
+    /// Return the address of this AppendOnlyData.
+    fn address(&self) -> &Address;
+
     /// Return the name of this AppendOnlyData.
-    fn name(&self) -> XorName;
+    fn name(&self) -> &XorName;
 
     /// Return the type tag of this AppendOnlyData.
     fn tag(&self) -> u64;
@@ -345,6 +363,7 @@ pub trait AppendOnlyData<P> {
     fn owners_range(&self, start: Index, end: Index) -> Option<&[Owners]>;
 
     /// Add a new permissions entry.
+    ///
     /// The `Owners` struct should contain valid indexes.
     fn append_owners(&mut self, owners: Owners) -> Result<(), Error>;
 
@@ -378,33 +397,20 @@ macro_rules! impl_appendable_data {
             inner: AppendOnly<P>,
         }
 
-        impl<P> $flavour<P>
-        where
-            P: Permissions + std::hash::Hash,
-        {
-            pub fn new(name: XorName, tag: u64) -> Self {
-                Self {
-                    inner: AppendOnly {
-                        name,
-                        tag,
-                        data: Vec::new(),
-                        permissions: Vec::new(),
-                        owners: Vec::new(),
-                    },
-                }
-            }
-        }
-
         impl<P> AppendOnlyData<P> for $flavour<P>
         where
             P: Permissions + std::hash::Hash,
         {
-            fn name(&self) -> XorName {
-                self.inner.name
+            fn address(&self) -> &Address {
+                &self.inner.address
+            }
+
+            fn name(&self) -> &XorName {
+                self.inner.address.name()
             }
 
             fn tag(&self) -> u64 {
-                self.inner.tag
+                self.inner.address.tag()
             }
 
             fn entry_index(&self) -> u64 {
@@ -568,6 +574,58 @@ macro_rules! impl_appendable_data {
 
 impl_appendable_data!(SeqAppendOnlyData);
 impl_appendable_data!(UnseqAppendOnlyData);
+
+impl SeqAppendOnlyData<PubPermissions> {
+    pub fn new(name: XorName, tag: u64) -> Self {
+        Self {
+            inner: AppendOnly {
+                address: Address::new_pub_seq(name, tag),
+                data: Vec::new(),
+                permissions: Vec::new(),
+                owners: Vec::new(),
+            },
+        }
+    }
+}
+
+impl UnseqAppendOnlyData<PubPermissions> {
+    pub fn new(name: XorName, tag: u64) -> Self {
+        Self {
+            inner: AppendOnly {
+                address: Address::new_pub_unseq(name, tag),
+                data: Vec::new(),
+                permissions: Vec::new(),
+                owners: Vec::new(),
+            },
+        }
+    }
+}
+
+impl SeqAppendOnlyData<UnpubPermissions> {
+    pub fn new(name: XorName, tag: u64) -> Self {
+        Self {
+            inner: AppendOnly {
+                address: Address::new_unpub_seq(name, tag),
+                data: Vec::new(),
+                permissions: Vec::new(),
+                owners: Vec::new(),
+            },
+        }
+    }
+}
+
+impl UnseqAppendOnlyData<UnpubPermissions> {
+    pub fn new(name: XorName, tag: u64) -> Self {
+        Self {
+            inner: AppendOnly {
+                address: Address::new_unpub_unseq(name, tag),
+                data: Vec::new(),
+                permissions: Vec::new(),
+                owners: Vec::new(),
+            },
+        }
+    }
+}
 
 impl<P> SeqAppendOnly for SeqAppendOnlyData<P>
 where

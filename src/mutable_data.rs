@@ -10,23 +10,20 @@
 use crate::errors::{EntryError, Error};
 use crate::request::{Request, Requester};
 use crate::MessageId;
-use crate::PublicKey;
 use crate::XorName;
-use bincode::serialize;
+use crate::{PublicKey, Signature};
+use bincode;
 use serde::{Deserialize, Serialize};
 use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, BTreeSet};
 use std::mem;
-use threshold_crypto::PublicKey as BlsPublicKey;
 
 /// Mutable data that is unpublished on the network. This data can only be fetched by the owners or
 /// those in the permissions fields with `Permission::Read` access.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub struct SeqMutableData {
     /// Network address.
-    name: XorName,
-    /// Type tag.
-    tag: u64,
+    address: Address,
     /// Key-Value semantics.
     data: BTreeMap<Vec<u8>, Value>,
     /// Maps an application key to a list of allowed or forbidden actions.
@@ -35,7 +32,7 @@ pub struct SeqMutableData {
     version: u64,
     /// Contains a set of owners of this data. DataManagers enforce that a mutation request is
     /// coming from the MaidManager Authority of the Owner.
-    owners: BlsPublicKey,
+    owners: PublicKey,
 }
 
 /// A value in `Sequenced MutableData`
@@ -69,9 +66,7 @@ impl std::fmt::Debug for Value {
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub struct UnseqMutableData {
     /// Network address.
-    name: XorName,
-    /// Type tag.
-    tag: u64,
+    address: Address,
     /// Key-Value semantics.
     data: BTreeMap<Vec<u8>, Vec<u8>>,
     /// Maps an application key to a list of allowed or forbidden actions.
@@ -80,7 +75,7 @@ pub struct UnseqMutableData {
     version: u64,
     /// Contains a set of owners of this data. DataManagers enforce that a mutation request is
     /// coming from the MaidManager Authority of the Owner.
-    owners: BlsPublicKey,
+    owners: PublicKey,
 }
 
 /// Set of user permissions.
@@ -132,13 +127,15 @@ pub enum Action {
 
 /// Defines common functions in both sequenced and unsequenced types
 pub trait MutableData {
+    fn address(&self) -> &Address;
+
     fn name(&self) -> &XorName;
 
     fn tag(&self) -> u64;
 
     fn version(&self) -> u64;
 
-    fn owners(&self) -> &BlsPublicKey;
+    fn owners(&self) -> &PublicKey;
 
     fn keys(&self) -> BTreeSet<Vec<u8>>;
 
@@ -164,9 +161,9 @@ pub trait MutableData {
 
     fn del_user_permissions_without_validation(&mut self, user: PublicKey, version: u64) -> bool;
 
-    fn change_owner(&mut self, new_owner: BlsPublicKey, version: u64) -> Result<(), Error>;
+    fn change_owner(&mut self, new_owner: PublicKey, version: u64) -> Result<(), Error>;
 
-    fn change_owner_without_validation(&mut self, new_owner: BlsPublicKey, version: u64) -> bool;
+    fn change_owner_without_validation(&mut self, new_owner: PublicKey, version: u64) -> bool;
 
     fn is_action_allowed(&self, requester: &PublicKey, action: Action) -> bool;
 }
@@ -174,22 +171,10 @@ pub trait MutableData {
 macro_rules! impl_mutable_data {
     ($flavour:ident) => {
         impl $flavour {
-            pub fn new(name: XorName, tag: u64, owners: BlsPublicKey) -> Self {
-                Self {
-                    name,
-                    tag,
-                    data: Default::default(),
-                    permissions: Default::default(),
-                    version: 0,
-                    owners,
-                }
-            }
-
             /// Returns the Shell of the data
             pub fn shell(&self) -> Self {
                 Self {
-                    name: self.name,
-                    tag: self.tag,
+                    address: self.address,
                     data: BTreeMap::new(),
                     permissions: self.permissions.clone(),
                     version: self.version,
@@ -199,14 +184,19 @@ macro_rules! impl_mutable_data {
         }
 
         impl MutableData for $flavour {
+            /// Returns the address of the Mutable data
+            fn address(&self) -> &Address {
+                &self.address
+            }
+
             /// Returns the name of the Mutable data
             fn name(&self) -> &XorName {
-                &self.name
+                self.address.name()
             }
 
             /// Returns the tag type of the Mutable data
             fn tag(&self) -> u64 {
-                self.tag
+                self.address.tag()
             }
 
             /// Returns the version of the Mutable data
@@ -215,7 +205,7 @@ macro_rules! impl_mutable_data {
             }
 
             /// Returns the owner key
-            fn owners(&self) -> &BlsPublicKey {
+            fn owners(&self) -> &PublicKey {
                 &self.owners
             }
 
@@ -292,7 +282,7 @@ macro_rules! impl_mutable_data {
             }
 
             /// Change owner of the mutable data.
-            fn change_owner(&mut self, new_owner: BlsPublicKey, version: u64) -> Result<(), Error> {
+            fn change_owner(&mut self, new_owner: PublicKey, version: u64) -> Result<(), Error> {
                 if version != self.version + 1 {
                     return Err(Error::InvalidSuccessor(self.version));
                 }
@@ -304,7 +294,7 @@ macro_rules! impl_mutable_data {
             /// Change the owner without performing any validation.
             fn change_owner_without_validation(
                 &mut self,
-                new_owner: BlsPublicKey,
+                new_owner: PublicKey,
                 version: u64,
             ) -> bool {
                 if version <= self.version {
@@ -325,6 +315,7 @@ macro_rules! impl_mutable_data {
         }
     };
 }
+
 fn check_permissions_for_key(permissions: &PermissionSet, request: Request) -> Result<(), Error> {
     match request {
         Request::GetUnseqMData { .. }
@@ -366,17 +357,13 @@ fn check_permissions_for_key(permissions: &PermissionSet, request: Request) -> R
 }
 
 fn verify_ownership(
-    signature: threshold_crypto::Signature,
-    bls_key: BlsPublicKey,
+    signature: Signature,
+    public_key: PublicKey,
     request: Request,
     message_id: MessageId,
 ) -> Result<(), Error> {
-    let message = serialize(&(&request, message_id)).unwrap_or_default();
-    if bls_key.verify(&signature, message) {
-        Ok(())
-    } else {
-        Err(Error::InvalidSignature)
-    }
+    let message = bincode::serialize(&(&request, message_id)).unwrap_or_default();
+    public_key.verify_detached(&signature, message)
 }
 
 impl_mutable_data!(SeqMutableData);
@@ -384,17 +371,27 @@ impl_mutable_data!(UnseqMutableData);
 
 /// Implements functions which are COMMON for both the mutable data
 impl UnseqMutableData {
+    /// Create a new Unsequenced Mutable Data
+    pub fn new(name: XorName, tag: u64, owners: PublicKey) -> Self {
+        Self {
+            address: Address::new_unseq(name, tag),
+            data: Default::default(),
+            permissions: Default::default(),
+            version: 0,
+            owners,
+        }
+    }
+
     /// Create a new Unsequenced Mutable Data with entries and permissions
     pub fn new_with_data(
         name: XorName,
         tag: u64,
         data: BTreeMap<Vec<u8>, Vec<u8>>,
         permissions: BTreeMap<PublicKey, PermissionSet>,
-        owners: BlsPublicKey,
+        owners: PublicKey,
     ) -> Self {
         Self {
-            name,
-            tag,
+            address: Address::new_unseq(name, tag),
             data,
             permissions,
             version: 0,
@@ -515,17 +512,27 @@ impl UnseqMutableData {
 
 /// Implements functions for sequenced Mutable Data.
 impl SeqMutableData {
+    /// Create a new Sequenced Mutable Data
+    pub fn new(name: XorName, tag: u64, owners: PublicKey) -> Self {
+        Self {
+            address: Address::new_seq(name, tag),
+            data: Default::default(),
+            permissions: Default::default(),
+            version: 0,
+            owners,
+        }
+    }
+
     /// Create a new Sequenced Mutable Data with entries and permissions
     pub fn new_with_data(
         name: XorName,
         tag: u64,
         data: BTreeMap<Vec<u8>, Value>,
         permissions: BTreeMap<PublicKey, PermissionSet>,
-        owners: BlsPublicKey,
+        owners: PublicKey,
     ) -> Self {
         Self {
-            name,
-            tag,
+            address: Address::new_seq(name, tag),
             data,
             permissions,
             version: 0,
@@ -661,25 +668,31 @@ impl SeqMutableData {
     }
 }
 
-#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Copy, Serialize, Deserialize)]
-pub struct MutableDataRef {
-    // Address of a MutableData object on the network.
-    name: XorName,
-    // Type tag.
-    tag: u64,
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
+pub enum Address {
+    Unseq { name: XorName, tag: u64 },
+    Seq { name: XorName, tag: u64 },
 }
 
-impl MutableDataRef {
-    pub fn new(name: XorName, tag: u64) -> Self {
-        MutableDataRef { name, tag }
+impl Address {
+    pub fn new_unseq(name: XorName, tag: u64) -> Self {
+        Address::Unseq { name, tag }
     }
 
-    pub fn name(&self) -> XorName {
-        self.name
+    pub fn new_seq(name: XorName, tag: u64) -> Self {
+        Address::Seq { name, tag }
+    }
+
+    pub fn name(&self) -> &XorName {
+        match self {
+            Address::Unseq { ref name, .. } | Address::Seq { ref name, .. } => name,
+        }
     }
 
     pub fn tag(&self) -> u64 {
-        self.tag
+        match self {
+            Address::Unseq { tag, .. } | Address::Seq { tag, .. } => *tag,
+        }
     }
 }
 

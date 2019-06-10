@@ -8,9 +8,12 @@
 // Software.
 
 use crate::{XorName, XOR_NAME_LEN};
-use bincode::serialize;
+use bincode;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::fmt::{self, Debug, Formatter};
+use std::{
+    fmt::{self, Debug, Formatter},
+    u64,
+};
 use threshold_crypto::{PublicKey, PK_SIZE};
 use tiny_keccak;
 use unwrap::unwrap;
@@ -18,10 +21,10 @@ use unwrap::unwrap;
 /// Maximum allowed size for a serialised Immutable Data (ID) to grow to
 pub const MAX_IMMUTABLE_DATA_SIZE_IN_BYTES: u64 = 1024 * 1024 + 10 * 1024;
 
-#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
+#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone)]
 pub struct UnpubImmutableData {
-    /// Name.
-    name: XorName,
+    /// Address.
+    address: Address,
     /// Contained data.
     value: Vec<u8>,
     /// Contains a set of owners of this data. DataManagers enforce that a DELETE or OWNED-GET type
@@ -30,15 +33,15 @@ pub struct UnpubImmutableData {
 }
 
 impl UnpubImmutableData {
+    /// Creates a new instance of `UnpubImmutableData`
     pub fn new(value: Vec<u8>, owners: PublicKey) -> Self {
         // TODO: Use low-level arrays or slices instead of Vec.
         let mut bytes = Vec::with_capacity(XOR_NAME_LEN + PK_SIZE);
         bytes.extend_from_slice(&tiny_keccak::sha3_256(&value));
         bytes.extend_from_slice(&owners.to_bytes());
-        let name = XorName(tiny_keccak::sha3_256(&bytes));
-
+        let address = Address::Unpub(XorName(tiny_keccak::sha3_256(&bytes)));
         Self {
-            name,
+            address,
             value,
             owners,
         }
@@ -49,51 +52,19 @@ impl UnpubImmutableData {
         &self.value
     }
 
-    /// Returns name ensuring invariant.
-    pub fn name(&self) -> &XorName {
-        &self.name
-    }
-
     /// Returns the set of owners.
     pub fn owners(&self) -> &PublicKey {
         &self.owners
     }
-}
 
-impl Debug for UnpubImmutableData {
-    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        // TODO: Output owners?
-        write!(formatter, "UnpubImmutableData {:?}", self.name)
-    }
-}
-
-/// An immutable chunk of data.
-///
-/// Note that the `name` member is omitted when serialising `ImmutableData` and is calculated from
-/// the `value` when deserialising.
-#[derive(Hash, Clone, Eq, PartialEq, Ord, PartialOrd)]
-pub struct ImmutableData {
-    name: XorName,
-    value: Vec<u8>,
-}
-
-impl ImmutableData {
-    /// Creates a new instance of `ImmutableData`
-    pub fn new(value: Vec<u8>) -> Self {
-        ImmutableData {
-            name: XorName(tiny_keccak::sha3_256(&value)),
-            value,
-        }
+    /// Returns the address.
+    pub fn address(&self) -> &Address {
+        &self.address
     }
 
-    /// Returns the value.
-    pub fn value(&self) -> &Vec<u8> {
-        &self.value
-    }
-
-    /// Returns name ensuring invariant.
+    /// Returns the name.
     pub fn name(&self) -> &XorName {
-        &self.name
+        self.address.name()
     }
 
     /// Returns size of contained value.
@@ -103,7 +74,77 @@ impl ImmutableData {
 
     /// Returns size of this data after serialisation.
     pub fn serialised_size(&self) -> u64 {
-        unwrap!(serialize(self)).len() as u64
+        bincode::serialized_size(self).unwrap_or(u64::MAX)
+    }
+
+    /// Return true if the size is valid
+    pub fn validate_size(&self) -> bool {
+        self.serialised_size() <= MAX_IMMUTABLE_DATA_SIZE_IN_BYTES
+    }
+}
+
+impl Serialize for UnpubImmutableData {
+    fn serialize<S: Serializer>(&self, serialiser: S) -> Result<S::Ok, S::Error> {
+        (&self.value, &self.owners).serialize(serialiser)
+    }
+}
+
+impl<'de> Deserialize<'de> for UnpubImmutableData {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let (value, owners): (Vec<u8>, PublicKey) = Deserialize::deserialize(deserializer)?;
+        Ok(UnpubImmutableData::new(value, owners))
+    }
+}
+
+impl Debug for UnpubImmutableData {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        // TODO: Output owners?
+        write!(formatter, "UnpubImmutableData {:?}", self.name())
+    }
+}
+
+/// An immutable chunk of data.
+///
+/// Note that the `name` member is omitted when serialising `ImmutableData` and is calculated from
+/// the `value` when deserialising.
+#[derive(Hash, Clone, Eq, PartialEq, Ord, PartialOrd)]
+pub struct ImmutableData {
+    address: Address,
+    value: Vec<u8>,
+}
+
+impl ImmutableData {
+    /// Creates a new instance of `ImmutableData`
+    pub fn new(value: Vec<u8>) -> Self {
+        Self {
+            address: Address::Pub(XorName(tiny_keccak::sha3_256(&value))),
+            value,
+        }
+    }
+
+    /// Returns the value.
+    pub fn value(&self) -> &Vec<u8> {
+        &self.value
+    }
+
+    /// Returns the address.
+    pub fn address(&self) -> &Address {
+        &self.address
+    }
+
+    /// Returns the name.
+    pub fn name(&self) -> &XorName {
+        self.address.name()
+    }
+
+    /// Returns size of contained value.
+    pub fn payload_size(&self) -> usize {
+        self.value.len()
+    }
+
+    /// Returns size of this data after serialisation.
+    pub fn serialised_size(&self) -> u64 {
+        bincode::serialized_size(self).unwrap_or(u64::MAX)
     }
 
     /// Return true if the size is valid
@@ -119,7 +160,7 @@ impl Serialize for ImmutableData {
 }
 
 impl<'de> Deserialize<'de> for ImmutableData {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<ImmutableData, D::Error> {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let value: Vec<u8> = Deserialize::deserialize(deserializer)?;
         Ok(ImmutableData::new(value))
     }
@@ -128,6 +169,20 @@ impl<'de> Deserialize<'de> for ImmutableData {
 impl Debug for ImmutableData {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "ImmutableData {:?}", self.name())
+    }
+}
+
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
+pub enum Address {
+    Unpub(XorName),
+    Pub(XorName),
+}
+
+impl Address {
+    pub fn name(&self) -> &XorName {
+        match self {
+            Address::Unpub(ref name) | Address::Pub(ref name) => name,
+        }
     }
 }
 
