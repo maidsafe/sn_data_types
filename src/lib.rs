@@ -79,6 +79,10 @@ pub use public_key::{PublicKey, Signature};
 pub use sha3::Sha3_512 as Ed25519Digest;
 
 use hex_fmt::HexFmt;
+use rand::{
+    distributions::{Distribution, Standard},
+    Rng,
+};
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Debug, Display, Formatter};
 
@@ -116,6 +120,16 @@ impl Display for XorName {
     }
 }
 
+impl Distribution<XorName> for Standard {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> XorName {
+        let mut ret = [0u8; XOR_NAME_LEN];
+        for r in ret[..].iter_mut() {
+            *r = rng.gen();
+        }
+        XorName(ret)
+    }
+}
+
 /// Unique ID for messages
 ///
 /// This is used for deduplication: Since the network sends messages redundantly along different
@@ -123,6 +137,19 @@ impl Display for XorName {
 /// an ID that is already in the cache will be ignored.
 #[derive(Ord, PartialOrd, Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize, Hash)]
 pub struct MessageId(pub XorName);
+
+impl MessageId {
+    /// Generate a new `MessageId` with random content.
+    pub fn new() -> MessageId {
+        MessageId(rand::random())
+    }
+}
+
+impl Default for MessageId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 // Impl this in SAFE Client Libs if we still need old routing Message IDs:
 //
