@@ -66,9 +66,11 @@ pub mod request;
 pub mod response;
 
 pub use errors::{EntryError, Error};
+use hex_fmt::HexFmt;
 pub use identity::{
-    client::FullId as ClientFullId, client::PublicId as ClientPublicId, node::FullId as NodeFullId,
-    node::PublicId as NodePublicId, PublicId,
+    app::FullId as AppFullId, app::PublicId as AppPublicId, client::FullId as ClientFullId,
+    client::PublicId as ClientPublicId, node::FullId as NodeFullId, node::PublicId as NodePublicId,
+    PublicId,
 };
 pub use immutable_data::{ImmutableData, UnpubImmutableData, MAX_IMMUTABLE_DATA_SIZE_IN_BYTES};
 pub use public_key::{PublicKey, Signature};
@@ -94,11 +96,7 @@ pub struct XorName(pub [u8; XOR_NAME_LEN]);
 
 impl Debug for XorName {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(
-            formatter,
-            "{:02x}{:02x}{:02x}..",
-            self.0[0], self.0[1], self.0[2]
-        )
+        write!(formatter, "{:<8}", HexFmt(&self.0))
     }
 }
 

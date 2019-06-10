@@ -12,6 +12,7 @@ edition = "2018"
 [dependencies]
 bincode = "~1.1.4"
 ed25519-dalek = "~0.9.1"
+hex_fmt = "~0.3.0"
 rand = "~0.6.5"
 rust_sodium = "~0.10.2"
 serde = { version = "~1.0.92", features = ["derive"] }
