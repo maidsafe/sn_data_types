@@ -11,7 +11,7 @@ use crate::errors::{EntryError, Error};
 use crate::request::{Request, Requester};
 use crate::PublicKey;
 use crate::XorName;
-use maidsafe_utilities::serialisation::serialise;
+use bincode::serialize;
 use serde::{Deserialize, Serialize};
 use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, BTreeSet};
@@ -363,7 +363,7 @@ fn verify_ownership(
     bls_key: BlsPublicKey,
     request: Request,
 ) -> Result<(), Error> {
-    let message = serialise(&request).unwrap_or_default();
+    let message = serialize(&request).unwrap_or_default();
     if bls_key.verify(&signature, message) {
         Ok(())
     } else {
@@ -452,7 +452,7 @@ impl UnseqMutableData {
                 }
             }
             Requester::Owner(signature) => {
-                if let Err(_) = verify_ownership(signature, *self.owners(), request) {
+                if verify_ownership(signature, *self.owners(), request).is_err() {
                     return Err(Error::AccessDenied);
                 }
             }
@@ -580,7 +580,7 @@ impl SeqMutableData {
                 }
             }
             Requester::Owner(signature) => {
-                if let Err(_) = verify_ownership(signature, *self.owners(), request) {
+                if verify_ownership(signature, *self.owners(), request).is_err() {
                     return Err(Error::AccessDenied);
                 }
             }

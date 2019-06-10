@@ -61,7 +61,7 @@ mod errors;
 mod identity;
 mod immutable_data;
 pub mod mutable_data;
-pub mod public_key;
+mod public_key;
 pub mod request;
 pub mod response;
 
