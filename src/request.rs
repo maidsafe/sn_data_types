@@ -10,10 +10,11 @@
 use crate::appendable_data::{
     self, AppendOnlyDataRef, AppendOnlyKind, Index, Owners, PubPermissions, UnpubPermissions, User,
 };
+use crate::coins::Coins;
 use crate::immutable_data::UnpubImmutableData;
 use crate::mutable_data::{MutableDataRef, SeqMutableData, UnseqMutableData};
-use crate::MessageId;
-use crate::XorName;
+use crate::{AppPermissions, MessageId, XorName};
+use rust_sodium::crypto::sign;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use threshold_crypto::{PublicKey, Signature};
@@ -292,6 +293,53 @@ pub enum Request {
     /// This operation MUST return an error if applied to published AppendOnlyData.
     /// Only the current owner(s) can perform this action.
     DeleteSeqAData(AppendOnlyDataRef),
+
+    // -- Coins --
+    /// Balance transfer
+    TransferCoins {
+        destination: XorName,
+        amount: Coins,
+        transaction_id: u64, // TODO: Use the trait UUID
+        message_id: MessageId,
+        requester: Requester,
+    },
+    /// Get transaction
+    GetTransaction {
+        coins_balance_id: XorName,
+        transaction_id: u64, // TODO: Use the trait UUID
+        message_id: MessageId,
+    },
+    /// Get current wallet balance
+    GetBalance {
+        coins_balance_id: XorName,
+        message_id: MessageId,
+        requester: Requester,
+    },
+
+    // --- Client (Owner) to Elders ---
+    // ==========================
+    /// Lists authorised keys and version stored by Elders.
+    ListAuthKeysAndVersion(MessageId),
+    /// Inserts an authorised key (for an app, user, etc.).
+    InsAuthKey {
+        /// Authorised key to be inserted
+        key: sign::PublicKey,
+        /// Incremented version
+        version: u64,
+        /// Permissions
+        permissions: AppPermissions,
+        /// Unique message identifier
+        message_id: MessageId,
+    },
+    /// Deletes an authorised key.
+    DelAuthKey {
+        /// Authorised key to be deleted
+        key: sign::PublicKey,
+        /// Incremented version
+        version: u64,
+        /// Unique message identifier
+        msg_id: MessageId,
+    },
 }
 
 impl fmt::Debug for Request {

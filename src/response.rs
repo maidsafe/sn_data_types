@@ -7,12 +7,26 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
+use crate::coins::Coins;
 use crate::errors::Error;
 use crate::immutable_data::UnpubImmutableData;
 use crate::mutable_data::{SeqMutableData, UnseqMutableData, Value};
-use crate::MessageId;
+use crate::{AppPermissions, MessageId};
+use rust_sodium::crypto::sign;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
+
+/// Safecoin transaction.
+#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
+pub enum Transaction {
+    /// The associated `CoinBalance` was successfully credited with this `Credit`.
+    Success(Coins),
+    /// This transaction is not known by the associated `CoinBalance`.  This could be because it was
+    /// never known, or is no longer known.
+    NoSuchTransaction,
+    /// The requested `CoinBalance` doesn't exist.
+    NoSuchCoinBalance,
+}
 
 /// RPC responses from vaults.
 #[allow(clippy::large_enum_variant)]
@@ -89,6 +103,42 @@ pub enum Response {
         res: Result<(), Error>,
         msg_id: MessageId,
     },
+    TransferCoins {
+        res: Result<(), Error>,
+        msg_id: MessageId,
+    },
+    GetTransaction {
+        res: Result<Transaction, Error>,
+        msg_id: MessageId,
+    },
+    GetBalance {
+        res: Result<Coins, Error>,
+        msg_id: MessageId,
+    },
+
+    // --- Client (Owner) to Elders ---
+    // ==========================
+    /// Returns a list of authorised keys from Elders and the account version.
+    ListAuthKeysAndVersion {
+        /// Result of getting a list of authorised keys and version
+        res: Result<(BTreeMap<sign::PublicKey, AppPermissions>, u64), Error>,
+        /// Unique message identifier
+        msg_id: MessageId,
+    },
+    /// Returns a success or failure status of adding an authorised key.
+    InsAuthKey {
+        /// Result of inserting an authorised key
+        res: Result<(), Error>,
+        /// Unique message identifier
+        msg_id: MessageId,
+    },
+    /// Returns a success or failure status of deleting an authorised key.
+    DelAuthKey {
+        /// Result of deleting an authorised key
+        res: Result<(), Error>,
+        /// Unique message identifier
+        msg_id: MessageId,
+    },
 }
 
 use std::fmt;
@@ -115,6 +165,12 @@ impl fmt::Debug for Response {
                 Response::ListMDataKeys { .. } => "Response::ListMDataKeys",
                 Response::ListSeqMDataValues { .. } => "Response::ListSeqMDataValues",
                 Response::ListUnseqMDataValues { .. } => "Response::ListUnseqMDataValues",
+                Response::TransferCoins { .. } => "Response::TransferCoins",
+                Response::GetTransaction { .. } => "Response::GetTransaction",
+                Response::GetBalance { .. } => "Response::GetBalance",
+                Response::ListAuthKeysAndVersion { .. } => "Response::ListAuthKeysAndVersion",
+                Response::InsAuthKey { .. } => "Response::InsAuthKey",
+                Response::DelAuthKey { .. } => "Response::DelAuthKey",
             }
         )
     }
