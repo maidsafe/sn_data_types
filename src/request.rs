@@ -43,6 +43,15 @@ pub struct AppendOperation {
     requester: Requester,
 }
 
+/// Wrapper message that contains the request, message ID, and the requester ID,
+/// which should also contain the signature(s) if it's sent by the owner(s).
+#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
+pub struct Message {
+    pub request: Request,
+    pub message_id: MessageId,
+    pub requester: Requester,
+}
+
 /// RPC Request that is sent to vaults
 #[allow(clippy::large_enum_variant)]
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
@@ -53,18 +62,12 @@ pub enum Request {
     /// Get unpublished IData from the network.
     GetUnpubIData {
         address: XorName,
-        requester: Requester,
-        message_id: MessageId,
     },
     PutUnpubIData {
         data: UnpubImmutableData,
-        requester: Requester,
-        message_id: MessageId,
     },
     DeleteUnpubIData {
         address: XorName,
-        requester: Requester,
-        message_id: MessageId,
     },
     //
     // ===== Mutable Data =====
@@ -73,86 +76,56 @@ pub enum Request {
     DeleteMData {
         // Address of the mutable data to be fetched
         address: MutableDataRef,
-        // Requester public key
-        requester: Requester,
-        // Unique message Identifier
-        message_id: MessageId,
     },
     GetUnseqMData {
         // Address of the mutable data to be fetched
         address: MutableDataRef,
-        requester: Requester,
-        // Unique message Identifier
-        message_id: MessageId,
     },
     PutUnseqMData {
         // Mutable Data to be stored
         data: UnseqMutableData,
-        // Requester public key
-        requester: Requester,
-        // Unique message Identifier
-        message_id: MessageId,
     },
 
     GetSeqMData {
         address: MutableDataRef,
-        requester: Requester,
-        message_id: MessageId,
     },
 
     PutSeqMData {
         data: SeqMutableData,
-        requester: Requester,
-        message_id: MessageId,
     },
 
     GetSeqMDataShell {
         address: MutableDataRef,
-        requester: Requester,
-        message_id: MessageId,
     },
 
     GetUnseqMDataShell {
         address: MutableDataRef,
-        requester: Requester,
-        message_id: MessageId,
     },
 
     GetMDataVersion {
         address: MutableDataRef,
-        requester: Requester,
-        message_id: MessageId,
     },
 
     ListUnseqMDataEntries {
         address: MutableDataRef,
-        requester: Requester,
-        message_id: MessageId,
     },
 
     ListSeqMDataEntries {
         address: MutableDataRef,
-        requester: Requester,
-        message_id: MessageId,
     },
 
     ListMDataKeys {
         address: MutableDataRef,
-        requester: Requester,
-        message_id: MessageId,
     },
 
     ListUnseqMDataValues {
         address: MutableDataRef,
-        requester: Requester,
-        message_id: MessageId,
     },
 
     ListSeqMDataValues {
         address: MutableDataRef,
-        requester: Requester,
-        message_id: MessageId,
     },
+
     //
     // ===== Append Only Data =====
     //
@@ -175,23 +148,18 @@ pub enum Request {
         // Get first 5 entries:
         // range: (Index::FromStart(0), Index::FromStart(5))
         range: (Index, Index),
-
-        // Requester public key
-        requester: Requester,
     },
 
     /// Get current indexes: data, owners, permissions.
     GetADataIndexes {
         kind: AppendOnlyKind,
         address: AppendOnlyDataRef,
-        requester: Requester,
     },
 
     /// Get an entry with the current index.
     GetADataLastEntry {
         kind: AppendOnlyKind,
         address: AppendOnlyDataRef,
-        requester: Requester,
     },
 
     /// Get permissions at the provided index.
@@ -199,7 +167,6 @@ pub enum Request {
         kind: AppendOnlyKind,
         address: AppendOnlyDataRef,
         permissions_index: Index,
-        requester: Requester,
     },
 
     /// Get permissions for a specified user(s).
@@ -208,7 +175,6 @@ pub enum Request {
         address: AppendOnlyDataRef,
         permissions_index: Index,
         user: User,
-        requester: Requester,
     },
 
     /// Get permissions for a specified public key.
@@ -217,7 +183,6 @@ pub enum Request {
         address: AppendOnlyDataRef,
         permissions_index: Index,
         user: PublicKey,
-        requester: Requester,
     },
 
     /// Get owners at the provided index.
@@ -225,7 +190,6 @@ pub enum Request {
         address: AppendOnlyDataRef,
         kind: AppendOnlyKind,
         owners_index: Index,
-        requester: Requester,
     },
 
     /// Add a new `permissions` entry.
@@ -235,7 +199,6 @@ pub enum Request {
         kind: AppendOnlyKind,
         // New permission set
         permissions: PubPermissions,
-        requester: Requester,
     },
 
     /// Add a new `permissions` entry.
@@ -245,7 +208,6 @@ pub enum Request {
         kind: AppendOnlyKind,
         // New permission set
         permissions: UnpubPermissions,
-        requester: Requester,
     },
 
     /// Add a new `owners` entry.
@@ -273,8 +235,6 @@ pub enum Request {
     PutAData {
         // AppendOnlyData to be stored
         data: AppendOnlyData,
-        // Requester public key
-        requester: Requester,
     },
 
     /// Get `AppendOnlyData` shell at a certain point
@@ -283,7 +243,6 @@ pub enum Request {
         kind: AppendOnlyKind,
         address: AppendOnlyDataRef,
         data_index: Index,
-        requester: Requester,
     },
 
     /// Delete an unpublished unsequenced `AppendOnlyData`.
@@ -300,20 +259,15 @@ pub enum Request {
         destination: XorName,
         amount: Coins,
         transaction_id: u64, // TODO: Use the trait UUID
-        message_id: MessageId,
-        requester: Requester,
     },
     /// Get transaction
     GetTransaction {
         coins_balance_id: XorName,
         transaction_id: u64, // TODO: Use the trait UUID
-        message_id: MessageId,
     },
     /// Get current wallet balance
     GetBalance {
         coins_balance_id: XorName,
-        message_id: MessageId,
-        requester: Requester,
     },
 
     // --- Client (Owner) to Elders ---
@@ -328,8 +282,6 @@ pub enum Request {
         version: u64,
         /// Permissions
         permissions: AppPermissions,
-        /// Unique message identifier
-        message_id: MessageId,
     },
     /// Deletes an authorised key.
     DelAuthKey {
@@ -337,8 +289,6 @@ pub enum Request {
         key: sign::PublicKey,
         /// Incremented version
         version: u64,
-        /// Unique message identifier
-        msg_id: MessageId,
     },
 }
 
@@ -364,6 +314,13 @@ impl fmt::Debug for Request {
                 Request::ListUnseqMDataValues { .. } => "Request::ListUnseqMDataValues",
                 Request::ListSeqMDataValues { .. } => "Request::ListSeqMDataValues",
                 Request::DeleteMData { .. } => "Request::DeleteMData",
+                Request::GetADataRange { .. } => "Request::GetADataRange",
+                Request::GetADataLastEntry { .. } => "Request::GetADataLastEntry",
+                Request::GetADataIndexes { .. } => "Request::GetADataIndexes",
+                Request::GetADataPermissions { .. } => "Request::GetADataPermissions",
+                Request::ListAuthKeysAndVersion { .. } => "Request::ListAuthKeysAndVersion",
+                Request::InsAuthKey { .. } => "Request::InsAuthKey",
+                Request::DelAuthKey { .. } => "Request::DelAuthKey",
                 // TODO
                 ref _x => "Request",
             }
