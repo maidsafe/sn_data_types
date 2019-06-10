@@ -129,6 +129,7 @@ pub enum Request {
     DelMDataUserPermissions {
         address: MutableDataRef,
         user: PublicKey,
+        version: u64,
     },
 
     ListMDataPermissions {
@@ -346,6 +347,7 @@ impl fmt::Debug for Request {
                 Request::ListMDataKeys { .. } => "Request::ListMDataKeys",
                 Request::ListUnseqMDataValues { .. } => "Request::ListUnseqMDataValues",
                 Request::ListSeqMDataValues { .. } => "Request::ListSeqMDataValues",
+                Request::SetMDataUserPermissions { .. } => "Request::SetMDataUserPermissions",
                 Request::DeleteMData { .. } => "Request::DeleteMData",
                 Request::GetADataRange { .. } => "Request::GetADataRange",
                 Request::GetADataLastEntry { .. } => "Request::GetADataLastEntry",
