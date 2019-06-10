@@ -56,17 +56,20 @@
 // FIXME - write docs
 #![allow(missing_docs)]
 
-pub mod appendable_data;
-pub mod mutable_data;
-pub mod request;
-pub mod response;
-
+mod appendable_data;
 mod coins;
 mod errors;
 mod identity;
 mod immutable_data;
+mod mutable_data;
 mod public_key;
+mod request;
+mod response;
 
+pub use appendable_data::{
+    Address as ADataAddress, AppendOnlyData, PubSeqAppendOnlyData, PubUnseqAppendOnlyData,
+    UnpubSeqAppendOnlyData, UnpubUnseqAppendOnlyData,
+};
 pub use coins::{Coins, MAX_COINS_VALUE};
 pub use errors::{EntryError, Error};
 pub use identity::{
@@ -74,12 +77,15 @@ pub use identity::{
     client::PublicId as ClientPublicId, node::FullId as NodeFullId, node::PublicId as NodePublicId,
     PublicId,
 };
-pub use immutable_data::{ImmutableData, UnpubImmutableData, MAX_IMMUTABLE_DATA_SIZE_IN_BYTES};
+pub use immutable_data::{
+    Address as IDataAddress, ImmutableData, UnpubImmutableData, MAX_IMMUTABLE_DATA_SIZE_IN_BYTES,
+};
+pub use mutable_data::{Address as MDataAddress, MutableData, SeqMutableData, UnseqMutableData};
 pub use public_key::{PublicKey, Signature};
+pub use request::{Request, Requester};
+pub use response::Response;
 pub use sha3::Sha3_512 as Ed25519Digest;
 
-use crate::request::{Request, Requester};
-use crate::response::Response;
 use hex_fmt::HexFmt;
 use rand::{
     distributions::{Distribution, Standard},
@@ -176,18 +182,3 @@ impl Default for MessageId {
         Self::new()
     }
 }
-
-// Impl this in SAFE Client Libs if we still need old routing Message IDs:
-//
-// impl From<OldMessageId> for MessageId {
-//     fn from(old_msg_id: OldMessageId) -> Self {
-//         MessageId {
-//             0: (old_msg_id.0).0,
-//         }
-//     }
-// }
-// impl Into<OldMessageId> for MessageId {
-//     fn into(self) -> OldMessageId {
-//         OldMessageId::from_name_array(self.0)
-//     }
-// }

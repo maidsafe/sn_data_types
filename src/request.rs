@@ -7,22 +7,19 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::appendable_data::{
-    self, AppendOnlyData as AppendOnlyTrait, AppendOnlyDataRef, AppendOnlyKind, Index, Owners,
-    PubPermissions, UnpubPermissions, User,
+use crate::{
+    appendable_data::{self, Index, Owners, PubPermissions, UnpubPermissions, User},
+    coins::Coins,
+    mutable_data::{PermissionSet, SeqEntryAction, UnseqEntryAction},
+    ADataAddress, AppPermissions, AppendOnlyData as AppendOnlyTrait, IDataAddress, ImmutableData,
+    MDataAddress, MessageId, PubSeqAppendOnlyData, PubUnseqAppendOnlyData, PublicKey,
+    SeqMutableData, Signature, UnpubImmutableData, UnpubSeqAppendOnlyData, UnseqMutableData,
+    XorName,
 };
-use crate::coins::Coins;
-use crate::immutable_data::{ImmutableData, UnpubImmutableData};
-use crate::mutable_data::{
-    MutableDataRef, PermissionSet, SeqEntryAction, SeqMutableData, UnseqEntryAction,
-    UnseqMutableData,
-};
-use crate::{AppPermissions, MessageId, PublicKey, XorName};
 use rust_sodium::crypto::sign;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fmt;
-use threshold_crypto::Signature;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
 pub enum Requester {
@@ -39,29 +36,28 @@ pub enum AppendOnlyData {
 }
 
 impl AppendOnlyData {
-    pub fn name(&self) -> XorName {
+    pub fn address(&self) -> &ADataAddress {
         match self {
-            AppendOnlyData::PubSeq(data) => data.name(),
-            AppendOnlyData::PubUnseq(data) => data.name(),
-            AppendOnlyData::UnpubSeq(data) => data.name(),
-            AppendOnlyData::UnpubUnseq(data) => data.name(),
+            AppendOnlyData::PubSeq(data) => data.address(),
+            AppendOnlyData::PubUnseq(data) => data.address(),
+            AppendOnlyData::UnpubSeq(data) => data.address(),
+            AppendOnlyData::UnpubUnseq(data) => data.address(),
         }
     }
 
+    pub fn name(&self) -> &XorName {
+        self.address().name()
+    }
+
     pub fn tag(&self) -> u64 {
-        match self {
-            AppendOnlyData::PubSeq(data) => data.tag(),
-            AppendOnlyData::PubUnseq(data) => data.tag(),
-            AppendOnlyData::UnpubSeq(data) => data.tag(),
-            AppendOnlyData::UnpubUnseq(data) => data.tag(),
-        }
+        self.address().tag()
     }
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
 pub struct AppendOperation {
     // Address of an AppendOnlyData object on the network.
-    pub address: AppendOnlyDataRef,
+    pub address: ADataAddress,
     // A list of entries to append.
     pub values: Vec<(Vec<u8>, Vec<u8>)>,
 }
@@ -75,11 +71,12 @@ pub enum Request {
     //
     /// Get unpublished IData from the network.
     GetUnpubIData {
-        address: XorName,
+        address: IDataAddress,
     },
     PutUnpubIData {
         data: UnpubImmutableData,
     },
+    /// Delete unpublished IData from the network.
     DeleteUnpubIData {
         address: XorName,
     },
@@ -95,109 +92,115 @@ pub enum Request {
     //
     /// Delete MData from the network.
     DeleteMData {
-        // Address of the mutable data to be fetched
-        address: MutableDataRef,
+        address: MDataAddress,
     },
-    GetUnseqMData {
-        // Address of the mutable data to be fetched
-        address: MutableDataRef,
+    GetMData {
+        address: MDataAddress,
     },
     PutUnseqMData {
-        // Mutable Data to be stored
         data: UnseqMutableData,
     },
-
     GetSeqMData {
-        address: MutableDataRef,
+        address: MDataAddress,
     },
-
+    GetUnseqMData {
+        address: MDataAddress,
+    },
     PutSeqMData {
         data: SeqMutableData,
     },
-
     GetSeqMDataShell {
-        address: MutableDataRef,
+        address: MDataAddress,
     },
 
     GetUnseqMDataShell {
-        address: MutableDataRef,
+        address: MDataAddress,
     },
 
     GetMDataVersion {
-        address: MutableDataRef,
+        address: MDataAddress,
     },
 
     ListUnseqMDataEntries {
-        address: MutableDataRef,
+        address: MDataAddress,
     },
 
     ListSeqMDataEntries {
-        address: MutableDataRef,
+        address: MDataAddress,
     },
 
     ListMDataKeys {
-        address: MutableDataRef,
+        address: MDataAddress,
     },
 
     ListUnseqMDataValues {
-        address: MutableDataRef,
+        address: MDataAddress,
     },
 
     ListSeqMDataValues {
-        address: MutableDataRef,
+        address: MDataAddress,
     },
 
     SetMDataUserPermissions {
-        address: MutableDataRef,
+        address: MDataAddress,
         user: PublicKey,
         permissions: PermissionSet,
         version: u64,
     },
 
     DelMDataUserPermissions {
-        address: MutableDataRef,
+        address: MDataAddress,
         user: PublicKey,
         version: u64,
     },
 
     ListMDataPermissions {
-        address: MutableDataRef,
+        address: MDataAddress,
     },
 
     ListMDataUserPermissions {
-        address: MutableDataRef,
+        address: MDataAddress,
         user: PublicKey,
     },
 
     MutateSeqMDataEntries {
-        address: MutableDataRef,
+        address: MDataAddress,
         actions: BTreeMap<Vec<u8>, SeqEntryAction>,
     },
 
     MutateUnseqMDataEntries {
-        address: MutableDataRef,
+        address: MDataAddress,
         actions: BTreeMap<Vec<u8>, UnseqEntryAction>,
     },
 
     GetSeqMDataValue {
-        address: MutableDataRef,
+        address: MDataAddress,
         key: Vec<u8>,
     },
 
     GetUnseqMDataValue {
-        address: MutableDataRef,
+        address: MDataAddress,
         key: Vec<u8>,
+    },
+
+    GetMDataShell {
+        address: MDataAddress,
+    },
+
+    ListMDataEntries {
+        address: MDataAddress,
+    },
+
+    ListMDataValues {
+        address: MDataAddress,
     },
     //
     // ===== Append Only Data =====
     //
     /// Get a range of entries from an AppendOnlyData object on the network.
     GetADataRange {
-        // Type of AppendOnlyData (published/unpublished, sequenced/unsequenced).
-        kind: AppendOnlyKind,
-
         // Address of an AppendOnlyData object on the network.
-        address: AppendOnlyDataRef,
+        address: ADataAddress,
 
         // Range of entries to fetch.
         //
@@ -212,53 +215,46 @@ pub enum Request {
         range: (Index, Index),
     },
 
-    /// Get current indexes: data, owners, permissions.
+    /// Get current indices: data, owners, permissions.
     GetADataIndices {
-        kind: AppendOnlyKind,
-        address: AppendOnlyDataRef,
+        address: ADataAddress,
     },
 
     /// Get an entry with the current index.
     GetADataLastEntry {
-        kind: AppendOnlyKind,
-        address: AppendOnlyDataRef,
+        address: ADataAddress,
     },
 
     /// Get permissions at the provided index.
     GetADataPermissions {
-        kind: AppendOnlyKind,
-        address: AppendOnlyDataRef,
+        address: ADataAddress,
         permissions_index: Index,
     },
 
     /// Get permissions for a specified user(s).
     GetPubADataUserPermissions {
-        kind: AppendOnlyKind,
-        address: AppendOnlyDataRef,
+        address: ADataAddress,
         permissions_index: Index,
         user: User,
     },
 
     /// Get permissions for a specified public key.
     GetUnpubADataUserPermissions {
-        kind: AppendOnlyKind,
-        address: AppendOnlyDataRef,
+        address: ADataAddress,
         permissions_index: Index,
         user: PublicKey,
     },
 
     /// Get owners at the provided index.
     GetADataOwners {
-        address: AppendOnlyDataRef,
-        kind: AppendOnlyKind,
+        address: ADataAddress,
         owners_index: Index,
     },
 
     /// Add a new `permissions` entry.
     /// The `Permissions` struct instance MUST contain a valid index.
     AddPubADataPermissions {
-        address: AppendOnlyDataRef,
-        kind: AppendOnlyKind,
+        address: ADataAddress,
         // New permission set
         permissions: PubPermissions,
     },
@@ -266,8 +262,7 @@ pub enum Request {
     /// Add a new `permissions` entry.
     /// The `Permissions` struct instance MUST contain a valid index.
     AddUnpubADataPermissions {
-        address: AppendOnlyDataRef,
-        kind: AppendOnlyKind,
+        address: ADataAddress,
         // New permission set
         permissions: UnpubPermissions,
     },
@@ -276,8 +271,7 @@ pub enum Request {
     /// The `Owners` struct instance MUST contain a valid index.
     /// Only the current owner(s) can perform this action.
     SetADataOwners {
-        kind: AppendOnlyKind,
-        address: AppendOnlyDataRef,
+        address: ADataAddress,
         owners: Owners,
     },
 
@@ -295,25 +289,25 @@ pub enum Request {
 
     /// Put a new AppendOnlyData onto the network.
     PutAData {
-        // AppendOnlyData to be stored
         data: AppendOnlyData,
     },
     /// Get AppendOnlyData from the network.
     GetAData {
         // Address of AppendOnlyData to be retrieved
-        address: AppendOnlyDataRef,
+        address: ADataAddress,
     },
-    /// Get `AppendOnlyData` shell at a certain point
-    /// in history (`index` refers to the list of data).
+    /// Get `AppendOnlyData` shell at a certain point in history (`data_index` refers to the list
+    /// of data).
     GetADataShell {
-        kind: AppendOnlyKind,
-        address: AppendOnlyDataRef,
+        address: ADataAddress,
         data_index: Index,
     },
 
-    /// Delete `AppendOnlyData`.
+    /// Delete an unpublished unsequenced `AppendOnlyData`.
+    ///
+    /// This operation MUST return an error if applied to published AppendOnlyData.
     /// Only the current owner(s) can perform this action.
-    DeleteAData(AppendOnlyDataRef),
+    DeleteAData(ADataAddress),
 
     // -- Coins --
     /// Balance transfer
@@ -356,9 +350,9 @@ pub enum Request {
 }
 
 impl fmt::Debug for Request {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         write!(
-            f,
+            formatter,
             "{}",
             match *self {
                 //
@@ -374,13 +368,10 @@ impl fmt::Debug for Request {
                 //
                 Request::GetUnseqMData { .. } => "Request::GetUnseqMData",
                 Request::PutUnseqMData { .. } => "Request::PutUnseqMData",
-                Request::GetSeqMData { .. } => "Request::GetSeqMData",
                 Request::PutSeqMData { .. } => "Request::PutSeqMData",
-                Request::GetSeqMDataShell { .. } => "Request::GetSeqMDataShell",
-                Request::GetUnseqMDataShell { .. } => "Request::GetUnseqMDataShell",
+                Request::GetMDataShell { .. } => "Request::GetMDataShell",
                 Request::GetMDataVersion { .. } => "Request::GetMDataVersion",
-                Request::ListUnseqMDataEntries { .. } => "Request::ListUnseqMDataEntries",
-                Request::ListSeqMDataEntries { .. } => "Request::ListSeqMDataEntries",
+                Request::ListMDataEntries { .. } => "Request::ListMDataEntries",
                 Request::ListMDataKeys { .. } => "Request::ListMDataKeys",
                 Request::ListUnseqMDataValues { .. } => "Request::ListUnseqMDataValues",
                 Request::ListSeqMDataValues { .. } => "Request::ListSeqMDataValues",
