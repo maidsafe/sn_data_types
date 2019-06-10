@@ -10,8 +10,8 @@
 use crate::coins::Coins;
 use crate::errors::Error;
 use crate::immutable_data::UnpubImmutableData;
-use crate::mutable_data::{SeqMutableData, UnseqMutableData, Value};
-use crate::AppPermissions;
+use crate::mutable_data::{PermissionSet, SeqMutableData, UnseqMutableData, Value};
+use crate::{AppPermissions, PublicKey};
 use rust_sodium::crypto::sign;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -55,6 +55,16 @@ pub enum Response {
     ListSeqMDataValues(Result<Vec<Value>, Error>),
     ListUnseqMDataValues(Result<Vec<Vec<u8>>, Error>),
     DeleteMData(Result<(), Error>),
+    SetMDataUserPermissions(Result<(), Error>),
+    DelMDataUserPermissions(Result<(), Error>),
+    ListMDataUserPermissions(Result<PermissionSet, Error>),
+    ListMDataPermissions(Result<BTreeMap<PublicKey, PermissionSet>, Error>),
+    MutateSeqMDataEntries(Result<(), Error>),
+    MutateUnseqMDataEntries(Result<(), Error>),
+
+    //
+    // ===== Coins =====
+    //
     TransferCoins(Result<(), Error>),
     GetTransaction(Result<Transaction, Error>),
     GetBalance(Result<Coins, Error>),
@@ -93,6 +103,12 @@ impl fmt::Debug for Response {
                 Response::ListMDataKeys(..) => "Response::ListMDataKeys",
                 Response::ListSeqMDataValues(..) => "Response::ListSeqMDataValues",
                 Response::ListUnseqMDataValues(..) => "Response::ListUnseqMDataValues",
+                Response::SetMDataUserPermissions(..) => "Response::SetMDataUserPermissions",
+                Response::DelMDataUserPermissions(..) => "Response::DelMDataUserPermissions",
+                Response::ListMDataPermissions(..) => "Response::ListMDataPermissions",
+                Response::ListMDataUserPermissions(..) => "Response::ListMDataUserPermissions",
+                Response::MutateSeqMDataEntries(..) => "Response::MutateSeqMDataEntries",
+                Response::MutateUnseqMDataEntries(..) => "Response::MutateUnseqMDataEntries",
                 Response::TransferCoins(..) => "Response::TransferCoins",
                 Response::GetTransaction(..) => "Response::GetTransaction",
                 Response::GetBalance(..) => "Response::GetBalance",
