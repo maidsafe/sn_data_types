@@ -102,7 +102,7 @@ impl FullId {
 ///
 /// It includes the public signing key, and this provides the Client's network address, i.e.
 /// `name()`.
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct PublicId {
     name: XorName,
     public_key: PublicKey,
