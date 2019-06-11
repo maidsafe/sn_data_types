@@ -29,6 +29,8 @@ COPY . .
 
 USER maidsafe:maidsafe
 ENV CARGO_TARGET_DIR=/target
-RUN cargo test --verbose --release && \
+RUN rustup component add rustfmt clippy && \
+    cargo clippy --verbose --release --all-targets && \
+    cargo test --verbose --release && \
     find /target/release/ -maxdepth 1 -type f -exec rm '{}' \;
 ENTRYPOINT ["fixuid", "-q"]
