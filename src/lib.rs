@@ -57,16 +57,16 @@
 #![allow(missing_docs)]
 
 pub mod appendable_data;
-mod errors;
-mod identity;
-mod immutable_data;
 pub mod mutable_data;
-mod public_key;
 pub mod request;
 pub mod response;
 
+mod errors;
+mod identity;
+mod immutable_data;
+mod public_key;
+
 pub use errors::{EntryError, Error};
-use hex_fmt::HexFmt;
 pub use identity::{
     app::FullId as AppFullId, app::PublicId as AppPublicId, client::FullId as ClientFullId,
     client::PublicId as ClientPublicId, node::FullId as NodeFullId, node::PublicId as NodePublicId,
@@ -74,10 +74,11 @@ pub use identity::{
 };
 pub use immutable_data::{ImmutableData, UnpubImmutableData, MAX_IMMUTABLE_DATA_SIZE_IN_BYTES};
 pub use public_key::{PublicKey, Signature};
+pub use sha3::Sha3_512 as Ed25519Digest;
+
+use hex_fmt::HexFmt;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Debug, Display, Formatter};
-
-pub use sha3::Sha3_512 as Ed25519Digest;
 
 /// Constant byte length of `XorName`.
 pub const XOR_NAME_LEN: usize = 32;
