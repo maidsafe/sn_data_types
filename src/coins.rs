@@ -7,22 +7,18 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::errors::Error;
+use crate::errors::{Error, Result};
 use serde::{Deserialize, Serialize};
-use std::result;
 use std::{
     fmt::{self, Debug, Display, Formatter},
     str::FromStr,
 };
 
-/// A specialised `Result` type for safecoin.
-pub type Result<T> = result::Result<T, Error>;
+/// The conversion from coin to raw value
+const COIN_TO_RAW_POWER_OF_10_CONVERSION: u32 = 9;
 
 /// The conversion from coin to raw value
-pub const COIN_TO_RAW_POWER_OF_10_CONVERSION: u32 = 9;
-
-/// The conversion from coin to raw value
-pub const COIN_TO_RAW_CONVERSION: u64 = 1_000_000_000;
+const COIN_TO_RAW_CONVERSION: u64 = 1_000_000_000;
 
 /// The maximum amount of safecoin represented by a single `Coins`.
 pub const MAX_COINS_VALUE: Coins =

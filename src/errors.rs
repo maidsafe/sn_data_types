@@ -8,9 +8,15 @@
 // Software.
 
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
-use std::error;
-use std::fmt::{self, Display, Formatter};
+use std::{
+    collections::BTreeMap,
+    error,
+    fmt::{self, Display, Formatter},
+    result,
+};
+
+/// A specialised `Result` type for safecoin.
+pub type Result<T> = result::Result<T, Error>;
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Error {
@@ -54,12 +60,12 @@ pub enum Error {
     /// Network error occurring at Vault level which has no bearing on clients, e.g. serialisation
     /// failure or database failure
     NetworkOther(String),
-    /// While parsing or converting, precision would be lost.
+    /// While parsing, precision would be lost.
     LossOfPrecision,
-    /// The safecoin amount would exceed
-    /// [the maximum value for `Coin`](constant.MAX_COINS_VALUE.html).
+    /// The coin amount would exceed
+    /// [the maximum value for `Coins`](constant.MAX_COINS_VALUE.html).
     ExcessiveValue,
-    /// Failed to parse the string as a `Coin`.
+    /// Failed to parse the string as [`Coins`](struct.Coins.html).
     FailedToParse,
     /// Transaction ID already exists.
     TransactionIdExists,
@@ -107,7 +113,7 @@ impl Display for Error {
             Error::InvalidSignature => write!(f, "Failed signature validation"),
             Error::NetworkOther(ref error) => write!(f, "Error on Vault network: {}", error),
             Error::LossOfPrecision => {
-                write!(f, "Lost precision on the number of coins during conversion")
+                write!(f, "Lost precision on the number of coins during parsing")
             }
             Error::ExcessiveValue => write!(
                 f,
@@ -141,7 +147,7 @@ impl error::Error for Error {
             Error::SigningKeyTypeMismatch => "Key type and signature type mismatch",
             Error::InvalidSignature => "Invalid signature",
             Error::NetworkOther(ref error) => error,
-            Error::LossOfPrecision => "Lost precision on the number of coins during conversion",
+            Error::LossOfPrecision => "Lost precision on the number of coins during parsing",
             Error::ExcessiveValue => {
                 "Overflow on number of coins (check the MAX_COINS_VALUE const)"
             }
