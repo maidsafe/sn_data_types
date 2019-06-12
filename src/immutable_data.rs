@@ -22,22 +22,41 @@ pub const MAX_IMMUTABLE_DATA_SIZE_IN_BYTES: u64 = 1024 * 1024 + 10 * 1024;
 pub struct UnpubImmutableData {
     /// Name.
     name: XorName,
-    /// Contained ImmutableData.
-    data: Vec<u8>,
+    /// Contained data.
+    value: Vec<u8>,
     /// Contains a set of owners of this data. DataManagers enforce that a DELETE or OWNED-GET type
     /// of request is coming from the MaidManager Authority of the owners.
     owners: PublicKey,
 }
 
 impl UnpubImmutableData {
-    pub fn new(data: Vec<u8>, owners: PublicKey) -> Self {
+    pub fn new(value: Vec<u8>, owners: PublicKey) -> Self {
         // TODO: Use low-level arrays or slices instead of Vec.
         let mut bytes = Vec::with_capacity(XOR_NAME_LEN + PK_SIZE);
-        bytes.extend_from_slice(&tiny_keccak::sha3_256(&data));
+        bytes.extend_from_slice(&tiny_keccak::sha3_256(&value));
         bytes.extend_from_slice(&owners.to_bytes());
         let name = XorName(tiny_keccak::sha3_256(&bytes));
 
-        Self { name, data, owners }
+        Self {
+            name,
+            value,
+            owners,
+        }
+    }
+
+    /// Returns the value.
+    pub fn value(&self) -> &Vec<u8> {
+        &self.value
+    }
+
+    /// Returns name ensuring invariant.
+    pub fn name(&self) -> &XorName {
+        &self.name
+    }
+
+    /// Returns the set of owners.
+    pub fn owners(&self) -> &PublicKey {
+        &self.owners
     }
 }
 
@@ -67,7 +86,7 @@ impl ImmutableData {
         }
     }
 
-    /// Returns the value
+    /// Returns the value.
     pub fn value(&self) -> &Vec<u8> {
         &self.value
     }
@@ -114,7 +133,7 @@ impl Debug for ImmutableData {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{ImmutableData, UnpubImmutableData};
     use bincode::{deserialize as deserialise, serialize as serialise};
     use hex::encode;
     use rand::{self, Rng, SeedableRng};
@@ -138,9 +157,9 @@ mod tests {
 
         assert_eq!(idata3, idata3_clone);
 
-        assert_ne!(idata1.name, idata2.name);
-        assert_ne!(idata1.name, idata3.name);
-        assert_ne!(idata2.name, idata3.name);
+        assert_ne!(idata1.name(), idata2.name());
+        assert_ne!(idata1.name(), idata3.name());
+        assert_ne!(idata2.name(), idata3.name());
     }
 
     #[test]
