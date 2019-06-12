@@ -4,8 +4,6 @@ env:
     - PATH=$PATH:$HOME/.cargo/bin
 os:
   - linux
-  - osx
-  - windows
 language: rust
 sudo: false
 cache:
@@ -17,9 +15,7 @@ before_script:
   - rustup component add rustfmt clippy
 script:
   - cargo fmt -- --check
-  - if [ "${TRAVIS_OS_NAME}" = linux ]; then
-      cargo clippy --verbose --release --all-targets ;
-    fi
+  - cargo clippy --verbose --release --all-targets ;
   - cargo test --verbose --release
 before_cache:
   - cargo prune
