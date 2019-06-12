@@ -31,7 +31,6 @@
     unconditional_recursion,
     unknown_lints,
     unsafe_code,
-    unused,
     unused_allocation,
     unused_attributes,
     unused_comparisons,
@@ -51,7 +50,8 @@
     box_pointers,
     missing_copy_implementations,
     missing_debug_implementations,
-    variant_size_differences
+    variant_size_differences,
+    unused
 )]
 // FIXME - write docs
 #![allow(missing_docs)]
