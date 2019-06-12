@@ -9,24 +9,15 @@
 
 use crate::errors::Error;
 use crate::request::{Request, Requester};
-use crate::XorName;
+use crate::{PublicKey, XorName};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use threshold_crypto::{PublicKey, PublicKeySet};
+use threshold_crypto::PublicKeySet;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum User {
     Anyone,
     Key(PublicKey),
-}
-
-pub fn check_permissions<P: Permissions>(
-    _data: impl AppendOnlyData<P>,
-    _rpc: &Request,
-    _requester: Requester,
-) -> Result<bool, Error> {
-    // TODO
-    Ok(true)
 }
 
 #[derive(Clone, Copy)]
@@ -36,10 +27,48 @@ pub enum Action {
     ManagePermissions,
 }
 
+pub fn check_permissions<P: Permissions>(
+    _data: impl AppendOnlyData<P>,
+    _rpc: &Request,
+    _requester: Requester,
+) -> Result<bool, Error> {
+    Ok(true)
+}
+
 #[derive(Copy, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum Index {
     FromStart(u64), // Absolute index
     FromEnd(u64),   // Relative index - start counting from the end
+}
+
+// Set of data, owners, permissions Indices.
+#[derive(Copy, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct Indices {
+    data_index: u64,
+    owners_index: u64,
+    permissions_index: u64,
+}
+
+impl Indices {
+    pub fn new(data_index: u64, owners_index: u64, permissions_index: u64) -> Self {
+        Indices {
+            data_index,
+            owners_index,
+            permissions_index,
+        }
+    }
+
+    pub fn data_index(&self) -> u64 {
+        self.data_index
+    }
+
+    pub fn owners_index(&self) -> u64 {
+        self.owners_index
+    }
+
+    pub fn permissions_index(&self) -> u64 {
+        self.permissions_index
+    }
 }
 
 #[derive(Copy, Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
@@ -50,6 +79,20 @@ pub struct UnpubPermissionSet {
 }
 
 impl UnpubPermissionSet {
+    pub fn new(read: bool, append: bool, manage_perms: bool) -> Self {
+        UnpubPermissionSet {
+            read,
+            append,
+            manage_permissions: manage_perms,
+        }
+    }
+
+    pub fn set_perms(&mut self, read: bool, append: bool, manage_perms: bool) {
+        self.read = read;
+        self.append = append;
+        self.manage_permissions = manage_perms;
+    }
+
     #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn is_allowed(&self, action: Action) -> bool {
         match action {
@@ -67,6 +110,18 @@ pub struct PubPermissionSet {
 }
 
 impl PubPermissionSet {
+    pub fn new(append: bool, manage_perms: bool) -> Self {
+        PubPermissionSet {
+            append: Some(append),
+            manage_permissions: Some(manage_perms),
+        }
+    }
+
+    pub fn set_perms(&mut self, append: bool, manage_perms: bool) {
+        self.append = Some(append);
+        self.manage_permissions = Some(manage_perms);
+    }
+
     #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn is_allowed(&self, action: Action) -> Option<bool> {
         match action {
@@ -80,9 +135,19 @@ impl PubPermissionSet {
 #[derive(Copy, Debug, Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub struct AppendOnlyDataRef {
     // Address of an AppendOnlyData object on the network.
-    name: XorName,
+    pub name: XorName,
     // Type tag.
-    tag: u64,
+    pub tag: u64,
+}
+
+impl AppendOnlyDataRef {
+    pub fn name(&self) -> XorName {
+        self.name
+    }
+
+    pub fn tag(&self) -> u64 {
+        self.tag
+    }
 }
 
 #[derive(Copy, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -101,15 +166,22 @@ pub trait Permissions {
     fn is_action_allowed(&self, requester: PublicKey, action: Action) -> bool;
     fn data_index(&self) -> u64;
     fn owner_entry_index(&self) -> u64;
+    fn check_permission(&self, requester: Requester, action: Action) -> bool;
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
 pub struct UnpubPermissions {
-    permissions: BTreeMap<PublicKey, UnpubPermissionSet>,
+    pub permissions: BTreeMap<PublicKey, UnpubPermissionSet>,
     /// The current index of the data when this permission change happened
-    data_index: u64,
+    pub data_index: u64,
     /// The current index of the owners when this permission change happened
     owner_entry_index: u64,
+}
+
+impl UnpubPermissions {
+    pub fn permissions(&self) -> BTreeMap<PublicKey, UnpubPermissionSet> {
+        self.permissions.clone()
+    }
 }
 
 impl Permissions for UnpubPermissions {
@@ -127,15 +199,34 @@ impl Permissions for UnpubPermissions {
     fn owner_entry_index(&self) -> u64 {
         self.owner_entry_index
     }
+
+    fn check_permission(&self, requester: Requester, action: Action) -> bool {
+        match requester {
+            Requester::Key(req) => {
+                if self.permissions.contains_key(&req) {
+                    match self.permissions.get(&req) {
+                        Some(perm) => perm.is_allowed(action),
+                        None => false,
+                    }
+                } else {
+                    false
+                }
+            }
+            Requester::Owner(_sig) => {
+                // Temp
+                true
+            }
+        }
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
 pub struct PubPermissions {
-    permissions: BTreeMap<User, PubPermissionSet>,
+    pub permissions: BTreeMap<User, PubPermissionSet>,
     /// The current index of the data when this permission change happened
-    data_index: u64,
+    pub data_index: u64,
     /// The current index of the owners when this permission change happened
-    owner_entry_index: u64,
+    pub owner_entry_index: u64,
 }
 
 impl PubPermissions {
@@ -144,6 +235,10 @@ impl PubPermissions {
             None => false,
             Some(perms) => perms.is_allowed(action).unwrap_or(false),
         }
+    }
+
+    pub fn permissions(&self) -> &BTreeMap<User, PubPermissionSet> {
+        &self.permissions
     }
 }
 
@@ -163,6 +258,26 @@ impl Permissions for PubPermissions {
 
     fn owner_entry_index(&self) -> u64 {
         self.owner_entry_index
+    }
+
+    fn check_permission(&self, requester: Requester, action: Action) -> bool {
+        match requester {
+            Requester::Key(pk) => {
+                let user = User::Key(pk.clone());
+                if self.permissions.contains_key(&user) {
+                    match self.permissions.get(&user) {
+                        Some(perm) => perm.is_allowed(action).unwrap_or(false),
+                        None => false,
+                    }
+                } else {
+                    false
+                }
+            }
+            Requester::Owner(_sig) => {
+                // Temp
+                true
+            }
+        }
     }
 }
 
@@ -192,8 +307,11 @@ pub trait AppendOnlyData<P> {
     /// Return a value for the given key (if it is present).
     fn get(&self, key: &[u8]) -> Option<&Vec<u8>>;
 
+    /// Return the last entry in the Data (if it is present).
+    fn last(&self) -> Option<(Vec<u8>, Vec<u8>)>;
+
     /// Get a list of keys and values with the given indices.
-    fn in_range(&self, start: Index, end: Index) -> Option<&[(Vec<u8>, Vec<u8>)]>;
+    fn in_range(&self, start: Index, end: Index) -> Option<Vec<(Vec<u8>, Vec<u8>)>>;
 
     /// Return all entries.
     fn entries(&self) -> &Vec<(Vec<u8>, Vec<u8>)>;
@@ -220,12 +338,17 @@ pub trait AppendOnlyData<P> {
     /// The `Permissions` struct should contain valid indexes.
     fn append_permissions(&mut self, permissions: P) -> Result<(), Error>;
 
+    /// Fetch perms at index.
+    fn fetch_permissions_at_index(&self, perm_index: u64) -> Option<&P>;
+
     /// Get a complete list of owners from the entry in the permissions list at the specified index.
     fn owners_range(&self, start: Index, end: Index) -> Option<&[Owners]>;
 
     /// Add a new permissions entry.
     /// The `Owners` struct should contain valid indexes.
     fn append_owners(&mut self, owners: Owners) -> Result<(), Error>;
+
+    fn verify_requester(&self, requester: Requester, action: Action) -> Result<bool, Error>;
 }
 
 /// Common methods for published and unpublished unsequenced `AppendOnlyData`.
@@ -308,7 +431,22 @@ macro_rules! impl_appendable_data {
                     .find_map(|(k, v)| if k.as_slice() == key { Some(v) } else { None })
             }
 
-            fn in_range(&self, start: Index, end: Index) -> Option<&[(Vec<u8>, Vec<u8>)]> {
+            fn last(&self) -> Option<(Vec<u8>, Vec<u8>)> {
+                match self.inner.data.last() {
+                    Some(tup) => Some(tup.clone()),
+                    None => None,
+                }
+            }
+
+            fn fetch_permissions_at_index(&self, perm_index: u64) -> Option<&P> {
+                if self.inner.permissions.len() >= perm_index as usize {
+                    Some(&self.inner.permissions[perm_index as usize])
+                } else {
+                    None
+                }
+            }
+
+            fn in_range(&self, start: Index, end: Index) -> Option<Vec<(Vec<u8>, Vec<u8>)>> {
                 let idx_start = match start {
                     Index::FromStart(idx) => idx as usize,
                     Index::FromEnd(idx) => self.inner.data.len() - (idx as usize),
@@ -327,10 +465,10 @@ macro_rules! impl_appendable_data {
                 }
                 if idx_start == idx_end {
                     // Return empty slice because range len is 0
-                    return Some(&[]);
+                    return Some(Vec::new());
                 }
 
-                Some(&self.inner.data[idx_start..idx_end])
+                Some(self.inner.data[idx_start..idx_end].to_vec())
             }
 
             fn entries(&self) -> &Vec<(Vec<u8>, Vec<u8>)> {
@@ -405,6 +543,24 @@ macro_rules! impl_appendable_data {
                 }
                 self.inner.owners.push(owners);
                 Ok(())
+            }
+
+            fn verify_requester(
+                &self,
+                requester: Requester,
+                action: Action,
+            ) -> Result<bool, Error> {
+                if self
+                    .inner
+                    .permissions
+                    .last()
+                    .unwrap()
+                    .check_permission(requester, action)
+                {
+                    Ok(true)
+                } else {
+                    Err(Error::AccessDenied)
+                }
             }
         }
     };

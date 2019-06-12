@@ -7,10 +7,14 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
+use crate::appendable_data::{
+    Indices, PubPermissionSet, PubPermissions, UnpubPermissionSet, UnpubPermissions,
+};
 use crate::coins::Coins;
 use crate::errors::Error;
 use crate::immutable_data::UnpubImmutableData;
 use crate::mutable_data::{PermissionSet, SeqMutableData, UnseqMutableData, Value};
+use crate::request::AppendOnlyData;
 use crate::{AppPermissions, PublicKey};
 use rust_sodium::crypto::sign;
 use serde::{Deserialize, Serialize};
@@ -29,7 +33,7 @@ pub enum Transaction {
 }
 
 /// RPC responses from vaults.
-#[allow(clippy::large_enum_variant)]
+#[allow(clippy::large_enum_variant, clippy::type_complexity)]
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub enum Response {
     //
@@ -38,6 +42,25 @@ pub enum Response {
     GetUnpubIData(Result<UnpubImmutableData, Error>),
     PutUnpubIData(Result<(), Error>),
     DeleteUnpubIData(Result<(), Error>),
+    //
+    // ===== AppendOnly Data =====
+    //
+    PutAData(Result<(), Error>),
+    GetAData(Result<AppendOnlyData, Error>),
+    GetADataRange(Result<Vec<(Vec<u8>, Vec<u8>)>, Error>),
+    GetADataIndices(Result<Indices, Error>),
+    GetADataLastEntry(Result<(Vec<u8>, Vec<u8>), Error>),
+    GetUnpubADataPermissionAtIndex(Result<UnpubPermissions, Error>),
+    GetPubADataPermissionAtIndex(Result<PubPermissions, Error>),
+    GetPubADataUserPermissions(Result<PubPermissionSet, Error>),
+    GetUnpubADataUserPermissions(Result<UnpubPermissionSet, Error>),
+    AddUnpubADataPermissions(Result<(), Error>),
+    AddPubADataPermissions(Result<(), Error>),
+    AppendPublishedSeq(Result<(), Error>),
+    AppendUnpublishedSeq(Result<(), Error>),
+    AppendPublishedUnseq(Result<(), Error>),
+    AppendUnpublishedUnseq(Result<(), Error>),
+    DeleteAData(Result<(), Error>),
     //
     // ===== Mutable Data =====
     //
@@ -119,6 +142,26 @@ impl fmt::Debug for Response {
                 Response::ListAuthKeysAndVersion(..) => "Response::ListAuthKeysAndVersion",
                 Response::InsAuthKey(..) => "Response::InsAuthKey",
                 Response::DelAuthKey(..) => "Response::DelAuthKey",
+                Response::PutAData(..) => "Response::PutAData",
+                Response::GetAData(..) => "Response::GetAData",
+                Response::GetADataRange(..) => "Response::GetADataRange",
+                Response::GetADataIndices(..) => "Response::GetADataIndices",
+                Response::GetADataLastEntry(..) => "Response::GetADataLastEntry",
+                Response::GetUnpubADataPermissionAtIndex(..) => {
+                    "Response::GetADataPermissionAtIndex"
+                }
+                Response::GetPubADataPermissionAtIndex(..) => "Response::GetADataPermissionAtIndex",
+                Response::GetPubADataUserPermissions(..) => "Response::GetPubADataUserPermissions",
+                Response::GetUnpubADataUserPermissions(..) => {
+                    "Response::GetUnpubADataUserPermissions"
+                }
+                Response::AddUnpubADataPermissions(..) => "Response::AddUnpubADataPermissions",
+                Response::AddPubADataPermissions(..) => "Response::AddPubADataPermissions",
+                Response::AppendUnpublishedSeq(..) => "Response::AppendUnpublishedSeq",
+                Response::AppendPublishedUnseq(..) => "Response::AppendPublishedUnseq",
+                Response::AppendPublishedSeq(..) => "Response::AppendPublishedSeq",
+                Response::AppendUnpublishedUnseq(..) => "Response::AppendUnPublishedUnseq",
+                Response::DeleteAData(..) => "Response::DeleteAData",
             }
         )
     }
