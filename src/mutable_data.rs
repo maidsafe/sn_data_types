@@ -9,6 +9,7 @@
 
 use crate::errors::{EntryError, Error};
 use crate::request::{Request, Requester};
+use crate::MessageId;
 use crate::PublicKey;
 use crate::XorName;
 use bincode::serialize;
@@ -41,9 +42,9 @@ pub struct SeqMutableData {
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub struct Value {
     /// Actual data.
-    data: Vec<u8>,
+    pub data: Vec<u8>,
     /// SHALL be incremented sequentially for any change to `data`.
-    version: u64,
+    pub version: u64,
 }
 
 impl Value {
@@ -145,7 +146,12 @@ pub trait MutableData {
 
     fn user_permissions(&self, user: PublicKey) -> Result<&PermissionSet, Error>;
 
-    fn check_permissions(&self, rpc: Request, requester: Requester) -> Result<(), Error>;
+    fn check_permissions(
+        &self,
+        rpc: Request,
+        requester: Requester,
+        message_id: MessageId,
+    ) -> Result<(), Error>;
 
     fn set_user_permissions(
         &mut self,
@@ -231,13 +237,14 @@ macro_rules! impl_mutable_data {
                 &self,
                 request: Request,
                 requester: Requester,
+                message_id: MessageId,
             ) -> Result<(), Error> {
                 match requester {
                     Requester::Key(key) => {
                         check_permissions_for_key(self.user_permissions(key)?, request)
                     }
                     Requester::Owner(signature) => {
-                        verify_ownership(signature, *self.owners(), request)
+                        verify_ownership(signature, *self.owners(), request, message_id)
                     }
                 }
             }
@@ -362,8 +369,9 @@ fn verify_ownership(
     signature: threshold_crypto::Signature,
     bls_key: BlsPublicKey,
     request: Request,
+    message_id: MessageId,
 ) -> Result<(), Error> {
-    let message = serialize(&request).unwrap_or_default();
+    let message = serialize(&(&request, message_id)).unwrap_or_default();
     if bls_key.verify(&signature, message) {
         Ok(())
     } else {
@@ -419,6 +427,7 @@ impl UnseqMutableData {
         actions: BTreeMap<Vec<u8>, UnseqEntryAction>,
         request: Request,
         requester: Requester,
+        message_id: MessageId,
     ) -> Result<(), Error> {
         let (insert, update, delete) = actions.into_iter().fold(
             (
@@ -452,7 +461,7 @@ impl UnseqMutableData {
                 }
             }
             Requester::Owner(signature) => {
-                if verify_ownership(signature, *self.owners(), request).is_err() {
+                if verify_ownership(signature, *self.owners(), request, message_id).is_err() {
                     return Err(Error::AccessDenied);
                 }
             }
@@ -550,6 +559,7 @@ impl SeqMutableData {
         actions: BTreeMap<Vec<u8>, SeqEntryAction>,
         request: Request,
         requester: Requester,
+        message_id: MessageId,
     ) -> Result<(), Error> {
         // Deconstruct actions into inserts, updates, and deletes
         let (insert, update, delete) = actions.into_iter().fold(
@@ -580,7 +590,7 @@ impl SeqMutableData {
                 }
             }
             Requester::Owner(signature) => {
-                if verify_ownership(signature, *self.owners(), request).is_err() {
+                if verify_ownership(signature, *self.owners(), request, message_id).is_err() {
                     return Err(Error::AccessDenied);
                 }
             }
@@ -651,7 +661,7 @@ impl SeqMutableData {
     }
 }
 
-#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
+#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Copy, Serialize, Deserialize)]
 pub struct MutableDataRef {
     // Address of a MutableData object on the network.
     name: XorName,

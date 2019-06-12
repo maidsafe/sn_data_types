@@ -61,6 +61,8 @@ pub enum Response {
     ListMDataPermissions(Result<BTreeMap<PublicKey, PermissionSet>, Error>),
     MutateSeqMDataEntries(Result<(), Error>),
     MutateUnseqMDataEntries(Result<(), Error>),
+    GetSeqMDataValue(Result<Value, Error>),
+    GetUnseqMDataValue(Result<Vec<u8>, Error>),
 
     //
     // ===== Coins =====
@@ -109,6 +111,8 @@ impl fmt::Debug for Response {
                 Response::ListMDataUserPermissions(..) => "Response::ListMDataUserPermissions",
                 Response::MutateSeqMDataEntries(..) => "Response::MutateSeqMDataEntries",
                 Response::MutateUnseqMDataEntries(..) => "Response::MutateUnseqMDataEntries",
+                Response::GetSeqMDataValue { .. } => "Response::GetSeqMDataValue",
+                Response::GetUnseqMDataValue { .. } => "Response::GetUnseqMDataValue",
                 Response::TransferCoins(..) => "Response::TransferCoins",
                 Response::GetTransaction(..) => "Response::GetTransaction",
                 Response::GetBalance(..) => "Response::GetBalance",
