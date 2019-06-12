@@ -7,12 +7,26 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
+use crate::coins::Coins;
 use crate::errors::Error;
 use crate::immutable_data::UnpubImmutableData;
 use crate::mutable_data::{SeqMutableData, UnseqMutableData, Value};
-use crate::MessageId;
+use crate::AppPermissions;
+use rust_sodium::crypto::sign;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
+
+/// Safecoin transaction.
+#[derive(Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
+pub enum Transaction {
+    /// The associated `CoinBalance` was successfully credited with this `Credit`.
+    Success(Coins),
+    /// This transaction is not known by the associated `CoinBalance`.  This could be because it was
+    /// never known, or is no longer known.
+    NoSuchTransaction,
+    /// The requested `CoinBalance` doesn't exist.
+    NoSuchCoinBalance,
+}
 
 /// RPC responses from vaults.
 #[allow(clippy::large_enum_variant)]
@@ -21,74 +35,38 @@ pub enum Response {
     //
     // ===== Immutable Data =====
     //
-    GetUnpubIData {
-        res: Result<UnpubImmutableData, Error>,
-        msg_id: MessageId,
-    },
-    PutUnpubIData {
-        res: Result<(), Error>,
-        msg_id: MessageId,
-    },
-    DeleteUnpubIData {
-        res: Result<(), Error>,
-        msg_id: MessageId,
-    },
+    GetUnpubIData(Result<UnpubImmutableData, Error>),
+    PutUnpubIData(Result<(), Error>),
+    DeleteUnpubIData(Result<(), Error>),
     //
     // ===== Mutable Data =====
     //
     /// Get unsequenced Mutable Data.
-    GetUnseqMData {
-        res: Result<UnseqMutableData, Error>,
-        msg_id: MessageId,
-    },
-    PutUnseqMData {
-        res: Result<(), Error>,
-        msg_id: MessageId,
-    },
-    GetSeqMData {
-        res: Result<SeqMutableData, Error>,
-        msg_id: MessageId,
-    },
-    PutSeqMData {
-        res: Result<(), Error>,
-        msg_id: MessageId,
-    },
-    GetSeqMDataShell {
-        res: Result<SeqMutableData, Error>,
-        msg_id: MessageId,
-    },
-    GetUnseqMDataShell {
-        res: Result<UnseqMutableData, Error>,
-        msg_id: MessageId,
-    },
-    GetMDataVersion {
-        res: Result<u64, Error>,
-        msg_id: MessageId,
-    },
-    ListUnseqMDataEntries {
-        res: Result<BTreeMap<Vec<u8>, Vec<u8>>, Error>,
-        msg_id: MessageId,
-    },
-    ListSeqMDataEntries {
-        res: Result<BTreeMap<Vec<u8>, Value>, Error>,
-        msg_id: MessageId,
-    },
-    ListMDataKeys {
-        res: Result<BTreeSet<Vec<u8>>, Error>,
-        msg_id: MessageId,
-    },
-    ListSeqMDataValues {
-        res: Result<Vec<Value>, Error>,
-        msg_id: MessageId,
-    },
-    ListUnseqMDataValues {
-        res: Result<Vec<Vec<u8>>, Error>,
-        msg_id: MessageId,
-    },
-    DeleteMData {
-        res: Result<(), Error>,
-        msg_id: MessageId,
-    },
+    GetUnseqMData(Result<UnseqMutableData, Error>),
+    PutUnseqMData(Result<(), Error>),
+    GetSeqMData(Result<SeqMutableData, Error>),
+    PutSeqMData(Result<(), Error>),
+    GetSeqMDataShell(Result<SeqMutableData, Error>),
+    GetUnseqMDataShell(Result<UnseqMutableData, Error>),
+    GetMDataVersion(Result<u64, Error>),
+    ListUnseqMDataEntries(Result<BTreeMap<Vec<u8>, Vec<u8>>, Error>),
+    ListSeqMDataEntries(Result<BTreeMap<Vec<u8>, Value>, Error>),
+    ListMDataKeys(Result<BTreeSet<Vec<u8>>, Error>),
+    ListSeqMDataValues(Result<Vec<Value>, Error>),
+    ListUnseqMDataValues(Result<Vec<Vec<u8>>, Error>),
+    DeleteMData(Result<(), Error>),
+    TransferCoins(Result<(), Error>),
+    GetTransaction(Result<Transaction, Error>),
+    GetBalance(Result<Coins, Error>),
+
+    // --- Client (Owner) to SrcElders ---
+    // ==========================
+    /// Returns a list of authorised keys from Elders and the account version.
+    ListAuthKeysAndVersion(Result<(BTreeMap<sign::PublicKey, AppPermissions>, u64), Error>),
+    /// Returns a success or failure status of adding an authorised key.
+    InsAuthKey(Result<(), Error>),
+    /// Returns a success or failure status of deleting an authorised key.
+    DelAuthKey(Result<(), Error>),
 }
 
 use std::fmt;
@@ -99,22 +77,28 @@ impl fmt::Debug for Response {
             f,
             "{}",
             match *self {
-                Response::GetUnpubIData { .. } => "Response::GetUnpubIData",
-                Response::PutUnpubIData { .. } => "Response::PutUnpubIData",
-                Response::DeleteUnpubIData { .. } => "Response::DeleteUnpubIData",
-                Response::DeleteMData { .. } => "Response::DeleteMData",
-                Response::GetUnseqMData { .. } => "Response::GetUnseqMData",
-                Response::PutUnseqMData { .. } => "Response::PutUnseqMData",
-                Response::GetSeqMData { .. } => "Response::GetSeqMData",
-                Response::PutSeqMData { .. } => "Response::PutSeqMData",
-                Response::GetSeqMDataShell { .. } => "Response::GetMDataShell",
-                Response::GetUnseqMDataShell { .. } => "Response::GetMDataShell",
-                Response::GetMDataVersion { .. } => "Response::GetMDataVersion",
-                Response::ListUnseqMDataEntries { .. } => "Response::ListUnseqMDataEntries",
-                Response::ListSeqMDataEntries { .. } => "Response::ListSeqMDataEntries",
-                Response::ListMDataKeys { .. } => "Response::ListMDataKeys",
-                Response::ListSeqMDataValues { .. } => "Response::ListSeqMDataValues",
-                Response::ListUnseqMDataValues { .. } => "Response::ListUnseqMDataValues",
+                Response::GetUnpubIData(..) => "Response::GetUnpubIData",
+                Response::PutUnpubIData(..) => "Response::PutUnpubIData",
+                Response::DeleteUnpubIData(..) => "Response::DeleteUnpubIData",
+                Response::DeleteMData(..) => "Response::DeleteMData",
+                Response::GetUnseqMData(..) => "Response::GetUnseqMData",
+                Response::PutUnseqMData(..) => "Response::PutUnseqMData",
+                Response::GetSeqMData(..) => "Response::GetSeqMData",
+                Response::PutSeqMData(..) => "Response::PutSeqMData",
+                Response::GetSeqMDataShell(..) => "Response::GetMDataShell",
+                Response::GetUnseqMDataShell(..) => "Response::GetMDataShell",
+                Response::GetMDataVersion(..) => "Response::GetMDataVersion",
+                Response::ListUnseqMDataEntries(..) => "Response::ListUnseqMDataEntries",
+                Response::ListSeqMDataEntries(..) => "Response::ListSeqMDataEntries",
+                Response::ListMDataKeys(..) => "Response::ListMDataKeys",
+                Response::ListSeqMDataValues(..) => "Response::ListSeqMDataValues",
+                Response::ListUnseqMDataValues(..) => "Response::ListUnseqMDataValues",
+                Response::TransferCoins(..) => "Response::TransferCoins",
+                Response::GetTransaction(..) => "Response::GetTransaction",
+                Response::GetBalance(..) => "Response::GetBalance",
+                Response::ListAuthKeysAndVersion(..) => "Response::ListAuthKeysAndVersion",
+                Response::InsAuthKey(..) => "Response::InsAuthKey",
+                Response::DelAuthKey(..) => "Response::DelAuthKey",
             }
         )
     }

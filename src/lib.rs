@@ -61,11 +61,13 @@ pub mod mutable_data;
 pub mod request;
 pub mod response;
 
+mod coins;
 mod errors;
 mod identity;
 mod immutable_data;
 mod public_key;
 
+pub use coins::{Coins, MAX_COINS_VALUE};
 pub use errors::{EntryError, Error};
 pub use identity::{
     app::FullId as AppFullId, app::PublicId as AppPublicId, client::FullId as ClientFullId,
@@ -76,9 +78,23 @@ pub use immutable_data::{ImmutableData, UnpubImmutableData, MAX_IMMUTABLE_DATA_S
 pub use public_key::{PublicKey, Signature};
 pub use sha3::Sha3_512 as Ed25519Digest;
 
+use crate::request::{Request, Requester};
+use crate::response::Response;
 use hex_fmt::HexFmt;
+use rand::{
+    distributions::{Distribution, Standard},
+    Rng,
+};
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Debug, Display, Formatter};
+
+/// Permissions for an app stored by the Elders.
+#[derive(
+    Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Default, Debug,
+)]
+pub struct AppPermissions {
+    pub transfer_coins: bool,
+}
 
 /// Constant byte length of `XorName`.
 pub const XOR_NAME_LEN: usize = 32;
@@ -108,6 +124,38 @@ impl Display for XorName {
     }
 }
 
+impl Distribution<XorName> for Standard {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> XorName {
+        XorName(rng.gen())
+    }
+}
+
+/// Wrapper message that contains a message ID and the requester ID along the
+/// request or response. It should also contain a valid signature if it's sent by
+/// the owner(s).
+#[allow(clippy::large_enum_variant)]
+#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
+pub enum Message {
+    Request {
+        request: Request,
+        message_id: MessageId,
+        requester: Requester,
+    },
+    Response {
+        response: Response,
+        message_id: MessageId,
+    },
+}
+
+impl Message {
+    pub fn message_id(&self) -> MessageId {
+        match self {
+            Message::Request { message_id, .. } => *message_id,
+            Message::Response { message_id, .. } => *message_id,
+        }
+    }
+}
+
 /// Unique ID for messages
 ///
 /// This is used for deduplication: Since the network sends messages redundantly along different
@@ -115,6 +163,19 @@ impl Display for XorName {
 /// an ID that is already in the cache will be ignored.
 #[derive(Ord, PartialOrd, Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize, Hash)]
 pub struct MessageId(pub XorName);
+
+impl MessageId {
+    /// Generate a new `MessageId` with random content.
+    pub fn new() -> MessageId {
+        MessageId(rand::random())
+    }
+}
+
+impl Default for MessageId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 // Impl this in SAFE Client Libs if we still need old routing Message IDs:
 //
