@@ -134,6 +134,40 @@ pub enum Signature {
     BlsShare(threshold_crypto::SignatureShare),
 }
 
+#[allow(clippy::derive_hash_xor_eq)]
+impl Hash for Signature {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            Signature::Ed25519(ref sig) => sig.to_bytes().hash(state),
+            Signature::Bls(ref sig) => sig.hash(state),
+            Signature::BlsShare(ref sig) => sig.hash(state),
+        }
+    }
+}
+
+impl Ord for Signature {
+    fn cmp(&self, other: &Signature) -> Ordering {
+        (&*self.as_bytes()).cmp(&*other.as_bytes())
+    }
+}
+
+impl PartialOrd for Signature {
+    fn partial_cmp(&self, other: &Signature) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Signature {
+    fn as_bytes(&self) -> Box<[u8]> {
+        // TODO: return &[u8] for efficiency
+        match self {
+            Signature::Ed25519(ref sig) => Box::new(sig.to_bytes()),
+            Signature::Bls(ref sig) => Box::new(sig.to_bytes()),
+            Signature::BlsShare(ref sig) => Box::new(sig.to_bytes()),
+        }
+    }
+}
+
 impl Debug for Signature {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match self {
