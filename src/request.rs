@@ -311,6 +311,7 @@ pub enum Request {
     // -- Coins --
     /// Balance transfer
     TransferCoins {
+        source: XorName,
         destination: XorName,
         amount: Coins,
         transaction_id: u64, // TODO: Use the trait UUID
