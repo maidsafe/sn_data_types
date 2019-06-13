@@ -39,7 +39,7 @@ impl FullId {
 
     fn new(new_id: ClientFullId, owner: ClientPublicId) -> Self {
         let public_id = PublicId {
-            public_key: new_id.public_id().public_key().clone(),
+            public_key: *new_id.public_id().public_key(),
             owner,
         };
         Self {

@@ -86,7 +86,7 @@ impl FullId {
     pub fn set_bls_keys(&mut self, bls_secret_key_share: BlsSecretKeyShare) {
         let public = bls_secret_key_share.public_key_share();
         let secret = SerdeSecret(bls_secret_key_share);
-        self.public_id.bls = Some(public.clone());
+        self.public_id.bls = Some(public);
         self.bls = Some(BlsKeypairShare { secret, public });
     }
 

@@ -16,7 +16,7 @@ use std::fmt::{self, Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use threshold_crypto;
 
-#[derive(Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
 #[allow(clippy::large_enum_variant)]
 pub enum PublicKey {
     Ed25519(ed25519_dalek::PublicKey),
@@ -93,6 +93,12 @@ impl From<PublicKey> for XorName {
     }
 }
 
+impl From<threshold_crypto::PublicKey> for PublicKey {
+    fn from(pk: threshold_crypto::PublicKey) -> Self {
+        PublicKey::Bls(pk)
+    }
+}
+
 impl Debug for PublicKey {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match self {
@@ -126,6 +132,40 @@ pub enum Signature {
     Ed25519(ed25519_dalek::Signature),
     Bls(threshold_crypto::Signature),
     BlsShare(threshold_crypto::SignatureShare),
+}
+
+#[allow(clippy::derive_hash_xor_eq)]
+impl Hash for Signature {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            Signature::Ed25519(ref sig) => sig.to_bytes().hash(state),
+            Signature::Bls(ref sig) => sig.hash(state),
+            Signature::BlsShare(ref sig) => sig.hash(state),
+        }
+    }
+}
+
+impl Ord for Signature {
+    fn cmp(&self, other: &Signature) -> Ordering {
+        (&*self.as_bytes()).cmp(&*other.as_bytes())
+    }
+}
+
+impl PartialOrd for Signature {
+    fn partial_cmp(&self, other: &Signature) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Signature {
+    fn as_bytes(&self) -> Box<[u8]> {
+        // TODO: return &[u8] for efficiency
+        match self {
+            Signature::Ed25519(ref sig) => Box::new(sig.to_bytes()),
+            Signature::Bls(ref sig) => Box::new(sig.to_bytes()),
+            Signature::BlsShare(ref sig) => Box::new(sig.to_bytes()),
+        }
+    }
 }
 
 impl Debug for Signature {

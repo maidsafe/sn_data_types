@@ -311,6 +311,7 @@ pub enum Request {
     // -- Coins --
     /// Balance transfer
     TransferCoins {
+        source: XorName,
         destination: XorName,
         amount: Coins,
         transaction_id: u64, // TODO: Use the trait UUID
@@ -328,11 +329,11 @@ pub enum Request {
     // --- Client (Owner) to Elders ---
     // ==========================
     /// Lists authorised keys and version stored by Elders.
-    ListAuthKeysAndVersion(MessageId),
+    ListAuthKeysAndVersion,
     /// Inserts an authorised key (for an app, user, etc.).
     InsAuthKey {
         /// Authorised key to be inserted
-        key: sign::PublicKey,
+        key: PublicKey,
         /// Incremented version
         version: u64,
         /// Permissions
@@ -341,7 +342,7 @@ pub enum Request {
     /// Deletes an authorised key.
     DelAuthKey {
         /// Authorised key to be deleted
-        key: sign::PublicKey,
+        key: PublicKey,
         /// Incremented version
         version: u64,
     },

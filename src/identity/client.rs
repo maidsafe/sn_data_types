@@ -37,7 +37,7 @@ impl FullId {
         let ed25519_keypair = Ed25519Keypair::generate::<Ed25519Digest, _>(rng);
         let public_key = PublicKey::Ed25519(ed25519_keypair.public);
         let public_id = PublicId {
-            name: public_key.clone().into(),
+            name: public_key.into(),
             public_key,
         };
         Self {
@@ -56,7 +56,7 @@ impl FullId {
         };
         let public_key = PublicKey::Bls(bls_public_key);
         let public_id = PublicId {
-            name: public_key.clone().into(),
+            name: public_key.into(),
             public_key,
         };
         Self {
@@ -70,11 +70,11 @@ impl FullId {
         let bls_public_key_share = bls_secret_key_share.public_key_share();
         let bls_keypair_share = BlsKeypairShare {
             secret: SerdeSecret(bls_secret_key_share),
-            public: bls_public_key_share.clone(),
+            public: bls_public_key_share,
         };
         let public_key = PublicKey::BlsShare(bls_public_key_share);
         let public_id = PublicId {
-            name: public_key.clone().into(),
+            name: public_key.into(),
             public_key,
         };
         Self {
@@ -129,7 +129,7 @@ impl Serialize for PublicId {
 impl<'de> Deserialize<'de> for PublicId {
     fn deserialize<D: Deserializer<'de>>(deserialiser: D) -> Result<Self, D::Error> {
         let public_key: PublicKey = Deserialize::deserialize(deserialiser)?;
-        let name = public_key.clone().into();
+        let name = public_key.into();
         Ok(PublicId { name, public_key })
     }
 }

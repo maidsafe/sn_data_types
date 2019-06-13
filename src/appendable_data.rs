@@ -263,7 +263,7 @@ impl Permissions for PubPermissions {
     fn check_permission(&self, requester: Requester, action: Action) -> bool {
         match requester {
             Requester::Key(pk) => {
-                let user = User::Key(pk.clone());
+                let user = User::Key(pk);
                 if self.permissions.contains_key(&user) {
                     match self.permissions.get(&user) {
                         Some(perm) => perm.is_allowed(action).unwrap_or(false),
