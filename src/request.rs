@@ -12,7 +12,7 @@ use crate::appendable_data::{
     PubPermissions, UnpubPermissions, User,
 };
 use crate::coins::Coins;
-use crate::immutable_data::UnpubImmutableData;
+use crate::immutable_data::{ImmutableData, UnpubImmutableData};
 use crate::mutable_data::{
     MutableDataRef, PermissionSet, SeqEntryAction, SeqMutableData, UnseqEntryAction,
     UnseqMutableData,
@@ -82,6 +82,13 @@ pub enum Request {
     },
     DeleteUnpubIData {
         address: XorName,
+    },
+    /// Get published IData from the network.
+    GetPubIData {
+        address: XorName,
+    },
+    PutPubIData {
+        data: ImmutableData,
     },
     //
     // ===== Mutable Data =====
@@ -354,9 +361,17 @@ impl fmt::Debug for Request {
             f,
             "{}",
             match *self {
+                //
+                // Immutable Data
+                //
                 Request::GetUnpubIData { .. } => "Request::GetUnpubIData",
                 Request::PutUnpubIData { .. } => "Request::PutUnpubIData",
                 Request::DeleteUnpubIData { .. } => "Request::DeleteUnpubIData",
+                Request::GetPubIData { .. } => "Request::GetPubIData",
+                Request::PutPubIData { .. } => "Request::PutPubIData",
+                //
+                // Mutable Data
+                //
                 Request::GetUnseqMData { .. } => "Request::GetUnseqMData",
                 Request::PutUnseqMData { .. } => "Request::PutUnseqMData",
                 Request::GetSeqMData { .. } => "Request::GetSeqMData",

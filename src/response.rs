@@ -12,7 +12,7 @@ use crate::appendable_data::{
 };
 use crate::coins::Coins;
 use crate::errors::Error;
-use crate::immutable_data::UnpubImmutableData;
+use crate::immutable_data::{ImmutableData, UnpubImmutableData};
 use crate::mutable_data::{PermissionSet, SeqMutableData, UnseqMutableData, Value};
 use crate::request::AppendOnlyData;
 use crate::{AppPermissions, PublicKey};
@@ -42,25 +42,8 @@ pub enum Response {
     GetUnpubIData(Result<UnpubImmutableData, Error>),
     PutUnpubIData(Result<(), Error>),
     DeleteUnpubIData(Result<(), Error>),
-    //
-    // ===== AppendOnly Data =====
-    //
-    PutAData(Result<(), Error>),
-    GetAData(Result<AppendOnlyData, Error>),
-    GetADataRange(Result<Vec<(Vec<u8>, Vec<u8>)>, Error>),
-    GetADataIndices(Result<Indices, Error>),
-    GetADataLastEntry(Result<(Vec<u8>, Vec<u8>), Error>),
-    GetUnpubADataPermissionAtIndex(Result<UnpubPermissions, Error>),
-    GetPubADataPermissionAtIndex(Result<PubPermissions, Error>),
-    GetPubADataUserPermissions(Result<PubPermissionSet, Error>),
-    GetUnpubADataUserPermissions(Result<UnpubPermissionSet, Error>),
-    AddUnpubADataPermissions(Result<(), Error>),
-    AddPubADataPermissions(Result<(), Error>),
-    AppendPubSeq(Result<(), Error>),
-    AppendUnpubSeq(Result<(), Error>),
-    AppendPubUnseq(Result<(), Error>),
-    AppendUnpubUnseq(Result<(), Error>),
-    DeleteAData(Result<(), Error>),
+    GetPubIData(Result<ImmutableData, Error>),
+    PutPubIData(Result<(), Error>),
     //
     // ===== Mutable Data =====
     //
@@ -86,6 +69,25 @@ pub enum Response {
     MutateUnseqMDataEntries(Result<(), Error>),
     GetSeqMDataValue(Result<Value, Error>),
     GetUnseqMDataValue(Result<Vec<u8>, Error>),
+    //
+    // ===== AppendOnly Data =====
+    //
+    PutAData(Result<(), Error>),
+    GetAData(Result<AppendOnlyData, Error>),
+    GetADataRange(Result<Vec<(Vec<u8>, Vec<u8>)>, Error>),
+    GetADataIndices(Result<Indices, Error>),
+    GetADataLastEntry(Result<(Vec<u8>, Vec<u8>), Error>),
+    GetUnpubADataPermissionAtIndex(Result<UnpubPermissions, Error>),
+    GetPubADataPermissionAtIndex(Result<PubPermissions, Error>),
+    GetPubADataUserPermissions(Result<PubPermissionSet, Error>),
+    GetUnpubADataUserPermissions(Result<UnpubPermissionSet, Error>),
+    AddUnpubADataPermissions(Result<(), Error>),
+    AddPubADataPermissions(Result<(), Error>),
+    AppendPubSeq(Result<(), Error>),
+    AppendUnpubSeq(Result<(), Error>),
+    AppendPubUnseq(Result<(), Error>),
+    AppendUnpubUnseq(Result<(), Error>),
+    DeleteAData(Result<(), Error>),
 
     //
     // ===== Coins =====
@@ -112,9 +114,17 @@ impl fmt::Debug for Response {
             f,
             "{}",
             match *self {
+                //
+                // Immutable Data
+                //
                 Response::GetUnpubIData(..) => "Response::GetUnpubIData",
                 Response::PutUnpubIData(..) => "Response::PutUnpubIData",
                 Response::DeleteUnpubIData(..) => "Response::DeleteUnpubIData",
+                Response::GetPubIData(..) => "Response::GetPubIData",
+                Response::PutPubIData(..) => "Response::PutPubIData",
+                //
+                // Mutable Data
+                //
                 Response::DeleteMData(..) => "Response::DeleteMData",
                 Response::GetUnseqMData(..) => "Response::GetUnseqMData",
                 Response::PutUnseqMData(..) => "Response::PutUnseqMData",
