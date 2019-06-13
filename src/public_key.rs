@@ -16,7 +16,7 @@ use std::fmt::{self, Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use threshold_crypto;
 
-#[derive(Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
 #[allow(clippy::large_enum_variant)]
 pub enum PublicKey {
     Ed25519(ed25519_dalek::PublicKey),
@@ -90,6 +90,12 @@ impl From<PublicKey> for XorName {
         let mut xor_name = XorName::default();
         xor_name.0.clone_from_slice(&bytes[..XOR_NAME_LEN]);
         xor_name
+    }
+}
+
+impl From<threshold_crypto::PublicKey> for PublicKey {
+    fn from(pk: threshold_crypto::PublicKey) -> Self {
+        PublicKey::Bls(pk)
     }
 }
 

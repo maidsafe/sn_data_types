@@ -97,7 +97,7 @@ pub enum Response {
     // --- Client (Owner) to SrcElders ---
     // ==========================
     /// Returns a list of authorised keys from Elders and the account version.
-    ListAuthKeysAndVersion(Result<(BTreeMap<sign::PublicKey, AppPermissions>, u64), Error>),
+    ListAuthKeysAndVersion(Result<(BTreeMap<PublicKey, AppPermissions>, u64), Error>),
     /// Returns a success or failure status of adding an authorised key.
     InsAuthKey(Result<(), Error>),
     /// Returns a success or failure status of deleting an authorised key.
