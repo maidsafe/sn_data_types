@@ -56,10 +56,10 @@ pub enum Response {
     GetUnpubADataUserPermissions(Result<UnpubPermissionSet, Error>),
     AddUnpubADataPermissions(Result<(), Error>),
     AddPubADataPermissions(Result<(), Error>),
-    AppendPublishedSeq(Result<(), Error>),
-    AppendUnpublishedSeq(Result<(), Error>),
-    AppendPublishedUnseq(Result<(), Error>),
-    AppendUnpublishedUnseq(Result<(), Error>),
+    AppendPubSeq(Result<(), Error>),
+    AppendUnpubSeq(Result<(), Error>),
+    AppendPubUnseq(Result<(), Error>),
+    AppendUnpubUnseq(Result<(), Error>),
     DeleteAData(Result<(), Error>),
     //
     // ===== Mutable Data =====
@@ -157,10 +157,10 @@ impl fmt::Debug for Response {
                 }
                 Response::AddUnpubADataPermissions(..) => "Response::AddUnpubADataPermissions",
                 Response::AddPubADataPermissions(..) => "Response::AddPubADataPermissions",
-                Response::AppendUnpublishedSeq(..) => "Response::AppendUnpublishedSeq",
-                Response::AppendPublishedUnseq(..) => "Response::AppendPublishedUnseq",
-                Response::AppendPublishedSeq(..) => "Response::AppendPublishedSeq",
-                Response::AppendUnpublishedUnseq(..) => "Response::AppendUnPublishedUnseq",
+                Response::AppendUnpubSeq(..) => "Response::AppendUnpubSeq",
+                Response::AppendPubUnseq(..) => "Response::AppendPubUnseq",
+                Response::AppendPubSeq(..) => "Response::AppendPubSeq",
+                Response::AppendUnpubUnseq(..) => "Response::AppendUnpubUnseq",
                 Response::DeleteAData(..) => "Response::DeleteAData",
             }
         )

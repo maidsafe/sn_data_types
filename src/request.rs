@@ -275,16 +275,16 @@ pub enum Request {
     },
 
     /// Append operations
-    AppendPublishedSeq {
+    AppendPubSeq {
         append: AppendOperation,
         index: u64,
     },
-    AppendUnpublishedSeq {
+    AppendUnpubSeq {
         append: AppendOperation,
         index: u64,
     },
-    AppendPublishedUnseq(AppendOperation),
-    AppendUnpublishedUnseq(AppendOperation),
+    AppendPubUnseq(AppendOperation),
+    AppendUnpubUnseq(AppendOperation),
 
     /// Put a new AppendOnlyData onto the network.
     PutAData {
