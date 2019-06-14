@@ -56,7 +56,7 @@
 // FIXME - write docs
 #![allow(missing_docs)]
 
-mod appendable_data;
+mod append_only_data;
 mod coins;
 mod errors;
 mod identity;
@@ -66,7 +66,7 @@ mod public_key;
 mod request;
 mod response;
 
-pub use appendable_data::{
+pub use append_only_data::{
     Address as ADataAddress, AppendOnlyData, PubSeqAppendOnlyData, PubUnseqAppendOnlyData,
     UnpubSeqAppendOnlyData, UnpubUnseqAppendOnlyData,
 };

@@ -8,13 +8,13 @@
 // Software.
 
 use crate::{
-    appendable_data::{self, Index, Owners, PubPermissions, UnpubPermissions, User},
+    append_only_data::{self, Index, Owners, PubPermissions, UnpubPermissions, User},
     coins::Coins,
     mutable_data::{PermissionSet, SeqEntryAction, UnseqEntryAction},
     ADataAddress, AppPermissions, AppendOnlyData as AppendOnlyTrait, IDataAddress, ImmutableData,
     MDataAddress, MessageId, PubSeqAppendOnlyData, PubUnseqAppendOnlyData, PublicKey,
-    SeqMutableData, Signature, UnpubImmutableData, UnpubSeqAppendOnlyData, UnseqMutableData,
-    XorName,
+    SeqMutableData, Signature, UnpubImmutableData, UnpubSeqAppendOnlyData,
+    UnpubUnseqAppendOnlyData, UnseqMutableData, XorName,
 };
 use rust_sodium::crypto::sign;
 use serde::{Deserialize, Serialize};
@@ -28,10 +28,10 @@ pub enum Requester {
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
 pub enum AppendOnlyData {
-    PubSeq(appendable_data::SeqAppendOnlyData<PubPermissions>),
-    UnpubSeq(appendable_data::SeqAppendOnlyData<UnpubPermissions>),
-    PubUnseq(appendable_data::UnseqAppendOnlyData<PubPermissions>),
-    UnpubUnseq(appendable_data::UnseqAppendOnlyData<UnpubPermissions>),
+    PubSeq(PubSeqAppendOnlyData),
+    UnpubSeq(UnpubSeqAppendOnlyData),
+    PubUnseq(PubUnseqAppendOnlyData),
+    UnpubUnseq(UnpubUnseqAppendOnlyData),
 }
 
 impl AppendOnlyData {

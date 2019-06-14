@@ -8,7 +8,7 @@
 // Software.
 
 use crate::{
-    appendable_data::{
+    append_only_data::{
         Indices, PubPermissionSet, PubPermissions, UnpubPermissionSet, UnpubPermissions,
     },
     mutable_data::{PermissionSet, SeqMutableData, UnseqMutableData, Value},
