@@ -7,7 +7,7 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::{Error, PublicKey, Request, Requester, XorName};
+use crate::{Error, PublicKey, Request, Requester, Result, XorName};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use threshold_crypto::PublicKeySet;
@@ -34,7 +34,7 @@ pub fn check_permissions<P: Permissions>(
     _data: impl AppendOnlyData<P>,
     _rpc: &Request,
     _requester: Requester,
-) -> Result<bool, Error> {
+) -> Result<bool> {
     Ok(true)
 }
 
@@ -317,7 +317,7 @@ struct AppendOnly<P: Permissions> {
 /// Common methods for all `AppendOnlyData` flavours.
 pub trait AppendOnlyData<P> {
     // /// Get a list of permissions for the provided user from the last entry in the permissions list.
-    // fn user_permissions(&self, user: &User) -> Result<&PubPermissionSet, ClientError>;
+    // fn user_permissions(&self, user: &User) -> Result<&PubPermissionSet>;
 
     /// Return a value for the given key (if it is present).
     fn get(&self, key: &[u8]) -> Option<&Vec<u8>>;
@@ -354,7 +354,7 @@ pub trait AppendOnlyData<P> {
 
     /// Add a new permissions entry.
     /// The `Permissions` struct should contain valid indices.
-    fn append_permissions(&mut self, permissions: P) -> Result<(), Error>;
+    fn append_permissions(&mut self, permissions: P) -> Result<()>;
 
     /// Fetch perms at index.
     fn fetch_permissions_at_index(&self, perm_index: u64) -> Option<&P>;
@@ -365,26 +365,22 @@ pub trait AppendOnlyData<P> {
     /// Add a new permissions entry.
     ///
     /// The `Owners` struct should contain valid indices.
-    fn append_owners(&mut self, owners: Owners) -> Result<(), Error>;
+    fn append_owners(&mut self, owners: Owners) -> Result<()>;
 
-    fn verify_requester(&self, requester: Requester, action: Action) -> Result<bool, Error>;
+    fn verify_requester(&self, requester: Requester, action: Action) -> Result<bool>;
 }
 
 /// Common methods for published and unpublished unsequenced `AppendOnlyData`.
 pub trait UnseqAppendOnly {
     /// Append new entries.
-    fn append(&mut self, entries: &[(Vec<u8>, Vec<u8>)]) -> Result<(), Error>;
+    fn append(&mut self, entries: &[(Vec<u8>, Vec<u8>)]) -> Result<()>;
 }
 
 /// Common methods for published and unpublished sequenced `AppendOnlyData`.
 pub trait SeqAppendOnly {
     /// Append new entries.
     /// If the specified `last_entries_index` does not match the last recorded entries index, an error will be returned.
-    fn append(
-        &mut self,
-        entries: &[(Vec<u8>, Vec<u8>)],
-        last_entries_index: u64,
-    ) -> Result<(), Error>;
+    fn append(&mut self, entries: &[(Vec<u8>, Vec<u8>)], last_entries_index: u64) -> Result<()>;
 }
 
 macro_rules! impl_appendable_data {
@@ -425,7 +421,7 @@ macro_rules! impl_appendable_data {
                 self.inner.permissions.len() as u64
             }
 
-            // fn user_permissions(&self, user: &User) -> Result<&PubPermissionSet, Error> {
+            // fn user_permissions(&self, user: &User) -> Result<&PubPermissionSet> {
             //     let perm_set = &self.inner.permissions[self.inner.permissions.len() - 1];
             //     perm_set.permissions.get(user).ok_or(Error::X)
             // }
@@ -529,7 +525,7 @@ macro_rules! impl_appendable_data {
                 Some(&self.inner.owners[idx_start..idx_end])
             }
 
-            fn append_permissions(&mut self, permissions: P) -> Result<(), Error> {
+            fn append_permissions(&mut self, permissions: P) -> Result<()> {
                 if permissions.data_index() != self.entry_index() {
                     return Err(Error::InvalidSuccessor(self.entry_index()));
                 }
@@ -540,7 +536,7 @@ macro_rules! impl_appendable_data {
                 Ok(())
             }
 
-            fn append_owners(&mut self, owners: Owners) -> Result<(), Error> {
+            fn append_owners(&mut self, owners: Owners) -> Result<()> {
                 if owners.data_index != self.entry_index() {
                     return Err(Error::InvalidSuccessor(self.entry_index()));
                 }
@@ -551,11 +547,7 @@ macro_rules! impl_appendable_data {
                 Ok(())
             }
 
-            fn verify_requester(
-                &self,
-                requester: Requester,
-                action: Action,
-            ) -> Result<bool, Error> {
+            fn verify_requester(&self, requester: Requester, action: Action) -> Result<bool> {
                 if self
                     .inner
                     .permissions
@@ -631,11 +623,7 @@ impl<P> SeqAppendOnly for SeqAppendOnlyData<P>
 where
     P: Permissions + std::hash::Hash,
 {
-    fn append(
-        &mut self,
-        entries: &[(Vec<u8>, Vec<u8>)],
-        last_entries_index: u64,
-    ) -> Result<(), Error> {
+    fn append(&mut self, entries: &[(Vec<u8>, Vec<u8>)], last_entries_index: u64) -> Result<()> {
         if last_entries_index != self.inner.data.len() as u64 {
             return Err(Error::InvalidSuccessor(self.inner.data.len() as u64));
         }
@@ -648,7 +636,7 @@ impl<P> UnseqAppendOnly for UnseqAppendOnlyData<P>
 where
     P: Permissions + std::hash::Hash,
 {
-    fn append(&mut self, entries: &[(Vec<u8>, Vec<u8>)]) -> Result<(), Error> {
+    fn append(&mut self, entries: &[(Vec<u8>, Vec<u8>)]) -> Result<()> {
         self.inner.data.extend(entries.iter().cloned());
         Ok(())
     }

@@ -8,9 +8,7 @@
 // Software.
 
 use crate::{
-    errors::{EntryError, Error},
-    request::{Request, Requester},
-    MessageId, PublicKey, Signature, XorName,
+    EntryError, Error, MessageId, PublicKey, Request, Requester, Result, Signature, XorName,
 };
 use bincode;
 use serde::{Deserialize, Serialize};
@@ -142,27 +140,27 @@ pub trait MutableData {
 
     fn permissions(&self) -> BTreeMap<PublicKey, PermissionSet>;
 
-    fn user_permissions(&self, user: PublicKey) -> Result<&PermissionSet, Error>;
+    fn user_permissions(&self, user: PublicKey) -> Result<&PermissionSet>;
 
     fn check_permissions(
         &self,
         rpc: Request,
         requester: Requester,
         message_id: MessageId,
-    ) -> Result<(), Error>;
+    ) -> Result<()>;
 
     fn set_user_permissions(
         &mut self,
         user: PublicKey,
         permissions: PermissionSet,
         version: u64,
-    ) -> Result<(), Error>;
+    ) -> Result<()>;
 
-    fn del_user_permissions(&mut self, user: PublicKey, version: u64) -> Result<(), Error>;
+    fn del_user_permissions(&mut self, user: PublicKey, version: u64) -> Result<()>;
 
     fn del_user_permissions_without_validation(&mut self, user: PublicKey, version: u64) -> bool;
 
-    fn change_owner(&mut self, new_owner: PublicKey, version: u64) -> Result<(), Error>;
+    fn change_owner(&mut self, new_owner: PublicKey, version: u64) -> Result<()>;
 
     fn change_owner_without_validation(&mut self, new_owner: PublicKey, version: u64) -> bool;
 
@@ -220,7 +218,7 @@ macro_rules! impl_mutable_data {
                 self.permissions.clone()
             }
 
-            fn user_permissions(&self, user: PublicKey) -> Result<&PermissionSet, Error> {
+            fn user_permissions(&self, user: PublicKey) -> Result<&PermissionSet> {
                 self.permissions.get(&user).ok_or(Error::NoSuchKey)
             }
 
@@ -229,7 +227,7 @@ macro_rules! impl_mutable_data {
                 request: Request,
                 requester: Requester,
                 message_id: MessageId,
-            ) -> Result<(), Error> {
+            ) -> Result<()> {
                 match requester {
                     Requester::Key(key) => {
                         check_permissions_for_key(self.user_permissions(key)?, request)
@@ -246,7 +244,7 @@ macro_rules! impl_mutable_data {
                 user: PublicKey,
                 permissions: PermissionSet,
                 version: u64,
-            ) -> Result<(), Error> {
+            ) -> Result<()> {
                 if version != self.version + 1 {
                     return Err(Error::InvalidSuccessor(self.version));
                 }
@@ -256,7 +254,7 @@ macro_rules! impl_mutable_data {
             }
 
             /// Delete permissions for the provided user.
-            fn del_user_permissions(&mut self, user: PublicKey, version: u64) -> Result<(), Error> {
+            fn del_user_permissions(&mut self, user: PublicKey, version: u64) -> Result<()> {
                 if version != self.version + 1 {
                     return Err(Error::InvalidSuccessor(self.version));
                 }
@@ -283,7 +281,7 @@ macro_rules! impl_mutable_data {
             }
 
             /// Change owner of the mutable data.
-            fn change_owner(&mut self, new_owner: PublicKey, version: u64) -> Result<(), Error> {
+            fn change_owner(&mut self, new_owner: PublicKey, version: u64) -> Result<()> {
                 if version != self.version + 1 {
                     return Err(Error::InvalidSuccessor(self.version));
                 }
@@ -317,7 +315,7 @@ macro_rules! impl_mutable_data {
     };
 }
 
-fn check_permissions_for_key(permissions: &PermissionSet, request: Request) -> Result<(), Error> {
+fn check_permissions_for_key(permissions: &PermissionSet, request: Request) -> Result<()> {
     match request {
         Request::GetUnseqMData { .. }
         | Request::GetSeqMData { .. }
@@ -362,7 +360,7 @@ fn verify_ownership(
     public_key: PublicKey,
     request: Request,
     message_id: MessageId,
-) -> Result<(), Error> {
+) -> Result<()> {
     let message = bincode::serialize(&(&request, message_id)).unwrap_or_default();
     public_key.verify_detached(&signature, message)
 }
@@ -426,7 +424,7 @@ impl UnseqMutableData {
         request: Request,
         requester: Requester,
         message_id: MessageId,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         let (insert, update, delete) = actions.into_iter().fold(
             (
                 BTreeMap::<Vec<u8>, Vec<u8>>::new(),
@@ -568,7 +566,7 @@ impl SeqMutableData {
         request: Request,
         requester: Requester,
         message_id: MessageId,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         // Deconstruct actions into inserts, updates, and deletes
         let (insert, update, delete) = actions.into_iter().fold(
             (BTreeMap::new(), BTreeMap::new(), BTreeMap::new()),

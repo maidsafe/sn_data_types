@@ -71,7 +71,7 @@ pub use appendable_data::{
     UnpubSeqAppendOnlyData, UnpubUnseqAppendOnlyData,
 };
 pub use coins::{Coins, MAX_COINS_VALUE};
-pub use errors::{EntryError, Error};
+pub use errors::{EntryError, Error, Result};
 pub use identity::{
     app::{FullId as AppFullId, PublicId as AppPublicId},
     client::{FullId as ClientFullId, PublicId as ClientPublicId},
