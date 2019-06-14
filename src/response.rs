@@ -15,7 +15,6 @@ use crate::{
     request::AppendOnlyData,
     AppPermissions, Coins, ImmutableData, PublicKey, Result, UnpubImmutableData,
 };
-use rust_sodium::crypto::sign;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 

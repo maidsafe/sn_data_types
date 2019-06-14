@@ -10,7 +10,6 @@
 use crate::{Error, PublicKey, Request, Requester, Result, XorName};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use threshold_crypto::PublicKeySet;
 
 pub type PubSeqAppendOnlyData = SeqAppendOnlyData<PubPermissions>;
 pub type PubUnseqAppendOnlyData = UnseqAppendOnlyData<PubPermissions>;
@@ -298,12 +297,12 @@ impl Permissions for PubPermissions {
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct Owners {
-    owners: PublicKeySet,
+pub struct Owner {
+    public_key: PublicKey,
     /// The current index of the data when this ownership change happened
     data_index: u64,
     /// The current index of the permissions when this ownership change happened
-    permission_entry_index: u64,
+    permissions_index: u64,
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
@@ -311,7 +310,7 @@ struct AppendOnly<P: Permissions> {
     address: Address,
     data: Vec<(Vec<u8>, Vec<u8>)>,
     permissions: Vec<P>,
-    owners: Vec<Owners>,
+    owners: Vec<Owner>,
 }
 
 /// Common methods for all `AppendOnlyData` flavours.
@@ -349,7 +348,8 @@ pub trait AppendOnlyData<P> {
     /// Return the last permissions index.
     fn permissions_index(&self) -> u64;
 
-    /// Get a complete list of permissions from the entry in the permissions list at the specified index.
+    /// Get a complete list of permissions from the entry in the permissions list at the specified
+    /// index.
     fn permissions_range(&self, start: Index, end: Index) -> Option<&[P]>;
 
     /// Add a new permissions entry.
@@ -360,12 +360,10 @@ pub trait AppendOnlyData<P> {
     fn fetch_permissions_at_index(&self, perm_index: u64) -> Option<&P>;
 
     /// Get a complete list of owners from the entry in the permissions list at the specified index.
-    fn owners_range(&self, start: Index, end: Index) -> Option<&[Owners]>;
+    fn owners_range(&self, start: Index, end: Index) -> Option<&[Owner]>;
 
-    /// Add a new permissions entry.
-    ///
-    /// The `Owners` struct should contain valid indices.
-    fn append_owners(&mut self, owners: Owners) -> Result<()>;
+    /// Add a new owner entry.
+    fn append_owner(&mut self, owner: Owner) -> Result<()>;
 
     fn verify_requester(&self, requester: Requester, action: Action) -> Result<bool>;
 }
@@ -501,7 +499,7 @@ macro_rules! impl_appendable_data {
                 Some(&self.inner.permissions[idx_start..idx_end])
             }
 
-            fn owners_range(&self, start: Index, end: Index) -> Option<&[Owners]> {
+            fn owners_range(&self, start: Index, end: Index) -> Option<&[Owner]> {
                 // Check bounds
                 let idx_start = match start {
                     Index::FromStart(idx) => idx as usize,
@@ -536,14 +534,14 @@ macro_rules! impl_appendable_data {
                 Ok(())
             }
 
-            fn append_owners(&mut self, owners: Owners) -> Result<()> {
-                if owners.data_index != self.entry_index() {
+            fn append_owner(&mut self, owner: Owner) -> Result<()> {
+                if owner.data_index != self.entry_index() {
                     return Err(Error::InvalidSuccessor(self.entry_index()));
                 }
-                if owners.permission_entry_index != self.permissions_index() {
+                if owner.permissions_index != self.permissions_index() {
                     return Err(Error::InvalidPermissionsSuccessor(self.permissions_index()));
                 }
-                self.inner.owners.push(owners);
+                self.inner.owners.push(owner);
                 Ok(())
             }
 
@@ -646,7 +644,7 @@ where
 mod tests {
     use super::*;
     use rand;
-    use threshold_crypto::SecretKeySet;
+    use threshold_crypto::SecretKey;
     use unwrap::unwrap;
 
     #[test]
@@ -692,16 +690,15 @@ mod tests {
 
     #[test]
     fn append_owners() {
-        let mut rng = rand::thread_rng();
-        let owners_pk_set = SecretKeySet::random(1, &mut rng);
+        let owner_pk = PublicKey::Bls(SecretKey::random().public_key());
 
         let mut data = SeqAppendOnlyData::<UnpubPermissions>::new(XorName([1; 32]), 10000);
 
         // Append the first owner with correct indices - should pass.
-        let res = data.append_owners(Owners {
-            owners: owners_pk_set.public_keys(),
+        let res = data.append_owner(Owner {
+            public_key: owner_pk,
             data_index: 0,
-            permission_entry_index: 0,
+            permissions_index: 0,
         });
 
         match res {
@@ -716,10 +713,10 @@ mod tests {
         );
 
         // Append another owners entry with incorrect indices - should fail.
-        let res = data.append_owners(Owners {
-            owners: owners_pk_set.public_keys(),
+        let res = data.append_owner(Owner {
+            public_key: owner_pk,
             data_index: 64,
-            permission_entry_index: 0,
+            permissions_index: 0,
         });
 
         match res {
