@@ -362,7 +362,7 @@ fn verify_ownership(
     message_id: MessageId,
 ) -> Result<()> {
     let message = bincode::serialize(&(&request, message_id)).unwrap_or_default();
-    public_key.verify_detached(&signature, message)
+    public_key.verify(&signature, message)
 }
 
 impl_mutable_data!(SeqMutableData);
