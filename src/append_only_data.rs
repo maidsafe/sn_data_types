@@ -7,7 +7,7 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::{Error, PublicKey, Request, Requester, Result, XorName};
+use crate::{Error, PublicKey, Requester, Result, XorName};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -27,14 +27,6 @@ pub enum Action {
     Read,
     Append,
     ManagePermissions,
-}
-
-pub fn check_permissions<P: Permissions>(
-    _data: impl AppendOnlyData<P>,
-    _rpc: &Request,
-    _requester: Requester,
-) -> Result<bool> {
-    Ok(true)
 }
 
 #[derive(Copy, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -123,8 +115,7 @@ impl PubPermissionSet {
         self.manage_permissions = Some(manage_perms);
     }
 
-    #[allow(clippy::trivially_copy_pass_by_ref)]
-    pub fn is_allowed(&self, action: Action) -> Option<bool> {
+    pub fn is_allowed(self, action: Action) -> Option<bool> {
         match action {
             Action::Read => Some(true), // It's published data, so it's always allowed to read it.
             Action::Append => self.append,
@@ -310,6 +301,8 @@ struct AppendOnly<P: Permissions> {
     address: Address,
     data: Vec<(Vec<u8>, Vec<u8>)>,
     permissions: Vec<P>,
+    // This is the history of owners, with each entry representing an owner.  Each single owner
+    // could represent an individual user, or a group of users, depending on the `PublicKey` type.
     owners: Vec<Owner>,
 }
 
@@ -377,7 +370,9 @@ pub trait UnseqAppendOnly {
 /// Common methods for published and unpublished sequenced `AppendOnlyData`.
 pub trait SeqAppendOnly {
     /// Append new entries.
-    /// If the specified `last_entries_index` does not match the last recorded entries index, an error will be returned.
+    ///
+    /// If the specified `last_entries_index` does not match the last recorded entries index, an
+    /// error will be returned.
     fn append(&mut self, entries: &[(Vec<u8>, Vec<u8>)], last_entries_index: u64) -> Result<()>;
 }
 
@@ -643,7 +638,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand;
     use threshold_crypto::SecretKey;
     use unwrap::unwrap;
 

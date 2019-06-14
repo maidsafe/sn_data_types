@@ -16,7 +16,6 @@ use std::{
 };
 use threshold_crypto::{PublicKey, PK_SIZE};
 use tiny_keccak;
-use unwrap::unwrap;
 
 /// Maximum allowed size for a serialised Immutable Data (ID) to grow to
 pub const MAX_IMMUTABLE_DATA_SIZE_IN_BYTES: u64 = 1024 * 1024 + 10 * 1024;

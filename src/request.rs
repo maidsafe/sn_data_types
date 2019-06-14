@@ -8,13 +8,12 @@
 // Software.
 
 use crate::{
-    append_only_data::{self, Index, Owner, PubPermissions, UnpubPermissions, User},
-    coins::Coins,
-    mutable_data::{PermissionSet, SeqEntryAction, UnseqEntryAction},
-    ADataAddress, AppPermissions, AppendOnlyData as AppendOnlyTrait, IDataAddress, ImmutableData,
-    MDataAddress, MessageId, PubSeqAppendOnlyData, PubUnseqAppendOnlyData, PublicKey,
-    SeqMutableData, Signature, UnpubImmutableData, UnpubSeqAppendOnlyData,
-    UnpubUnseqAppendOnlyData, UnseqMutableData, XorName,
+    ADataAddress, ADataIndex, ADataOwner, ADataPubPermissions, ADataUnpubPermissions, ADataUser,
+    AppPermissions, AppendOnlyData as AppendOnlyTrait, Coins, IDataAddress, ImmutableData,
+    MDataAddress, MDataPermissionSet, MDataSeqEntryAction, MDataUnseqEntryAction,
+    PubSeqAppendOnlyData, PubUnseqAppendOnlyData, PublicKey, SeqMutableData, Signature,
+    UnpubImmutableData, UnpubSeqAppendOnlyData, UnpubUnseqAppendOnlyData, UnseqMutableData,
+    XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fmt};
@@ -61,145 +60,77 @@ pub struct AppendOperation {
 }
 
 /// RPC Request that is sent to vaults
-#[allow(clippy::large_enum_variant)]
+#[allow(clippy::large_enum_variant, missing_docs)]
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub enum Request {
     //
     // ===== Immutable Data =====
     //
-    /// Get unpublished IData from the network.
-    GetUnpubIData {
-        address: IDataAddress,
-    },
-    PutUnpubIData {
-        data: UnpubImmutableData,
-    },
-    /// Delete unpublished IData from the network.
-    DeleteUnpubIData {
-        address: XorName,
-    },
-    /// Get published IData from the network.
-    GetPubIData {
-        address: XorName,
-    },
-    PutPubIData {
-        data: ImmutableData,
-    },
+    PutIData(UnpubImmutableData),
+    PutPubIData(ImmutableData),
+    GetIData(IDataAddress),
+    DeleteUnpubIData(IDataAddress),
     //
     // ===== Mutable Data =====
     //
-    /// Delete MData from the network.
-    DeleteMData {
+    PutUnseqMData(UnseqMutableData),
+    PutSeqMData(SeqMutableData),
+    GetMData(MDataAddress),
+    GetMDataValue {
         address: MDataAddress,
+        key: Vec<u8>,
     },
-    GetMData {
-        address: MDataAddress,
-    },
-    PutUnseqMData {
-        data: UnseqMutableData,
-    },
-    GetSeqMData {
-        address: MDataAddress,
-    },
-    GetUnseqMData {
-        address: MDataAddress,
-    },
-    PutSeqMData {
-        data: SeqMutableData,
-    },
-    GetSeqMDataShell {
-        address: MDataAddress,
-    },
-
-    GetUnseqMDataShell {
-        address: MDataAddress,
-    },
-
-    GetMDataVersion {
-        address: MDataAddress,
-    },
-
-    ListUnseqMDataEntries {
-        address: MDataAddress,
-    },
-
-    ListSeqMDataEntries {
-        address: MDataAddress,
-    },
-
-    ListMDataKeys {
-        address: MDataAddress,
-    },
-
-    ListUnseqMDataValues {
-        address: MDataAddress,
-    },
-
-    ListSeqMDataValues {
-        address: MDataAddress,
-    },
-
+    DeleteMData(MDataAddress),
+    GetMDataShell(MDataAddress),
+    GetMDataVersion(MDataAddress),
+    ListMDataEntries(MDataAddress),
+    ListMDataKeys(MDataAddress),
+    ListMDataValues(MDataAddress),
     SetMDataUserPermissions {
         address: MDataAddress,
         user: PublicKey,
-        permissions: PermissionSet,
+        permissions: MDataPermissionSet,
         version: u64,
     },
-
     DelMDataUserPermissions {
         address: MDataAddress,
         user: PublicKey,
         version: u64,
     },
-
-    ListMDataPermissions {
-        address: MDataAddress,
-    },
-
+    ListMDataPermissions(MDataAddress),
     ListMDataUserPermissions {
         address: MDataAddress,
         user: PublicKey,
     },
-
     MutateSeqMDataEntries {
         address: MDataAddress,
-        actions: BTreeMap<Vec<u8>, SeqEntryAction>,
+        actions: BTreeMap<Vec<u8>, MDataSeqEntryAction>,
     },
-
     MutateUnseqMDataEntries {
         address: MDataAddress,
-        actions: BTreeMap<Vec<u8>, UnseqEntryAction>,
-    },
-
-    GetSeqMDataValue {
-        address: MDataAddress,
-        key: Vec<u8>,
-    },
-
-    GetUnseqMDataValue {
-        address: MDataAddress,
-        key: Vec<u8>,
-    },
-
-    GetMDataShell {
-        address: MDataAddress,
-    },
-
-    ListMDataEntries {
-        address: MDataAddress,
-    },
-
-    ListMDataValues {
-        address: MDataAddress,
+        actions: BTreeMap<Vec<u8>, MDataUnseqEntryAction>,
     },
     //
     // ===== Append Only Data =====
     //
+    /// Put a new AppendOnlyData onto the network.
+    PutAData(AppendOnlyData),
+    /// Get AppendOnlyData from the network.
+    GetAData(ADataAddress),
+    /// Get `AppendOnlyData` shell at a certain point in history (`data_index` refers to the list
+    /// of data).
+    GetADataShell {
+        address: ADataAddress,
+        data_index: ADataIndex,
+    },
+    /// Delete an unpublished unsequenced `AppendOnlyData`.
+    ///
+    /// This operation MUST return an error if applied to published AppendOnlyData. Only the current
+    /// owner(s) can perform this action.
+    DeleteAData(ADataAddress),
     /// Get a range of entries from an AppendOnlyData object on the network.
     GetADataRange {
-        // Address of an AppendOnlyData object on the network.
         address: ADataAddress,
-
         // Range of entries to fetch.
         //
         // For example, get 10 last entries:
@@ -210,104 +141,57 @@ pub enum Request {
         //
         // Get first 5 entries:
         // range: (Index::FromStart(0), Index::FromStart(5))
-        range: (Index, Index),
+        range: (ADataIndex, ADataIndex),
     },
-
     /// Get current indices: data, owners, permissions.
-    GetADataIndices {
-        address: ADataAddress,
-    },
-
+    GetADataIndices(ADataAddress),
     /// Get an entry with the current index.
-    GetADataLastEntry {
-        address: ADataAddress,
-    },
-
+    GetADataLastEntry(ADataAddress),
     /// Get permissions at the provided index.
     GetADataPermissions {
         address: ADataAddress,
-        permissions_index: Index,
+        permissions_index: ADataIndex,
     },
-
     /// Get permissions for a specified user(s).
     GetPubADataUserPermissions {
         address: ADataAddress,
-        permissions_index: Index,
-        user: User,
+        permissions_index: ADataIndex,
+        user: ADataUser,
     },
-
     /// Get permissions for a specified public key.
     GetUnpubADataUserPermissions {
         address: ADataAddress,
-        permissions_index: Index,
-        user: PublicKey,
+        permissions_index: ADataIndex,
+        public_key: PublicKey,
     },
-
     /// Get owners at the provided index.
     GetADataOwners {
         address: ADataAddress,
-        owners_index: Index,
+        owners_index: ADataIndex,
     },
-
     /// Add a new `permissions` entry.
-    /// The `Permissions` struct instance MUST contain a valid index.
     AddPubADataPermissions {
         address: ADataAddress,
-        // New permission set
-        permissions: PubPermissions,
+        permissions: ADataPubPermissions,
     },
-
     /// Add a new `permissions` entry.
-    /// The `Permissions` struct instance MUST contain a valid index.
     AddUnpubADataPermissions {
         address: ADataAddress,
-        // New permission set
-        permissions: UnpubPermissions,
+        permissions: ADataUnpubPermissions,
     },
-
-    /// Add a new `owners` entry.
-    /// The `Owners` struct instance MUST contain a valid index.
-    /// Only the current owner(s) can perform this action.
+    /// Add a new `owners` entry. Only the current owner(s) can perform this action.
     SetADataOwner {
         address: ADataAddress,
-        owner: Owner,
+        owner: ADataOwner,
     },
-
-    /// Append operations
-    AppendPubSeq {
+    AppendSeq {
         append: AppendOperation,
         index: u64,
     },
-    AppendUnpubSeq {
-        append: AppendOperation,
-        index: u64,
-    },
-    AppendPubUnseq(AppendOperation),
-    AppendUnpubUnseq(AppendOperation),
-
-    /// Put a new AppendOnlyData onto the network.
-    PutAData {
-        data: AppendOnlyData,
-    },
-    /// Get AppendOnlyData from the network.
-    GetAData {
-        // Address of AppendOnlyData to be retrieved
-        address: ADataAddress,
-    },
-    /// Get `AppendOnlyData` shell at a certain point in history (`data_index` refers to the list
-    /// of data).
-    GetADataShell {
-        address: ADataAddress,
-        data_index: Index,
-    },
-
-    /// Delete an unpublished unsequenced `AppendOnlyData`.
-    ///
-    /// This operation MUST return an error if applied to published AppendOnlyData.
-    /// Only the current owner(s) can perform this action.
-    DeleteAData(ADataAddress),
-
-    // -- Coins --
+    AppendUnseq(AppendOperation),
+    //
+    // ===== Coins =====
+    //
     /// Balance transfer
     TransferCoins {
         source: XorName,
@@ -321,13 +205,11 @@ pub enum Request {
         transaction_id: u64, // TODO: Use the trait UUID
     },
     /// Get current wallet balance
-    GetBalance {
-        coins_balance_id: XorName,
-    },
-
-    // --- Client (Owner) to Elders ---
-    // ==========================
-    /// Lists authorised keys and version stored by Elders.
+    GetBalance(XorName),
+    //
+    // ===== Client (Owner) to SrcElders =====
+    //
+    /// List authorised keys and version stored by Elders.
     ListAuthKeysAndVersion,
     /// Inserts an authorised key (for an app, user, etc.).
     InsAuthKey {
@@ -349,41 +231,53 @@ pub enum Request {
 
 impl fmt::Debug for Request {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        use Request::*;
         write!(
             formatter,
             "{}",
             match *self {
-                //
-                // Immutable Data
-                //
-                Request::GetUnpubIData { .. } => "Request::GetUnpubIData",
-                Request::PutUnpubIData { .. } => "Request::PutUnpubIData",
-                Request::DeleteUnpubIData { .. } => "Request::DeleteUnpubIData",
-                Request::GetPubIData { .. } => "Request::GetPubIData",
-                Request::PutPubIData { .. } => "Request::PutPubIData",
-                //
-                // Mutable Data
-                //
-                Request::GetUnseqMData { .. } => "Request::GetUnseqMData",
-                Request::PutUnseqMData { .. } => "Request::PutUnseqMData",
-                Request::PutSeqMData { .. } => "Request::PutSeqMData",
-                Request::GetMDataShell { .. } => "Request::GetMDataShell",
-                Request::GetMDataVersion { .. } => "Request::GetMDataVersion",
-                Request::ListMDataEntries { .. } => "Request::ListMDataEntries",
-                Request::ListMDataKeys { .. } => "Request::ListMDataKeys",
-                Request::ListUnseqMDataValues { .. } => "Request::ListUnseqMDataValues",
-                Request::ListSeqMDataValues { .. } => "Request::ListSeqMDataValues",
-                Request::SetMDataUserPermissions { .. } => "Request::SetMDataUserPermissions",
-                Request::DeleteMData { .. } => "Request::DeleteMData",
-                Request::GetADataRange { .. } => "Request::GetADataRange",
-                Request::GetADataLastEntry { .. } => "Request::GetADataLastEntry",
-                Request::GetADataIndices { .. } => "Request::GetADataIndexes",
-                Request::GetADataPermissions { .. } => "Request::GetADataPermissions",
-                Request::ListAuthKeysAndVersion { .. } => "Request::ListAuthKeysAndVersion",
-                Request::InsAuthKey { .. } => "Request::InsAuthKey",
-                Request::DelAuthKey { .. } => "Request::DelAuthKey",
-                // TODO
-                ref _x => "Request",
+                PutIData(_) => "Request::PutIData",
+                PutPubIData(_) => "Request::PutPubIData",
+                GetIData(_) => "Request::GetIData",
+                DeleteUnpubIData(_) => "Request::DeleteUnpubIData",
+                PutUnseqMData(_) => "Request::PutUnseqMData",
+                PutSeqMData(_) => "Request::PutSeqMData",
+                GetMData(_) => "Request::GetMData",
+                GetMDataValue { .. } => "Request::GetMDataValue",
+                DeleteMData(_) => "Request::DeleteMData",
+                GetMDataShell(_) => "Request::GetMDataShell",
+                GetMDataVersion(_) => "Request::GetMDataVersion",
+                ListMDataEntries(_) => "Request::ListMDataEntries",
+                ListMDataKeys(_) => "Request::ListMDataKeys",
+                ListMDataValues(_) => "Request::ListMDataValues",
+                SetMDataUserPermissions { .. } => "Request::SetMDataUserPermissions",
+                DelMDataUserPermissions { .. } => "Request::DelMDataUserPermissions",
+                ListMDataPermissions(_) => "Request::ListMDataPermissions",
+                ListMDataUserPermissions { .. } => "Request::ListMDataUserPermissions",
+                MutateSeqMDataEntries { .. } => "Request::MutateSeqMDataEntries",
+                MutateUnseqMDataEntries { .. } => "Request::MutateUnseqMDataEntries",
+                PutAData(_) => "Request::PutAData",
+                GetAData(_) => "Request::GetAData",
+                GetADataShell { .. } => "Request::GetADataShell",
+                DeleteAData(_) => "Request::DeleteAData",
+                GetADataRange { .. } => "Request::GetADataRange",
+                GetADataIndices(_) => "Request::GetADataIndices",
+                GetADataLastEntry(_) => "Request::GetADataLastEntry",
+                GetADataPermissions { .. } => "Request::GetADataPermissions",
+                GetPubADataUserPermissions { .. } => "Request::GetPubADataUserPermissions",
+                GetUnpubADataUserPermissions { .. } => "Request::GetUnpubADataUserPermissions",
+                GetADataOwners { .. } => "Request::GetADataOwners",
+                AddPubADataPermissions { .. } => "Request::AddPubADataPermissions",
+                AddUnpubADataPermissions { .. } => "Request::AddUnpubADataPermissions",
+                SetADataOwner { .. } => "Request::SetADataOwner",
+                AppendSeq { .. } => "Request::AppendSeq",
+                AppendUnseq(_) => "Request::AppendUnseq",
+                TransferCoins { .. } => "Request::TransferCoins",
+                GetTransaction { .. } => "Request::GetTransaction",
+                GetBalance(_) => "Request::GetBalance",
+                ListAuthKeysAndVersion => "Request::ListAuthKeysAndVersion",
+                InsAuthKey { .. } => "Request::InsAuthKey",
+                DelAuthKey { .. } => "Request::DelAuthKey",
             }
         )
     }

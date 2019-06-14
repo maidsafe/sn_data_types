@@ -115,7 +115,6 @@ impl Display for Coins {
 }
 
 #[cfg(test)]
-#[allow(clippy::cast_possible_truncation)]
 mod tests {
     use super::*;
     use unwrap::unwrap;

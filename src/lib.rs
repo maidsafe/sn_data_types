@@ -50,8 +50,7 @@
     box_pointers,
     missing_copy_implementations,
     missing_debug_implementations,
-    variant_size_differences,
-    unused
+    variant_size_differences
 )]
 // FIXME - write docs
 #![allow(missing_docs)]
@@ -67,8 +66,11 @@ mod request;
 mod response;
 
 pub use append_only_data::{
-    Address as ADataAddress, AppendOnlyData, PubSeqAppendOnlyData, PubUnseqAppendOnlyData,
-    UnpubSeqAppendOnlyData, UnpubUnseqAppendOnlyData,
+    Address as ADataAddress, AppendOnlyData, Index as ADataIndex, Indices as ADataIndices,
+    Owner as ADataOwner, PubPermissionSet as ADataPubPermissionSet,
+    PubPermissions as ADataPubPermissions, PubSeqAppendOnlyData, PubUnseqAppendOnlyData,
+    UnpubPermissionSet as ADataUnpubPermissionSet, UnpubPermissions as ADataUnpubPermissions,
+    UnpubSeqAppendOnlyData, UnpubUnseqAppendOnlyData, User as ADataUser,
 };
 pub use coins::{Coins, MAX_COINS_VALUE};
 pub use errors::{EntryError, Error, Result};
@@ -81,7 +83,12 @@ pub use identity::{
 pub use immutable_data::{
     Address as IDataAddress, ImmutableData, UnpubImmutableData, MAX_IMMUTABLE_DATA_SIZE_IN_BYTES,
 };
-pub use mutable_data::{Address as MDataAddress, MutableData, SeqMutableData, UnseqMutableData};
+pub use mutable_data::{
+    Address as MDataAddress, MutableData, PermissionSet as MDataPermissionSet,
+    SeqEntryAction as MDataSeqEntryAction, SeqEntryActions as MDataSeqEntryActions, SeqMutableData,
+    UnseqEntryAction as MDataUnseqEntryAction, UnseqEntryActions as MDataUnseqEntryActions,
+    UnseqMutableData, Value as MDataValue,
+};
 pub use public_key::{PublicKey, Signature};
 pub use request::{Request, Requester};
 pub use response::Response;
@@ -137,9 +144,8 @@ impl Distribution<XorName> for Standard {
     }
 }
 
-/// Wrapper message that contains a message ID and the requester ID along the
-/// request or response. It should also contain a valid signature if it's sent by
-/// the owner(s).
+/// Wrapper message that contains a message ID and the requester ID along the request or response.
+/// It should also contain a valid signature if it's sent by the owner(s).
 #[allow(clippy::large_enum_variant)]
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub enum Message {
