@@ -353,7 +353,7 @@ pub trait AppendOnlyData<P> {
     fn permissions_range(&self, start: Index, end: Index) -> Option<&[P]>;
 
     /// Add a new permissions entry.
-    /// The `Permissions` struct should contain valid indexes.
+    /// The `Permissions` struct should contain valid indices.
     fn append_permissions(&mut self, permissions: P) -> Result<(), Error>;
 
     /// Fetch perms at index.
@@ -364,7 +364,7 @@ pub trait AppendOnlyData<P> {
 
     /// Add a new permissions entry.
     ///
-    /// The `Owners` struct should contain valid indexes.
+    /// The `Owners` struct should contain valid indices.
     fn append_owners(&mut self, owners: Owners) -> Result<(), Error>;
 
     fn verify_requester(&self, requester: Requester, action: Action) -> Result<bool, Error>;
@@ -665,7 +665,7 @@ mod tests {
     fn append_permissions() {
         let mut data = SeqAppendOnlyData::<UnpubPermissions>::new(XorName([1; 32]), 10000);
 
-        // Append the first permission set with correct indexes - should pass.
+        // Append the first permission set with correct indices - should pass.
         let res = data.append_permissions(UnpubPermissions {
             permissions: BTreeMap::new(),
             data_index: 0,
@@ -683,7 +683,7 @@ mod tests {
             1
         );
 
-        // Append another permissions entry with incorrect indexes - should fail.
+        // Append another permissions entry with incorrect indices - should fail.
         let res = data.append_permissions(UnpubPermissions {
             permissions: BTreeMap::new(),
             data_index: 64,
@@ -709,7 +709,7 @@ mod tests {
 
         let mut data = SeqAppendOnlyData::<UnpubPermissions>::new(XorName([1; 32]), 10000);
 
-        // Append the first owner with correct indexes - should pass.
+        // Append the first owner with correct indices - should pass.
         let res = data.append_owners(Owners {
             owners: owners_pk_set.public_keys(),
             data_index: 0,
@@ -727,7 +727,7 @@ mod tests {
             1
         );
 
-        // Append another owners entry with incorrect indexes - should fail.
+        // Append another owners entry with incorrect indices - should fail.
         let res = data.append_owners(Owners {
             owners: owners_pk_set.public_keys(),
             data_index: 64,

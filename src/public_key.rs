@@ -11,9 +11,11 @@ use crate::{Ed25519Digest, Error, XorName, XOR_NAME_LEN};
 use ed25519_dalek;
 use hex_fmt::HexFmt;
 use serde::{Deserialize, Serialize};
-use std::cmp::Ordering;
-use std::fmt::{self, Debug, Display, Formatter};
-use std::hash::{Hash, Hasher};
+use std::{
+    cmp::Ordering,
+    fmt::{self, Debug, Display, Formatter},
+    hash::{Hash, Hasher},
+};
 use threshold_crypto;
 
 #[derive(Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
