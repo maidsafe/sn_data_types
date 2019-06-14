@@ -189,3 +189,11 @@ impl Default for MessageId {
         Self::new()
     }
 }
+
+/// Challenge request/response used to establish new connections and verify the key.
+#[allow(clippy::large_enum_variant)]
+#[derive(Serialize, Deserialize)]
+pub enum Challenge {
+    Request(Vec<u8>),
+    Response(ClientPublicId, Signature),
+}
