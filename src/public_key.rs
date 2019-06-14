@@ -26,40 +26,8 @@ pub enum PublicKey {
     BlsShare(threshold_crypto::PublicKeyShare),
 }
 
-#[allow(clippy::derive_hash_xor_eq)]
-impl Hash for PublicKey {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        match self {
-            PublicKey::Ed25519(ref pk) => pk.as_bytes().hash(state),
-            PublicKey::Bls(ref pk) => pk.hash(state),
-            PublicKey::BlsShare(ref pk) => pk.hash(state),
-        }
-    }
-}
-
-impl Ord for PublicKey {
-    fn cmp(&self, other: &PublicKey) -> Ordering {
-        (&*self.as_bytes()).cmp(&*other.as_bytes())
-    }
-}
-
-impl PartialOrd for PublicKey {
-    fn partial_cmp(&self, other: &PublicKey) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
 impl PublicKey {
-    fn as_bytes(&self) -> Box<[u8]> {
-        // TODO: return &[u8] for efficiency
-        match self {
-            PublicKey::Ed25519(ref pk) => Box::new(*pk.as_bytes()),
-            PublicKey::Bls(ref pk) => Box::new(pk.to_bytes()),
-            PublicKey::BlsShare(ref pk) => Box::new(pk.to_bytes()),
-        }
-    }
-
-    pub fn verify_detached<T: AsRef<[u8]>>(&self, signature: &Signature, data: T) -> Result<()> {
+    pub fn verify<T: AsRef<[u8]>>(&self, signature: &Signature, data: T) -> Result<()> {
         let is_valid = match (self, signature) {
             (PublicKey::Ed25519(pub_key), Signature::Ed25519(sig)) => {
                 pub_key.verify::<Ed25519Digest>(data.as_ref(), sig).is_ok()
@@ -73,6 +41,27 @@ impl PublicKey {
         } else {
             Err(Error::InvalidSignature)
         }
+    }
+}
+
+#[allow(clippy::derive_hash_xor_eq)]
+impl Hash for PublicKey {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        bincode::serialize(&self).unwrap_or_default().hash(state)
+    }
+}
+
+impl Ord for PublicKey {
+    fn cmp(&self, other: &PublicKey) -> Ordering {
+        bincode::serialize(&self)
+            .unwrap_or_default()
+            .cmp(&bincode::serialize(other).unwrap_or_default())
+    }
+}
+
+impl PartialOrd for PublicKey {
+    fn partial_cmp(&self, other: &PublicKey) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
 
@@ -91,9 +80,21 @@ impl From<PublicKey> for XorName {
     }
 }
 
+impl From<ed25519_dalek::PublicKey> for PublicKey {
+    fn from(public_key: ed25519_dalek::PublicKey) -> Self {
+        PublicKey::Ed25519(public_key)
+    }
+}
+
 impl From<threshold_crypto::PublicKey> for PublicKey {
-    fn from(pk: threshold_crypto::PublicKey) -> Self {
-        PublicKey::Bls(pk)
+    fn from(public_key: threshold_crypto::PublicKey) -> Self {
+        PublicKey::Bls(public_key)
+    }
+}
+
+impl From<threshold_crypto::PublicKeyShare> for PublicKey {
+    fn from(public_key: threshold_crypto::PublicKeyShare) -> Self {
+        PublicKey::BlsShare(public_key)
     }
 }
 
@@ -135,34 +136,21 @@ pub enum Signature {
 #[allow(clippy::derive_hash_xor_eq)]
 impl Hash for Signature {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        match self {
-            Signature::Ed25519(ref sig) => sig.to_bytes().hash(state),
-            Signature::Bls(ref sig) => sig.hash(state),
-            Signature::BlsShare(ref sig) => sig.hash(state),
-        }
+        bincode::serialize(&self).unwrap_or_default().hash(state)
     }
 }
 
 impl Ord for Signature {
     fn cmp(&self, other: &Signature) -> Ordering {
-        (&*self.as_bytes()).cmp(&*other.as_bytes())
+        bincode::serialize(&self)
+            .unwrap_or_default()
+            .cmp(&bincode::serialize(other).unwrap_or_default())
     }
 }
 
 impl PartialOrd for Signature {
     fn partial_cmp(&self, other: &Signature) -> Option<Ordering> {
         Some(self.cmp(other))
-    }
-}
-
-impl Signature {
-    fn as_bytes(&self) -> Box<[u8]> {
-        // TODO: return &[u8] for efficiency
-        match self {
-            Signature::Ed25519(ref sig) => Box::new(sig.to_bytes()),
-            Signature::Bls(ref sig) => Box::new(sig.to_bytes()),
-            Signature::BlsShare(ref sig) => Box::new(sig.to_bytes()),
-        }
     }
 }
 
