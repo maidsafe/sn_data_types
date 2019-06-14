@@ -8,7 +8,7 @@
 // Software.
 
 use crate::{
-    append_only_data::{self, Index, Owners, PubPermissions, UnpubPermissions, User},
+    append_only_data::{self, Index, Owner, PubPermissions, UnpubPermissions, User},
     coins::Coins,
     mutable_data::{PermissionSet, SeqEntryAction, UnseqEntryAction},
     ADataAddress, AppPermissions, AppendOnlyData as AppendOnlyTrait, IDataAddress, ImmutableData,
@@ -16,7 +16,6 @@ use crate::{
     SeqMutableData, Signature, UnpubImmutableData, UnpubSeqAppendOnlyData,
     UnpubUnseqAppendOnlyData, UnseqMutableData, XorName,
 };
-use rust_sodium::crypto::sign;
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fmt};
 
@@ -269,9 +268,9 @@ pub enum Request {
     /// Add a new `owners` entry.
     /// The `Owners` struct instance MUST contain a valid index.
     /// Only the current owner(s) can perform this action.
-    SetADataOwners {
+    SetADataOwner {
         address: ADataAddress,
-        owners: Owners,
+        owner: Owner,
     },
 
     /// Append operations
