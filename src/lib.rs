@@ -73,8 +73,9 @@ pub use appendable_data::{
 pub use coins::{Coins, MAX_COINS_VALUE};
 pub use errors::{EntryError, Error};
 pub use identity::{
-    app::FullId as AppFullId, app::PublicId as AppPublicId, client::FullId as ClientFullId,
-    client::PublicId as ClientPublicId, node::FullId as NodeFullId, node::PublicId as NodePublicId,
+    app::{FullId as AppFullId, PublicId as AppPublicId},
+    client::{FullId as ClientFullId, PublicId as ClientPublicId},
+    node::{FullId as NodeFullId, PublicId as NodePublicId},
     PublicId,
 };
 pub use immutable_data::{

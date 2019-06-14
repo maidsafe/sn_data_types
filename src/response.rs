@@ -7,15 +7,17 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::appendable_data::{
-    Indices, PubPermissionSet, PubPermissions, UnpubPermissionSet, UnpubPermissions,
+use crate::{
+    appendable_data::{
+        Indices, PubPermissionSet, PubPermissions, UnpubPermissionSet, UnpubPermissions,
+    },
+    coins::Coins,
+    errors::Error,
+    immutable_data::{ImmutableData, UnpubImmutableData},
+    mutable_data::{PermissionSet, SeqMutableData, UnseqMutableData, Value},
+    request::AppendOnlyData,
+    AppPermissions, PublicKey,
 };
-use crate::coins::Coins;
-use crate::errors::Error;
-use crate::immutable_data::{ImmutableData, UnpubImmutableData};
-use crate::mutable_data::{PermissionSet, SeqMutableData, UnseqMutableData, Value};
-use crate::request::AppendOnlyData;
-use crate::{AppPermissions, PublicKey};
 use rust_sodium::crypto::sign;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};

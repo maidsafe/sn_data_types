@@ -7,16 +7,17 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::errors::{EntryError, Error};
-use crate::request::{Request, Requester};
-use crate::MessageId;
-use crate::XorName;
-use crate::{PublicKey, Signature};
+use crate::{
+    errors::{EntryError, Error},
+    request::{Request, Requester},
+    MessageId, PublicKey, Signature, XorName,
+};
 use bincode;
 use serde::{Deserialize, Serialize};
-use std::collections::btree_map::Entry;
-use std::collections::{BTreeMap, BTreeSet};
-use std::mem;
+use std::{
+    collections::{btree_map::Entry, BTreeMap, BTreeSet},
+    mem,
+};
 
 /// Mutable data that is unpublished on the network. This data can only be fetched by the owners or
 /// those in the permissions fields with `Permission::Read` access.
