@@ -317,18 +317,13 @@ macro_rules! impl_mutable_data {
 
 fn check_permissions_for_key(permissions: &PermissionSet, request: Request) -> Result<()> {
     match request {
-        Request::GetUnseqMData { .. }
-        | Request::GetSeqMData { .. }
-        | Request::GetUnseqMDataShell { .. }
-        | Request::GetSeqMDataShell { .. }
+        Request::GetMData { .. }
+        | Request::GetMDataShell { .. }
         | Request::GetMDataVersion { .. }
         | Request::ListMDataKeys { .. }
-        | Request::ListSeqMDataEntries { .. }
-        | Request::ListSeqMDataValues { .. }
-        | Request::GetSeqMDataValue { .. }
-        | Request::ListUnseqMDataEntries { .. }
-        | Request::GetUnseqMDataValue { .. }
-        | Request::ListUnseqMDataValues { .. }
+        | Request::ListMDataEntries { .. }
+        | Request::ListMDataValues { .. }
+        | Request::GetMDataValue { .. }
         | Request::ListMDataPermissions { .. }
         | Request::ListMDataUserPermissions { .. } => {
             if permissions.is_allowed(Action::Read) {

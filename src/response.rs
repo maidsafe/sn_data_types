@@ -8,12 +8,10 @@
 // Software.
 
 use crate::{
-    append_only_data::{
-        Indices, PubPermissionSet, PubPermissions, UnpubPermissionSet, UnpubPermissions,
-    },
-    mutable_data::{PermissionSet, SeqMutableData, UnseqMutableData, Value},
-    request::AppendOnlyData,
-    AppPermissions, Coins, ImmutableData, PublicKey, Result, UnpubImmutableData,
+    request::AppendOnlyData, ADataIndices, ADataPubPermissionSet, ADataPubPermissions,
+    ADataUnpubPermissionSet, ADataUnpubPermissions, AppPermissions, Coins, ImmutableData,
+    MDataPermissionSet, MDataValue, PublicKey, Result, SeqMutableData, UnpubImmutableData,
+    UnseqMutableData,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -31,7 +29,7 @@ pub enum Transaction {
 }
 
 /// RPC responses from vaults.
-#[allow(clippy::large_enum_variant, clippy::type_complexity)]
+#[allow(clippy::large_enum_variant, clippy::type_complexity, missing_docs)]
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub enum Response {
     //
@@ -54,31 +52,31 @@ pub enum Response {
     GetUnseqMDataShell(Result<UnseqMutableData>),
     GetMDataVersion(Result<u64>),
     ListUnseqMDataEntries(Result<BTreeMap<Vec<u8>, Vec<u8>>>),
-    ListSeqMDataEntries(Result<BTreeMap<Vec<u8>, Value>>),
+    ListSeqMDataEntries(Result<BTreeMap<Vec<u8>, MDataValue>>),
     ListMDataKeys(Result<BTreeSet<Vec<u8>>>),
-    ListSeqMDataValues(Result<Vec<Value>>),
+    ListSeqMDataValues(Result<Vec<MDataValue>>),
     ListUnseqMDataValues(Result<Vec<Vec<u8>>>),
     DeleteMData(Result<()>),
     SetMDataUserPermissions(Result<()>),
     DelMDataUserPermissions(Result<()>),
-    ListMDataUserPermissions(Result<PermissionSet>),
-    ListMDataPermissions(Result<BTreeMap<PublicKey, PermissionSet>>),
+    ListMDataUserPermissions(Result<MDataPermissionSet>),
+    ListMDataPermissions(Result<BTreeMap<PublicKey, MDataPermissionSet>>),
     MutateSeqMDataEntries(Result<()>),
     MutateUnseqMDataEntries(Result<()>),
-    GetSeqMDataValue(Result<Value>),
+    GetSeqMDataValue(Result<MDataValue>),
     GetUnseqMDataValue(Result<Vec<u8>>),
     //
-    // ===== AppendOnly Data =====
+    // ===== Append Only Data =====
     //
     PutAData(Result<()>),
     GetAData(Result<AppendOnlyData>),
     GetADataRange(Result<Vec<(Vec<u8>, Vec<u8>)>>),
-    GetADataIndices(Result<Indices>),
+    GetADataIndices(Result<ADataIndices>),
     GetADataLastEntry(Result<(Vec<u8>, Vec<u8>)>),
-    GetUnpubADataPermissionAtIndex(Result<UnpubPermissions>),
-    GetPubADataPermissionAtIndex(Result<PubPermissions>),
-    GetPubADataUserPermissions(Result<PubPermissionSet>),
-    GetUnpubADataUserPermissions(Result<UnpubPermissionSet>),
+    GetUnpubADataPermissionAtIndex(Result<ADataUnpubPermissions>),
+    GetPubADataPermissionAtIndex(Result<ADataPubPermissions>),
+    GetPubADataUserPermissions(Result<ADataPubPermissionSet>),
+    GetUnpubADataUserPermissions(Result<ADataUnpubPermissionSet>),
     AddUnpubADataPermissions(Result<()>),
     AddPubADataPermissions(Result<()>),
     AppendPubSeq(Result<()>),
@@ -86,16 +84,15 @@ pub enum Response {
     AppendPubUnseq(Result<()>),
     AppendUnpubUnseq(Result<()>),
     DeleteAData(Result<()>),
-
     //
     // ===== Coins =====
     //
     TransferCoins(Result<()>),
     GetTransaction(Result<Transaction>),
     GetBalance(Result<Coins>),
-
-    // --- Client (Owner) to SrcElders ---
-    // ==========================
+    //
+    // ===== Client (Owner) to SrcElders =====
+    //
     /// Returns a list of authorised keys from Elders and the account version.
     ListAuthKeysAndVersion(Result<(BTreeMap<PublicKey, AppPermissions>, u64)>),
     /// Returns a success or failure status of adding an authorised key.
@@ -108,68 +105,59 @@ use std::fmt;
 
 impl fmt::Debug for Response {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use Response::*;
         write!(
             f,
             "{}",
             match *self {
-                //
-                // Immutable Data
-                //
-                Response::GetUnpubIData(..) => "Response::GetUnpubIData",
-                Response::PutUnpubIData(..) => "Response::PutUnpubIData",
-                Response::DeleteUnpubIData(..) => "Response::DeleteUnpubIData",
-                Response::GetPubIData(..) => "Response::GetPubIData",
-                Response::PutPubIData(..) => "Response::PutPubIData",
-                //
-                // Mutable Data
-                //
-                Response::DeleteMData(..) => "Response::DeleteMData",
-                Response::GetUnseqMData(..) => "Response::GetUnseqMData",
-                Response::PutUnseqMData(..) => "Response::PutUnseqMData",
-                Response::GetSeqMData(..) => "Response::GetSeqMData",
-                Response::PutSeqMData(..) => "Response::PutSeqMData",
-                Response::GetSeqMDataShell(..) => "Response::GetMDataShell",
-                Response::GetUnseqMDataShell(..) => "Response::GetMDataShell",
-                Response::GetMDataVersion(..) => "Response::GetMDataVersion",
-                Response::ListUnseqMDataEntries(..) => "Response::ListUnseqMDataEntries",
-                Response::ListSeqMDataEntries(..) => "Response::ListSeqMDataEntries",
-                Response::ListMDataKeys(..) => "Response::ListMDataKeys",
-                Response::ListSeqMDataValues(..) => "Response::ListSeqMDataValues",
-                Response::ListUnseqMDataValues(..) => "Response::ListUnseqMDataValues",
-                Response::SetMDataUserPermissions(..) => "Response::SetMDataUserPermissions",
-                Response::DelMDataUserPermissions(..) => "Response::DelMDataUserPermissions",
-                Response::ListMDataPermissions(..) => "Response::ListMDataPermissions",
-                Response::ListMDataUserPermissions(..) => "Response::ListMDataUserPermissions",
-                Response::MutateSeqMDataEntries(..) => "Response::MutateSeqMDataEntries",
-                Response::MutateUnseqMDataEntries(..) => "Response::MutateUnseqMDataEntries",
-                Response::GetSeqMDataValue { .. } => "Response::GetSeqMDataValue",
-                Response::GetUnseqMDataValue { .. } => "Response::GetUnseqMDataValue",
-                Response::TransferCoins(..) => "Response::TransferCoins",
-                Response::GetTransaction(..) => "Response::GetTransaction",
-                Response::GetBalance(..) => "Response::GetBalance",
-                Response::ListAuthKeysAndVersion(..) => "Response::ListAuthKeysAndVersion",
-                Response::InsAuthKey(..) => "Response::InsAuthKey",
-                Response::DelAuthKey(..) => "Response::DelAuthKey",
-                Response::PutAData(..) => "Response::PutAData",
-                Response::GetAData(..) => "Response::GetAData",
-                Response::GetADataRange(..) => "Response::GetADataRange",
-                Response::GetADataIndices(..) => "Response::GetADataIndices",
-                Response::GetADataLastEntry(..) => "Response::GetADataLastEntry",
-                Response::GetUnpubADataPermissionAtIndex(..) => {
-                    "Response::GetADataPermissionAtIndex"
-                }
-                Response::GetPubADataPermissionAtIndex(..) => "Response::GetADataPermissionAtIndex",
-                Response::GetPubADataUserPermissions(..) => "Response::GetPubADataUserPermissions",
-                Response::GetUnpubADataUserPermissions(..) => {
-                    "Response::GetUnpubADataUserPermissions"
-                }
-                Response::AddUnpubADataPermissions(..) => "Response::AddUnpubADataPermissions",
-                Response::AddPubADataPermissions(..) => "Response::AddPubADataPermissions",
-                Response::AppendUnpubSeq(..) => "Response::AppendUnpubSeq",
-                Response::AppendPubUnseq(..) => "Response::AppendPubUnseq",
-                Response::AppendPubSeq(..) => "Response::AppendPubSeq",
-                Response::AppendUnpubUnseq(..) => "Response::AppendUnpubUnseq",
-                Response::DeleteAData(..) => "Response::DeleteAData",
+                GetUnpubIData(..) => "Response::GetUnpubIData",
+                PutUnpubIData(..) => "Response::PutUnpubIData",
+                DeleteUnpubIData(..) => "Response::DeleteUnpubIData",
+                GetPubIData(..) => "Response::GetPubIData",
+                PutPubIData(..) => "Response::PutPubIData",
+                DeleteMData(..) => "Response::DeleteMData",
+                GetUnseqMData(..) => "Response::GetUnseqMData",
+                PutUnseqMData(..) => "Response::PutUnseqMData",
+                GetSeqMData(..) => "Response::GetSeqMData",
+                PutSeqMData(..) => "Response::PutSeqMData",
+                GetSeqMDataShell(..) => "Response::GetMDataShell",
+                GetUnseqMDataShell(..) => "Response::GetMDataShell",
+                GetMDataVersion(..) => "Response::GetMDataVersion",
+                ListUnseqMDataEntries(..) => "Response::ListUnseqMDataEntries",
+                ListSeqMDataEntries(..) => "Response::ListSeqMDataEntries",
+                ListMDataKeys(..) => "Response::ListMDataKeys",
+                ListSeqMDataValues(..) => "Response::ListSeqMDataValues",
+                ListUnseqMDataValues(..) => "Response::ListUnseqMDataValues",
+                SetMDataUserPermissions(..) => "Response::SetMDataUserPermissions",
+                DelMDataUserPermissions(..) => "Response::DelMDataUserPermissions",
+                ListMDataPermissions(..) => "Response::ListMDataPermissions",
+                ListMDataUserPermissions(..) => "Response::ListMDataUserPermissions",
+                MutateSeqMDataEntries(..) => "Response::MutateSeqMDataEntries",
+                MutateUnseqMDataEntries(..) => "Response::MutateUnseqMDataEntries",
+                GetSeqMDataValue(..) => "Response::GetSeqMDataValue",
+                GetUnseqMDataValue(..) => "Response::GetUnseqMDataValue",
+                TransferCoins(..) => "Response::TransferCoins",
+                GetTransaction(..) => "Response::GetTransaction",
+                GetBalance(..) => "Response::GetBalance",
+                ListAuthKeysAndVersion(..) => "Response::ListAuthKeysAndVersion",
+                InsAuthKey(..) => "Response::InsAuthKey",
+                DelAuthKey(..) => "Response::DelAuthKey",
+                PutAData(..) => "Response::PutAData",
+                GetAData(..) => "Response::GetAData",
+                GetADataRange(..) => "Response::GetADataRange",
+                GetADataIndices(..) => "Response::GetADataIndices",
+                GetADataLastEntry(..) => "Response::GetADataLastEntry",
+                GetUnpubADataPermissionAtIndex(..) => "Response::GetADataPermissionAtIndex",
+                GetPubADataPermissionAtIndex(..) => "Response::GetADataPermissionAtIndex",
+                GetPubADataUserPermissions(..) => "Response::GetPubADataUserPermissions",
+                GetUnpubADataUserPermissions(..) => "Response::GetUnpubADataUserPermissions",
+                AddUnpubADataPermissions(..) => "Response::AddUnpubADataPermissions",
+                AddPubADataPermissions(..) => "Response::AddPubADataPermissions",
+                AppendUnpubSeq(..) => "Response::AppendUnpubSeq",
+                AppendPubUnseq(..) => "Response::AppendPubUnseq",
+                AppendPubSeq(..) => "Response::AppendPubSeq",
+                AppendUnpubUnseq(..) => "Response::AppendUnpubUnseq",
+                DeleteAData(..) => "Response::DeleteAData",
             }
         )
     }
