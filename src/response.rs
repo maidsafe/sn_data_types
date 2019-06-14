@@ -11,12 +11,9 @@ use crate::{
     appendable_data::{
         Indices, PubPermissionSet, PubPermissions, UnpubPermissionSet, UnpubPermissions,
     },
-    coins::Coins,
-    errors::Error,
-    immutable_data::{ImmutableData, UnpubImmutableData},
     mutable_data::{PermissionSet, SeqMutableData, UnseqMutableData, Value},
     request::AppendOnlyData,
-    AppPermissions, PublicKey,
+    AppPermissions, Coins, ImmutableData, PublicKey, Result, UnpubImmutableData,
 };
 use rust_sodium::crypto::sign;
 use serde::{Deserialize, Serialize};
@@ -41,71 +38,71 @@ pub enum Response {
     //
     // ===== Immutable Data =====
     //
-    GetUnpubIData(Result<UnpubImmutableData, Error>),
-    PutUnpubIData(Result<(), Error>),
-    DeleteUnpubIData(Result<(), Error>),
-    GetPubIData(Result<ImmutableData, Error>),
-    PutPubIData(Result<(), Error>),
+    GetUnpubIData(Result<UnpubImmutableData>),
+    PutUnpubIData(Result<()>),
+    DeleteUnpubIData(Result<()>),
+    GetPubIData(Result<ImmutableData>),
+    PutPubIData(Result<()>),
     //
     // ===== Mutable Data =====
     //
     /// Get unsequenced Mutable Data.
-    GetUnseqMData(Result<UnseqMutableData, Error>),
-    PutUnseqMData(Result<(), Error>),
-    GetSeqMData(Result<SeqMutableData, Error>),
-    PutSeqMData(Result<(), Error>),
-    GetSeqMDataShell(Result<SeqMutableData, Error>),
-    GetUnseqMDataShell(Result<UnseqMutableData, Error>),
-    GetMDataVersion(Result<u64, Error>),
-    ListUnseqMDataEntries(Result<BTreeMap<Vec<u8>, Vec<u8>>, Error>),
-    ListSeqMDataEntries(Result<BTreeMap<Vec<u8>, Value>, Error>),
-    ListMDataKeys(Result<BTreeSet<Vec<u8>>, Error>),
-    ListSeqMDataValues(Result<Vec<Value>, Error>),
-    ListUnseqMDataValues(Result<Vec<Vec<u8>>, Error>),
-    DeleteMData(Result<(), Error>),
-    SetMDataUserPermissions(Result<(), Error>),
-    DelMDataUserPermissions(Result<(), Error>),
-    ListMDataUserPermissions(Result<PermissionSet, Error>),
-    ListMDataPermissions(Result<BTreeMap<PublicKey, PermissionSet>, Error>),
-    MutateSeqMDataEntries(Result<(), Error>),
-    MutateUnseqMDataEntries(Result<(), Error>),
-    GetSeqMDataValue(Result<Value, Error>),
-    GetUnseqMDataValue(Result<Vec<u8>, Error>),
+    GetUnseqMData(Result<UnseqMutableData>),
+    PutUnseqMData(Result<()>),
+    GetSeqMData(Result<SeqMutableData>),
+    PutSeqMData(Result<()>),
+    GetSeqMDataShell(Result<SeqMutableData>),
+    GetUnseqMDataShell(Result<UnseqMutableData>),
+    GetMDataVersion(Result<u64>),
+    ListUnseqMDataEntries(Result<BTreeMap<Vec<u8>, Vec<u8>>>),
+    ListSeqMDataEntries(Result<BTreeMap<Vec<u8>, Value>>),
+    ListMDataKeys(Result<BTreeSet<Vec<u8>>>),
+    ListSeqMDataValues(Result<Vec<Value>>),
+    ListUnseqMDataValues(Result<Vec<Vec<u8>>>),
+    DeleteMData(Result<()>),
+    SetMDataUserPermissions(Result<()>),
+    DelMDataUserPermissions(Result<()>),
+    ListMDataUserPermissions(Result<PermissionSet>),
+    ListMDataPermissions(Result<BTreeMap<PublicKey, PermissionSet>>),
+    MutateSeqMDataEntries(Result<()>),
+    MutateUnseqMDataEntries(Result<()>),
+    GetSeqMDataValue(Result<Value>),
+    GetUnseqMDataValue(Result<Vec<u8>>),
     //
     // ===== AppendOnly Data =====
     //
-    PutAData(Result<(), Error>),
-    GetAData(Result<AppendOnlyData, Error>),
-    GetADataRange(Result<Vec<(Vec<u8>, Vec<u8>)>, Error>),
-    GetADataIndices(Result<Indices, Error>),
-    GetADataLastEntry(Result<(Vec<u8>, Vec<u8>), Error>),
-    GetUnpubADataPermissionAtIndex(Result<UnpubPermissions, Error>),
-    GetPubADataPermissionAtIndex(Result<PubPermissions, Error>),
-    GetPubADataUserPermissions(Result<PubPermissionSet, Error>),
-    GetUnpubADataUserPermissions(Result<UnpubPermissionSet, Error>),
-    AddUnpubADataPermissions(Result<(), Error>),
-    AddPubADataPermissions(Result<(), Error>),
-    AppendPubSeq(Result<(), Error>),
-    AppendUnpubSeq(Result<(), Error>),
-    AppendPubUnseq(Result<(), Error>),
-    AppendUnpubUnseq(Result<(), Error>),
-    DeleteAData(Result<(), Error>),
+    PutAData(Result<()>),
+    GetAData(Result<AppendOnlyData>),
+    GetADataRange(Result<Vec<(Vec<u8>, Vec<u8>)>>),
+    GetADataIndices(Result<Indices>),
+    GetADataLastEntry(Result<(Vec<u8>, Vec<u8>)>),
+    GetUnpubADataPermissionAtIndex(Result<UnpubPermissions>),
+    GetPubADataPermissionAtIndex(Result<PubPermissions>),
+    GetPubADataUserPermissions(Result<PubPermissionSet>),
+    GetUnpubADataUserPermissions(Result<UnpubPermissionSet>),
+    AddUnpubADataPermissions(Result<()>),
+    AddPubADataPermissions(Result<()>),
+    AppendPubSeq(Result<()>),
+    AppendUnpubSeq(Result<()>),
+    AppendPubUnseq(Result<()>),
+    AppendUnpubUnseq(Result<()>),
+    DeleteAData(Result<()>),
 
     //
     // ===== Coins =====
     //
-    TransferCoins(Result<(), Error>),
-    GetTransaction(Result<Transaction, Error>),
-    GetBalance(Result<Coins, Error>),
+    TransferCoins(Result<()>),
+    GetTransaction(Result<Transaction>),
+    GetBalance(Result<Coins>),
 
     // --- Client (Owner) to SrcElders ---
     // ==========================
     /// Returns a list of authorised keys from Elders and the account version.
-    ListAuthKeysAndVersion(Result<(BTreeMap<PublicKey, AppPermissions>, u64), Error>),
+    ListAuthKeysAndVersion(Result<(BTreeMap<PublicKey, AppPermissions>, u64)>),
     /// Returns a success or failure status of adding an authorised key.
-    InsAuthKey(Result<(), Error>),
+    InsAuthKey(Result<()>),
     /// Returns a success or failure status of deleting an authorised key.
-    DelAuthKey(Result<(), Error>),
+    DelAuthKey(Result<()>),
 }
 
 use std::fmt;

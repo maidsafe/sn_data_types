@@ -7,7 +7,7 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::{Ed25519Digest, Error, XorName, XOR_NAME_LEN};
+use crate::{Ed25519Digest, Error, Result, XorName, XOR_NAME_LEN};
 use ed25519_dalek;
 use hex_fmt::HexFmt;
 use serde::{Deserialize, Serialize};
@@ -59,11 +59,7 @@ impl PublicKey {
         }
     }
 
-    pub fn verify_detached<T: AsRef<[u8]>>(
-        &self,
-        signature: &Signature,
-        data: T,
-    ) -> Result<(), Error> {
+    pub fn verify_detached<T: AsRef<[u8]>>(&self, signature: &Signature, data: T) -> Result<()> {
         let is_valid = match (self, signature) {
             (PublicKey::Ed25519(pub_key), Signature::Ed25519(sig)) => {
                 pub_key.verify::<Ed25519Digest>(data.as_ref(), sig).is_ok()
