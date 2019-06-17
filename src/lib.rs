@@ -84,14 +84,15 @@ pub use immutable_data::{
     Address as IDataAddress, ImmutableData, UnpubImmutableData, MAX_IMMUTABLE_DATA_SIZE_IN_BYTES,
 };
 pub use mutable_data::{
-    Address as MDataAddress, MutableData, PermissionSet as MDataPermissionSet,
-    SeqEntryAction as MDataSeqEntryAction, SeqEntryActions as MDataSeqEntryActions, SeqMutableData,
+    Action as MDataAction, Address as MDataAddress, MutableData,
+    PermissionSet as MDataPermissionSet, SeqEntryAction as MDataSeqEntryAction,
+    SeqEntryActions as MDataSeqEntryActions, SeqMutableData,
     UnseqEntryAction as MDataUnseqEntryAction, UnseqEntryActions as MDataUnseqEntryActions,
     UnseqMutableData, Value as MDataValue,
 };
 pub use public_key::{PublicKey, Signature};
-pub use request::{Request, Requester};
-pub use response::Response;
+pub use request::Request;
+pub use response::{Response, Transaction};
 pub use sha3::Sha3_512 as Ed25519Digest;
 
 use hex_fmt::HexFmt;

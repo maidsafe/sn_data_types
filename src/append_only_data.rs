@@ -7,7 +7,7 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::{Error, PublicKey, Requester, Result, XorName};
+use crate::{Error, PublicKey, Result, XorName};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -172,7 +172,7 @@ pub trait Permissions {
     fn is_action_allowed(&self, requester: PublicKey, action: Action) -> bool;
     fn data_index(&self) -> u64;
     fn owner_entry_index(&self) -> u64;
-    fn check_permission(&self, requester: Requester, action: Action) -> bool;
+    fn check_permission(&self, requester: PublicKey, action: Action) -> bool;
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
@@ -206,22 +206,10 @@ impl Permissions for UnpubPermissions {
         self.owner_entry_index
     }
 
-    fn check_permission(&self, requester: Requester, action: Action) -> bool {
-        match requester {
-            Requester::Key(req) => {
-                if self.permissions.contains_key(&req) {
-                    match self.permissions.get(&req) {
-                        Some(perm) => perm.is_allowed(action),
-                        None => false,
-                    }
-                } else {
-                    false
-                }
-            }
-            Requester::Owner(_sig) => {
-                // Temp
-                true
-            }
+    fn check_permission(&self, requester: PublicKey, action: Action) -> bool {
+        match self.permissions.get(&requester) {
+            Some(perm) => perm.is_allowed(action),
+            None => false,
         }
     }
 }
@@ -266,23 +254,11 @@ impl Permissions for PubPermissions {
         self.owner_entry_index
     }
 
-    fn check_permission(&self, requester: Requester, action: Action) -> bool {
-        match requester {
-            Requester::Key(pk) => {
-                let user = User::Key(pk);
-                if self.permissions.contains_key(&user) {
-                    match self.permissions.get(&user) {
-                        Some(perm) => perm.is_allowed(action).unwrap_or(false),
-                        None => false,
-                    }
-                } else {
-                    false
-                }
-            }
-            Requester::Owner(_sig) => {
-                // Temp
-                true
-            }
+    fn check_permission(&self, requester: PublicKey, action: Action) -> bool {
+        let user = User::Key(requester);
+        match self.permissions.get(&user) {
+            Some(perm) => perm.is_allowed(action).unwrap_or(false),
+            None => false,
         }
     }
 }
@@ -358,7 +334,7 @@ pub trait AppendOnlyData<P> {
     /// Add a new owner entry.
     fn append_owner(&mut self, owner: Owner) -> Result<()>;
 
-    fn verify_requester(&self, requester: Requester, action: Action) -> Result<bool>;
+    fn verify_requester(&self, requester: PublicKey, action: Action) -> Result<bool>;
 }
 
 /// Common methods for published and unpublished unsequenced `AppendOnlyData`.
@@ -540,7 +516,7 @@ macro_rules! impl_appendable_data {
                 Ok(())
             }
 
-            fn verify_requester(&self, requester: Requester, action: Action) -> Result<bool> {
+            fn verify_requester(&self, requester: PublicKey, action: Action) -> Result<bool> {
                 if self
                     .inner
                     .permissions
