@@ -152,7 +152,7 @@ pub enum Message {
     Request {
         request: Request,
         message_id: MessageId,
-        requester: Requester,
+        signature: Option<Signature>,
     },
     Response {
         response: Response,
