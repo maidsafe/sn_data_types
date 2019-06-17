@@ -133,6 +133,24 @@ pub enum Signature {
     BlsShare(threshold_crypto::SignatureShare),
 }
 
+impl From<threshold_crypto::Signature> for Signature {
+    fn from(sig: threshold_crypto::Signature) -> Self {
+        Signature::Bls(sig)
+    }
+}
+
+impl From<ed25519_dalek::Signature> for Signature {
+    fn from(sig: ed25519_dalek::Signature) -> Self {
+        Signature::Ed25519(sig)
+    }
+}
+
+impl From<threshold_crypto::SignatureShare> for Signature {
+    fn from(sig: threshold_crypto::SignatureShare) -> Self {
+        Signature::BlsShare(sig)
+    }
+}
+
 #[allow(clippy::derive_hash_xor_eq)]
 impl Hash for Signature {
     fn hash<H: Hasher>(&self, state: &mut H) {

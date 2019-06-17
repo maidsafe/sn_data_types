@@ -11,18 +11,11 @@ use crate::{
     ADataAddress, ADataIndex, ADataOwner, ADataPubPermissions, ADataUnpubPermissions, ADataUser,
     AppPermissions, AppendOnlyData as AppendOnlyTrait, Coins, IDataAddress, ImmutableData,
     MDataAddress, MDataPermissionSet, MDataSeqEntryAction, MDataUnseqEntryAction,
-    PubSeqAppendOnlyData, PubUnseqAppendOnlyData, PublicKey, SeqMutableData, Signature,
-    UnpubImmutableData, UnpubSeqAppendOnlyData, UnpubUnseqAppendOnlyData, UnseqMutableData,
-    XorName,
+    PubSeqAppendOnlyData, PubUnseqAppendOnlyData, PublicKey, SeqMutableData, UnpubImmutableData,
+    UnpubSeqAppendOnlyData, UnpubUnseqAppendOnlyData, UnseqMutableData, XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fmt};
-
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
-pub enum Requester {
-    Owner(Signature),
-    Key(PublicKey),
-}
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
 pub enum AppendOnlyData {

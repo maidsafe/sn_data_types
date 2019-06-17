@@ -7,10 +7,7 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::{
-    EntryError, Error, MessageId, PublicKey, Request, Requester, Result, Signature, XorName,
-};
-use bincode;
+use crate::{EntryError, Error, PublicKey, Request, Result, XorName};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{btree_map::Entry, BTreeMap, BTreeSet},
@@ -142,12 +139,7 @@ pub trait MutableData {
 
     fn user_permissions(&self, user: PublicKey) -> Result<&PermissionSet>;
 
-    fn check_permissions(
-        &self,
-        rpc: Request,
-        requester: Requester,
-        message_id: MessageId,
-    ) -> Result<()>;
+    fn check_permissions(&self, rpc: Request, requester: PublicKey) -> Result<()>;
 
     fn set_user_permissions(
         &mut self,
@@ -222,19 +214,11 @@ macro_rules! impl_mutable_data {
                 self.permissions.get(&user).ok_or(Error::NoSuchKey)
             }
 
-            fn check_permissions(
-                &self,
-                request: Request,
-                requester: Requester,
-                message_id: MessageId,
-            ) -> Result<()> {
-                match requester {
-                    Requester::Key(key) => {
-                        check_permissions_for_key(self.user_permissions(key)?, request)
-                    }
-                    Requester::Owner(signature) => {
-                        verify_ownership(signature, *self.owners(), request, message_id)
-                    }
+            fn check_permissions(&self, request: Request, requester: PublicKey) -> Result<()> {
+                if self.owners == requester {
+                    Ok(())
+                } else {
+                    check_permissions_for_key(self.user_permissions(requester)?, request)
                 }
             }
 
@@ -350,16 +334,6 @@ fn check_permissions_for_key(permissions: &PermissionSet, request: Request) -> R
     }
 }
 
-fn verify_ownership(
-    signature: Signature,
-    public_key: PublicKey,
-    request: Request,
-    message_id: MessageId,
-) -> Result<()> {
-    let message = bincode::serialize(&(&request, message_id)).unwrap_or_default();
-    public_key.verify(&signature, message)
-}
-
 impl_mutable_data!(SeqMutableData);
 impl_mutable_data!(UnseqMutableData);
 
@@ -416,9 +390,7 @@ impl UnseqMutableData {
     pub fn mutate_entries(
         &mut self,
         actions: BTreeMap<Vec<u8>, UnseqEntryAction>,
-        request: Request,
-        requester: Requester,
-        message_id: MessageId,
+        requester: PublicKey,
     ) -> Result<()> {
         let (insert, update, delete) = actions.into_iter().fold(
             (
@@ -442,20 +414,12 @@ impl UnseqMutableData {
             },
         );
 
-        match requester {
-            Requester::Key(key) => {
-                if (!insert.is_empty() && !self.is_action_allowed(&key, Action::Insert))
-                    || (!update.is_empty() && !self.is_action_allowed(&key, Action::Update))
-                    || (!delete.is_empty() && !self.is_action_allowed(&key, Action::Delete))
-                {
-                    return Err(Error::AccessDenied);
-                }
-            }
-            Requester::Owner(signature) => {
-                if verify_ownership(signature, *self.owners(), request, message_id).is_err() {
-                    return Err(Error::AccessDenied);
-                }
-            }
+        if *self.owners() != requester
+            && ((!insert.is_empty() && !self.is_action_allowed(&requester, Action::Insert))
+                || (!update.is_empty() && !self.is_action_allowed(&requester, Action::Update))
+                || (!delete.is_empty() && !self.is_action_allowed(&requester, Action::Delete)))
+        {
+            return Err(Error::AccessDenied);
         }
 
         let mut new_data = self.data.clone();
@@ -558,9 +522,7 @@ impl SeqMutableData {
     pub fn mutate_entries(
         &mut self,
         actions: BTreeMap<Vec<u8>, SeqEntryAction>,
-        request: Request,
-        requester: Requester,
-        message_id: MessageId,
+        requester: PublicKey,
     ) -> Result<()> {
         // Deconstruct actions into inserts, updates, and deletes
         let (insert, update, delete) = actions.into_iter().fold(
@@ -581,20 +543,12 @@ impl SeqMutableData {
             },
         );
 
-        match requester {
-            Requester::Key(key) => {
-                if (!insert.is_empty() && !self.is_action_allowed(&key, Action::Insert))
-                    || (!update.is_empty() && !self.is_action_allowed(&key, Action::Update))
-                    || (!delete.is_empty() && !self.is_action_allowed(&key, Action::Delete))
-                {
-                    return Err(Error::AccessDenied);
-                }
-            }
-            Requester::Owner(signature) => {
-                if verify_ownership(signature, *self.owners(), request, message_id).is_err() {
-                    return Err(Error::AccessDenied);
-                }
-            }
+        if *self.owners() == requester
+            && (!insert.is_empty() && !self.is_action_allowed(&requester, Action::Insert))
+            || (!update.is_empty() && !self.is_action_allowed(&requester, Action::Update))
+            || (!delete.is_empty() && !self.is_action_allowed(&requester, Action::Delete))
+        {
+            return Err(Error::AccessDenied);
         }
 
         let mut new_data = self.data.clone();
@@ -675,6 +629,20 @@ impl Address {
 
     pub fn new_seq(name: XorName, tag: u64) -> Self {
         Address::Seq { name, tag }
+    }
+
+    pub fn is_seq(&self) -> bool {
+        match self {
+            Address::Seq { .. } => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_unseq(&self) -> bool {
+        match self {
+            Address::Unseq { .. } => true,
+            _ => false,
+        }
     }
 
     pub fn name(&self) -> &XorName {
