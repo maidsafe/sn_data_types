@@ -196,5 +196,5 @@ impl Default for MessageId {
 #[derive(Serialize, Deserialize)]
 pub enum Challenge {
     Request(Vec<u8>),
-    Response(ClientPublicId, Signature),
+    Response(PublicId, Signature),
 }
