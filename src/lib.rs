@@ -66,7 +66,7 @@ mod request;
 mod response;
 
 pub use append_only_data::{
-    Address as ADataAddress, AppendOnlyData, Index as ADataIndex, Indices as ADataIndices,
+    Action as ADataAction, Address as ADataAddress, AppendOnlyData, Index as ADataIndex, Indices as ADataIndices,
     Owner as ADataOwner, PubPermissionSet as ADataPubPermissionSet,
     PubPermissions as ADataPubPermissions, PubSeqAppendOnlyData, PubUnseqAppendOnlyData,
     UnpubPermissionSet as ADataUnpubPermissionSet, UnpubPermissions as ADataUnpubPermissions,
@@ -91,7 +91,7 @@ pub use mutable_data::{
     UnseqMutableData, Value as MDataValue,
 };
 pub use public_key::{PublicKey, Signature};
-pub use request::Request;
+pub use request::{AppendOnlyData as AData, Request};
 pub use response::{Response, Transaction};
 pub use sha3::Sha3_512 as Ed25519Digest;
 
