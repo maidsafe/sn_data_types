@@ -66,8 +66,8 @@ mod request;
 mod response;
 
 pub use append_only_data::{
-    Action as ADataAction, Address as ADataAddress, AppendOnlyData, Index as ADataIndex, Indices as ADataIndices,
-    Owner as ADataOwner, PubPermissionSet as ADataPubPermissionSet,
+    Action as ADataAction, Address as ADataAddress, AppendOnlyData, Index as ADataIndex,
+    Indices as ADataIndices, Owner as ADataOwner, PubPermissionSet as ADataPubPermissionSet,
     PubPermissions as ADataPubPermissions, PubSeqAppendOnlyData, PubUnseqAppendOnlyData,
     UnpubPermissionSet as ADataUnpubPermissionSet, UnpubPermissions as ADataUnpubPermissions,
     UnpubSeqAppendOnlyData, UnpubUnseqAppendOnlyData, User as ADataUser,
