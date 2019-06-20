@@ -272,16 +272,6 @@ pub struct Owner {
     pub permissions_index: u64,
 }
 
-impl Owner {
-    pub fn data_index(&self) -> u64 {
-        self.data_index
-    }
-
-    pub fn perm_index(&self) -> u64 {
-        self.permissions_index
-    }
-}
-
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
 struct AppendOnly<P: Permissions> {
     address: Address,
@@ -384,27 +374,28 @@ macro_rules! impl_appendable_data {
                     return Err(Error::NoSuchEntry);
                 }
 
-                let mut perm_vec: Vec<P> = Vec::new();
-                let mut owner_vec: Vec<Owner> = Vec::new();
+                let permissions = self
+                    .inner
+                    .permissions
+                    .iter()
+                    .filter(|perm| perm.data_index() <= index)
+                    .cloned()
+                    .collect();
 
-                for perm in self.inner.permissions.iter() {
-                    if perm.data_index() <= index {
-                        perm_vec.push(perm.clone());
-                    }
-                }
-
-                for owner in self.inner.owners.iter() {
-                    if owner.data_index() <= index {
-                        owner_vec.push(owner.clone());
-                    }
-                }
+                let owners = self
+                    .inner
+                    .owners
+                    .iter()
+                    .filter(|owner| owner.data_index <= index)
+                    .cloned()
+                    .collect();
 
                 Ok(Self {
                     inner: AppendOnly {
                         address: self.inner.address,
                         data: Vec::new(),
-                        permissions: perm_vec.clone(),
-                        owners: owner_vec.clone(),
+                        permissions,
+                        owners,
                     },
                 })
             }
@@ -458,19 +449,11 @@ macro_rules! impl_appendable_data {
             }
 
             fn fetch_permissions_at_index(&self, perm_index: u64) -> Option<&P> {
-                if self.inner.permissions.len() >= perm_index as usize {
-                    Some(&self.inner.permissions[perm_index as usize])
-                } else {
-                    None
-                }
+                self.inner.permissions.get(perm_index as usize)
             }
 
             fn fetch_owner_at_index(&self, owners_index: u64) -> Option<&Owner> {
-                if self.inner.owners.len() >= owners_index as usize {
-                    Some(&self.inner.owners[owners_index as usize])
-                } else {
-                    None
-                }
+                self.inner.owners.get(owners_index as usize)
             }
 
             fn in_range(&self, start: Index, end: Index) -> Option<Vec<(Vec<u8>, Vec<u8>)>> {
