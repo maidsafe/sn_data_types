@@ -66,7 +66,8 @@ pub enum Error {
     /// [the maximum value for `Coins`](constant.MAX_COINS_VALUE.html).
     ExcessiveValue,
     /// Failed to parse the string as [`Coins`](struct.Coins.html).
-    FailedToParse,
+    FailedToParseCoins,
+    FailedToParseIdentity(String),
     /// Transaction ID already exists.
     TransactionIdExists,
     /// Insufficient coins.
@@ -119,7 +120,10 @@ impl Display for Error {
                 f,
                 "Overflow on number of coins (check the MAX_COINS_VALUE const)"
             ),
-            Error::FailedToParse => write!(f, "Failed to parse number of coins from a string"),
+            Error::FailedToParseCoins => write!(f, "Failed to parse number of coins from a string"),
+            Error::FailedToParseIdentity(ref error) => {
+                write!(f, "Failed to parse identity from a string: {}", error)
+            }
             Error::TransactionIdExists => write!(f, "Transaction with a given ID already exists"),
             Error::InsufficientBalance => write!(f, "Not enough coins to complete this operation"),
         }
@@ -151,7 +155,8 @@ impl error::Error for Error {
             Error::ExcessiveValue => {
                 "Overflow on number of coins (check the MAX_COINS_VALUE const)"
             }
-            Error::FailedToParse => "Failed to parse number of coins from a string",
+            Error::FailedToParseCoins => "Failed to parse number of coins from a string",
+            Error::FailedToParseIdentity(_) => "Failed to parse identity from a string",
             Error::TransactionIdExists => "Transaction with a given ID already exists",
             Error::InsufficientBalance => "Not enough coins to complete this operation",
         }

@@ -8,7 +8,7 @@
 // Software.
 
 use super::{BlsKeypair, BlsKeypairShare};
-use crate::{Ed25519Digest, PublicKey, Signature, XorName};
+use crate::{Ed25519Digest, Error, PublicKey, Signature, XorName};
 use ed25519_dalek::Keypair as Ed25519Keypair;
 use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -145,6 +145,16 @@ impl PublicId {
     #[doc(hidden)]
     pub fn new(name: XorName, public_key: PublicKey) -> Self {
         Self { name, public_key }
+    }
+
+    /// Returns the PublicId serialised and encoded in standard base64.
+    pub fn encode_to_base64(&self) -> String {
+        super::encode_to_base64(&self)
+    }
+
+    /// Create from standard base64 encoded string.
+    pub fn decode_from_base64<T: ?Sized + AsRef<[u8]>>(encoded: &T) -> Result<Self, Error> {
+        super::decode_from_base64(encoded)
     }
 }
 
