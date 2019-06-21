@@ -198,3 +198,14 @@ pub enum Challenge {
     Request(Vec<u8>),
     Response(PublicId, Signature),
 }
+
+/// Verify that a signature is valid for a given Request + MessageId combination
+pub fn verify_signature(
+    signature: &Signature,
+    public_key: &PublicKey,
+    request: &Request,
+    message_id: &MessageId,
+) -> Result<()> {
+    let message = bincode::serialize(&(request, *message_id)).unwrap_or_default();
+    public_key.verify(signature, message)
+}

@@ -96,6 +96,27 @@ impl FullId {
     pub fn public_id(&self) -> &PublicId {
         &self.public_id
     }
+
+    // TODO: Remove this once the authenticator is updated
+    // to create random FullIds instead of AppKeys / ClientKeys
+    /// Constructs a `FullId` with a particular BLS secret key.
+    #[doc(hidden)]
+    pub fn with_bls_key(bls_sk: BlsSecretKey) -> Self {
+        let bls_pk = bls_sk.public_key();
+        let bls_keypair = BlsKeypair {
+            secret: SerdeSecret(bls_sk),
+            public: bls_pk,
+        };
+        let public_key = PublicKey::Bls(bls_pk);
+        let public_id = PublicId {
+            name: public_key.into(),
+            public_key,
+        };
+        Self {
+            keypair: Keypair::Bls(bls_keypair),
+            public_id,
+        }
+    }
 }
 
 /// A struct representing the public identity of a network Client.
@@ -117,6 +138,13 @@ impl PublicId {
     /// Returns the Client's public signing key.
     pub fn public_key(&self) -> &PublicKey {
         &self.public_key
+    }
+
+    // TODO: Remove this once the authenticator is updated
+    // to create random FullIds instead of AppKeys / ClientKeys
+    #[doc(hidden)]
+    pub fn new(name: XorName, public_key: PublicKey) -> Self {
+        Self { name, public_key }
     }
 }
 
