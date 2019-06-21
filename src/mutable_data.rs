@@ -218,7 +218,11 @@ macro_rules! impl_mutable_data {
                 if self.owners == requester {
                     Ok(())
                 } else {
-                    check_permissions_for_key(self.user_permissions(requester)?, request)
+                    check_permissions_for_key(
+                        self.user_permissions(requester)
+                            .map_err(|_| Error::AccessDenied)?,
+                        request,
+                    )
                 }
             }
 
@@ -543,10 +547,10 @@ impl SeqMutableData {
             },
         );
 
-        if *self.owners() == requester
-            && (!insert.is_empty() && !self.is_action_allowed(&requester, Action::Insert))
-            || (!update.is_empty() && !self.is_action_allowed(&requester, Action::Update))
-            || (!delete.is_empty() && !self.is_action_allowed(&requester, Action::Delete))
+        if *self.owners() != requester
+            && ((!insert.is_empty() && !self.is_action_allowed(&requester, Action::Insert))
+                || (!update.is_empty() && !self.is_action_allowed(&requester, Action::Update))
+                || (!delete.is_empty() && !self.is_action_allowed(&requester, Action::Delete)))
         {
             return Err(Error::AccessDenied);
         }

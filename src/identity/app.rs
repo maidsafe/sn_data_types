@@ -12,7 +12,7 @@ use crate::{ClientFullId, ClientPublicId, Ed25519Digest, PublicKey, Signature, X
 use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Debug, Display, Formatter};
-use threshold_crypto::SecretKeyShare as BlsSecretKeyShare;
+use threshold_crypto::{SecretKey as BlsSecretKey, SecretKeyShare as BlsSecretKeyShare};
 
 /// A struct holding a keypair variant and the corresponding public ID for a network App.
 #[derive(Serialize, Deserialize)]
@@ -60,6 +60,17 @@ impl FullId {
     /// Returns the public ID.
     pub fn public_id(&self) -> &PublicId {
         &self.public_id
+    }
+
+    // TODO: Remove this once the authenticator is updated
+    // to create random FullIds instead of AppKeys / ClientKeys
+    /// Constructs a `FullId` for a given BLS secret key.
+    #[doc(hidden)]
+    pub fn with_keys(bls_sk: BlsSecretKey, owner: PublicKey) -> Self {
+        Self::new(
+            ClientFullId::with_bls_key(bls_sk),
+            ClientPublicId::new(XorName::from(owner), owner),
+        )
     }
 }
 
