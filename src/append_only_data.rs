@@ -7,9 +7,10 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::{Error, PublicKey, Result, XorName};
+use crate::{Error, PublicKey, Request, Result, XorName};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+use unwrap::unwrap;
 
 pub type PubSeqAppendOnlyData = SeqAppendOnlyData<PubPermissions>;
 pub type PubUnseqAppendOnlyData = UnseqAppendOnlyData<PubPermissions>;
@@ -172,7 +173,6 @@ pub trait Permissions {
     fn is_action_allowed(&self, requester: PublicKey, action: Action) -> bool;
     fn data_index(&self) -> u64;
     fn owner_entry_index(&self) -> u64;
-    fn check_permission(&self, requester: PublicKey, action: Action) -> bool;
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
@@ -204,13 +204,6 @@ impl Permissions for UnpubPermissions {
 
     fn owner_entry_index(&self) -> u64 {
         self.owner_entry_index
-    }
-
-    fn check_permission(&self, requester: PublicKey, action: Action) -> bool {
-        match self.permissions.get(&requester) {
-            Some(perm) => perm.is_allowed(action),
-            None => false,
-        }
     }
 }
 
@@ -252,14 +245,6 @@ impl Permissions for PubPermissions {
 
     fn owner_entry_index(&self) -> u64 {
         self.owner_entry_index
-    }
-
-    fn check_permission(&self, requester: PublicKey, action: Action) -> bool {
-        let user = User::Key(requester);
-        match self.permissions.get(&user) {
-            Some(perm) => perm.is_allowed(action).unwrap_or(false),
-            None => false,
-        }
     }
 }
 
@@ -337,7 +322,13 @@ pub trait AppendOnlyData<P> {
     /// Add a new owner entry.
     fn append_owner(&mut self, owner: Owner) -> Result<()>;
 
-    fn verify_requester(&self, requester: PublicKey, action: Action) -> Result<bool>;
+    /// Verifies permission for Non-Owners.
+    fn check_permissions_for_key(
+        &self,
+        requester: PublicKey,
+        permissions: &P,
+        request: Request,
+    ) -> Result<()>;
 }
 
 /// Common methods for published and unpublished unsequenced `AppendOnlyData`.
@@ -399,6 +390,18 @@ macro_rules! impl_appendable_data {
                     },
                 })
             }
+
+            pub fn check_permission(&self, request: Request, requester: PublicKey) -> Result<()> {
+                if unwrap!(self.inner.owners.last()).public_key == requester {
+                    Ok(())
+                } else {
+                    self.check_permissions_for_key(
+                        requester,
+                        unwrap!(self.inner.permissions.last()),
+                        request,
+                    )
+                }
+            }
         }
 
         impl<P> AppendOnlyData<P> for $flavour<P>
@@ -429,10 +432,46 @@ macro_rules! impl_appendable_data {
                 self.inner.permissions.len() as u64
             }
 
-            // fn user_permissions(&self, user: &User) -> Result<&PubPermissionSet> {
-            //     let perm_set = &self.inner.permissions[self.inner.permissions.len() - 1];
-            //     perm_set.permissions.get(user).ok_or(Error::X)
-            // }
+            fn check_permissions_for_key(
+                &self,
+                requester: PublicKey,
+                permissions: &P,
+                request: Request,
+            ) -> Result<()> {
+                match request {
+                    Request::GetAData(..)
+                    | Request::GetADataShell { .. }
+                    | Request::GetADataRange { .. }
+                    | Request::GetADataIndices(..)
+                    | Request::GetADataLastEntry(..)
+                    | Request::GetADataPermissions { .. }
+                    | Request::GetPubADataUserPermissions { .. }
+                    | Request::GetUnpubADataUserPermissions { .. }
+                    | Request::GetADataOwners { .. } => {
+                        if permissions.is_action_allowed(requester, Action::Read) {
+                            Ok(())
+                        } else {
+                            Err(Error::AccessDenied)
+                        }
+                    }
+                    Request::AddPubADataPermissions { .. }
+                    | Request::AddUnpubADataPermissions { .. }
+                    | Request::SetADataOwner { .. } => {
+                        if permissions.is_action_allowed(requester, Action::ManagePermissions) {
+                            Ok(())
+                        } else {
+                            Err(Error::AccessDenied)
+                        }
+                    }
+
+                    // Mutation permissions are checked later
+                    Request::AppendSeq { .. } | Request::AppendUnseq { .. } => Ok(()),
+
+                    Request::DeleteAData { .. } => Err(Error::AccessDenied),
+
+                    _ => Err(Error::InvalidOperation),
+                }
+            }
 
             fn get(&self, key: &[u8]) -> Option<&Vec<u8>> {
                 self.inner
@@ -553,20 +592,6 @@ macro_rules! impl_appendable_data {
                 }
                 self.inner.owners.push(owner);
                 Ok(())
-            }
-
-            fn verify_requester(&self, requester: PublicKey, action: Action) -> Result<bool> {
-                if self
-                    .inner
-                    .permissions
-                    .last()
-                    .unwrap()
-                    .check_permission(requester, action)
-                {
-                    Ok(true)
-                } else {
-                    Err(Error::AccessDenied)
-                }
             }
         }
     };

@@ -9,9 +9,9 @@
 
 use crate::{
     ADataAddress, ADataIndex, ADataOwner, ADataPubPermissions, ADataUnpubPermissions, ADataUser,
-    AppPermissions, AppendOnlyData as AppendOnlyTrait, Coins, IDataAddress, IDataKind,
-    MDataAddress, MDataPermissionSet, MDataSeqEntryAction, MDataUnseqEntryAction,
-    PubSeqAppendOnlyData, PubUnseqAppendOnlyData, PublicKey, SeqMutableData,
+    AppPermissions, AppendOnlyData as AppendOnlyTrait, AppendOnlyData as ADataTrait, Coins,
+    IDataAddress, IDataKind, MDataAddress, MDataPermissionSet, MDataSeqEntryAction,
+    MDataUnseqEntryAction, PubSeqAppendOnlyData, PubUnseqAppendOnlyData, PublicKey, SeqMutableData,
     UnpubSeqAppendOnlyData, UnpubUnseqAppendOnlyData, UnseqMutableData, XorName,
 };
 use serde::{Deserialize, Serialize};

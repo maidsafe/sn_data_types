@@ -8,7 +8,7 @@
 // Software.
 
 use crate::{
-    request::AppendOnlyData, ADataIndices, ADataPubPermissionSet, ADataPubPermissions,
+    request::AppendOnlyData, ADataIndices, ADataOwner, ADataPubPermissionSet, ADataPubPermissions,
     ADataUnpubPermissionSet, ADataUnpubPermissions, AppPermissions, Coins, IDataKind,
     MDataPermissionSet, MDataValue, PublicKey, Result, SeqMutableData, UnseqMutableData,
 };
@@ -67,6 +67,8 @@ pub enum Response {
     //
     PutAData(Result<()>),
     GetAData(Result<AppendOnlyData>),
+    GetADataShell(Result<AppendOnlyData>),
+    GetADataOwners(Result<ADataOwner>),
     GetADataRange(Result<Vec<(Vec<u8>, Vec<u8>)>>),
     GetADataIndices(Result<ADataIndices>),
     GetADataLastEntry(Result<(Vec<u8>, Vec<u8>)>),
@@ -76,10 +78,9 @@ pub enum Response {
     GetUnpubADataUserPermissions(Result<ADataUnpubPermissionSet>),
     AddUnpubADataPermissions(Result<()>),
     AddPubADataPermissions(Result<()>),
-    AppendPubSeq(Result<()>),
-    AppendUnpubSeq(Result<()>),
-    AppendPubUnseq(Result<()>),
-    AppendUnpubUnseq(Result<()>),
+    SetADataOwner(Result<()>),
+    AppendSeq(Result<()>),
+    AppendUnseq(Result<()>),
     DeleteAData(Result<()>),
     //
     // ===== Coins =====
@@ -150,11 +151,12 @@ impl fmt::Debug for Response {
                 GetUnpubADataUserPermissions(..) => "Response::GetUnpubADataUserPermissions",
                 AddUnpubADataPermissions(..) => "Response::AddUnpubADataPermissions",
                 AddPubADataPermissions(..) => "Response::AddPubADataPermissions",
-                AppendUnpubSeq(..) => "Response::AppendUnpubSeq",
-                AppendPubUnseq(..) => "Response::AppendPubUnseq",
-                AppendPubSeq(..) => "Response::AppendPubSeq",
-                AppendUnpubUnseq(..) => "Response::AppendUnpubUnseq",
+                AppendSeq(..) => "Response::AppendUnpubSeq",
+                AppendUnseq(..) => "Response::AppendPubUnseq",
                 DeleteAData(..) => "Response::DeleteAData",
+                GetADataShell(..) => "Response::GetADataShell",
+                GetADataOwners(..) => "Response::GetADataOwners",
+                SetADataOwner(..) => "Response::SetADataOwner",
             }
         )
     }
