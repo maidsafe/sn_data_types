@@ -9,9 +9,9 @@
 
 use crate::{
     ADataAddress, ADataIndex, ADataOwner, ADataPubPermissions, ADataUnpubPermissions, ADataUser,
-    AppPermissions, AppendOnlyData as AppendOnlyTrait, Coins, IDataAddress, ImmutableData,
+    AppPermissions, AppendOnlyData as AppendOnlyTrait, Coins, IDataAddress, IDataKind,
     MDataAddress, MDataPermissionSet, MDataSeqEntryAction, MDataUnseqEntryAction,
-    PubSeqAppendOnlyData, PubUnseqAppendOnlyData, PublicKey, SeqMutableData, UnpubImmutableData,
+    PubSeqAppendOnlyData, PubUnseqAppendOnlyData, PublicKey, SeqMutableData,
     UnpubSeqAppendOnlyData, UnpubUnseqAppendOnlyData, UnseqMutableData, XorName,
 };
 use serde::{Deserialize, Serialize};
@@ -59,8 +59,7 @@ pub enum Request {
     //
     // ===== Immutable Data =====
     //
-    PutIData(UnpubImmutableData),
-    PutPubIData(ImmutableData),
+    PutIData(IDataKind),
     GetIData(IDataAddress),
     DeleteUnpubIData(IDataAddress),
     //
@@ -229,10 +228,11 @@ impl fmt::Debug for Request {
             formatter,
             "{}",
             match *self {
+                // IData
                 PutIData(_) => "Request::PutIData",
-                PutPubIData(_) => "Request::PutPubIData",
                 GetIData(_) => "Request::GetIData",
                 DeleteUnpubIData(_) => "Request::DeleteUnpubIData",
+                // MData
                 PutUnseqMData(_) => "Request::PutUnseqMData",
                 PutSeqMData(_) => "Request::PutSeqMData",
                 GetMData(_) => "Request::GetMData",
@@ -249,6 +249,7 @@ impl fmt::Debug for Request {
                 ListMDataUserPermissions { .. } => "Request::ListMDataUserPermissions",
                 MutateSeqMDataEntries { .. } => "Request::MutateSeqMDataEntries",
                 MutateUnseqMDataEntries { .. } => "Request::MutateUnseqMDataEntries",
+                // AData
                 PutAData(_) => "Request::PutAData",
                 GetAData(_) => "Request::GetAData",
                 GetADataShell { .. } => "Request::GetADataShell",
