@@ -10,7 +10,6 @@
 use crate::{Error, PublicKey, Request, Result, XorName};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use unwrap::unwrap;
 
 pub type PubSeqAppendOnlyData = SeqAppendOnlyData<PubPermissions>;
 pub type PubUnseqAppendOnlyData = UnseqAppendOnlyData<PubPermissions>;
@@ -170,9 +169,10 @@ impl Address {
 }
 
 pub trait Permissions {
-    fn is_action_allowed(&self, requester: PublicKey, action: Action) -> bool;
+    fn is_action_allowed(&self, requester: PublicKey, action: Action) -> Result<()>;
     fn data_index(&self) -> u64;
     fn owner_entry_index(&self) -> u64;
+    fn check_permissions_for_key(&self, requester: PublicKey, request: &Request) -> Result<()>;
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
@@ -191,10 +191,16 @@ impl UnpubPermissions {
 }
 
 impl Permissions for UnpubPermissions {
-    fn is_action_allowed(&self, requester: PublicKey, action: Action) -> bool {
+    fn is_action_allowed(&self, requester: PublicKey, action: Action) -> Result<()> {
         match self.permissions.get(&requester) {
-            Some(perms) => perms.is_allowed(action),
-            None => false,
+            Some(perms) => {
+                if perms.is_allowed(action) {
+                    Ok(())
+                } else {
+                    Err(Error::AccessDenied)
+                }
+            }
+            None => Err(Error::NoSuchEntry),
         }
     }
 
@@ -204,6 +210,27 @@ impl Permissions for UnpubPermissions {
 
     fn owner_entry_index(&self) -> u64 {
         self.owner_entry_index
+    }
+
+    fn check_permissions_for_key(&self, requester: PublicKey, request: &Request) -> Result<()> {
+        match request {
+            Request::GetAData(..)
+            | Request::GetADataShell { .. }
+            | Request::GetADataRange { .. }
+            | Request::GetADataIndices(..)
+            | Request::GetADataLastEntry(..)
+            | Request::GetADataPermissions { .. }
+            | Request::GetUnpubADataUserPermissions { .. }
+            | Request::GetADataOwners { .. } => self.is_action_allowed(requester, Action::Read),
+            Request::AddUnpubADataPermissions { .. } => {
+                self.is_action_allowed(requester, Action::ManagePermissions)
+            }
+            Request::AppendSeq { .. } | Request::AppendUnseq { .. } => {
+                self.is_action_allowed(requester, Action::Append)
+            }
+            Request::DeleteAData { .. } | Request::SetADataOwner { .. } => Err(Error::AccessDenied),
+            _ => Err(Error::InvalidOperation),
+        }
     }
 }
 
@@ -230,12 +257,19 @@ impl PubPermissions {
 }
 
 impl Permissions for PubPermissions {
-    fn is_action_allowed(&self, requester: PublicKey, action: Action) -> bool {
+    fn is_action_allowed(&self, requester: PublicKey, action: Action) -> Result<()> {
         match self.permissions.get(&User::Key(requester)) {
-            Some(perms) => perms
-                .is_allowed(action)
-                .unwrap_or_else(|| self.check_anyone_permissions(action)),
-            None => self.check_anyone_permissions(action),
+            Some(perms) => {
+                if perms
+                    .is_allowed(action)
+                    .unwrap_or_else(|| self.check_anyone_permissions(action))
+                {
+                    Ok(())
+                } else {
+                    Err(Error::AccessDenied)
+                }
+            }
+            None => Err(Error::NoSuchEntry),
         }
     }
 
@@ -245,6 +279,27 @@ impl Permissions for PubPermissions {
 
     fn owner_entry_index(&self) -> u64 {
         self.owner_entry_index
+    }
+
+    fn check_permissions_for_key(&self, requester: PublicKey, request: &Request) -> Result<()> {
+        match request {
+            Request::GetAData(..)
+            | Request::GetADataShell { .. }
+            | Request::GetADataRange { .. }
+            | Request::GetADataIndices(..)
+            | Request::GetADataLastEntry(..)
+            | Request::GetADataPermissions { .. }
+            | Request::GetPubADataUserPermissions { .. }
+            | Request::GetADataOwners { .. } => Ok(()),
+            Request::AddPubADataPermissions { .. } => {
+                self.is_action_allowed(requester, Action::ManagePermissions)
+            }
+            Request::AppendSeq { .. } | Request::AppendUnseq { .. } => {
+                self.is_action_allowed(requester, Action::Append)
+            }
+            Request::DeleteAData { .. } | Request::SetADataOwner { .. } => Err(Error::AccessDenied),
+            _ => Err(Error::InvalidOperation),
+        }
     }
 }
 
@@ -321,14 +376,6 @@ pub trait AppendOnlyData<P> {
 
     /// Add a new owner entry.
     fn append_owner(&mut self, owner: Owner) -> Result<()>;
-
-    /// Verifies permission for Non-Owners.
-    fn check_permissions_for_key(
-        &self,
-        requester: PublicKey,
-        permissions: &P,
-        request: Request,
-    ) -> Result<()>;
 }
 
 /// Common methods for published and unpublished unsequenced `AppendOnlyData`.
@@ -391,15 +438,22 @@ macro_rules! impl_appendable_data {
                 })
             }
 
-            pub fn check_permission(&self, request: Request, requester: PublicKey) -> Result<()> {
-                if unwrap!(self.inner.owners.last()).public_key == requester {
+            pub fn check_permission(&self, request: &Request, requester: PublicKey) -> Result<()> {
+                if self
+                    .inner
+                    .owners
+                    .last()
+                    .ok_or_else(|| Error::NoSuchData)?
+                    .public_key
+                    == requester
+                {
                     Ok(())
                 } else {
-                    self.check_permissions_for_key(
-                        requester,
-                        unwrap!(self.inner.permissions.last()),
-                        request,
-                    )
+                    self.inner
+                        .permissions
+                        .last()
+                        .ok_or_else(|| Error::NoSuchData)?
+                        .check_permissions_for_key(requester, request)
                 }
             }
         }
@@ -430,47 +484,6 @@ macro_rules! impl_appendable_data {
 
             fn permissions_index(&self) -> u64 {
                 self.inner.permissions.len() as u64
-            }
-
-            fn check_permissions_for_key(
-                &self,
-                requester: PublicKey,
-                permissions: &P,
-                request: Request,
-            ) -> Result<()> {
-                match request {
-                    Request::GetAData(..)
-                    | Request::GetADataShell { .. }
-                    | Request::GetADataRange { .. }
-                    | Request::GetADataIndices(..)
-                    | Request::GetADataLastEntry(..)
-                    | Request::GetADataPermissions { .. }
-                    | Request::GetPubADataUserPermissions { .. }
-                    | Request::GetUnpubADataUserPermissions { .. }
-                    | Request::GetADataOwners { .. } => {
-                        if permissions.is_action_allowed(requester, Action::Read) {
-                            Ok(())
-                        } else {
-                            Err(Error::AccessDenied)
-                        }
-                    }
-                    Request::AddPubADataPermissions { .. }
-                    | Request::AddUnpubADataPermissions { .. }
-                    | Request::SetADataOwner { .. } => {
-                        if permissions.is_action_allowed(requester, Action::ManagePermissions) {
-                            Ok(())
-                        } else {
-                            Err(Error::AccessDenied)
-                        }
-                    }
-
-                    // Mutation permissions are checked later
-                    Request::AppendSeq { .. } | Request::AppendUnseq { .. } => Ok(()),
-
-                    Request::DeleteAData { .. } => Err(Error::AccessDenied),
-
-                    _ => Err(Error::InvalidOperation),
-                }
             }
 
             fn get(&self, key: &[u8]) -> Option<&Vec<u8>> {

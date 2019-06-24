@@ -8,11 +8,12 @@
 // Software.
 
 use crate::{
-    ADataAddress, ADataIndex, ADataOwner, ADataPubPermissions, ADataUnpubPermissions, ADataUser,
-    AppPermissions, AppendOnlyData as AppendOnlyTrait, AppendOnlyData as ADataTrait, Coins,
-    IDataAddress, IDataKind, MDataAddress, MDataPermissionSet, MDataSeqEntryAction,
-    MDataUnseqEntryAction, PubSeqAppendOnlyData, PubUnseqAppendOnlyData, PublicKey, SeqMutableData,
-    UnpubSeqAppendOnlyData, UnpubUnseqAppendOnlyData, UnseqMutableData, XorName,
+    ADataAddress, ADataIndex, ADataIndices, ADataOwner, ADataPubPermissionSet, ADataPubPermissions,
+    ADataUnpubPermissionSet, ADataUnpubPermissions, ADataUser, AppPermissions,
+    AppendOnlyData as AppendOnlyTrait, Coins, Error, IDataAddress, IDataKind, MDataAddress,
+    MDataPermissionSet, MDataSeqEntryAction, MDataUnseqEntryAction, PubSeqAppendOnlyData,
+    PubUnseqAppendOnlyData, PublicKey, SeqMutableData, UnpubSeqAppendOnlyData,
+    UnpubUnseqAppendOnlyData, UnseqMutableData, XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fmt};
@@ -41,6 +42,115 @@ impl AppendOnlyData {
 
     pub fn tag(&self) -> u64 {
         self.address().tag()
+    }
+
+    pub fn permissions_index(&self) -> u64 {
+        match self {
+            AppendOnlyData::PubSeq(data) => data.permissions_index(),
+            AppendOnlyData::PubUnseq(data) => data.permissions_index(),
+            AppendOnlyData::UnpubSeq(data) => data.permissions_index(),
+            AppendOnlyData::UnpubUnseq(data) => data.permissions_index(),
+        }
+    }
+
+    pub fn owners_index(&self) -> u64 {
+        match self {
+            AppendOnlyData::PubSeq(data) => data.owners_index(),
+            AppendOnlyData::PubUnseq(data) => data.owners_index(),
+            AppendOnlyData::UnpubSeq(data) => data.owners_index(),
+            AppendOnlyData::UnpubUnseq(data) => data.owners_index(),
+        }
+    }
+
+    pub fn in_range(&self, start: ADataIndex, end: ADataIndex) -> Option<Vec<(Vec<u8>, Vec<u8>)>> {
+        match self {
+            AppendOnlyData::PubSeq(data) => data.in_range(start, end),
+            AppendOnlyData::PubUnseq(data) => data.in_range(start, end),
+            AppendOnlyData::UnpubSeq(data) => data.in_range(start, end),
+            AppendOnlyData::UnpubUnseq(data) => data.in_range(start, end),
+        }
+    }
+
+    pub fn indices(&self) -> Result<ADataIndices, Error> {
+        match self {
+            AppendOnlyData::PubSeq(data) => Ok(ADataIndices::new(
+                data.entry_index(),
+                data.owners_index(),
+                data.permissions_index(),
+            )),
+            AppendOnlyData::PubUnseq(data) => Ok(ADataIndices::new(
+                data.entry_index(),
+                data.owners_index(),
+                data.permissions_index(),
+            )),
+            AppendOnlyData::UnpubSeq(data) => Ok(ADataIndices::new(
+                data.entry_index(),
+                data.owners_index(),
+                data.permissions_index(),
+            )),
+            AppendOnlyData::UnpubUnseq(data) => Ok(ADataIndices::new(
+                data.entry_index(),
+                data.owners_index(),
+                data.permissions_index(),
+            )),
+        }
+    }
+
+    pub fn last_entry(&self) -> Option<(Vec<u8>, Vec<u8>)> {
+        match self {
+            AppendOnlyData::PubSeq(data) => data.last(),
+            AppendOnlyData::PubUnseq(data) => data.last(),
+            AppendOnlyData::UnpubSeq(data) => data.last(),
+            AppendOnlyData::UnpubUnseq(data) => data.last(),
+        }
+    }
+
+    pub fn get_owners(&self, idx: u64) -> Option<&ADataOwner> {
+        match self {
+            AppendOnlyData::PubSeq(data) => data.fetch_owner_at_index(idx),
+            AppendOnlyData::PubUnseq(data) => data.fetch_owner_at_index(idx),
+            AppendOnlyData::UnpubSeq(data) => data.fetch_owner_at_index(idx),
+            AppendOnlyData::UnpubUnseq(data) => data.fetch_owner_at_index(idx),
+        }
+    }
+
+    pub fn get_pub_user_permissions(
+        &self,
+        user: ADataUser,
+        idx: u64,
+    ) -> Result<ADataPubPermissionSet, Error> {
+        match self {
+            AppendOnlyData::PubSeq(data) => data.fetch_permissions_at_index(idx),
+            AppendOnlyData::PubUnseq(data) => data.fetch_permissions_at_index(idx),
+            _ => None,
+        }
+        .and_then(|permissions| permissions.permissions().get(&user))
+        .cloned()
+        .ok_or(Error::NoSuchEntry)
+    }
+
+    pub fn get_unpub_user_permissions(
+        &self,
+        user: PublicKey,
+        idx: u64,
+    ) -> Result<ADataUnpubPermissionSet, Error> {
+        match self {
+            AppendOnlyData::UnpubSeq(data) => data.fetch_permissions_at_index(idx),
+            AppendOnlyData::UnpubUnseq(data) => data.fetch_permissions_at_index(idx),
+            _ => None,
+        }
+        .and_then(|permissions| permissions.permissions().get(&user).cloned())
+        .ok_or(Error::NoSuchEntry)
+    }
+
+    pub fn get_shell(&self, idx: u64) -> Result<Self, Error> {
+        use AppendOnlyData::*;
+        match self {
+            PubSeq(adata) => adata.shell(idx).map(PubSeq),
+            PubUnseq(adata) => adata.shell(idx).map(PubUnseq),
+            UnpubSeq(adata) => adata.shell(idx).map(UnpubSeq),
+            UnpubUnseq(adata) => adata.shell(idx).map(UnpubUnseq),
+        }
     }
 }
 
