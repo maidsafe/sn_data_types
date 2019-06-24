@@ -69,8 +69,9 @@ pub use append_only_data::{
     Action as ADataAction, Address as ADataAddress, AppendOnlyData, Index as ADataIndex,
     Indices as ADataIndices, Owner as ADataOwner, PubPermissionSet as ADataPubPermissionSet,
     PubPermissions as ADataPubPermissions, PubSeqAppendOnlyData, PubUnseqAppendOnlyData,
-    UnpubPermissionSet as ADataUnpubPermissionSet, UnpubPermissions as ADataUnpubPermissions,
-    UnpubSeqAppendOnlyData, UnpubUnseqAppendOnlyData, User as ADataUser,
+    SeqAppendOnly, UnpubPermissionSet as ADataUnpubPermissionSet,
+    UnpubPermissions as ADataUnpubPermissions, UnpubSeqAppendOnlyData, UnpubUnseqAppendOnlyData,
+    UnseqAppendOnly, User as ADataUser,
 };
 pub use coins::{Coins, MAX_COINS_VALUE};
 pub use errors::{EntryError, Error, Result};
@@ -92,7 +93,7 @@ pub use mutable_data::{
     UnseqMutableData, Value as MDataValue,
 };
 pub use public_key::{PublicKey, Signature};
-pub use request::{AppendOnlyData as AData, Request};
+pub use request::{AppendOnlyData as AData, AppendOperation as ADataAppend, Request};
 pub use response::{Response, Transaction};
 pub use sha3::Sha3_512 as Ed25519Digest;
 
