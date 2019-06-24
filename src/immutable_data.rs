@@ -183,6 +183,29 @@ impl Address {
             Address::Unpub(ref name) | Address::Pub(ref name) => name,
         }
     }
+
+    pub fn published(&self) -> bool {
+        match self {
+            Address::Unpub(_) => false,
+            Address::Pub(_) => true,
+        }
+    }
+}
+
+/// Object storing an immutable data variant.
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Deserialize, Serialize, Debug)]
+pub enum Kind {
+    Unpub(UnpubImmutableData),
+    Pub(ImmutableData),
+}
+
+impl Kind {
+    pub fn published(&self) -> bool {
+        match self {
+            Kind::Unpub(_) => false,
+            Kind::Pub(_) => true,
+        }
+    }
 }
 
 #[cfg(test)]

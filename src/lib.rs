@@ -81,7 +81,8 @@ pub use identity::{
     PublicId,
 };
 pub use immutable_data::{
-    Address as IDataAddress, ImmutableData, UnpubImmutableData, MAX_IMMUTABLE_DATA_SIZE_IN_BYTES,
+    Address as IDataAddress, ImmutableData, Kind as IDataKind, UnpubImmutableData,
+    MAX_IMMUTABLE_DATA_SIZE_IN_BYTES,
 };
 pub use mutable_data::{
     Action as MDataAction, Address as MDataAddress, MutableData,

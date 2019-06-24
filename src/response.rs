@@ -9,9 +9,8 @@
 
 use crate::{
     request::AppendOnlyData, ADataIndices, ADataPubPermissionSet, ADataPubPermissions,
-    ADataUnpubPermissionSet, ADataUnpubPermissions, AppPermissions, Coins, ImmutableData,
-    MDataPermissionSet, MDataValue, PublicKey, Result, SeqMutableData, UnpubImmutableData,
-    UnseqMutableData,
+    ADataUnpubPermissionSet, ADataUnpubPermissions, AppPermissions, Coins, IDataKind,
+    MDataPermissionSet, MDataValue, PublicKey, Result, SeqMutableData, UnseqMutableData,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -35,11 +34,9 @@ pub enum Response {
     //
     // ===== Immutable Data =====
     //
-    GetUnpubIData(Result<UnpubImmutableData>),
-    PutUnpubIData(Result<()>),
+    GetIData(Result<IDataKind>),
+    PutIData(Result<()>),
     DeleteUnpubIData(Result<()>),
-    GetPubIData(Result<ImmutableData>),
-    PutPubIData(Result<()>),
     //
     // ===== Mutable Data =====
     //
@@ -110,11 +107,11 @@ impl fmt::Debug for Response {
             f,
             "{}",
             match *self {
-                GetUnpubIData(..) => "Response::GetUnpubIData",
-                PutUnpubIData(..) => "Response::PutUnpubIData",
+                // IData
+                GetIData(..) => "Response::GetIData",
+                PutIData(..) => "Response::PutIData",
                 DeleteUnpubIData(..) => "Response::DeleteUnpubIData",
-                GetPubIData(..) => "Response::GetPubIData",
-                PutPubIData(..) => "Response::PutPubIData",
+                // MData
                 DeleteMData(..) => "Response::DeleteMData",
                 GetUnseqMData(..) => "Response::GetUnseqMData",
                 PutUnseqMData(..) => "Response::PutUnseqMData",
