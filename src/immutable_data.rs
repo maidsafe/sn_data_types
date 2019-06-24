@@ -200,11 +200,30 @@ pub enum Kind {
 }
 
 impl Kind {
+    pub fn name(&self) -> &XorName {
+        match self {
+            Kind::Unpub(ref data) => data.name(),
+            Kind::Pub(ref data) => data.name(),
+        }
+    }
+
     pub fn published(&self) -> bool {
         match self {
             Kind::Unpub(_) => false,
             Kind::Pub(_) => true,
         }
+    }
+}
+
+impl From<UnpubImmutableData> for Kind {
+    fn from(data: UnpubImmutableData) -> Self {
+        Kind::Unpub(data)
+    }
+}
+
+impl From<ImmutableData> for Kind {
+    fn from(data: ImmutableData) -> Self {
+        Kind::Pub(data)
     }
 }
 
