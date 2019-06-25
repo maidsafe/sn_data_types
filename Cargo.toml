@@ -1,16 +1,17 @@
 [package]
-name = "safe-nd"
+authors = ["MaidSafe Developers <dev@maidsafe.net>"]
 description = "Safe Network Data Types"
+edition = "2018"
 homepage = "https://maidsafe.net"
 license = "MIT OR BSD-3-Clause"
+name = "safe-nd"
 readme = "README.md"
 repository = "https://github.com/maidsafe/safe-nd"
 version = "0.1.0"
-authors = ["MaidSafe Developers <dev@maidsafe.net>"]
-edition = "2018"
 
 [dependencies]
-bincode = "~1.1.4"
+# Ensure bincode version is identical to that in SAFE Client Libs and SAFE Vault.
+bincode = "=1.1.4"
 ed25519-dalek = "~0.9.1"
 hex_fmt = "~0.3.0"
 rand = "~0.6.5"
