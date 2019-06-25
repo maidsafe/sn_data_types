@@ -85,7 +85,6 @@ pub enum Response {
     //
     // ===== Coins =====
     //
-    TransferCoins(Result<()>),
     GetTransaction(Result<Transaction>),
     GetBalance(Result<Coins>),
     //
@@ -134,7 +133,6 @@ impl fmt::Debug for Response {
                 MutateUnseqMDataEntries(..) => "Response::MutateUnseqMDataEntries",
                 GetSeqMDataValue(..) => "Response::GetSeqMDataValue",
                 GetUnseqMDataValue(..) => "Response::GetUnseqMDataValue",
-                TransferCoins(..) => "Response::TransferCoins",
                 GetTransaction(..) => "Response::GetTransaction",
                 GetBalance(..) => "Response::GetBalance",
                 ListAuthKeysAndVersion(..) => "Response::ListAuthKeysAndVersion",
