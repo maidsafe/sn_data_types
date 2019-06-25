@@ -308,6 +308,22 @@ pub enum Request {
     },
     /// Get current wallet balance
     GetBalance(XorName),
+    /// Create a new coin balance
+    CreateCoinBalance {
+        source: XorName,
+        destination: XorName,
+        new_balance_owner: PublicKey,
+        amount: Coins,
+        transaction_id: u64, // TODO: Use the trait UUID
+    },
+    //
+    // ===== Account =====
+    //
+    PutAccount {
+        destination: XorName,
+        data: Vec<u8>, // up to 1 MB
+    },
+    GetAccount(XorName),
     //
     // ===== Client (Owner) to SrcElders =====
     //
@@ -382,6 +398,9 @@ impl fmt::Debug for Request {
                 ListAuthKeysAndVersion => "Request::ListAuthKeysAndVersion",
                 InsAuthKey { .. } => "Request::InsAuthKey",
                 DelAuthKey { .. } => "Request::DelAuthKey",
+                CreateCoinBalance { .. } => "Request::CreateCoinBalance",
+                PutAccount { .. } => "Request::PutAccount",
+                GetAccount(..) => "Request::GetAccount",
             }
         )
     }
