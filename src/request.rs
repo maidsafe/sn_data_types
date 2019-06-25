@@ -12,7 +12,7 @@ use crate::{
     ADataUnpubPermissionSet, ADataUnpubPermissions, ADataUser, AppPermissions,
     AppendOnlyData as AppendOnlyTrait, Coins, Error, IDataAddress, IDataKind, MDataAddress,
     MDataPermissionSet, MDataSeqEntryAction, MDataUnseqEntryAction, PubSeqAppendOnlyData,
-    PubUnseqAppendOnlyData, PublicKey, SeqMutableData, UnpubSeqAppendOnlyData,
+    PubUnseqAppendOnlyData, PublicKey, SeqMutableData, Signature, UnpubSeqAppendOnlyData,
     UnpubUnseqAppendOnlyData, UnseqMutableData, XorName,
 };
 use serde::{Deserialize, Serialize};
@@ -297,6 +297,7 @@ pub enum Request {
     /// Balance transfer
     TransferCoins {
         source: XorName,
+        signature: Option<Signature>,
         destination: XorName,
         amount: Coins,
         transaction_id: u64, // TODO: Use the trait UUID
@@ -307,7 +308,10 @@ pub enum Request {
         transaction_id: u64, // TODO: Use the trait UUID
     },
     /// Get current wallet balance
-    GetBalance(XorName),
+    GetBalance {
+        coin_balance_id: XorName,
+        signature: Option<Signature>,
+    },
     //
     // ===== Client (Owner) to SrcElders =====
     //
@@ -378,7 +382,7 @@ impl fmt::Debug for Request {
                 AppendUnseq(_) => "Request::AppendUnseq",
                 TransferCoins { .. } => "Request::TransferCoins",
                 GetTransaction { .. } => "Request::GetTransaction",
-                GetBalance(_) => "Request::GetBalance",
+                GetBalance { .. } => "Request::GetBalance",
                 ListAuthKeysAndVersion => "Request::ListAuthKeysAndVersion",
                 InsAuthKey { .. } => "Request::InsAuthKey",
                 DelAuthKey { .. } => "Request::DelAuthKey",
