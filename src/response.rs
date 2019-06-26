@@ -8,8 +8,8 @@
 // Software.
 
 use crate::{
-    request::AppendOnlyData, ADataIndices, ADataOwner, ADataPubPermissionSet, ADataPubPermissions,
-    ADataUnpubPermissionSet, ADataUnpubPermissions, AppPermissions, Coins, IDataKind,
+    AData, ADataIndices, ADataOwner, ADataPubPermissionSet, ADataPubPermissions,
+    ADataUnpubPermissionSet, ADataUnpubPermissions, AppPermissions, Coins, Entries, IDataKind,
     MDataPermissionSet, MDataValue, PublicKey, Result, SeqMutableData, UnseqMutableData,
 };
 use serde::{Deserialize, Serialize};
@@ -66,10 +66,10 @@ pub enum Response {
     // ===== Append Only Data =====
     //
     PutAData(Result<()>),
-    GetAData(Result<AppendOnlyData>),
-    GetADataShell(Result<AppendOnlyData>),
+    GetAData(Result<AData>),
+    GetADataShell(Result<AData>),
     GetADataOwners(Result<ADataOwner>),
-    GetADataRange(Result<Vec<(Vec<u8>, Vec<u8>)>>),
+    GetADataRange(Result<Entries>),
     GetADataIndices(Result<ADataIndices>),
     GetADataLastEntry(Result<(Vec<u8>, Vec<u8>)>),
     GetUnpubADataPermissionAtIndex(Result<ADataUnpubPermissions>),

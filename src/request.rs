@@ -8,159 +8,13 @@
 // Software.
 
 use crate::{
-    ADataAddress, ADataIndex, ADataIndices, ADataOwner, ADataPubPermissionSet, ADataPubPermissions,
-    ADataUnpubPermissionSet, ADataUnpubPermissions, ADataUser, AppPermissions,
-    AppendOnlyData as AppendOnlyTrait, Coins, Error, IDataAddress, IDataKind, MDataAddress,
-    MDataPermissionSet, MDataSeqEntryActions, MDataUnseqEntryActions, PubSeqAppendOnlyData,
-    PubUnseqAppendOnlyData, PublicKey, SeqMutableData, UnpubSeqAppendOnlyData,
-    UnpubUnseqAppendOnlyData, UnseqMutableData, XorName,
+    AData, ADataAddress, ADataAppend, ADataIndex, ADataOwner, ADataPubPermissions,
+    ADataUnpubPermissions, ADataUser, AppPermissions, Coins, IDataAddress, IDataKind, MDataAddress,
+    MDataPermissionSet, MDataSeqEntryActions, MDataUnseqEntryActions, PublicKey, SeqMutableData,
+    UnseqMutableData, XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
-
-#[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
-pub enum AppendOnlyData {
-    PubSeq(PubSeqAppendOnlyData),
-    UnpubSeq(UnpubSeqAppendOnlyData),
-    PubUnseq(PubUnseqAppendOnlyData),
-    UnpubUnseq(UnpubUnseqAppendOnlyData),
-}
-
-impl AppendOnlyData {
-    pub fn address(&self) -> &ADataAddress {
-        match self {
-            AppendOnlyData::PubSeq(data) => data.address(),
-            AppendOnlyData::PubUnseq(data) => data.address(),
-            AppendOnlyData::UnpubSeq(data) => data.address(),
-            AppendOnlyData::UnpubUnseq(data) => data.address(),
-        }
-    }
-
-    pub fn name(&self) -> &XorName {
-        self.address().name()
-    }
-
-    pub fn tag(&self) -> u64 {
-        self.address().tag()
-    }
-
-    pub fn permissions_index(&self) -> u64 {
-        match self {
-            AppendOnlyData::PubSeq(data) => data.permissions_index(),
-            AppendOnlyData::PubUnseq(data) => data.permissions_index(),
-            AppendOnlyData::UnpubSeq(data) => data.permissions_index(),
-            AppendOnlyData::UnpubUnseq(data) => data.permissions_index(),
-        }
-    }
-
-    pub fn owners_index(&self) -> u64 {
-        match self {
-            AppendOnlyData::PubSeq(data) => data.owners_index(),
-            AppendOnlyData::PubUnseq(data) => data.owners_index(),
-            AppendOnlyData::UnpubSeq(data) => data.owners_index(),
-            AppendOnlyData::UnpubUnseq(data) => data.owners_index(),
-        }
-    }
-
-    pub fn in_range(&self, start: ADataIndex, end: ADataIndex) -> Option<Vec<(Vec<u8>, Vec<u8>)>> {
-        match self {
-            AppendOnlyData::PubSeq(data) => data.in_range(start, end),
-            AppendOnlyData::PubUnseq(data) => data.in_range(start, end),
-            AppendOnlyData::UnpubSeq(data) => data.in_range(start, end),
-            AppendOnlyData::UnpubUnseq(data) => data.in_range(start, end),
-        }
-    }
-
-    pub fn indices(&self) -> Result<ADataIndices, Error> {
-        match self {
-            AppendOnlyData::PubSeq(data) => Ok(ADataIndices::new(
-                data.entry_index(),
-                data.owners_index(),
-                data.permissions_index(),
-            )),
-            AppendOnlyData::PubUnseq(data) => Ok(ADataIndices::new(
-                data.entry_index(),
-                data.owners_index(),
-                data.permissions_index(),
-            )),
-            AppendOnlyData::UnpubSeq(data) => Ok(ADataIndices::new(
-                data.entry_index(),
-                data.owners_index(),
-                data.permissions_index(),
-            )),
-            AppendOnlyData::UnpubUnseq(data) => Ok(ADataIndices::new(
-                data.entry_index(),
-                data.owners_index(),
-                data.permissions_index(),
-            )),
-        }
-    }
-
-    pub fn last_entry(&self) -> Option<(Vec<u8>, Vec<u8>)> {
-        match self {
-            AppendOnlyData::PubSeq(data) => data.last(),
-            AppendOnlyData::PubUnseq(data) => data.last(),
-            AppendOnlyData::UnpubSeq(data) => data.last(),
-            AppendOnlyData::UnpubUnseq(data) => data.last(),
-        }
-    }
-
-    pub fn get_owners(&self, idx: u64) -> Option<&ADataOwner> {
-        match self {
-            AppendOnlyData::PubSeq(data) => data.fetch_owner_at_index(idx),
-            AppendOnlyData::PubUnseq(data) => data.fetch_owner_at_index(idx),
-            AppendOnlyData::UnpubSeq(data) => data.fetch_owner_at_index(idx),
-            AppendOnlyData::UnpubUnseq(data) => data.fetch_owner_at_index(idx),
-        }
-    }
-
-    pub fn get_pub_user_permissions(
-        &self,
-        user: ADataUser,
-        idx: u64,
-    ) -> Result<ADataPubPermissionSet, Error> {
-        match self {
-            AppendOnlyData::PubSeq(data) => data.fetch_permissions_at_index(idx),
-            AppendOnlyData::PubUnseq(data) => data.fetch_permissions_at_index(idx),
-            _ => None,
-        }
-        .and_then(|permissions| permissions.permissions().get(&user))
-        .cloned()
-        .ok_or(Error::NoSuchEntry)
-    }
-
-    pub fn get_unpub_user_permissions(
-        &self,
-        user: PublicKey,
-        idx: u64,
-    ) -> Result<ADataUnpubPermissionSet, Error> {
-        match self {
-            AppendOnlyData::UnpubSeq(data) => data.fetch_permissions_at_index(idx),
-            AppendOnlyData::UnpubUnseq(data) => data.fetch_permissions_at_index(idx),
-            _ => None,
-        }
-        .and_then(|permissions| permissions.permissions().get(&user).cloned())
-        .ok_or(Error::NoSuchEntry)
-    }
-
-    pub fn get_shell(&self, idx: u64) -> Result<Self, Error> {
-        use AppendOnlyData::*;
-        match self {
-            PubSeq(adata) => adata.shell(idx).map(PubSeq),
-            PubUnseq(adata) => adata.shell(idx).map(PubUnseq),
-            UnpubSeq(adata) => adata.shell(idx).map(UnpubSeq),
-            UnpubUnseq(adata) => adata.shell(idx).map(UnpubUnseq),
-        }
-    }
-}
-
-#[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
-pub struct AppendOperation {
-    // Address of an AppendOnlyData object on the network.
-    pub address: ADataAddress,
-    // A list of entries to append.
-    pub values: Vec<(Vec<u8>, Vec<u8>)>,
-}
 
 /// RPC Request that is sent to vaults
 #[allow(clippy::large_enum_variant, missing_docs)]
@@ -216,7 +70,7 @@ pub enum Request {
     // ===== Append Only Data =====
     //
     /// Put a new AppendOnlyData onto the network.
-    PutAData(AppendOnlyData),
+    PutAData(AData),
     /// Get AppendOnlyData from the network.
     GetAData(ADataAddress),
     /// Get `AppendOnlyData` shell at a certain point in history (`data_index` refers to the list
@@ -287,10 +141,10 @@ pub enum Request {
         owner: ADataOwner,
     },
     AppendSeq {
-        append: AppendOperation,
+        append: ADataAppend,
         index: u64,
     },
-    AppendUnseq(AppendOperation),
+    AppendUnseq(ADataAppend),
     //
     // ===== Coins =====
     //

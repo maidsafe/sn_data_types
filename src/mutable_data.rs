@@ -7,7 +7,8 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::{EntryError, Error, PublicKey, Request, Result, XorName};
+use crate::{utils, EntryError, Error, PublicKey, Request, Result, XorName};
+use multibase::Decodable;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{btree_map::Entry, BTreeMap, BTreeSet},
@@ -656,6 +657,16 @@ impl Address {
             Address::Unseq { tag, .. } | Address::Seq { tag, .. } => *tag,
         }
     }
+
+    /// Returns the Address serialised and encoded in z-base-32.
+    pub fn encode_to_zbase32(&self) -> String {
+        utils::encode(&self)
+    }
+
+    /// Create from z-base-32 encoded string.
+    pub fn decode_from_zbase32<T: Decodable>(encoded: T) -> Result<Self> {
+        utils::decode(encoded)
+    }
 }
 
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
@@ -760,5 +771,19 @@ impl UnseqEntryActions {
 impl Into<BTreeMap<Vec<u8>, UnseqEntryAction>> for UnseqEntryActions {
     fn into(self) -> BTreeMap<Vec<u8>, UnseqEntryAction> {
         self.actions
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::{Address, XorName};
+    use unwrap::unwrap;
+    #[test]
+    fn zbase32_encode_decode_mdata_address() {
+        let name = XorName(rand::random());
+        let address = Address::new_seq(name, 15000);
+        let encoded = address.encode_to_zbase32();
+        let decoded = unwrap!(self::Address::decode_from_zbase32(&encoded));
+        assert_eq!(address, decoded);
     }
 }
