@@ -14,13 +14,13 @@ version = "0.1.0"
 bincode = "=1.1.4"
 ed25519-dalek = "~0.9.1"
 hex_fmt = "~0.3.0"
+multibase = "~0.6.0"
 rand = "~0.6.5"
 serde = { version = "~1.0.92", features = ["derive"] }
 sha3 = "~0.8.2"
 threshold_crypto = { git = "https://github.com/poanetwork/threshold_crypto.git", branch = "master" }
 tiny-keccak = "~1.4.2"
 unwrap = "~1.2.1"
-base64 = "0.10.1"
 
 [dev-dependencies]
 hex = "~0.3.2"

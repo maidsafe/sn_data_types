@@ -7,8 +7,9 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::{XorName, XOR_NAME_LEN};
-use bincode;
+use crate::{utils, Error, XorName, XOR_NAME_LEN};
+use bincode::serialized_size;
+use multibase::Decodable;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::{
     fmt::{self, Debug, Formatter},
@@ -73,7 +74,7 @@ impl UnpubImmutableData {
 
     /// Returns size of this data after serialisation.
     pub fn serialised_size(&self) -> u64 {
-        bincode::serialized_size(self).unwrap_or(u64::MAX)
+        serialized_size(self).unwrap_or(u64::MAX)
     }
 
     /// Return true if the size is valid
@@ -143,7 +144,7 @@ impl ImmutableData {
 
     /// Returns size of this data after serialisation.
     pub fn serialised_size(&self) -> u64 {
-        bincode::serialized_size(self).unwrap_or(u64::MAX)
+        serialized_size(self).unwrap_or(u64::MAX)
     }
 
     /// Return true if the size is valid
@@ -190,6 +191,16 @@ impl Address {
             Address::Pub(_) => true,
         }
     }
+
+    /// Returns the Address serialised and encoded in z-base-32.
+    pub fn encode_to_zbase32(&self) -> String {
+        utils::encode(&self)
+    }
+
+    /// Create from z-base-32 encoded string.
+    pub fn decode_from_zbase32<T: Decodable>(encoded: T) -> Result<Self, Error> {
+        utils::decode(encoded)
+    }
 }
 
 /// Object storing an immutable data variant.
@@ -229,8 +240,8 @@ impl From<ImmutableData> for Kind {
 
 #[cfg(test)]
 mod tests {
-    use super::{ImmutableData, UnpubImmutableData};
-    use bincode::{deserialize as deserialise, serialize as serialise};
+    use super::{utils, Address, ImmutableData, UnpubImmutableData, XorName};
+    use bincode::deserialize as deserialise;
     use hex::encode;
     use rand::{self, Rng, SeedableRng};
     use rand_xorshift::XorShiftRng;
@@ -274,7 +285,7 @@ mod tests {
         let len = rng.gen_range(1, 10_000);
         let value = iter::repeat_with(|| rng.gen()).take(len).collect();
         let immutable_data = ImmutableData::new(value);
-        let serialised = unwrap!(serialise(&immutable_data));
+        let serialised = utils::serialise(&immutable_data);
         let parsed = unwrap!(deserialise(&serialised));
         assert_eq!(immutable_data, parsed);
     }
@@ -298,5 +309,14 @@ mod tests {
             seed
         );
         XorShiftRng::seed_from_u64(seed)
+    }
+
+    #[test]
+    fn zbase32_encode_decode_idata_address() {
+        let name = XorName(rand::random());
+        let address = Address::Pub(name);
+        let encoded = address.encode_to_zbase32();
+        let decoded = unwrap!(self::Address::decode_from_zbase32(&encoded));
+        assert_eq!(address, decoded);
     }
 }

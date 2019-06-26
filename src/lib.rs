@@ -64,10 +64,12 @@ mod mutable_data;
 mod public_key;
 mod request;
 mod response;
+mod utils;
 
 pub use append_only_data::{
-    Action as ADataAction, Address as ADataAddress, AppendOnlyData, Index as ADataIndex,
-    Indices as ADataIndices, Owner as ADataOwner, PubPermissionSet as ADataPubPermissionSet,
+    AData, Action as ADataAction, Address as ADataAddress, AppendOnlyData,
+    AppendOperation as ADataAppend, Entries, Index as ADataIndex, Indices as ADataIndices,
+    Owner as ADataOwner, PubPermissionSet as ADataPubPermissionSet,
     PubPermissions as ADataPubPermissions, PubSeqAppendOnlyData, PubUnseqAppendOnlyData,
     SeqAppendOnly, UnpubPermissionSet as ADataUnpubPermissionSet,
     UnpubPermissions as ADataUnpubPermissions, UnpubSeqAppendOnlyData, UnpubUnseqAppendOnlyData,
@@ -93,11 +95,13 @@ pub use mutable_data::{
     UnseqMutableData, Value as MDataValue,
 };
 pub use public_key::{PublicKey, Signature};
-pub use request::{AppendOnlyData as AData, AppendOperation as ADataAppend, Request};
+pub use request::Request;
 pub use response::{Response, Transaction};
 pub use sha3::Sha3_512 as Ed25519Digest;
+pub use utils::verify_signature;
 
 use hex_fmt::HexFmt;
+use multibase::Decodable;
 use rand::{
     distributions::{Distribution, Standard},
     Rng,
@@ -127,6 +131,16 @@ pub const XOR_NAME_LEN: usize = 32;
 /// [1]: https://en.wikipedia.org/wiki/Kademlia#System_details
 #[derive(Clone, Copy, Default, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub struct XorName(pub [u8; XOR_NAME_LEN]);
+
+impl XorName {
+    pub fn encode_to_zbase32(&self) -> String {
+        utils::encode(&self)
+    }
+
+    pub fn decode_from_zbase32<I: Decodable>(encoded: I) -> Result<Self> {
+        utils::decode(encoded)
+    }
+}
 
 impl Debug for XorName {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
@@ -201,13 +215,16 @@ pub enum Challenge {
     Response(PublicId, Signature),
 }
 
-/// Verify that a signature is valid for a given Request + MessageId combination
-pub fn verify_signature(
-    signature: &Signature,
-    public_key: &PublicKey,
-    request: &Request,
-    message_id: &MessageId,
-) -> Result<()> {
-    let message = bincode::serialize(&(request, *message_id)).unwrap_or_default();
-    public_key.verify(signature, message)
+#[cfg(test)]
+mod test {
+    use crate::XorName;
+    use unwrap::unwrap;
+
+    #[test]
+    fn zbase32_encode_decode_xorname() {
+        let name = XorName(rand::random());
+        let encoded = name.encode_to_zbase32();
+        let decoded = unwrap!(XorName::decode_from_zbase32(&encoded));
+        assert_eq!(name, decoded);
+    }
 }

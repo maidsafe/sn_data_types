@@ -7,9 +7,10 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::{Ed25519Digest, Error, Result, XorName, XOR_NAME_LEN};
+use crate::{utils, Ed25519Digest, Error, Result, XorName, XOR_NAME_LEN};
 use ed25519_dalek;
 use hex_fmt::HexFmt;
+use multibase::Decodable;
 use serde::{Deserialize, Serialize};
 use std::{
     cmp::Ordering,
@@ -42,20 +43,26 @@ impl PublicKey {
             Err(Error::InvalidSignature)
         }
     }
+
+    pub fn encode_to_zbase32(&self) -> String {
+        utils::encode(&self)
+    }
+
+    pub fn decode_from_zbase32<I: Decodable>(encoded: I) -> Result<Self> {
+        utils::decode(encoded)
+    }
 }
 
 #[allow(clippy::derive_hash_xor_eq)]
 impl Hash for PublicKey {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        bincode::serialize(&self).unwrap_or_default().hash(state)
+        utils::serialise(&self).hash(state)
     }
 }
 
 impl Ord for PublicKey {
     fn cmp(&self, other: &PublicKey) -> Ordering {
-        bincode::serialize(&self)
-            .unwrap_or_default()
-            .cmp(&bincode::serialize(other).unwrap_or_default())
+        utils::serialise(&self).cmp(&utils::serialise(other))
     }
 }
 
@@ -154,15 +161,13 @@ impl From<threshold_crypto::SignatureShare> for Signature {
 #[allow(clippy::derive_hash_xor_eq)]
 impl Hash for Signature {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        bincode::serialize(&self).unwrap_or_default().hash(state)
+        utils::serialise(&self).hash(state)
     }
 }
 
 impl Ord for Signature {
     fn cmp(&self, other: &Signature) -> Ordering {
-        bincode::serialize(&self)
-            .unwrap_or_default()
-            .cmp(&bincode::serialize(other).unwrap_or_default())
+        utils::serialise(&self).cmp(&utils::serialise(other))
     }
 }
 
@@ -179,5 +184,21 @@ impl Debug for Signature {
             Signature::Bls(_) => write!(formatter, "Bls Sig(..)"),
             Signature::BlsShare(_) => write!(formatter, "BlsShare Sig(..)"),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use threshold_crypto::SecretKey;
+
+    #[test]
+    fn zbase32_encode_decode_public_key() {
+        use unwrap::unwrap;
+        let key = PublicKey::Bls(SecretKey::random().public_key());
+        assert_eq!(
+            key,
+            unwrap!(PublicKey::decode_from_zbase32(&key.encode_to_zbase32()))
+        );
     }
 }

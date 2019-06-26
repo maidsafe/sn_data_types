@@ -8,7 +8,10 @@
 // Software.
 
 use super::client::Keypair;
-use crate::{ClientFullId, ClientPublicId, Ed25519Digest, Error, PublicKey, Signature, XorName};
+use crate::{
+    utils, ClientFullId, ClientPublicId, Ed25519Digest, Error, PublicKey, Signature, XorName,
+};
+use multibase::Decodable;
 use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Debug, Display, Formatter};
@@ -100,14 +103,14 @@ impl PublicId {
         &self.owner
     }
 
-    /// Returns the PublicId serialised and encoded in standard base64.
-    pub fn encode_to_base64(&self) -> String {
-        super::encode_to_base64(&self)
+    /// Returns the PublicId serialised and encoded in z-base-32.
+    pub fn encode_to_zbase32(&self) -> String {
+        utils::encode(&self)
     }
 
-    /// Create from standard base64 encoded string.
-    pub fn decode_from_base64<T: ?Sized + AsRef<[u8]>>(encoded: &T) -> Result<Self, Error> {
-        super::decode_from_base64(encoded)
+    /// Create from z-base-32 encoded string.
+    pub fn decode_from_zbase32<T: Decodable>(encoded: T) -> Result<Self, Error> {
+        utils::decode(encoded)
     }
 }
 
