@@ -296,7 +296,6 @@ pub enum Request {
     //
     /// Balance transfer
     TransferCoins {
-        source: XorName,
         destination: XorName,
         amount: Coins,
         transaction_id: u64, // TODO: Use the trait UUID
@@ -307,11 +306,9 @@ pub enum Request {
         transaction_id: u64, // TODO: Use the trait UUID
     },
     /// Get current wallet balance
-    GetBalance(XorName),
+    GetBalance,
     /// Create a new coin balance
     CreateCoinBalance {
-        source: XorName,
-        destination: XorName,
         new_balance_owner: PublicKey,
         amount: Coins,
         transaction_id: u64, // TODO: Use the trait UUID
@@ -394,7 +391,7 @@ impl fmt::Debug for Request {
                 AppendUnseq(_) => "Request::AppendUnseq",
                 TransferCoins { .. } => "Request::TransferCoins",
                 GetTransaction { .. } => "Request::GetTransaction",
-                GetBalance(_) => "Request::GetBalance",
+                GetBalance => "Request::GetBalance",
                 ListAuthKeysAndVersion => "Request::ListAuthKeysAndVersion",
                 InsAuthKey { .. } => "Request::InsAuthKey",
                 DelAuthKey { .. } => "Request::DelAuthKey",
