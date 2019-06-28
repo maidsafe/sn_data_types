@@ -11,12 +11,12 @@ use crate::{
     ADataAddress, ADataIndex, ADataIndices, ADataOwner, ADataPubPermissionSet, ADataPubPermissions,
     ADataUnpubPermissionSet, ADataUnpubPermissions, ADataUser, AppPermissions,
     AppendOnlyData as AppendOnlyTrait, Coins, Error, IDataAddress, IDataKind, MDataAddress,
-    MDataPermissionSet, MDataSeqEntryAction, MDataUnseqEntryAction, PubSeqAppendOnlyData,
+    MDataPermissionSet, MDataSeqEntryActions, MDataUnseqEntryActions, PubSeqAppendOnlyData,
     PubUnseqAppendOnlyData, PublicKey, SeqMutableData, UnpubSeqAppendOnlyData,
     UnpubUnseqAppendOnlyData, UnseqMutableData, XorName,
 };
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeMap, fmt};
+use std::fmt;
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
 pub enum AppendOnlyData {
@@ -206,11 +206,11 @@ pub enum Request {
     },
     MutateSeqMDataEntries {
         address: MDataAddress,
-        actions: BTreeMap<Vec<u8>, MDataSeqEntryAction>,
+        actions: MDataSeqEntryActions,
     },
     MutateUnseqMDataEntries {
         address: MDataAddress,
-        actions: BTreeMap<Vec<u8>, MDataUnseqEntryAction>,
+        actions: MDataUnseqEntryActions,
     },
     //
     // ===== Append Only Data =====
