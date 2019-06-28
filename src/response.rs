@@ -86,6 +86,7 @@ pub enum Response {
     // ===== Coins =====
     //
     TransferCoins(Result<()>),
+    CreateCoinBalance(Result<()>),
     GetTransaction(Result<Transaction>),
     GetBalance(Result<Coins>),
     //
@@ -97,6 +98,13 @@ pub enum Response {
     InsAuthKey(Result<()>),
     /// Returns a success or failure status of deleting an authorised key.
     DelAuthKey(Result<()>),
+    //
+    // ===== Account =====
+    //
+    /// Returns a success or failure status of putting a new account.
+    PutAccount(Result<()>),
+    /// Returns an encrypted account packet
+    GetAccount(Result<Vec<u8>>),
 }
 
 use std::fmt;
@@ -135,6 +143,7 @@ impl fmt::Debug for Response {
                 GetSeqMDataValue(..) => "Response::GetSeqMDataValue",
                 GetUnseqMDataValue(..) => "Response::GetUnseqMDataValue",
                 TransferCoins(..) => "Response::TransferCoins",
+                CreateCoinBalance(..) => "Response::CreateCoinBalance",
                 GetTransaction(..) => "Response::GetTransaction",
                 GetBalance(..) => "Response::GetBalance",
                 ListAuthKeysAndVersion(..) => "Response::ListAuthKeysAndVersion",
@@ -157,6 +166,8 @@ impl fmt::Debug for Response {
                 GetADataShell(..) => "Response::GetADataShell",
                 GetADataOwners(..) => "Response::GetADataOwners",
                 SetADataOwner(..) => "Response::SetADataOwner",
+                PutAccount(..) => "Response::PutAccount",
+                GetAccount(..) => "Response::GetAccount",
             }
         )
     }
