@@ -8,9 +8,9 @@
 // Software.
 
 use crate::{
-    AData, ADataIndices, ADataOwner, ADataPubPermissionSet, ADataPubPermissions,
-    ADataUnpubPermissionSet, ADataUnpubPermissions, AppPermissions, Coins, Entries, IDataKind,
-    MDataPermissionSet, MDataValue, PublicKey, Result, SeqMutableData, Signature, UnseqMutableData,
+    AData, ADataEntries, ADataIndices, ADataOwner, ADataPubPermissionSet, ADataPubPermissions,
+    ADataUnpubPermissionSet, ADataUnpubPermissions, AppPermissions, Coins, IData, MData,
+    MDataPermissionSet, MDataValue, PublicKey, Result, Signature,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -34,15 +34,12 @@ pub enum Response {
     //
     // ===== Immutable Data =====
     //
-    GetIData(Result<IDataKind>),
+    GetIData(Result<IData>),
     //
     // ===== Mutable Data =====
     //
-    /// Get unsequenced Mutable Data.
-    GetUnseqMData(Result<UnseqMutableData>),
-    GetSeqMData(Result<SeqMutableData>),
-    GetSeqMDataShell(Result<SeqMutableData>),
-    GetUnseqMDataShell(Result<UnseqMutableData>),
+    GetMData(Result<MData>),
+    GetMDataShell(Result<MData>),
     GetMDataVersion(Result<u64>),
     ListUnseqMDataEntries(Result<BTreeMap<Vec<u8>, Vec<u8>>>),
     ListSeqMDataEntries(Result<BTreeMap<Vec<u8>, MDataValue>>),
@@ -59,7 +56,7 @@ pub enum Response {
     GetAData(Result<AData>),
     GetADataShell(Result<AData>),
     GetADataOwners(Result<ADataOwner>),
-    GetADataRange(Result<Entries>),
+    GetADataRange(Result<ADataEntries>),
     GetADataIndices(Result<ADataIndices>),
     GetADataLastEntry(Result<(Vec<u8>, Vec<u8>)>),
     GetUnpubADataPermissionAtIndex(Result<ADataUnpubPermissions>),
@@ -98,10 +95,8 @@ impl fmt::Debug for Response {
                 // IData
                 GetIData(..) => "Response::GetIData",
                 // MData
-                GetUnseqMData(..) => "Response::GetUnseqMData",
-                GetSeqMData(..) => "Response::GetSeqMData",
-                GetSeqMDataShell(..) => "Response::GetMDataShell",
-                GetUnseqMDataShell(..) => "Response::GetMDataShell",
+                GetMData(..) => "Response::GetMData",
+                GetMDataShell(..) => "Response::GetMDataShell",
                 GetMDataVersion(..) => "Response::GetMDataVersion",
                 ListUnseqMDataEntries(..) => "Response::ListUnseqMDataEntries",
                 ListSeqMDataEntries(..) => "Response::ListSeqMDataEntries",

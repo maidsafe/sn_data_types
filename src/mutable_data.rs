@@ -12,6 +12,8 @@ use multibase::Decodable;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{btree_map::Entry, BTreeMap, BTreeSet},
+    fmt::{self, Debug, Formatter},
+    hash::Hash,
     mem,
 };
 
@@ -32,6 +34,12 @@ pub struct SeqMutableData {
     owners: PublicKey,
 }
 
+impl Debug for SeqMutableData {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        write!(formatter, "SeqMutableData {:?}", self.name())
+    }
+}
+
 /// A value in `Sequenced MutableData`
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub struct Value {
@@ -47,8 +55,8 @@ impl Value {
     }
 }
 
-impl std::fmt::Debug for Value {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl Debug for Value {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(
             f,
             "{} :: {}",
@@ -73,6 +81,12 @@ pub struct UnseqMutableData {
     /// Contains a set of owners of this data. DataManagers enforce that a mutation request is
     /// coming from the MaidManager Authority of the Owner.
     owners: PublicKey,
+}
+
+impl Debug for UnseqMutableData {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        write!(formatter, "UnseqMutableData {:?}", self.name())
+    }
 }
 
 /// Set of user permissions.
@@ -123,12 +137,16 @@ pub enum Action {
 }
 
 /// Defines common functions in both sequenced and unsequenced types
-pub trait MutableData {
+pub trait MutableData:
+    Hash + Eq + PartialEq + PartialOrd + Ord + Clone + Serialize + Debug
+{
     fn address(&self) -> &Address;
 
     fn name(&self) -> &XorName;
 
     fn tag(&self) -> u64;
+
+    fn kind(&self) -> Kind;
 
     fn version(&self) -> u64;
 
@@ -166,7 +184,7 @@ macro_rules! impl_mutable_data {
             /// Returns the Shell of the data
             pub fn shell(&self) -> Self {
                 Self {
-                    address: self.address,
+                    address: self.address.clone(),
                     data: BTreeMap::new(),
                     permissions: self.permissions.clone(),
                     version: self.version,
@@ -189,6 +207,11 @@ macro_rules! impl_mutable_data {
             /// Returns the tag type of the Mutable data
             fn tag(&self) -> u64 {
                 self.address.tag()
+            }
+
+            /// Returns the kind of the Mutable data.
+            fn kind(&self) -> Kind {
+                self.address.kind()
             }
 
             /// Returns the version of the Mutable data
@@ -347,7 +370,7 @@ impl UnseqMutableData {
     /// Create a new Unsequenced Mutable Data
     pub fn new(name: XorName, tag: u64, owners: PublicKey) -> Self {
         Self {
-            address: Address::new_unseq(name, tag),
+            address: Address::Unseq { name, tag },
             data: Default::default(),
             permissions: Default::default(),
             version: 0,
@@ -364,7 +387,7 @@ impl UnseqMutableData {
         owners: PublicKey,
     ) -> Self {
         Self {
-            address: Address::new_unseq(name, tag),
+            address: Address::Unseq { name, tag },
             data,
             permissions,
             version: 0,
@@ -478,7 +501,7 @@ impl SeqMutableData {
     /// Create a new Sequenced Mutable Data
     pub fn new(name: XorName, tag: u64, owners: PublicKey) -> Self {
         Self {
-            address: Address::new_seq(name, tag),
+            address: Address::Seq { name, tag },
             data: Default::default(),
             permissions: Default::default(),
             version: 0,
@@ -495,7 +518,7 @@ impl SeqMutableData {
         owners: PublicKey,
     ) -> Self {
         Self {
-            address: Address::new_seq(name, tag),
+            address: Address::Seq { name, tag },
             data,
             permissions,
             version: 0,
@@ -618,31 +641,22 @@ impl SeqMutableData {
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
+pub enum Kind {
+    Unseq,
+    Seq,
+}
+
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Address {
     Unseq { name: XorName, tag: u64 },
     Seq { name: XorName, tag: u64 },
 }
 
 impl Address {
-    pub fn new_unseq(name: XorName, tag: u64) -> Self {
-        Address::Unseq { name, tag }
-    }
-
-    pub fn new_seq(name: XorName, tag: u64) -> Self {
-        Address::Seq { name, tag }
-    }
-
-    pub fn is_seq(&self) -> bool {
+    pub fn kind(&self) -> Kind {
         match self {
-            Address::Seq { .. } => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_unseq(&self) -> bool {
-        match self {
-            Address::Unseq { .. } => true,
-            _ => false,
+            Address::Seq { .. } => Kind::Seq,
+            Address::Unseq { .. } => Kind::Unseq,
         }
     }
 
@@ -666,6 +680,53 @@ impl Address {
     /// Create from z-base-32 encoded string.
     pub fn decode_from_zbase32<T: Decodable>(encoded: T) -> Result<Self> {
         utils::decode(encoded)
+    }
+}
+
+/// Object storing a mutable data variant.
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
+pub enum Data {
+    Seq(SeqMutableData),
+    Unseq(UnseqMutableData),
+}
+
+impl Data {
+    pub fn address(&self) -> &Address {
+        match self {
+            Data::Seq(data) => data.address(),
+            Data::Unseq(data) => data.address(),
+        }
+    }
+
+    pub fn name(&self) -> &XorName {
+        self.address().name()
+    }
+
+    pub fn tag(&self) -> u64 {
+        self.address().tag()
+    }
+
+    pub fn kind(&self) -> Kind {
+        self.address().kind()
+    }
+
+    pub fn shell(&self) -> Self {
+        match self {
+            Data::Seq(data) => Data::Seq(data.shell()),
+            Data::Unseq(data) => Data::Unseq(data.shell()),
+        }
+    }
+}
+
+impl From<SeqMutableData> for Data {
+    fn from(data: SeqMutableData) -> Self {
+        Data::Seq(data)
+    }
+}
+
+impl From<UnseqMutableData> for Data {
+    fn from(data: UnseqMutableData) -> Self {
+        Data::Unseq(data)
     }
 }
 
@@ -778,10 +839,11 @@ impl Into<BTreeMap<Vec<u8>, UnseqEntryAction>> for UnseqEntryActions {
 mod test {
     use super::{Address, XorName};
     use unwrap::unwrap;
+
     #[test]
     fn zbase32_encode_decode_mdata_address() {
         let name = XorName(rand::random());
-        let address = Address::new_seq(name, 15000);
+        let address = Address::Seq { name, tag: 15000 };
         let encoded = address.encode_to_zbase32();
         let decoded = unwrap!(self::Address::decode_from_zbase32(&encoded));
         assert_eq!(address, decoded);
