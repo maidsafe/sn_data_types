@@ -393,10 +393,10 @@ impl UnseqMutableData {
 
     pub fn mutate_entries(
         &mut self,
-        actions: BTreeMap<Vec<u8>, UnseqEntryAction>,
+        actions: UnseqEntryActions,
         requester: PublicKey,
     ) -> Result<()> {
-        let (insert, update, delete) = actions.into_iter().fold(
+        let (insert, update, delete) = actions.actions.into_iter().fold(
             (
                 BTreeMap::<Vec<u8>, Vec<u8>>::new(),
                 BTreeMap::<Vec<u8>, Vec<u8>>::new(),
@@ -523,13 +523,9 @@ impl SeqMutableData {
     }
 
     /// Mutates entries (key + value pairs) in bulk
-    pub fn mutate_entries(
-        &mut self,
-        actions: BTreeMap<Vec<u8>, SeqEntryAction>,
-        requester: PublicKey,
-    ) -> Result<()> {
+    pub fn mutate_entries(&mut self, actions: SeqEntryActions, requester: PublicKey) -> Result<()> {
         // Deconstruct actions into inserts, updates, and deletes
-        let (insert, update, delete) = actions.into_iter().fold(
+        let (insert, update, delete) = actions.actions.into_iter().fold(
             (BTreeMap::new(), BTreeMap::new(), BTreeMap::new()),
             |(mut insert, mut update, mut delete), (key, item)| {
                 match item {
@@ -683,12 +679,17 @@ pub enum UnseqEntryAction {
 }
 
 /// Helper struct to build entry actions on `MutableData`
-#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
+#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug, Default)]
 pub struct SeqEntryActions {
     actions: BTreeMap<Vec<u8>, SeqEntryAction>,
 }
 
 impl SeqEntryActions {
+    /// Create a new Sequenced Entry Actions list
+    pub fn new() -> Self {
+        Default::default()
+    }
+
     /// Insert a new key-value pair
     pub fn ins(mut self, key: Vec<u8>, content: Vec<u8>, version: u64) -> Self {
         let _ = self.actions.insert(
@@ -726,12 +727,17 @@ impl Into<BTreeMap<Vec<u8>, SeqEntryAction>> for SeqEntryActions {
     }
 }
 
-#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
+#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug, Default)]
 pub struct UnseqEntryActions {
     actions: BTreeMap<Vec<u8>, UnseqEntryAction>,
 }
 
 impl UnseqEntryActions {
+    /// Create a new Unsequenced Entry Actions list
+    pub fn new() -> Self {
+        Default::default()
+    }
+
     /// Insert a new key-value pair
     pub fn ins(mut self, key: Vec<u8>, content: Vec<u8>) -> Self {
         let _ = self.actions.insert(key, UnseqEntryAction::Ins(content));
