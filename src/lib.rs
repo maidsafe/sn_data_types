@@ -67,9 +67,9 @@ mod response;
 mod utils;
 
 pub use append_only_data::{
-    AData, Action as ADataAction, Address as ADataAddress, AppendOnlyData,
-    AppendOperation as ADataAppend, Entries, Index as ADataIndex, Indices as ADataIndices,
-    Owner as ADataOwner, PubPermissionSet as ADataPubPermissionSet,
+    Action as ADataAction, Address as ADataAddress, AppendOnlyData, AppendOperation as ADataAppend,
+    Data as AData, Entries as ADataEntries, Index as ADataIndex, Indices as ADataIndices,
+    Kind as ADataKind, Owner as ADataOwner, PubPermissionSet as ADataPubPermissionSet,
     PubPermissions as ADataPubPermissions, PubSeqAppendOnlyData, PubUnseqAppendOnlyData,
     SeqAppendOnly, UnpubPermissionSet as ADataUnpubPermissionSet,
     UnpubPermissions as ADataUnpubPermissions, UnpubSeqAppendOnlyData, UnpubUnseqAppendOnlyData,
@@ -84,11 +84,11 @@ pub use identity::{
     PublicId,
 };
 pub use immutable_data::{
-    Address as IDataAddress, ImmutableData, Kind as IDataKind, UnpubImmutableData,
-    MAX_IMMUTABLE_DATA_SIZE_IN_BYTES,
+    Address as IDataAddress, Data as IData, Kind as IDataKind, PubImmutableData,
+    UnpubImmutableData, MAX_IMMUTABLE_DATA_SIZE_IN_BYTES,
 };
 pub use mutable_data::{
-    Action as MDataAction, Address as MDataAddress, MutableData,
+    Action as MDataAction, Address as MDataAddress, Data as MData, Kind as MDataKind, MutableData,
     PermissionSet as MDataPermissionSet, SeqEntryAction as MDataSeqEntryAction,
     SeqEntryActions as MDataSeqEntryActions, SeqMutableData,
     UnseqEntryAction as MDataUnseqEntryAction, UnseqEntryActions as MDataUnseqEntryActions,
@@ -108,6 +108,13 @@ use rand::{
 };
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Debug, Display, Formatter};
+
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
+pub enum Data {
+    Immutable(IData),
+    Mutable(MData),
+    AppendOnly(AData),
+}
 
 /// Permissions for an app stored by the Elders.
 #[derive(

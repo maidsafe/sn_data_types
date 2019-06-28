@@ -10,7 +10,11 @@
 use crate::{utils, Error, PublicKey, Request, Result, XorName};
 use multibase::Decodable;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::{
+    collections::BTreeMap,
+    fmt::{self, Debug, Formatter},
+    hash::Hash,
+};
 
 pub type PubSeqAppendOnlyData = SeqAppendOnlyData<PubPermissions>;
 pub type PubUnseqAppendOnlyData = UnseqAppendOnlyData<PubPermissions>;
@@ -123,60 +127,6 @@ impl PubPermissionSet {
             Action::Append => self.append,
             Action::ManagePermissions => self.manage_permissions,
         }
-    }
-}
-
-#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
-pub enum Address {
-    PubSeq { name: XorName, tag: u64 },
-    PubUnseq { name: XorName, tag: u64 },
-    UnpubSeq { name: XorName, tag: u64 },
-    UnpubUnseq { name: XorName, tag: u64 },
-}
-
-impl Address {
-    pub fn new_pub_seq(name: XorName, tag: u64) -> Self {
-        Address::PubSeq { name, tag }
-    }
-
-    pub fn new_pub_unseq(name: XorName, tag: u64) -> Self {
-        Address::PubUnseq { name, tag }
-    }
-
-    pub fn new_unpub_seq(name: XorName, tag: u64) -> Self {
-        Address::UnpubSeq { name, tag }
-    }
-
-    pub fn new_unpub_unseq(name: XorName, tag: u64) -> Self {
-        Address::UnpubUnseq { name, tag }
-    }
-
-    pub fn name(&self) -> &XorName {
-        match self {
-            Address::PubSeq { ref name, .. }
-            | Address::PubUnseq { ref name, .. }
-            | Address::UnpubSeq { ref name, .. }
-            | Address::UnpubUnseq { ref name, .. } => name,
-        }
-    }
-
-    pub fn tag(&self) -> u64 {
-        match self {
-            Address::PubSeq { tag, .. }
-            | Address::PubUnseq { tag, .. }
-            | Address::UnpubSeq { tag, .. }
-            | Address::UnpubUnseq { tag, .. } => *tag,
-        }
-    }
-
-    /// Returns the Address serialised and encoded in z-base-32.
-    pub fn encode_to_zbase32(&self) -> String {
-        utils::encode(&self)
-    }
-
-    /// Create from z-base-32 encoded string.
-    pub fn decode_from_zbase32<I: Decodable>(encoded: I) -> Result<Self> {
-        utils::decode(encoded)
     }
 }
 
@@ -410,14 +360,14 @@ macro_rules! impl_appendable_data {
         #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
         pub struct $flavour<P>
         where
-            P: Permissions + std::hash::Hash + Clone,
+            P: Permissions + Hash + Clone,
         {
             inner: AppendOnly<P>,
         }
 
         impl<P> $flavour<P>
         where
-            P: Permissions + std::hash::Hash + Clone,
+            P: Permissions + Hash + Clone,
         {
             pub fn shell(&self, index: u64) -> Result<Self> {
                 if index > self.entry_index() {
@@ -453,7 +403,7 @@ macro_rules! impl_appendable_data {
 
         impl<P> AppendOnlyData<P> for $flavour<P>
         where
-            P: Permissions + std::hash::Hash + Clone,
+            P: Permissions + Hash + Clone,
         {
             fn address(&self) -> &Address {
                 &self.inner.address
@@ -610,12 +560,18 @@ impl SeqAppendOnlyData<PubPermissions> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             inner: AppendOnly {
-                address: Address::new_pub_seq(name, tag),
+                address: Address::PubSeq { name, tag },
                 data: Vec::new(),
                 permissions: Vec::new(),
                 owners: Vec::new(),
             },
         }
+    }
+}
+
+impl Debug for SeqAppendOnlyData<PubPermissions> {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        write!(formatter, "PubSeqAppendOnlyData {:?}", self.name())
     }
 }
 
@@ -623,12 +579,18 @@ impl UnseqAppendOnlyData<PubPermissions> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             inner: AppendOnly {
-                address: Address::new_pub_unseq(name, tag),
+                address: Address::PubUnseq { name, tag },
                 data: Vec::new(),
                 permissions: Vec::new(),
                 owners: Vec::new(),
             },
         }
+    }
+}
+
+impl Debug for UnseqAppendOnlyData<PubPermissions> {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        write!(formatter, "PubUnseqAppendOnlyData {:?}", self.name())
     }
 }
 
@@ -636,12 +598,18 @@ impl SeqAppendOnlyData<UnpubPermissions> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             inner: AppendOnly {
-                address: Address::new_unpub_seq(name, tag),
+                address: Address::UnpubSeq { name, tag },
                 data: Vec::new(),
                 permissions: Vec::new(),
                 owners: Vec::new(),
             },
         }
+    }
+}
+
+impl Debug for SeqAppendOnlyData<UnpubPermissions> {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        write!(formatter, "PubSeqAppendOnlyData {:?}", self.name())
     }
 }
 
@@ -649,7 +617,7 @@ impl UnseqAppendOnlyData<UnpubPermissions> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             inner: AppendOnly {
-                address: Address::new_unpub_unseq(name, tag),
+                address: Address::UnpubUnseq { name, tag },
                 data: Vec::new(),
                 permissions: Vec::new(),
                 owners: Vec::new(),
@@ -658,9 +626,15 @@ impl UnseqAppendOnlyData<UnpubPermissions> {
     }
 }
 
+impl Debug for UnseqAppendOnlyData<UnpubPermissions> {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        write!(formatter, "UnpubUnseqAppendOnlyData {:?}", self.name())
+    }
+}
+
 impl<P> SeqAppendOnly for SeqAppendOnlyData<P>
 where
-    P: Permissions + std::hash::Hash + Clone,
+    P: Permissions + Hash + Clone,
 {
     fn append(&mut self, entries: &[(Vec<u8>, Vec<u8>)], last_entries_index: u64) -> Result<()> {
         if last_entries_index != self.inner.data.len() as u64 {
@@ -673,7 +647,7 @@ where
 
 impl<P> UnseqAppendOnly for UnseqAppendOnlyData<P>
 where
-    P: Permissions + std::hash::Hash + Clone,
+    P: Permissions + Hash + Clone,
 {
     fn append(&mut self, entries: &[(Vec<u8>, Vec<u8>)]) -> Result<()> {
         self.inner.data.extend(entries.iter().cloned());
@@ -709,30 +683,86 @@ macro_rules! indices {
     };
 }
 
-#[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
-pub enum AData {
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
+pub enum Kind {
+    PubSeq,
+    PubUnseq,
+    UnpubSeq,
+    UnpubUnseq,
+}
+
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
+pub enum Address {
+    PubSeq { name: XorName, tag: u64 },
+    PubUnseq { name: XorName, tag: u64 },
+    UnpubSeq { name: XorName, tag: u64 },
+    UnpubUnseq { name: XorName, tag: u64 },
+}
+
+impl Address {
+    pub fn kind(&self) -> Kind {
+        match self {
+            Address::PubSeq { .. } => Kind::PubSeq,
+            Address::PubUnseq { .. } => Kind::PubUnseq,
+            Address::UnpubSeq { .. } => Kind::UnpubSeq,
+            Address::UnpubUnseq { .. } => Kind::UnpubUnseq,
+        }
+    }
+
+    pub fn name(&self) -> &XorName {
+        match self {
+            Address::PubSeq { ref name, .. }
+            | Address::PubUnseq { ref name, .. }
+            | Address::UnpubSeq { ref name, .. }
+            | Address::UnpubUnseq { ref name, .. } => name,
+        }
+    }
+
+    pub fn tag(&self) -> u64 {
+        match self {
+            Address::PubSeq { tag, .. }
+            | Address::PubUnseq { tag, .. }
+            | Address::UnpubSeq { tag, .. }
+            | Address::UnpubUnseq { tag, .. } => *tag,
+        }
+    }
+
+    /// Returns the Address serialised and encoded in z-base-32.
+    pub fn encode_to_zbase32(&self) -> String {
+        utils::encode(&self)
+    }
+
+    /// Create from z-base-32 encoded string.
+    pub fn decode_from_zbase32<I: Decodable>(encoded: I) -> Result<Self> {
+        utils::decode(encoded)
+    }
+}
+
+/// Object storing an appendonly data variant.
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
+pub enum Data {
     PubSeq(PubSeqAppendOnlyData),
-    UnpubSeq(UnpubSeqAppendOnlyData),
     PubUnseq(PubUnseqAppendOnlyData),
+    UnpubSeq(UnpubSeqAppendOnlyData),
     UnpubUnseq(UnpubUnseqAppendOnlyData),
 }
 
-impl AData {
+impl Data {
     pub fn check_permission(&self, request: &Request, requester: PublicKey) -> Result<()> {
         match self {
-            AData::PubSeq(data) => check_perm!(data, requester, request),
-            AData::PubUnseq(data) => check_perm!(data, requester, request),
-            AData::UnpubSeq(data) => check_perm!(data, requester, request),
-            AData::UnpubUnseq(data) => check_perm!(data, requester, request),
+            Data::PubSeq(data) => check_perm!(data, requester, request),
+            Data::PubUnseq(data) => check_perm!(data, requester, request),
+            Data::UnpubSeq(data) => check_perm!(data, requester, request),
+            Data::UnpubUnseq(data) => check_perm!(data, requester, request),
         }
     }
 
     pub fn address(&self) -> &Address {
         match self {
-            AData::PubSeq(data) => data.address(),
-            AData::PubUnseq(data) => data.address(),
-            AData::UnpubSeq(data) => data.address(),
-            AData::UnpubUnseq(data) => data.address(),
+            Data::PubSeq(data) => data.address(),
+            Data::PubUnseq(data) => data.address(),
+            Data::UnpubSeq(data) => data.address(),
+            Data::UnpubUnseq(data) => data.address(),
         }
     }
 
@@ -744,64 +774,68 @@ impl AData {
         self.address().tag()
     }
 
+    pub fn kind(&self) -> Kind {
+        self.address().kind()
+    }
+
     pub fn permissions_index(&self) -> u64 {
         match self {
-            AData::PubSeq(data) => data.permissions_index(),
-            AData::PubUnseq(data) => data.permissions_index(),
-            AData::UnpubSeq(data) => data.permissions_index(),
-            AData::UnpubUnseq(data) => data.permissions_index(),
+            Data::PubSeq(data) => data.permissions_index(),
+            Data::PubUnseq(data) => data.permissions_index(),
+            Data::UnpubSeq(data) => data.permissions_index(),
+            Data::UnpubUnseq(data) => data.permissions_index(),
         }
     }
 
     pub fn owners_index(&self) -> u64 {
         match self {
-            AData::PubSeq(data) => data.owners_index(),
-            AData::PubUnseq(data) => data.owners_index(),
-            AData::UnpubSeq(data) => data.owners_index(),
-            AData::UnpubUnseq(data) => data.owners_index(),
+            Data::PubSeq(data) => data.owners_index(),
+            Data::PubUnseq(data) => data.owners_index(),
+            Data::UnpubSeq(data) => data.owners_index(),
+            Data::UnpubUnseq(data) => data.owners_index(),
         }
     }
 
     pub fn in_range(&self, start: Index, end: Index) -> Option<Entries> {
         match self {
-            AData::PubSeq(data) => data.in_range(start, end),
-            AData::PubUnseq(data) => data.in_range(start, end),
-            AData::UnpubSeq(data) => data.in_range(start, end),
-            AData::UnpubUnseq(data) => data.in_range(start, end),
+            Data::PubSeq(data) => data.in_range(start, end),
+            Data::PubUnseq(data) => data.in_range(start, end),
+            Data::UnpubSeq(data) => data.in_range(start, end),
+            Data::UnpubUnseq(data) => data.in_range(start, end),
         }
     }
 
     pub fn indices(&self) -> Result<Indices> {
         match self {
-            AData::PubSeq(data) => indices!(data),
-            AData::PubUnseq(data) => indices!(data),
-            AData::UnpubSeq(data) => indices!(data),
-            AData::UnpubUnseq(data) => indices!(data),
+            Data::PubSeq(data) => indices!(data),
+            Data::PubUnseq(data) => indices!(data),
+            Data::UnpubSeq(data) => indices!(data),
+            Data::UnpubUnseq(data) => indices!(data),
         }
     }
 
     pub fn last_entry(&self) -> Option<(Vec<u8>, Vec<u8>)> {
         match self {
-            AData::PubSeq(data) => data.last_entry(),
-            AData::PubUnseq(data) => data.last_entry(),
-            AData::UnpubSeq(data) => data.last_entry(),
-            AData::UnpubUnseq(data) => data.last_entry(),
+            Data::PubSeq(data) => data.last_entry(),
+            Data::PubUnseq(data) => data.last_entry(),
+            Data::UnpubSeq(data) => data.last_entry(),
+            Data::UnpubUnseq(data) => data.last_entry(),
         }
     }
 
-    pub fn owners(&self, idx: u64) -> Option<&Owner> {
+    pub fn get_owners(&self, idx: u64) -> Option<&Owner> {
         match self {
-            AData::PubSeq(data) => data.fetch_owner_at_index(idx),
-            AData::PubUnseq(data) => data.fetch_owner_at_index(idx),
-            AData::UnpubSeq(data) => data.fetch_owner_at_index(idx),
-            AData::UnpubUnseq(data) => data.fetch_owner_at_index(idx),
+            Data::PubSeq(data) => data.fetch_owner_at_index(idx),
+            Data::PubUnseq(data) => data.fetch_owner_at_index(idx),
+            Data::UnpubSeq(data) => data.fetch_owner_at_index(idx),
+            Data::UnpubUnseq(data) => data.fetch_owner_at_index(idx),
         }
     }
 
     pub fn pub_user_permissions(&self, user: User, idx: u64) -> Result<PubPermissionSet> {
         match self {
-            AData::PubSeq(data) => data.fetch_permissions_at_index(idx),
-            AData::PubUnseq(data) => data.fetch_permissions_at_index(idx),
+            Data::PubSeq(data) => data.fetch_permissions_at_index(idx),
+            Data::PubUnseq(data) => data.fetch_permissions_at_index(idx),
             _ => None,
         }
         .and_then(|permissions| permissions.permissions().get(&user))
@@ -811,8 +845,8 @@ impl AData {
 
     pub fn unpub_user_permissions(&self, user: PublicKey, idx: u64) -> Result<UnpubPermissionSet> {
         match self {
-            AData::UnpubSeq(data) => data.fetch_permissions_at_index(idx),
-            AData::UnpubUnseq(data) => data.fetch_permissions_at_index(idx),
+            Data::UnpubSeq(data) => data.fetch_permissions_at_index(idx),
+            Data::UnpubUnseq(data) => data.fetch_permissions_at_index(idx),
             _ => None,
         }
         .and_then(|permissions| permissions.permissions().get(&user).cloned())
@@ -820,13 +854,36 @@ impl AData {
     }
 
     pub fn shell(&self, idx: u64) -> Result<Self> {
-        use AData::*;
         match self {
-            PubSeq(adata) => adata.shell(idx).map(PubSeq),
-            PubUnseq(adata) => adata.shell(idx).map(PubUnseq),
-            UnpubSeq(adata) => adata.shell(idx).map(UnpubSeq),
-            UnpubUnseq(adata) => adata.shell(idx).map(UnpubUnseq),
+            Data::PubSeq(adata) => adata.shell(idx).map(Data::PubSeq),
+            Data::PubUnseq(adata) => adata.shell(idx).map(Data::PubUnseq),
+            Data::UnpubSeq(adata) => adata.shell(idx).map(Data::UnpubSeq),
+            Data::UnpubUnseq(adata) => adata.shell(idx).map(Data::UnpubUnseq),
         }
+    }
+}
+
+impl From<PubSeqAppendOnlyData> for Data {
+    fn from(data: PubSeqAppendOnlyData) -> Self {
+        Data::PubSeq(data)
+    }
+}
+
+impl From<PubUnseqAppendOnlyData> for Data {
+    fn from(data: PubUnseqAppendOnlyData) -> Self {
+        Data::PubUnseq(data)
+    }
+}
+
+impl From<UnpubSeqAppendOnlyData> for Data {
+    fn from(data: UnpubSeqAppendOnlyData) -> Self {
+        Data::UnpubSeq(data)
+    }
+}
+
+impl From<UnpubUnseqAppendOnlyData> for Data {
+    fn from(data: UnpubUnseqAppendOnlyData) -> Self {
+        Data::UnpubUnseq(data)
     }
 }
 
@@ -964,7 +1021,7 @@ mod tests {
     #[test]
     fn zbase32_encode_decode_adata_address() {
         let name = XorName(rand::random());
-        let address = Address::new_unpub_seq(name, 15000);
+        let address = Address::UnpubSeq { name, tag: 15000 };
         let encoded = address.encode_to_zbase32();
         let decoded = unwrap!(self::Address::decode_from_zbase32(&encoded));
         assert_eq!(address, decoded);

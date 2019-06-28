@@ -106,12 +106,12 @@ impl Debug for UnpubImmutableData {
 /// Note that the `name` member is omitted when serialising `ImmutableData` and is calculated from
 /// the `value` when deserialising.
 #[derive(Hash, Clone, Eq, PartialEq, Ord, PartialOrd)]
-pub struct ImmutableData {
+pub struct PubImmutableData {
     address: Address,
     value: Vec<u8>,
 }
 
-impl ImmutableData {
+impl PubImmutableData {
     /// Creates a new instance of `ImmutableData`
     pub fn new(value: Vec<u8>) -> Self {
         Self {
@@ -151,23 +151,29 @@ impl ImmutableData {
     }
 }
 
-impl Serialize for ImmutableData {
+impl Serialize for PubImmutableData {
     fn serialize<S: Serializer>(&self, serialiser: S) -> Result<S::Ok, S::Error> {
         self.value.serialize(serialiser)
     }
 }
 
-impl<'de> Deserialize<'de> for ImmutableData {
+impl<'de> Deserialize<'de> for PubImmutableData {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let value: Vec<u8> = Deserialize::deserialize(deserializer)?;
-        Ok(ImmutableData::new(value))
+        Ok(PubImmutableData::new(value))
     }
 }
 
-impl Debug for ImmutableData {
+impl Debug for PubImmutableData {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "ImmutableData {:?}", self.name())
+        write!(formatter, "PubImmutableData {:?}", self.name())
     }
+}
+
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
+pub enum Kind {
+    Unpub,
+    Pub,
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
@@ -177,16 +183,16 @@ pub enum Address {
 }
 
 impl Address {
-    pub fn name(&self) -> &XorName {
+    pub fn kind(&self) -> Kind {
         match self {
-            Address::Unpub(ref name) | Address::Pub(ref name) => name,
+            Address::Unpub(_) => Kind::Unpub,
+            Address::Pub(_) => Kind::Pub,
         }
     }
 
-    pub fn published(&self) -> bool {
+    pub fn name(&self) -> &XorName {
         match self {
-            Address::Unpub(_) => false,
-            Address::Pub(_) => true,
+            Address::Unpub(ref name) | Address::Pub(ref name) => name,
         }
     }
 
@@ -202,43 +208,44 @@ impl Address {
 }
 
 /// Object storing an immutable data variant.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Deserialize, Serialize, Debug)]
-pub enum Kind {
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
+pub enum Data {
     Unpub(UnpubImmutableData),
-    Pub(ImmutableData),
+    Pub(PubImmutableData),
 }
 
-impl Kind {
+impl Data {
+    pub fn address(&self) -> &Address {
+        match self {
+            Data::Unpub(data) => data.address(),
+            Data::Pub(data) => data.address(),
+        }
+    }
+
     pub fn name(&self) -> &XorName {
-        match self {
-            Kind::Unpub(ref data) => data.name(),
-            Kind::Pub(ref data) => data.name(),
-        }
+        self.address().name()
     }
 
-    pub fn published(&self) -> bool {
-        match self {
-            Kind::Unpub(_) => false,
-            Kind::Pub(_) => true,
-        }
+    pub fn kind(&self) -> Kind {
+        self.address().kind()
     }
 }
 
-impl From<UnpubImmutableData> for Kind {
+impl From<UnpubImmutableData> for Data {
     fn from(data: UnpubImmutableData) -> Self {
-        Kind::Unpub(data)
+        Data::Unpub(data)
     }
 }
 
-impl From<ImmutableData> for Kind {
-    fn from(data: ImmutableData) -> Self {
-        Kind::Pub(data)
+impl From<PubImmutableData> for Data {
+    fn from(data: PubImmutableData) -> Self {
+        Data::Pub(data)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{utils, Address, ImmutableData, PublicKey, UnpubImmutableData, XorName};
+    use super::{utils, Address, PubImmutableData, PublicKey, UnpubImmutableData, XorName};
     use bincode::deserialize as deserialise;
     use hex::encode;
     use rand::{self, Rng, SeedableRng};
@@ -270,7 +277,7 @@ mod tests {
     #[test]
     fn deterministic_test() {
         let value = "immutable data value".to_owned().into_bytes();
-        let immutable_data = ImmutableData::new(value);
+        let immutable_data = PubImmutableData::new(value);
         let immutable_data_name = encode(immutable_data.name().0.as_ref());
         let expected_name = "fac2869677ee06277633c37ac7e8e5c655f3d652f707c7a79fab930d584a3016";
 
@@ -282,7 +289,7 @@ mod tests {
         let mut rng = get_rng();
         let len = rng.gen_range(1, 10_000);
         let value = iter::repeat_with(|| rng.gen()).take(len).collect();
-        let immutable_data = ImmutableData::new(value);
+        let immutable_data = PubImmutableData::new(value);
         let serialised = utils::serialise(&immutable_data);
         let parsed = unwrap!(deserialise(&serialised));
         assert_eq!(immutable_data, parsed);

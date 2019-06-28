@@ -12,9 +12,9 @@ mod account_data;
 pub use self::account_data::{AccountData, MAX_ACCOUNT_DATA_BYTES};
 use crate::{
     AData, ADataAddress, ADataAppend, ADataIndex, ADataOwner, ADataPubPermissions,
-    ADataUnpubPermissions, ADataUser, AppPermissions, Coins, IDataAddress, IDataKind, MDataAddress,
-    MDataPermissionSet, MDataSeqEntryActions, MDataUnseqEntryActions, PublicKey, SeqMutableData,
-    UnseqMutableData, XorName,
+    ADataUnpubPermissions, ADataUser, AppPermissions, Coins, IData, IDataAddress, MData,
+    MDataAddress, MDataPermissionSet, MDataSeqEntryActions, MDataUnseqEntryActions, PublicKey,
+    XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -28,14 +28,13 @@ pub enum Request {
     //
     // ===== Immutable Data =====
     //
-    PutIData(IDataKind),
+    PutIData(IData),
     GetIData(IDataAddress),
     DeleteUnpubIData(IDataAddress),
     //
     // ===== Mutable Data =====
     //
-    PutUnseqMData(UnseqMutableData),
-    PutSeqMData(SeqMutableData),
+    PutMData(MData),
     GetMData(MDataAddress),
     GetMDataValue {
         address: MDataAddress,
@@ -219,8 +218,7 @@ impl fmt::Debug for Request {
                 GetIData(_) => "Request::GetIData",
                 DeleteUnpubIData(_) => "Request::DeleteUnpubIData",
                 // MData
-                PutUnseqMData(_) => "Request::PutUnseqMData",
-                PutSeqMData(_) => "Request::PutSeqMData",
+                PutMData(_) => "Request::PutMData",
                 GetMData(_) => "Request::GetMData",
                 GetMDataValue { .. } => "Request::GetMDataValue",
                 DeleteMData(_) => "Request::DeleteMData",
