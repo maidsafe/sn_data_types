@@ -76,6 +76,8 @@ pub enum Error {
     TransactionIdExists,
     /// Insufficient coins.
     InsufficientBalance,
+    /// Expected data size exceeded.
+    ExceededSize,
 }
 
 impl<T: Into<String>> From<T> for Error {
@@ -131,6 +133,7 @@ impl Display for Error {
             Error::InsufficientBalance => write!(f, "Not enough coins to complete this operation"),
             Error::DuplicateMessageId => write!(f, "MessageId already exists"),
             Error::UnexpectedDataReturned => write!(f, "Unexpected data variant"),
+            Error::ExceededSize => write!(f, "Size of the structure exceeds the limit"),
         }
     }
 }
@@ -165,6 +168,7 @@ impl error::Error for Error {
             Error::InsufficientBalance => "Not enough coins to complete this operation",
             Error::DuplicateMessageId => "MessageId already exists",
             Error::UnexpectedDataReturned => "Unexpected data variant",
+            Error::ExceededSize => "Exceeded the size limit",
         }
     }
 }
