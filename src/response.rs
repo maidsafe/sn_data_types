@@ -10,7 +10,7 @@
 use crate::{
     AData, ADataIndices, ADataOwner, ADataPubPermissionSet, ADataPubPermissions,
     ADataUnpubPermissionSet, ADataUnpubPermissions, AppPermissions, Coins, Entries, IDataKind,
-    MDataPermissionSet, MDataValue, PublicKey, Result, SeqMutableData, UnseqMutableData,
+    MDataPermissionSet, MDataValue, PublicKey, Result, SeqMutableData, Signature, UnseqMutableData,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -80,7 +80,7 @@ pub enum Response {
     // ===== Account =====
     //
     /// Returns an encrypted account packet
-    GetAccount(Result<Vec<u8>>),
+    GetAccount(Result<(Vec<u8>, Signature)>),
     //
     /// Returns a success or failure status for a mutation operation.
     Mutation(Result<()>),

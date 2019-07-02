@@ -7,6 +7,9 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
+mod account_data;
+
+pub use self::account_data::{AccountData, MAX_ACCOUNT_DATA_BYTES};
 use crate::{
     AData, ADataAddress, ADataAppend, ADataIndex, ADataOwner, ADataPubPermissions,
     ADataUnpubPermissions, ADataUser, AppPermissions, Coins, IDataAddress, IDataKind, MDataAddress,
@@ -15,6 +18,8 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
+
+pub type TransactionId = u64; // TODO: Use the trait UUID
 
 /// RPC Request that is sent to vaults
 #[allow(clippy::large_enum_variant, missing_docs)]
@@ -152,12 +157,12 @@ pub enum Request {
     TransferCoins {
         destination: XorName,
         amount: Coins,
-        transaction_id: u64, // TODO: Use the trait UUID
+        transaction_id: TransactionId,
     },
     /// Get transaction
     GetTransaction {
         coins_balance_id: XorName,
-        transaction_id: u64, // TODO: Use the trait UUID
+        transaction_id: TransactionId,
     },
     /// Get current wallet balance
     GetBalance,
@@ -165,15 +170,19 @@ pub enum Request {
     CreateCoinBalance {
         new_balance_owner: PublicKey,
         amount: Coins,
-        transaction_id: u64, // TODO: Use the trait UUID
+        transaction_id: TransactionId,
     },
     //
     // ===== Account =====
     //
-    PutAccount {
-        destination: XorName,
-        data: Vec<u8>, // up to 1 MB
+    CreateAccount(AccountData),
+    CreateAccountFor {
+        new_account_owner: PublicKey,
+        amount: Coins,
+        transaction_id: TransactionId,
+        new_account: AccountData,
     },
+    UpdateAccount(AccountData),
     GetAccount(XorName),
     //
     // ===== Client (Owner) to SrcElders =====
@@ -250,7 +259,9 @@ impl fmt::Debug for Request {
                 InsAuthKey { .. } => "Request::InsAuthKey",
                 DelAuthKey { .. } => "Request::DelAuthKey",
                 CreateCoinBalance { .. } => "Request::CreateCoinBalance",
-                PutAccount { .. } => "Request::PutAccount",
+                CreateAccount { .. } => "Request::CreateAccount",
+                CreateAccountFor { .. } => "Request::CreateAccountFor",
+                UpdateAccount { .. } => "Request::UpdateAccount",
                 GetAccount(..) => "Request::GetAccount",
             }
         )
