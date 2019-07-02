@@ -11,7 +11,7 @@ use crate::{utils, Error, PublicKey, Request, Result, XorName};
 use multibase::Decodable;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     fmt::{self, Debug, Formatter},
     hash::Hash,
 };
@@ -343,7 +343,7 @@ pub trait AppendOnlyData<P> {
 /// Common methods for published and unpublished unsequenced `AppendOnlyData`.
 pub trait UnseqAppendOnly {
     /// Append new entries.
-    fn append(&mut self, entries: &[(Vec<u8>, Vec<u8>)]) -> Result<()>;
+    fn append(&mut self, entries: Entries) -> Result<()>;
 }
 
 /// Common methods for published and unpublished sequenced `AppendOnlyData`.
@@ -352,7 +352,7 @@ pub trait SeqAppendOnly {
     ///
     /// If the specified `last_entries_index` does not match the last recorded entries index, an
     /// error will be returned.
-    fn append(&mut self, entries: &[(Vec<u8>, Vec<u8>)], last_entries_index: u64) -> Result<()>;
+    fn append(&mut self, entries: Entries, last_entries_index: u64) -> Result<()>;
 }
 
 macro_rules! impl_appendable_data {
@@ -632,15 +632,37 @@ impl Debug for UnseqAppendOnlyData<UnpubPermissions> {
     }
 }
 
+fn check_dup(data: &[(Vec<u8>, Vec<u8>)], entries: &mut Entries) -> Result<()> {
+    let new: BTreeSet<&Vec<u8>> = entries.iter().map(|(key, _value)| key).collect();
+
+    // If duplicate entries are present in the push.
+    if new.len() < entries.len() {
+        return Err(Error::DuplicateEntryKeys);
+    }
+
+    let existing: BTreeSet<&Vec<u8>> = data.iter().map(|(key, _value)| key).collect();
+    if !existing.is_disjoint(&new) {
+        let dup: Entries = entries
+            .drain(..)
+            .filter(|(key, _value)| existing.contains(&key))
+            .collect();
+        return Err(Error::KeysExist(dup));
+    }
+    Ok(())
+}
+
 impl<P> SeqAppendOnly for SeqAppendOnlyData<P>
 where
     P: Permissions + Hash + Clone,
 {
-    fn append(&mut self, entries: &[(Vec<u8>, Vec<u8>)], last_entries_index: u64) -> Result<()> {
+    fn append(&mut self, mut entries: Entries, last_entries_index: u64) -> Result<()> {
+        check_dup(&self.inner.data, entries.as_mut())?;
+
         if last_entries_index != self.inner.data.len() as u64 {
             return Err(Error::InvalidSuccessor(self.inner.data.len() as u64));
         }
-        self.inner.data.extend(entries.iter().cloned());
+
+        self.inner.data.extend(entries);
         Ok(())
     }
 }
@@ -649,8 +671,10 @@ impl<P> UnseqAppendOnly for UnseqAppendOnlyData<P>
 where
     P: Permissions + Hash + Clone,
 {
-    fn append(&mut self, entries: &[(Vec<u8>, Vec<u8>)]) -> Result<()> {
-        self.inner.data.extend(entries.iter().cloned());
+    fn append(&mut self, mut entries: Entries) -> Result<()> {
+        check_dup(&self.inner.data, entries.as_mut())?;
+
+        self.inner.data.extend(entries);
         Ok(())
     }
 }
@@ -899,7 +923,7 @@ pub struct AppendOperation {
 mod tests {
     use super::*;
     use threshold_crypto::SecretKey;
-    use unwrap::unwrap;
+    use unwrap::{unwrap, unwrap_err};
 
     #[test]
     fn append_permissions() {
@@ -988,12 +1012,7 @@ mod tests {
     #[test]
     fn seq_append_entries() {
         let mut data = SeqAppendOnlyData::<PubPermissions>::new(XorName([1; 32]), 10000);
-        let res = data.append(&[(b"hello".to_vec(), b"world".to_vec())], 0);
-
-        match res {
-            Ok(()) => (),
-            Err(x) => panic!("Unexpected error: {:?}", x),
-        }
+        unwrap!(data.append(vec![(b"hello".to_vec(), b"world".to_vec())], 0));
     }
 
     #[test]
@@ -1025,5 +1044,71 @@ mod tests {
         let encoded = address.encode_to_zbase32();
         let decoded = unwrap!(self::Address::decode_from_zbase32(&encoded));
         assert_eq!(address, decoded);
+    }
+
+    #[test]
+    fn append_unseq_data_test() {
+        let mut data = UnpubUnseqAppendOnlyData::new(XorName(rand::random()), 10);
+
+        // Assert that the entries are not appended because of duplicate keys.
+        let entries = vec![
+            (b"KEY1".to_vec(), b"VALUE1".to_vec()),
+            (b"KEY2".to_vec(), b"VALUE2".to_vec()),
+            (b"KEY1".to_vec(), b"VALUE1".to_vec()),
+        ];
+        assert_eq!(Error::DuplicateEntryKeys, unwrap_err!(data.append(entries)));
+
+        // Assert that the entries are appended because there are no duplicate keys.
+        let entries1 = vec![
+            (b"KEY1".to_vec(), b"VALUE1".to_vec()),
+            (b"KEY2".to_vec(), b"VALUE2".to_vec()),
+        ];
+
+        unwrap!(data.append(entries1));
+
+        // Assert that entries are not appended because they duplicate some keys appended previously.
+        let entries2 = vec![(b"KEY2".to_vec(), b"VALUE2".to_vec())];
+        assert_eq!(
+            Error::KeysExist(entries2.clone()),
+            unwrap_err!(data.append(entries2))
+        );
+
+        // Assert that no duplicate keys are present and the append operation is successful.
+        let entries3 = vec![(b"KEY3".to_vec(), b"VALUE3".to_vec())];
+        unwrap!(data.append(entries3));
+    }
+
+    #[test]
+    fn append_seq_data_test() {
+        let mut data = UnpubSeqAppendOnlyData::new(XorName(rand::random()), 10);
+
+        // Assert that the entries are not appended because of duplicate keys.
+        let entries = vec![
+            (b"KEY1".to_vec(), b"VALUE1".to_vec()),
+            (b"KEY2".to_vec(), b"VALUE2".to_vec()),
+            (b"KEY1".to_vec(), b"VALUE1".to_vec()),
+        ];
+        assert_eq!(
+            Error::DuplicateEntryKeys,
+            unwrap_err!(data.append(entries, 0))
+        );
+
+        // Assert that the entries are appended because there are no duplicate keys.
+        let entries1 = vec![
+            (b"KEY1".to_vec(), b"VALUE1".to_vec()),
+            (b"KEY2".to_vec(), b"VALUE2".to_vec()),
+        ];
+        unwrap!(data.append(entries1, 0));
+
+        // Assert that entries are not appended because they duplicate some keys appended previously.
+        let entries2 = vec![(b"KEY2".to_vec(), b"VALUE2".to_vec())];
+        assert_eq!(
+            Error::KeysExist(entries2.clone()),
+            unwrap_err!(data.append(entries2, 2))
+        );
+
+        // Assert that no duplicate keys are present and the append operation is successful.
+        let entries3 = vec![(b"KEY3".to_vec(), b"VALUE3".to_vec())];
+        unwrap!(data.append(entries3, 2));
     }
 }
