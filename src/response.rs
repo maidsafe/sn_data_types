@@ -35,16 +35,12 @@ pub enum Response {
     // ===== Immutable Data =====
     //
     GetIData(Result<IDataKind>),
-    PutIData(Result<()>),
-    DeleteUnpubIData(Result<()>),
     //
     // ===== Mutable Data =====
     //
     /// Get unsequenced Mutable Data.
     GetUnseqMData(Result<UnseqMutableData>),
-    PutUnseqMData(Result<()>),
     GetSeqMData(Result<SeqMutableData>),
-    PutSeqMData(Result<()>),
     GetSeqMDataShell(Result<SeqMutableData>),
     GetUnseqMDataShell(Result<UnseqMutableData>),
     GetMDataVersion(Result<u64>),
@@ -53,19 +49,13 @@ pub enum Response {
     ListMDataKeys(Result<BTreeSet<Vec<u8>>>),
     ListSeqMDataValues(Result<Vec<MDataValue>>),
     ListUnseqMDataValues(Result<Vec<Vec<u8>>>),
-    DeleteMData(Result<()>),
-    SetMDataUserPermissions(Result<()>),
-    DelMDataUserPermissions(Result<()>),
     ListMDataUserPermissions(Result<MDataPermissionSet>),
     ListMDataPermissions(Result<BTreeMap<PublicKey, MDataPermissionSet>>),
-    MutateSeqMDataEntries(Result<()>),
-    MutateUnseqMDataEntries(Result<()>),
     GetSeqMDataValue(Result<MDataValue>),
     GetUnseqMDataValue(Result<Vec<u8>>),
     //
     // ===== Append Only Data =====
     //
-    PutAData(Result<()>),
     GetAData(Result<AData>),
     GetADataShell(Result<AData>),
     GetADataOwners(Result<ADataOwner>),
@@ -76,17 +66,9 @@ pub enum Response {
     GetPubADataPermissionAtIndex(Result<ADataPubPermissions>),
     GetPubADataUserPermissions(Result<ADataPubPermissionSet>),
     GetUnpubADataUserPermissions(Result<ADataUnpubPermissionSet>),
-    AddUnpubADataPermissions(Result<()>),
-    AddPubADataPermissions(Result<()>),
-    SetADataOwner(Result<()>),
-    AppendSeq(Result<()>),
-    AppendUnseq(Result<()>),
-    DeleteAData(Result<()>),
     //
     // ===== Coins =====
     //
-    TransferCoins(Result<()>),
-    CreateCoinBalance(Result<()>),
     GetTransaction(Result<Transaction>),
     GetBalance(Result<Coins>),
     //
@@ -94,17 +76,14 @@ pub enum Response {
     //
     /// Returns a list of authorised keys from Elders and the account version.
     ListAuthKeysAndVersion(Result<(BTreeMap<PublicKey, AppPermissions>, u64)>),
-    /// Returns a success or failure status of adding an authorised key.
-    InsAuthKey(Result<()>),
-    /// Returns a success or failure status of deleting an authorised key.
-    DelAuthKey(Result<()>),
     //
     // ===== Account =====
     //
-    /// Returns a success or failure status of putting a new account.
-    PutAccount(Result<()>),
     /// Returns an encrypted account packet
     GetAccount(Result<Vec<u8>>),
+    //
+    /// Returns a success or failure status for a mutation operation.
+    Mutation(Result<()>),
 }
 
 use std::fmt;
@@ -118,14 +97,9 @@ impl fmt::Debug for Response {
             match *self {
                 // IData
                 GetIData(..) => "Response::GetIData",
-                PutIData(..) => "Response::PutIData",
-                DeleteUnpubIData(..) => "Response::DeleteUnpubIData",
                 // MData
-                DeleteMData(..) => "Response::DeleteMData",
                 GetUnseqMData(..) => "Response::GetUnseqMData",
-                PutUnseqMData(..) => "Response::PutUnseqMData",
                 GetSeqMData(..) => "Response::GetSeqMData",
-                PutSeqMData(..) => "Response::PutSeqMData",
                 GetSeqMDataShell(..) => "Response::GetMDataShell",
                 GetUnseqMDataShell(..) => "Response::GetMDataShell",
                 GetMDataVersion(..) => "Response::GetMDataVersion",
@@ -134,22 +108,13 @@ impl fmt::Debug for Response {
                 ListMDataKeys(..) => "Response::ListMDataKeys",
                 ListSeqMDataValues(..) => "Response::ListSeqMDataValues",
                 ListUnseqMDataValues(..) => "Response::ListUnseqMDataValues",
-                SetMDataUserPermissions(..) => "Response::SetMDataUserPermissions",
-                DelMDataUserPermissions(..) => "Response::DelMDataUserPermissions",
                 ListMDataPermissions(..) => "Response::ListMDataPermissions",
                 ListMDataUserPermissions(..) => "Response::ListMDataUserPermissions",
-                MutateSeqMDataEntries(..) => "Response::MutateSeqMDataEntries",
-                MutateUnseqMDataEntries(..) => "Response::MutateUnseqMDataEntries",
                 GetSeqMDataValue(..) => "Response::GetSeqMDataValue",
                 GetUnseqMDataValue(..) => "Response::GetUnseqMDataValue",
-                TransferCoins(..) => "Response::TransferCoins",
-                CreateCoinBalance(..) => "Response::CreateCoinBalance",
                 GetTransaction(..) => "Response::GetTransaction",
                 GetBalance(..) => "Response::GetBalance",
                 ListAuthKeysAndVersion(..) => "Response::ListAuthKeysAndVersion",
-                InsAuthKey(..) => "Response::InsAuthKey",
-                DelAuthKey(..) => "Response::DelAuthKey",
-                PutAData(..) => "Response::PutAData",
                 GetAData(..) => "Response::GetAData",
                 GetADataRange(..) => "Response::GetADataRange",
                 GetADataIndices(..) => "Response::GetADataIndices",
@@ -158,16 +123,10 @@ impl fmt::Debug for Response {
                 GetPubADataPermissionAtIndex(..) => "Response::GetADataPermissionAtIndex",
                 GetPubADataUserPermissions(..) => "Response::GetPubADataUserPermissions",
                 GetUnpubADataUserPermissions(..) => "Response::GetUnpubADataUserPermissions",
-                AddUnpubADataPermissions(..) => "Response::AddUnpubADataPermissions",
-                AddPubADataPermissions(..) => "Response::AddPubADataPermissions",
-                AppendSeq(..) => "Response::AppendSeq",
-                AppendUnseq(..) => "Response::AppendUnseq",
-                DeleteAData(..) => "Response::DeleteAData",
                 GetADataShell(..) => "Response::GetADataShell",
                 GetADataOwners(..) => "Response::GetADataOwners",
-                SetADataOwner(..) => "Response::SetADataOwner",
-                PutAccount(..) => "Response::PutAccount",
                 GetAccount(..) => "Response::GetAccount",
+                Mutation(..) => "Response::Mutation",
             }
         )
     }
