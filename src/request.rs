@@ -167,7 +167,7 @@ pub enum Request {
     /// Get current wallet balance
     GetBalance,
     /// Create a new coin balance
-    CreateCoinBalance {
+    CreateBalance {
         new_balance_owner: PublicKey,
         amount: Coins,
         transaction_id: TransactionId,
@@ -258,7 +258,7 @@ impl fmt::Debug for Request {
                 ListAuthKeysAndVersion => "Request::ListAuthKeysAndVersion",
                 InsAuthKey { .. } => "Request::InsAuthKey",
                 DelAuthKey { .. } => "Request::DelAuthKey",
-                CreateCoinBalance { .. } => "Request::CreateCoinBalance",
+                CreateBalance { .. } => "Request::CreateBalance",
                 CreateAccount { .. } => "Request::CreateAccount",
                 CreateAccountFor { .. } => "Request::CreateAccountFor",
                 UpdateAccount { .. } => "Request::UpdateAccount",
