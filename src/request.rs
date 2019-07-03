@@ -162,7 +162,7 @@ pub enum Request {
     /// Get current wallet balance
     GetBalance,
     /// Create a new coin balance
-    CreateCoinBalance {
+    CreateBalance {
         new_balance_owner: PublicKey,
         amount: Coins,
         transaction_id: u64, // TODO: Use the trait UUID
@@ -249,7 +249,7 @@ impl fmt::Debug for Request {
                 ListAuthKeysAndVersion => "Request::ListAuthKeysAndVersion",
                 InsAuthKey { .. } => "Request::InsAuthKey",
                 DelAuthKey { .. } => "Request::DelAuthKey",
-                CreateCoinBalance { .. } => "Request::CreateCoinBalance",
+                CreateBalance { .. } => "Request::CreateBalance",
                 PutAccount { .. } => "Request::PutAccount",
                 GetAccount(..) => "Request::GetAccount",
             }
