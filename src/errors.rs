@@ -57,6 +57,11 @@ pub enum Error {
     SigningKeyTypeMismatch,
     /// Failed signature validation.
     InvalidSignature,
+    /// Recieved a request with a duplicate MessageId
+    DuplicateMessageId,
+    /// The data variant does not match.
+    /// Eg. Requested Seq. MData but found Unseq. MData
+    UnexpectedDataReturned,
     /// Network error occurring at Vault level which has no bearing on clients, e.g. serialisation
     /// failure or database failure
     NetworkOther(String),
@@ -124,6 +129,8 @@ impl Display for Error {
             }
             Error::TransactionIdExists => write!(f, "Transaction with a given ID already exists"),
             Error::InsufficientBalance => write!(f, "Not enough coins to complete this operation"),
+            Error::DuplicateMessageId => write!(f, "MessageId already exists"),
+            Error::UnexpectedDataReturned => write!(f, "Unexpected data variant"),
         }
     }
 }
@@ -156,6 +163,8 @@ impl error::Error for Error {
             Error::FailedToParse(_) => "Failed to parse entity",
             Error::TransactionIdExists => "Transaction with a given ID already exists",
             Error::InsufficientBalance => "Not enough coins to complete this operation",
+            Error::DuplicateMessageId => "MessageId already exists",
+            Error::UnexpectedDataReturned => "Unexpected data variant",
         }
     }
 }
