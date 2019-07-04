@@ -7,7 +7,7 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::{utils, Error, XorName, XOR_NAME_LEN};
+use crate::{utils, Error, PublicKey, XorName};
 use bincode::serialized_size;
 use multibase::Decodable;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -15,7 +15,6 @@ use std::{
     fmt::{self, Debug, Formatter},
     u64,
 };
-use threshold_crypto::{PublicKey, PK_SIZE};
 use tiny_keccak;
 
 /// Maximum allowed size for a serialised Immutable Data (ID) to grow to
@@ -35,11 +34,10 @@ pub struct UnpubImmutableData {
 impl UnpubImmutableData {
     /// Creates a new instance of `UnpubImmutableData`
     pub fn new(value: Vec<u8>, owners: PublicKey) -> Self {
-        // TODO: Use low-level arrays or slices instead of Vec.
-        let mut bytes = Vec::with_capacity(XOR_NAME_LEN + PK_SIZE);
-        bytes.extend_from_slice(&tiny_keccak::sha3_256(&value));
-        bytes.extend_from_slice(&owners.to_bytes());
-        let address = Address::Unpub(XorName(tiny_keccak::sha3_256(&bytes)));
+        let hash_of_value = tiny_keccak::sha3_256(&value);
+        let serialised_contents = utils::serialise(&(hash_of_value, &owners));
+        let address = Address::Unpub(XorName(tiny_keccak::sha3_256(&serialised_contents)));
+
         Self {
             address,
             value,
@@ -240,7 +238,7 @@ impl From<ImmutableData> for Kind {
 
 #[cfg(test)]
 mod tests {
-    use super::{utils, Address, ImmutableData, UnpubImmutableData, XorName};
+    use super::{utils, Address, ImmutableData, PublicKey, UnpubImmutableData, XorName};
     use bincode::deserialize as deserialise;
     use hex::encode;
     use rand::{self, Rng, SeedableRng};
@@ -254,8 +252,8 @@ mod tests {
         let data1 = b"Hello".to_vec();
         let data2 = b"Goodbye".to_vec();
 
-        let owner1 = SecretKey::random().public_key();
-        let owner2 = SecretKey::random().public_key();
+        let owner1 = PublicKey::Bls(SecretKey::random().public_key());
+        let owner2 = PublicKey::Bls(SecretKey::random().public_key());
 
         let idata1 = UnpubImmutableData::new(data1.clone(), owner1);
         let idata2 = UnpubImmutableData::new(data1, owner2);
