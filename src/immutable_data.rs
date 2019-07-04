@@ -7,7 +7,7 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::{utils, Error, XorName, XOR_NAME_LEN};
+use crate::{utils, Error, PublicKey, XorName, XOR_NAME_LEN};
 use bincode::serialized_size;
 use multibase::Decodable;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -15,7 +15,7 @@ use std::{
     fmt::{self, Debug, Formatter},
     u64,
 };
-use threshold_crypto::{PublicKey, PK_SIZE};
+use threshold_crypto::PK_SIZE;
 use tiny_keccak;
 
 /// Maximum allowed size for a serialised Immutable Data (ID) to grow to
@@ -38,7 +38,7 @@ impl UnpubImmutableData {
         // TODO: Use low-level arrays or slices instead of Vec.
         let mut bytes = Vec::with_capacity(XOR_NAME_LEN + PK_SIZE);
         bytes.extend_from_slice(&tiny_keccak::sha3_256(&value));
-        bytes.extend_from_slice(&owners.to_bytes());
+        bytes.extend_from_slice(&owners.to_bytes()[..48]);
         let address = Address::Unpub(XorName(tiny_keccak::sha3_256(&bytes)));
         Self {
             address,
@@ -240,7 +240,7 @@ impl From<ImmutableData> for Kind {
 
 #[cfg(test)]
 mod tests {
-    use super::{utils, Address, ImmutableData, UnpubImmutableData, XorName};
+    use super::{utils, Address, ImmutableData, PublicKey, UnpubImmutableData, XorName};
     use bincode::deserialize as deserialise;
     use hex::encode;
     use rand::{self, Rng, SeedableRng};
@@ -254,8 +254,8 @@ mod tests {
         let data1 = b"Hello".to_vec();
         let data2 = b"Goodbye".to_vec();
 
-        let owner1 = SecretKey::random().public_key();
-        let owner2 = SecretKey::random().public_key();
+        let owner1 = PublicKey::Bls(SecretKey::random().public_key());
+        let owner2 = PublicKey::Bls(SecretKey::random().public_key());
 
         let idata1 = UnpubImmutableData::new(data1.clone(), owner1);
         let idata2 = UnpubImmutableData::new(data1, owner2);
