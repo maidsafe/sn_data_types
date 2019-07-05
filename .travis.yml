@@ -6,6 +6,10 @@ os:
   - linux
 language: rust
 sudo: false
+addons:
+    apt:
+        packages:
+            - libssl-dev
 cache:
   cargo: true
 before_script:
@@ -19,3 +23,11 @@ script:
   - cargo test --verbose --release
 before_cache:
   - cargo prune
+  if [[ "$TRAVIS_RUST_VERSION" == stable ]]; then
+    cargo install cargo-tarpaulin -f
+  fi
+after_success: |
+  if [[ "$TRAVIS_RUST_VERSION" == stable ]]; then
+    # Uncomment the following line for coveralls.io
+    cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
+  fi
