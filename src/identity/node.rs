@@ -10,6 +10,7 @@
 use super::BlsKeypairShare;
 use crate::{utils, Ed25519Digest, Error, PublicKey, Signature, XorName};
 use ed25519_dalek::{Keypair as Ed25519Keypair, PublicKey as Ed25519PublicKey};
+use hex_fmt::HexFmt;
 use multibase::Decodable;
 use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -153,7 +154,7 @@ impl<'de> Deserialize<'de> for PublicId {
 
 impl Debug for PublicId {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "Node({:?})", self.ed25519)
+        write!(formatter, "Node({:<8})", HexFmt(&self.ed25519.to_bytes()))
     }
 }
 
