@@ -70,9 +70,6 @@ pub enum Error {
     InvalidSignature,
     /// Recieved a request with a duplicate MessageId
     DuplicateMessageId,
-    /// The data variant does not match.
-    /// Eg. Requested Seq. MData but found Unseq. MData
-    UnexpectedDataReturned,
     /// Network error occurring at Vault level which has no bearing on clients, e.g. serialisation
     /// failure or database failure
     NetworkOther(String),
@@ -148,7 +145,6 @@ impl Display for Error {
             Error::NoSuchBalance => write!(f, "Balance does not exist"),
             Error::BalanceExists => write!(f, "Balance already exists"),
             Error::DuplicateMessageId => write!(f, "MessageId already exists"),
-            Error::UnexpectedDataReturned => write!(f, "Unexpected data variant"),
             Error::ExceededSize => write!(f, "Size of the structure exceeds the limit"),
         }
     }
@@ -184,7 +180,6 @@ impl error::Error for Error {
             Error::NoSuchBalance => "Balance does not exist",
             Error::BalanceExists => "Balance already exists",
             Error::DuplicateMessageId => "MessageId already exists",
-            Error::UnexpectedDataReturned => "Unexpected data variant",
             Error::ExceededSize => "Exceeded the size limit",
         }
     }
