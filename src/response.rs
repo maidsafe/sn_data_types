@@ -8,9 +8,9 @@
 // Software.
 
 use crate::{
-    AData, ADataEntries, ADataIndices, ADataOwner, ADataPubPermissionSet, ADataPubPermissions,
-    ADataUnpubPermissionSet, ADataUnpubPermissions, AppPermissions, Coins, IData, MData,
-    MDataPermissionSet, MDataValue, PublicKey, Result, Signature,
+    errors::ErrorDebug, AData, ADataEntries, ADataIndices, ADataOwner, ADataPubPermissionSet,
+    ADataPubPermissions, ADataUnpubPermissionSet, ADataUnpubPermissions, AppPermissions, Coins,
+    IData, MData, MDataPermissionSet, MDataValue, PublicKey, Result, Signature,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -93,36 +93,88 @@ impl fmt::Debug for Response {
             "{}",
             match *self {
                 // IData
-                GetIData(..) => "Response::GetIData",
+                GetIData(ref res) => format!("Response::GetIData({:?})", ErrorDebug(res)),
                 // MData
-                GetMData(..) => "Response::GetMData",
-                GetMDataShell(..) => "Response::GetMDataShell",
-                GetMDataVersion(..) => "Response::GetMDataVersion",
-                ListUnseqMDataEntries(..) => "Response::ListUnseqMDataEntries",
-                ListSeqMDataEntries(..) => "Response::ListSeqMDataEntries",
-                ListMDataKeys(..) => "Response::ListMDataKeys",
-                ListSeqMDataValues(..) => "Response::ListSeqMDataValues",
-                ListUnseqMDataValues(..) => "Response::ListUnseqMDataValues",
-                ListMDataPermissions(..) => "Response::ListMDataPermissions",
-                ListMDataUserPermissions(..) => "Response::ListMDataUserPermissions",
-                GetSeqMDataValue(..) => "Response::GetSeqMDataValue",
-                GetUnseqMDataValue(..) => "Response::GetUnseqMDataValue",
-                GetTransaction(..) => "Response::GetTransaction",
-                GetBalance(..) => "Response::GetBalance",
-                ListAuthKeysAndVersion(..) => "Response::ListAuthKeysAndVersion",
-                GetAData(..) => "Response::GetAData",
-                GetADataRange(..) => "Response::GetADataRange",
-                GetADataIndices(..) => "Response::GetADataIndices",
-                GetADataLastEntry(..) => "Response::GetADataLastEntry",
-                GetUnpubADataPermissionAtIndex(..) => "Response::GetADataPermissionAtIndex",
-                GetPubADataPermissionAtIndex(..) => "Response::GetADataPermissionAtIndex",
-                GetPubADataUserPermissions(..) => "Response::GetPubADataUserPermissions",
-                GetUnpubADataUserPermissions(..) => "Response::GetUnpubADataUserPermissions",
-                GetADataShell(..) => "Response::GetADataShell",
-                GetADataOwners(..) => "Response::GetADataOwners",
-                GetAccount(..) => "Response::GetAccount",
-                Mutation(..) => "Response::Mutation",
+                GetMData(ref res) => format!("Response::GetMData({:?})", ErrorDebug(res)),
+                GetMDataShell(ref res) => format!("Response::GetMDataShell({:?})", ErrorDebug(res)),
+                GetMDataVersion(ref res) => {
+                    format!("Response::GetMDataVersion({:?})", ErrorDebug(res))
+                }
+                ListUnseqMDataEntries(ref res) => {
+                    format!("Response::ListUnseqMDataEntries({:?})", ErrorDebug(res))
+                }
+                ListSeqMDataEntries(ref res) => {
+                    format!("Response::ListSeqMDataEntries({:?})", ErrorDebug(res))
+                }
+                ListMDataKeys(ref res) => format!("Response::ListMDataKeys({:?})", ErrorDebug(res)),
+                ListSeqMDataValues(ref res) => {
+                    format!("Response::ListSeqMDataValues({:?})", ErrorDebug(res))
+                }
+                ListUnseqMDataValues(ref res) => {
+                    format!("Response::ListUnseqMDataValues({:?})", ErrorDebug(res))
+                }
+                ListMDataPermissions(ref res) => {
+                    format!("Response::ListMDataPermissions({:?})", ErrorDebug(res))
+                }
+                ListMDataUserPermissions(ref res) => {
+                    format!("Response::ListMDataUserPermissions({:?})", ErrorDebug(res))
+                }
+                GetSeqMDataValue(ref res) => {
+                    format!("Response::GetSeqMDataValue({:?})", ErrorDebug(res))
+                }
+                GetUnseqMDataValue(ref res) => {
+                    format!("Response::GetUnseqMDataValue({:?})", ErrorDebug(res))
+                }
+                GetTransaction(ref res) => {
+                    format!("Response::GetTransaction({:?})", ErrorDebug(res))
+                }
+                GetBalance(ref res) => format!("Response::GetBalance({:?})", ErrorDebug(res)),
+                ListAuthKeysAndVersion(ref res) => {
+                    format!("Response::ListAuthKeysAndVersion({:?})", ErrorDebug(res))
+                }
+                GetAData(ref res) => format!("Response::GetAData({:?})", ErrorDebug(res)),
+                GetADataRange(ref res) => format!("Response::GetADataRange({:?})", ErrorDebug(res)),
+                GetADataIndices(ref res) => {
+                    format!("Response::GetADataIndices({:?})", ErrorDebug(res))
+                }
+                GetADataLastEntry(ref res) => {
+                    format!("Response::GetADataLastEntry({:?})", ErrorDebug(res))
+                }
+                GetUnpubADataPermissionAtIndex(ref res) => format!(
+                    "Response::GetUnpubADataPermissionAtIndex({:?})",
+                    ErrorDebug(res)
+                ),
+                GetPubADataPermissionAtIndex(ref res) => format!(
+                    "Response::GetPubADataPermissionAtIndex({:?})",
+                    ErrorDebug(res)
+                ),
+                GetPubADataUserPermissions(ref res) => format!(
+                    "Response::GetPubADataUserPermissions({:?})",
+                    ErrorDebug(res)
+                ),
+                GetUnpubADataUserPermissions(ref res) => format!(
+                    "Response::GetUnpubADataUserPermissions({:?})",
+                    ErrorDebug(res)
+                ),
+                GetADataShell(ref res) => format!("Response::GetADataShell({:?})", ErrorDebug(res)),
+                GetADataOwners(ref res) => {
+                    format!("Response::GetADataOwners({:?})", ErrorDebug(res))
+                }
+                GetAccount(ref res) => format!("Response::GetAccount({:?})", ErrorDebug(res)),
+                Mutation(ref res) => format!("Response::Mutation({:?})", ErrorDebug(res)),
             }
         )
     }
+}
+
+#[test]
+fn debug_format() {
+    let response = Response::Mutation(Ok(()));
+    assert_eq!(format!("{:?}", response), "Response::Mutation(Success)");
+    use crate::Error;
+    let errored_response = Response::GetADataShell(Err(Error::AccessDenied));
+    assert_eq!(
+        format!("{:?}", errored_response),
+        "Response::GetADataShell(AccessDenied)"
+    );
 }

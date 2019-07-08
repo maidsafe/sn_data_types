@@ -11,12 +11,25 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
     error,
-    fmt::{self, Display, Formatter},
+    fmt::{self, Debug, Display, Formatter},
     result,
 };
 
 /// A specialised `Result` type for safecoin.
 pub type Result<T> = result::Result<T, Error>;
+
+/// Error debug struct
+pub struct ErrorDebug<'a, T>(pub &'a Result<T>);
+
+impl<'a, T> Debug for ErrorDebug<'a, T> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        if let Err(error) = self.0 {
+            write!(f, "{:?}", error)
+        } else {
+            write!(f, "Success")
+        }
+    }
+}
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Error {
