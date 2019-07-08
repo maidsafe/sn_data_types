@@ -16,6 +16,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::{
     cmp::Ordering,
     fmt::{self, Debug, Display, Formatter},
+    hash::{Hash, Hasher},
 };
 use threshold_crypto::{
     serde_impl::SerdeSecret, PublicKeyShare as BlsPublicKeyShare,
@@ -112,18 +113,6 @@ pub struct PublicId {
     bls: Option<BlsPublicKeyShare>,
 }
 
-impl Ord for PublicId {
-    fn cmp(&self, other: &PublicId) -> Ordering {
-        utils::serialise(&self).cmp(&utils::serialise(other))
-    }
-}
-
-impl PartialOrd for PublicId {
-    fn partial_cmp(&self, other: &PublicId) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
 impl PublicId {
     /// Returns the Node's network address.
     pub fn name(&self) -> &XorName {
@@ -163,6 +152,25 @@ impl<'de> Deserialize<'de> for PublicId {
             Deserialize::deserialize(deserialiser)?;
         let name = PublicKey::Ed25519(ed25519).into();
         Ok(PublicId { name, ed25519, bls })
+    }
+}
+
+impl Ord for PublicId {
+    fn cmp(&self, other: &PublicId) -> Ordering {
+        utils::serialise(&self).cmp(&utils::serialise(other))
+    }
+}
+
+impl PartialOrd for PublicId {
+    fn partial_cmp(&self, other: &PublicId) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+#[allow(clippy::derive_hash_xor_eq)]
+impl Hash for PublicId {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        utils::serialise(&self).hash(state)
     }
 }
 
