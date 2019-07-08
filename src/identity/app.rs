@@ -81,7 +81,7 @@ impl FullId {
 ///
 /// It includes the public signing key, and the App owner's `ClientPublicId`.  The owner's `name()`
 /// defines the App's network address.
-#[derive(Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Serialize, Deserialize, PartialOrd, Ord)]
 pub struct PublicId {
     public_key: PublicKey,
     owner: ClientPublicId,
