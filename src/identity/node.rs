@@ -13,7 +13,10 @@ use ed25519_dalek::{Keypair as Ed25519Keypair, PublicKey as Ed25519PublicKey};
 use multibase::Decodable;
 use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::fmt::{self, Debug, Display, Formatter};
+use std::{
+    cmp::Ordering,
+    fmt::{self, Debug, Display, Formatter},
+};
 use threshold_crypto::{
     serde_impl::SerdeSecret, PublicKeyShare as BlsPublicKeyShare,
     SecretKeyShare as BlsSecretKeyShare,
@@ -107,6 +110,18 @@ pub struct PublicId {
     name: XorName,
     ed25519: Ed25519PublicKey,
     bls: Option<BlsPublicKeyShare>,
+}
+
+impl Ord for PublicId {
+    fn cmp(&self, other: &PublicId) -> Ordering {
+        utils::serialise(&self).cmp(&utils::serialise(other))
+    }
+}
+
+impl PartialOrd for PublicId {
+    fn partial_cmp(&self, other: &PublicId) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 impl PublicId {
