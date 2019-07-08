@@ -28,20 +28,20 @@ pub struct UnpubImmutableData {
     value: Vec<u8>,
     /// Contains a set of owners of this data. DataManagers enforce that a DELETE or OWNED-GET type
     /// of request is coming from the MaidManager Authority of the owners.
-    owners: PublicKey,
+    owner: PublicKey,
 }
 
 impl UnpubImmutableData {
     /// Creates a new instance of `UnpubImmutableData`
-    pub fn new(value: Vec<u8>, owners: PublicKey) -> Self {
+    pub fn new(value: Vec<u8>, owner: PublicKey) -> Self {
         let hash_of_value = tiny_keccak::sha3_256(&value);
-        let serialised_contents = utils::serialise(&(hash_of_value, &owners));
+        let serialised_contents = utils::serialise(&(hash_of_value, &owner));
         let address = Address::Unpub(XorName(tiny_keccak::sha3_256(&serialised_contents)));
 
         Self {
             address,
             value,
-            owners,
+            owner,
         }
     }
 
@@ -51,8 +51,8 @@ impl UnpubImmutableData {
     }
 
     /// Returns the set of owners.
-    pub fn owners(&self) -> &PublicKey {
-        &self.owners
+    pub fn owner(&self) -> &PublicKey {
+        &self.owner
     }
 
     /// Returns the address.
@@ -83,14 +83,14 @@ impl UnpubImmutableData {
 
 impl Serialize for UnpubImmutableData {
     fn serialize<S: Serializer>(&self, serialiser: S) -> Result<S::Ok, S::Error> {
-        (&self.value, &self.owners).serialize(serialiser)
+        (&self.value, &self.owner).serialize(serialiser)
     }
 }
 
 impl<'de> Deserialize<'de> for UnpubImmutableData {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let (value, owners): (Vec<u8>, PublicKey) = Deserialize::deserialize(deserializer)?;
-        Ok(UnpubImmutableData::new(value, owners))
+        let (value, owner): (Vec<u8>, PublicKey) = Deserialize::deserialize(deserializer)?;
+        Ok(UnpubImmutableData::new(value, owner))
     }
 }
 

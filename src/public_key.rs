@@ -51,14 +51,6 @@ impl PublicKey {
     pub fn decode_from_zbase32<I: Decodable>(encoded: I) -> Result<Self> {
         utils::decode(encoded)
     }
-
-    pub fn to_bytes(&self) -> Vec<u8> {
-        match self {
-            PublicKey::Ed25519(key) => key.to_bytes().to_vec(),
-            PublicKey::Bls(key) => key.to_bytes().to_vec(),
-            PublicKey::BlsShare(key) => key.to_bytes().to_vec(),
-        }
-    }
 }
 
 #[allow(clippy::derive_hash_xor_eq)]
