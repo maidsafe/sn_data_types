@@ -23,7 +23,7 @@ use threshold_crypto::{
 /// An enum representing the identity of a network Node or Client.
 ///
 /// It includes public signing key(s), and provides the entity's network address, i.e. its `name()`.
-#[derive(Clone, Eq, PartialEq, Serialize, Deserialize, PartialOrd, Ord)]
+#[derive(Clone, Eq, PartialEq, Serialize, Deserialize, PartialOrd, Ord, Hash)]
 pub enum PublicId {
     /// The public identity of a network Node.
     Node(node::PublicId),
