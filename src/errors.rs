@@ -35,10 +35,10 @@ impl<'a, T> Debug for ErrorDebug<'a, T> {
 pub enum Error {
     /// Access is denied for a given requester
     AccessDenied,
-    /// /// SAFE Account does not exist for client
-    NoSuchAccount,
-    /// Attempt to take an account network name that already exists
-    AccountExists,
+    /// Login packet does not exist
+    NoSuchLoginPacket,
+    /// Attempt to store a login packet at an already occupied address
+    LoginPacketExists,
     /// Requested data not found
     NoSuchData,
     /// Attempt to create a mutable data when data with such a name already exists
@@ -103,8 +103,8 @@ impl Display for Error {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
             Error::AccessDenied => write!(f, "Access denied"),
-            Error::NoSuchAccount => write!(f, "Account does not exist for client"),
-            Error::AccountExists => write!(f, "Account already exists for client"),
+            Error::NoSuchLoginPacket => write!(f, "Login packet does not exist"),
+            Error::LoginPacketExists => write!(f, "Login packet already exists at this location"),
             Error::NoSuchData => write!(f, "Requested data not found"),
             Error::DataExists => write!(f, "Data given already exists"),
             Error::NoSuchEntry => write!(f, "Requested entry not found"),
@@ -155,8 +155,8 @@ impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
             Error::AccessDenied => "Access denied",
-            Error::NoSuchAccount => "No such account",
-            Error::AccountExists => "Account exists",
+            Error::NoSuchLoginPacket => "Login packet does not exist",
+            Error::LoginPacketExists => "Login packet already exists at this location",
             Error::NoSuchData => "No such data",
             Error::DataExists => "Data exists",
             Error::NoSuchEntry => "No such entry",

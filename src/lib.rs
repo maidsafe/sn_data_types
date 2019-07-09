@@ -95,7 +95,7 @@ pub use mutable_data::{
     UnseqMutableData, Value as MDataValue,
 };
 pub use public_key::{PublicKey, Signature};
-pub use request::{AccountData, Request, MAX_ACCOUNT_DATA_BYTES};
+pub use request::{LoginPacket, Request, MAX_LOGIN_PACKET_BYTES};
 pub use response::{Response, Transaction};
 pub use sha3::Sha3_512 as Ed25519Digest;
 pub use utils::verify_signature;

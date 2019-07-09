@@ -74,10 +74,10 @@ pub enum Response {
     /// Returns a list of authorised keys from Elders and the account version.
     ListAuthKeysAndVersion(Result<(BTreeMap<PublicKey, AppPermissions>, u64)>),
     //
-    // ===== Account =====
+    // ===== Login Packet =====
     //
-    /// Returns an encrypted account packet
-    GetAccount(Result<(Vec<u8>, Signature)>),
+    /// Returns an encrypted login packet
+    GetLoginPacket(Result<(Vec<u8>, Signature)>),
     //
     /// Returns a success or failure status for a mutation operation.
     Mutation(Result<()>),
@@ -160,7 +160,9 @@ impl fmt::Debug for Response {
                 GetADataOwners(ref res) => {
                     format!("Response::GetADataOwners({:?})", ErrorDebug(res))
                 }
-                GetAccount(ref res) => format!("Response::GetAccount({:?})", ErrorDebug(res)),
+                GetLoginPacket(ref res) => {
+                    format!("Response::GetLoginPacket({:?})", ErrorDebug(res))
+                }
                 Mutation(ref res) => format!("Response::Mutation({:?})", ErrorDebug(res)),
             }
         )

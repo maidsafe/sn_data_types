@@ -7,9 +7,9 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-mod account_data;
+mod login_packet;
 
-pub use self::account_data::{AccountData, MAX_ACCOUNT_DATA_BYTES};
+pub use self::login_packet::{LoginPacket, MAX_LOGIN_PACKET_BYTES};
 use crate::{
     AData, ADataAddress, ADataAppend, ADataIndex, ADataOwner, ADataPubPermissions,
     ADataUnpubPermissions, ADataUser, AppPermissions, Coins, IData, IDataAddress, MData,
@@ -172,17 +172,17 @@ pub enum Request {
         transaction_id: TransactionId,
     },
     //
-    // ===== Account =====
+    // ===== Login Packet =====
     //
-    CreateAccount(AccountData),
-    CreateAccountFor {
-        new_account_owner: PublicKey,
+    CreateLoginPacket(LoginPacket),
+    CreateLoginPacketFor {
+        new_owner: PublicKey,
         amount: Coins,
         transaction_id: TransactionId,
-        new_account: AccountData,
+        new_login_packet: LoginPacket,
     },
-    UpdateAccount(AccountData),
-    GetAccount(XorName),
+    UpdateLoginPacket(LoginPacket),
+    GetLoginPacket(XorName),
     //
     // ===== Client (Owner) to SrcElders =====
     //
@@ -257,10 +257,10 @@ impl fmt::Debug for Request {
                 InsAuthKey { .. } => "Request::InsAuthKey",
                 DelAuthKey { .. } => "Request::DelAuthKey",
                 CreateBalance { .. } => "Request::CreateBalance",
-                CreateAccount { .. } => "Request::CreateAccount",
-                CreateAccountFor { .. } => "Request::CreateAccountFor",
-                UpdateAccount { .. } => "Request::UpdateAccount",
-                GetAccount(..) => "Request::GetAccount",
+                CreateLoginPacket { .. } => "Request::CreateLoginPacket",
+                CreateLoginPacketFor { .. } => "Request::CreateLoginPacketFor",
+                UpdateLoginPacket { .. } => "Request::UpdateLoginPacket",
+                GetLoginPacket(..) => "Request::GetLoginPacket",
             }
         )
     }
