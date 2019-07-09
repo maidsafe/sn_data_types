@@ -7,7 +7,7 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::{utils, Error, XorName, XOR_NAME_LEN};
+use crate::{utils, Error, PublicKey, XorName};
 use bincode::serialized_size;
 use multibase::Decodable;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -15,7 +15,6 @@ use std::{
     fmt::{self, Debug, Formatter},
     u64,
 };
-use threshold_crypto::{PublicKey, PK_SIZE};
 use tiny_keccak;
 
 /// Maximum allowed size for a serialised Immutable Data (ID) to grow to
@@ -29,21 +28,20 @@ pub struct UnpubImmutableData {
     value: Vec<u8>,
     /// Contains a set of owners of this data. DataManagers enforce that a DELETE or OWNED-GET type
     /// of request is coming from the MaidManager Authority of the owners.
-    owners: PublicKey,
+    owner: PublicKey,
 }
 
 impl UnpubImmutableData {
     /// Creates a new instance of `UnpubImmutableData`
-    pub fn new(value: Vec<u8>, owners: PublicKey) -> Self {
-        // TODO: Use low-level arrays or slices instead of Vec.
-        let mut bytes = Vec::with_capacity(XOR_NAME_LEN + PK_SIZE);
-        bytes.extend_from_slice(&tiny_keccak::sha3_256(&value));
-        bytes.extend_from_slice(&owners.to_bytes());
-        let address = Address::Unpub(XorName(tiny_keccak::sha3_256(&bytes)));
+    pub fn new(value: Vec<u8>, owner: PublicKey) -> Self {
+        let hash_of_value = tiny_keccak::sha3_256(&value);
+        let serialised_contents = utils::serialise(&(hash_of_value, &owner));
+        let address = Address::Unpub(XorName(tiny_keccak::sha3_256(&serialised_contents)));
+
         Self {
             address,
             value,
-            owners,
+            owner,
         }
     }
 
@@ -53,8 +51,8 @@ impl UnpubImmutableData {
     }
 
     /// Returns the set of owners.
-    pub fn owners(&self) -> &PublicKey {
-        &self.owners
+    pub fn owner(&self) -> &PublicKey {
+        &self.owner
     }
 
     /// Returns the address.
@@ -85,14 +83,14 @@ impl UnpubImmutableData {
 
 impl Serialize for UnpubImmutableData {
     fn serialize<S: Serializer>(&self, serialiser: S) -> Result<S::Ok, S::Error> {
-        (&self.value, &self.owners).serialize(serialiser)
+        (&self.value, &self.owner).serialize(serialiser)
     }
 }
 
 impl<'de> Deserialize<'de> for UnpubImmutableData {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let (value, owners): (Vec<u8>, PublicKey) = Deserialize::deserialize(deserializer)?;
-        Ok(UnpubImmutableData::new(value, owners))
+        let (value, owner): (Vec<u8>, PublicKey) = Deserialize::deserialize(deserializer)?;
+        Ok(UnpubImmutableData::new(value, owner))
     }
 }
 
@@ -108,12 +106,12 @@ impl Debug for UnpubImmutableData {
 /// Note that the `name` member is omitted when serialising `ImmutableData` and is calculated from
 /// the `value` when deserialising.
 #[derive(Hash, Clone, Eq, PartialEq, Ord, PartialOrd)]
-pub struct ImmutableData {
+pub struct PubImmutableData {
     address: Address,
     value: Vec<u8>,
 }
 
-impl ImmutableData {
+impl PubImmutableData {
     /// Creates a new instance of `ImmutableData`
     pub fn new(value: Vec<u8>) -> Self {
         Self {
@@ -153,23 +151,29 @@ impl ImmutableData {
     }
 }
 
-impl Serialize for ImmutableData {
+impl Serialize for PubImmutableData {
     fn serialize<S: Serializer>(&self, serialiser: S) -> Result<S::Ok, S::Error> {
         self.value.serialize(serialiser)
     }
 }
 
-impl<'de> Deserialize<'de> for ImmutableData {
+impl<'de> Deserialize<'de> for PubImmutableData {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let value: Vec<u8> = Deserialize::deserialize(deserializer)?;
-        Ok(ImmutableData::new(value))
+        Ok(PubImmutableData::new(value))
     }
 }
 
-impl Debug for ImmutableData {
+impl Debug for PubImmutableData {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "ImmutableData {:?}", self.name())
+        write!(formatter, "PubImmutableData {:?}", self.name())
     }
+}
+
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
+pub enum Kind {
+    Unpub,
+    Pub,
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
@@ -179,16 +183,16 @@ pub enum Address {
 }
 
 impl Address {
-    pub fn name(&self) -> &XorName {
+    pub fn kind(&self) -> Kind {
         match self {
-            Address::Unpub(ref name) | Address::Pub(ref name) => name,
+            Address::Unpub(_) => Kind::Unpub,
+            Address::Pub(_) => Kind::Pub,
         }
     }
 
-    pub fn published(&self) -> bool {
+    pub fn name(&self) -> &XorName {
         match self {
-            Address::Unpub(_) => false,
-            Address::Pub(_) => true,
+            Address::Unpub(ref name) | Address::Pub(ref name) => name,
         }
     }
 
@@ -204,43 +208,44 @@ impl Address {
 }
 
 /// Object storing an immutable data variant.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Deserialize, Serialize, Debug)]
-pub enum Kind {
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
+pub enum Data {
     Unpub(UnpubImmutableData),
-    Pub(ImmutableData),
+    Pub(PubImmutableData),
 }
 
-impl Kind {
+impl Data {
+    pub fn address(&self) -> &Address {
+        match self {
+            Data::Unpub(data) => data.address(),
+            Data::Pub(data) => data.address(),
+        }
+    }
+
     pub fn name(&self) -> &XorName {
-        match self {
-            Kind::Unpub(ref data) => data.name(),
-            Kind::Pub(ref data) => data.name(),
-        }
+        self.address().name()
     }
 
-    pub fn published(&self) -> bool {
-        match self {
-            Kind::Unpub(_) => false,
-            Kind::Pub(_) => true,
-        }
+    pub fn kind(&self) -> Kind {
+        self.address().kind()
     }
 }
 
-impl From<UnpubImmutableData> for Kind {
+impl From<UnpubImmutableData> for Data {
     fn from(data: UnpubImmutableData) -> Self {
-        Kind::Unpub(data)
+        Data::Unpub(data)
     }
 }
 
-impl From<ImmutableData> for Kind {
-    fn from(data: ImmutableData) -> Self {
-        Kind::Pub(data)
+impl From<PubImmutableData> for Data {
+    fn from(data: PubImmutableData) -> Self {
+        Data::Pub(data)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{utils, Address, ImmutableData, UnpubImmutableData, XorName};
+    use super::{utils, Address, PubImmutableData, PublicKey, UnpubImmutableData, XorName};
     use bincode::deserialize as deserialise;
     use hex::encode;
     use rand::{self, Rng, SeedableRng};
@@ -254,8 +259,8 @@ mod tests {
         let data1 = b"Hello".to_vec();
         let data2 = b"Goodbye".to_vec();
 
-        let owner1 = SecretKey::random().public_key();
-        let owner2 = SecretKey::random().public_key();
+        let owner1 = PublicKey::Bls(SecretKey::random().public_key());
+        let owner2 = PublicKey::Bls(SecretKey::random().public_key());
 
         let idata1 = UnpubImmutableData::new(data1.clone(), owner1);
         let idata2 = UnpubImmutableData::new(data1, owner2);
@@ -272,7 +277,7 @@ mod tests {
     #[test]
     fn deterministic_test() {
         let value = "immutable data value".to_owned().into_bytes();
-        let immutable_data = ImmutableData::new(value);
+        let immutable_data = PubImmutableData::new(value);
         let immutable_data_name = encode(immutable_data.name().0.as_ref());
         let expected_name = "fac2869677ee06277633c37ac7e8e5c655f3d652f707c7a79fab930d584a3016";
 
@@ -284,7 +289,7 @@ mod tests {
         let mut rng = get_rng();
         let len = rng.gen_range(1, 10_000);
         let value = iter::repeat_with(|| rng.gen()).take(len).collect();
-        let immutable_data = ImmutableData::new(value);
+        let immutable_data = PubImmutableData::new(value);
         let serialised = utils::serialise(&immutable_data);
         let parsed = unwrap!(deserialise(&serialised));
         assert_eq!(immutable_data, parsed);

@@ -11,21 +11,34 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
     error,
-    fmt::{self, Display, Formatter},
+    fmt::{self, Debug, Display, Formatter},
     result,
 };
 
 /// A specialised `Result` type for safecoin.
 pub type Result<T> = result::Result<T, Error>;
 
+/// Error debug struct
+pub struct ErrorDebug<'a, T>(pub &'a Result<T>);
+
+impl<'a, T> Debug for ErrorDebug<'a, T> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        if let Err(error) = self.0 {
+            write!(f, "{:?}", error)
+        } else {
+            write!(f, "Success")
+        }
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Error {
     /// Access is denied for a given requester
     AccessDenied,
-    /// /// SAFE Account does not exist for client
-    NoSuchAccount,
-    /// Attempt to take an account network name that already exists
-    AccountExists,
+    /// Login packet does not exist
+    NoSuchLoginPacket,
+    /// Attempt to store a login packet at an already occupied address
+    LoginPacketExists,
     /// Requested data not found
     NoSuchData,
     /// Attempt to create a mutable data when data with such a name already exists
@@ -71,6 +84,8 @@ pub enum Error {
     TransactionIdExists,
     /// Insufficient coins.
     InsufficientBalance,
+    /// Inexistent balance.
+    NoSuchBalance,
     /// Expected data size exceeded.
     ExceededSize,
 }
@@ -85,8 +100,8 @@ impl Display for Error {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
             Error::AccessDenied => write!(f, "Access denied"),
-            Error::NoSuchAccount => write!(f, "Account does not exist for client"),
-            Error::AccountExists => write!(f, "Account already exists for client"),
+            Error::NoSuchLoginPacket => write!(f, "Login packet does not exist"),
+            Error::LoginPacketExists => write!(f, "Login packet already exists at this location"),
             Error::NoSuchData => write!(f, "Requested data not found"),
             Error::DataExists => write!(f, "Data given already exists"),
             Error::NoSuchEntry => write!(f, "Requested entry not found"),
@@ -125,6 +140,7 @@ impl Display for Error {
             }
             Error::TransactionIdExists => write!(f, "Transaction with a given ID already exists"),
             Error::InsufficientBalance => write!(f, "Not enough coins to complete this operation"),
+            Error::NoSuchBalance => write!(f, "Balance does not exist"),
             Error::DuplicateMessageId => write!(f, "MessageId already exists"),
             Error::ExceededSize => write!(f, "Size of the structure exceeds the limit"),
         }
@@ -135,8 +151,8 @@ impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
             Error::AccessDenied => "Access denied",
-            Error::NoSuchAccount => "No such account",
-            Error::AccountExists => "Account exists",
+            Error::NoSuchLoginPacket => "Login packet does not exist",
+            Error::LoginPacketExists => "Login packet already exists at this location",
             Error::NoSuchData => "No such data",
             Error::DataExists => "Data exists",
             Error::NoSuchEntry => "No such entry",
@@ -158,6 +174,7 @@ impl error::Error for Error {
             Error::FailedToParse(_) => "Failed to parse entity",
             Error::TransactionIdExists => "Transaction with a given ID already exists",
             Error::InsufficientBalance => "Not enough coins to complete this operation",
+            Error::NoSuchBalance => "Balance does not exist",
             Error::DuplicateMessageId => "MessageId already exists",
             Error::ExceededSize => "Exceeded the size limit",
         }

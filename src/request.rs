@@ -7,14 +7,14 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-mod account_data;
+mod login_packet;
 
-pub use self::account_data::{AccountData, MAX_ACCOUNT_DATA_BYTES};
+pub use self::login_packet::{LoginPacket, MAX_LOGIN_PACKET_BYTES};
 use crate::{
     AData, ADataAddress, ADataAppend, ADataIndex, ADataOwner, ADataPubPermissions,
-    ADataUnpubPermissions, ADataUser, AppPermissions, Coins, IDataAddress, IDataKind, MDataAddress,
-    MDataPermissionSet, MDataSeqEntryActions, MDataUnseqEntryActions, PublicKey, SeqMutableData,
-    UnseqMutableData, XorName,
+    ADataUnpubPermissions, ADataUser, AppPermissions, Coins, IData, IDataAddress, MData,
+    MDataAddress, MDataPermissionSet, MDataSeqEntryActions, MDataUnseqEntryActions, PublicKey,
+    XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -28,14 +28,13 @@ pub enum Request {
     //
     // ===== Immutable Data =====
     //
-    PutIData(IDataKind),
+    PutIData(IData),
     GetIData(IDataAddress),
     DeleteUnpubIData(IDataAddress),
     //
     // ===== Mutable Data =====
     //
-    PutUnseqMData(UnseqMutableData),
-    PutSeqMData(SeqMutableData),
+    PutMData(MData),
     GetMData(MDataAddress),
     GetMDataValue {
         address: MDataAddress,
@@ -173,17 +172,17 @@ pub enum Request {
         transaction_id: TransactionId,
     },
     //
-    // ===== Account =====
+    // ===== Login Packet =====
     //
-    CreateAccount(AccountData),
-    CreateAccountFor {
-        new_account_owner: PublicKey,
+    CreateLoginPacket(LoginPacket),
+    CreateLoginPacketFor {
+        new_owner: PublicKey,
         amount: Coins,
         transaction_id: TransactionId,
-        new_account: AccountData,
+        new_login_packet: LoginPacket,
     },
-    UpdateAccount(AccountData),
-    GetAccount(XorName),
+    UpdateLoginPacket(LoginPacket),
+    GetLoginPacket(XorName),
     //
     // ===== Client (Owner) to SrcElders =====
     //
@@ -219,8 +218,7 @@ impl fmt::Debug for Request {
                 GetIData(_) => "Request::GetIData",
                 DeleteUnpubIData(_) => "Request::DeleteUnpubIData",
                 // MData
-                PutUnseqMData(_) => "Request::PutUnseqMData",
-                PutSeqMData(_) => "Request::PutSeqMData",
+                PutMData(_) => "Request::PutMData",
                 GetMData(_) => "Request::GetMData",
                 GetMDataValue { .. } => "Request::GetMDataValue",
                 DeleteMData(_) => "Request::DeleteMData",
@@ -259,10 +257,10 @@ impl fmt::Debug for Request {
                 InsAuthKey { .. } => "Request::InsAuthKey",
                 DelAuthKey { .. } => "Request::DelAuthKey",
                 CreateBalance { .. } => "Request::CreateBalance",
-                CreateAccount { .. } => "Request::CreateAccount",
-                CreateAccountFor { .. } => "Request::CreateAccountFor",
-                UpdateAccount { .. } => "Request::UpdateAccount",
-                GetAccount(..) => "Request::GetAccount",
+                CreateLoginPacket { .. } => "Request::CreateLoginPacket",
+                CreateLoginPacketFor { .. } => "Request::CreateLoginPacketFor",
+                UpdateLoginPacket { .. } => "Request::UpdateLoginPacket",
+                GetLoginPacket(..) => "Request::GetLoginPacket",
             }
         )
     }
