@@ -1,7 +1,7 @@
 FROM rust:latest
 
-RUN addgroup --gid 1000 maidsafe && \
-    adduser --uid 1000 --ingroup maidsafe --home /home/maidsafe --shell /bin/sh --disabled-password --gecos "" maidsafe && \
+RUN addgroup --gid 1001 maidsafe && \
+    adduser --uid 1001 --ingroup maidsafe --home /home/maidsafe --shell /bin/sh --disabled-password --gecos "" maidsafe && \
     # The parent container sets this to the 'staff' group, which causes problems
     # with reading code stored in Cargo's registry.
     chgrp -R maidsafe /usr/local
@@ -33,4 +33,4 @@ RUN rustup component add rustfmt clippy && \
     cargo clippy --verbose --release --all-targets && \
     cargo test --verbose --release && \
     find /target/release/ -maxdepth 1 -type f -exec rm '{}' \;
-ENTRYPOINT ["fixuid", "-q"]
+ENTRYPOINT ["fixuid"]
