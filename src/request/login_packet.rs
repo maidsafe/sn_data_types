@@ -10,40 +10,40 @@
 use crate::{Error, PublicKey, Result, Signature, XorName};
 use serde::{Deserialize, Serialize};
 
-/// Account packet size is limited .
-pub const MAX_ACCOUNT_DATA_BYTES: usize = 1024 * 1024; // 1 MB
+/// Login packet size is limited .
+pub const MAX_LOGIN_PACKET_BYTES: usize = 1024 * 1024; // 1 MB
 
-/// Account packet containing arbitrary user's account information.
+/// Login packet containing arbitrary user's login information.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
-pub struct AccountData {
+pub struct LoginPacket {
     destination: XorName,
     authorised_getter: PublicKey, // deterministically created from passwords
     data: Vec<u8>,
     signature: Signature,
 }
 
-impl AccountData {
+impl LoginPacket {
     pub fn new(
         destination: XorName,
         authorised_getter: PublicKey,
         data: Vec<u8>,
         signature: Signature,
     ) -> Result<Self> {
-        let account_data = Self {
+        let login_packet_data = Self {
             destination,
             authorised_getter,
             data,
             signature,
         };
-        if account_data.size_is_valid() {
-            Ok(account_data)
+        if login_packet_data.size_is_valid() {
+            Ok(login_packet_data)
         } else {
             Err(Error::ExceededSize)
         }
     }
 
     pub fn size_is_valid(&self) -> bool {
-        self.data.len() <= MAX_ACCOUNT_DATA_BYTES
+        self.data.len() <= MAX_LOGIN_PACKET_BYTES
     }
 
     pub fn destination(&self) -> &XorName {
@@ -65,7 +65,7 @@ impl AccountData {
 
 #[cfg(test)]
 mod tests {
-    use super::{AccountData, MAX_ACCOUNT_DATA_BYTES};
+    use super::{LoginPacket, MAX_LOGIN_PACKET_BYTES};
     use crate::{ClientFullId, Error};
     use rand;
 
@@ -73,10 +73,10 @@ mod tests {
     fn exceed_size_limit() {
         let our_id = ClientFullId::new_ed25519(&mut rand::thread_rng());
 
-        let acc_data = vec![0; MAX_ACCOUNT_DATA_BYTES + 1];
+        let acc_data = vec![0; MAX_LOGIN_PACKET_BYTES + 1];
         let signature = our_id.sign(&acc_data);
 
-        let res = AccountData::new(
+        let res = LoginPacket::new(
             rand::random(),
             *our_id.public_id().public_key(),
             acc_data,
@@ -97,7 +97,7 @@ mod tests {
         let acc_data = vec![1; 16];
         let signature = our_id.sign(&acc_data);
 
-        let res = AccountData::new(
+        let res = LoginPacket::new(
             rand::random(),
             *our_id.public_id().public_key(),
             acc_data.clone(),
