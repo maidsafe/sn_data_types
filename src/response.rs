@@ -10,22 +10,10 @@
 use crate::{
     errors::ErrorDebug, AData, ADataEntries, ADataIndices, ADataOwner, ADataPubPermissionSet,
     ADataPubPermissions, ADataUnpubPermissionSet, ADataUnpubPermissions, AppPermissions, Coins,
-    IData, MData, MDataPermissionSet, MDataValue, PublicKey, Result, Signature,
+    IData, MData, MDataPermissionSet, MDataValue, PublicKey, Result, Signature, Transaction,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
-
-/// Safecoin transaction.
-#[derive(Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
-pub enum Transaction {
-    /// The associated `CoinBalance` was successfully credited with this `Credit`.
-    Success(Coins),
-    /// This transaction is not known by the associated `CoinBalance`.  This could be because it was
-    /// never known, or is no longer known.
-    NoSuchTransaction,
-    /// The requested `CoinBalance` doesn't exist.
-    NoSuchCoinBalance,
-}
 
 /// RPC responses from vaults.
 #[allow(clippy::large_enum_variant, clippy::type_complexity, missing_docs)]
@@ -66,8 +54,8 @@ pub enum Response {
     //
     // ===== Coins =====
     //
-    GetTransaction(Result<Transaction>),
     GetBalance(Result<Coins>),
+    Transaction(Result<Transaction>),
     //
     // ===== Client (Owner) to SrcElders =====
     //
@@ -125,9 +113,7 @@ impl fmt::Debug for Response {
                 GetUnseqMDataValue(ref res) => {
                     format!("Response::GetUnseqMDataValue({:?})", ErrorDebug(res))
                 }
-                GetTransaction(ref res) => {
-                    format!("Response::GetTransaction({:?})", ErrorDebug(res))
-                }
+                Transaction(ref res) => format!("Response::Transaction({:?})", ErrorDebug(res)),
                 GetBalance(ref res) => format!("Response::GetBalance({:?})", ErrorDebug(res)),
                 ListAuthKeysAndVersion(ref res) => {
                     format!("Response::ListAuthKeysAndVersion({:?})", ErrorDebug(res))
