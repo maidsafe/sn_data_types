@@ -14,12 +14,10 @@ use crate::{
     AData, ADataAddress, ADataAppend, ADataIndex, ADataOwner, ADataPubPermissions,
     ADataUnpubPermissions, ADataUser, AppPermissions, Coins, IData, IDataAddress, MData,
     MDataAddress, MDataPermissionSet, MDataSeqEntryActions, MDataUnseqEntryActions, PublicKey,
-    XorName,
+    TransactionId, XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
-
-pub type TransactionId = u64; // TODO: Use the trait UUID
 
 /// RPC Request that is sent to vaults
 #[allow(clippy::large_enum_variant, missing_docs)]
@@ -158,11 +156,6 @@ pub enum Request {
         amount: Coins,
         transaction_id: TransactionId,
     },
-    /// Get transaction
-    GetTransaction {
-        coins_balance_id: XorName,
-        transaction_id: TransactionId,
-    },
     /// Get current wallet balance
     GetBalance,
     /// Create a new coin balance
@@ -251,7 +244,6 @@ impl fmt::Debug for Request {
                 AppendSeq { .. } => "Request::AppendSeq",
                 AppendUnseq(_) => "Request::AppendUnseq",
                 TransferCoins { .. } => "Request::TransferCoins",
-                GetTransaction { .. } => "Request::GetTransaction",
                 GetBalance => "Request::GetBalance",
                 ListAuthKeysAndVersion => "Request::ListAuthKeysAndVersion",
                 InsAuthKey { .. } => "Request::InsAuthKey",

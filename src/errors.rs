@@ -86,6 +86,8 @@ pub enum Error {
     InsufficientBalance,
     /// Inexistent balance.
     NoSuchBalance,
+    /// Coin balance already exists.
+    BalanceExists,
     /// Expected data size exceeded.
     ExceededSize,
 }
@@ -141,6 +143,7 @@ impl Display for Error {
             Error::TransactionIdExists => write!(f, "Transaction with a given ID already exists"),
             Error::InsufficientBalance => write!(f, "Not enough coins to complete this operation"),
             Error::NoSuchBalance => write!(f, "Balance does not exist"),
+            Error::BalanceExists => write!(f, "Balance already exists"),
             Error::DuplicateMessageId => write!(f, "MessageId already exists"),
             Error::ExceededSize => write!(f, "Size of the structure exceeds the limit"),
         }
@@ -175,6 +178,7 @@ impl error::Error for Error {
             Error::TransactionIdExists => "Transaction with a given ID already exists",
             Error::InsufficientBalance => "Not enough coins to complete this operation",
             Error::NoSuchBalance => "Balance does not exist",
+            Error::BalanceExists => "Balance already exists",
             Error::DuplicateMessageId => "MessageId already exists",
             Error::ExceededSize => "Exceeded the size limit",
         }

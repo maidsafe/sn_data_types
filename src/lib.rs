@@ -64,6 +64,7 @@ mod mutable_data;
 mod public_key;
 mod request;
 mod response;
+mod transaction;
 mod utils;
 
 pub use append_only_data::{
@@ -96,8 +97,9 @@ pub use mutable_data::{
 };
 pub use public_key::{PublicKey, Signature};
 pub use request::{LoginPacket, Request, MAX_LOGIN_PACKET_BYTES};
-pub use response::{Response, Transaction};
+pub use response::Response;
 pub use sha3::Sha3_512 as Ed25519Digest;
+pub use transaction::{Transaction, TransactionId};
 pub use utils::verify_signature;
 
 use hex_fmt::HexFmt;
