@@ -325,7 +325,7 @@ pub trait AppendOnlyData<P> {
 
     /// Add a new permissions entry.
     /// The `Permissions` struct should contain valid indices.
-    fn append_permissions(&mut self, permissions: P) -> Result<()>;
+    fn append_permissions(&mut self, permissions: P, permissions_idx: u64) -> Result<()>;
 
     /// Fetch perms at index.
     fn fetch_permissions_at_index(&self, perm_index: u64) -> Option<&P>;
@@ -337,7 +337,7 @@ pub trait AppendOnlyData<P> {
     fn owners_range(&self, start: Index, end: Index) -> Option<&[Owner]>;
 
     /// Add a new owner entry.
-    fn append_owner(&mut self, owner: Owner) -> Result<()>;
+    fn append_owner(&mut self, owner: Owner, owners_idx: u64) -> Result<()>;
 }
 
 /// Common methods for published and unpublished unsequenced `AppendOnlyData`.
@@ -528,23 +528,29 @@ macro_rules! impl_appendable_data {
                 Some(&self.inner.owners[idx_start..idx_end])
             }
 
-            fn append_permissions(&mut self, permissions: P) -> Result<()> {
+            fn append_permissions(&mut self, permissions: P, permissions_idx: u64) -> Result<()> {
                 if permissions.data_index() != self.entry_index() {
                     return Err(Error::InvalidSuccessor(self.entry_index()));
                 }
                 if permissions.owner_entry_index() != self.owners_index() {
                     return Err(Error::InvalidOwnersSuccessor(self.owners_index()));
                 }
+                if self.permissions_index() != permissions_idx {
+                    return Err(Error::InvalidSuccessor(self.permissions_index()));
+                }
                 self.inner.permissions.push(permissions);
                 Ok(())
             }
 
-            fn append_owner(&mut self, owner: Owner) -> Result<()> {
+            fn append_owner(&mut self, owner: Owner, owners_idx: u64) -> Result<()> {
                 if owner.data_index != self.entry_index() {
                     return Err(Error::InvalidSuccessor(self.entry_index()));
                 }
                 if owner.permissions_index != self.permissions_index() {
                     return Err(Error::InvalidPermissionsSuccessor(self.permissions_index()));
+                }
+                if self.owners_index() != owners_idx {
+                    return Err(Error::InvalidSuccessor(self.owners_index()));
                 }
                 self.inner.owners.push(owner);
                 Ok(())
@@ -939,11 +945,14 @@ mod tests {
         let mut data = SeqAppendOnlyData::<UnpubPermissions>::new(XorName([1; 32]), 10000);
 
         // Append the first permission set with correct indices - should pass.
-        let res = data.append_permissions(UnpubPermissions {
-            permissions: BTreeMap::new(),
-            data_index: 0,
-            owner_entry_index: 0,
-        });
+        let res = data.append_permissions(
+            UnpubPermissions {
+                permissions: BTreeMap::new(),
+                data_index: 0,
+                owner_entry_index: 0,
+            },
+            0,
+        );
 
         match res {
             Ok(()) => (),
@@ -957,11 +966,14 @@ mod tests {
         );
 
         // Append another permissions entry with incorrect indices - should fail.
-        let res = data.append_permissions(UnpubPermissions {
-            permissions: BTreeMap::new(),
-            data_index: 64,
-            owner_entry_index: 0,
-        });
+        let res = data.append_permissions(
+            UnpubPermissions {
+                permissions: BTreeMap::new(),
+                data_index: 64,
+                owner_entry_index: 0,
+            },
+            1,
+        );
 
         match res {
             Err(_) => (),
@@ -982,11 +994,14 @@ mod tests {
         let mut data = SeqAppendOnlyData::<UnpubPermissions>::new(XorName([1; 32]), 10000);
 
         // Append the first owner with correct indices - should pass.
-        let res = data.append_owner(Owner {
-            public_key: owner_pk,
-            data_index: 0,
-            permissions_index: 0,
-        });
+        let res = data.append_owner(
+            Owner {
+                public_key: owner_pk,
+                data_index: 0,
+                permissions_index: 0,
+            },
+            0,
+        );
 
         match res {
             Ok(()) => (),
@@ -1000,11 +1015,14 @@ mod tests {
         );
 
         // Append another owners entry with incorrect indices - should fail.
-        let res = data.append_owner(Owner {
-            public_key: owner_pk,
-            data_index: 64,
-            permissions_index: 0,
-        });
+        let res = data.append_owner(
+            Owner {
+                public_key: owner_pk,
+                data_index: 64,
+                permissions_index: 0,
+            },
+            1,
+        );
 
         match res {
             Err(_) => (),
@@ -1031,17 +1049,23 @@ mod tests {
 
         let mut data = SeqAppendOnlyData::<UnpubPermissions>::new(XorName([1; 32]), 10000);
 
-        let _ = data.append_owner(Owner {
-            public_key: owner_pk,
-            data_index: 0,
-            permissions_index: 0,
-        });
+        let _ = data.append_owner(
+            Owner {
+                public_key: owner_pk,
+                data_index: 0,
+                permissions_index: 0,
+            },
+            0,
+        );
 
-        let _ = data.append_owner(Owner {
-            public_key: owner_pk1,
-            data_index: 0,
-            permissions_index: 0,
-        });
+        let _ = data.append_owner(
+            Owner {
+                public_key: owner_pk1,
+                data_index: 0,
+                permissions_index: 0,
+            },
+            1,
+        );
 
         assert_eq!(data.owners_index(), unwrap!(data.shell(0)).owners_index());
     }

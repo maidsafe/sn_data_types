@@ -135,16 +135,19 @@ pub enum Request {
     AddPubADataPermissions {
         address: ADataAddress,
         permissions: ADataPubPermissions,
+        permissions_idx: u64,
     },
     /// Add a new `permissions` entry.
     AddUnpubADataPermissions {
         address: ADataAddress,
         permissions: ADataUnpubPermissions,
+        permissions_idx: u64,
     },
     /// Add a new `owners` entry. Only the current owner(s) can perform this action.
     SetADataOwner {
         address: ADataAddress,
         owner: ADataOwner,
+        owners_idx: u64,
     },
     AppendSeq {
         append: ADataAppend,
