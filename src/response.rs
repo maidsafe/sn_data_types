@@ -45,6 +45,7 @@ pub enum Response {
     GetADataShell(Result<AData>),
     GetADataOwners(Result<ADataOwner>),
     GetADataRange(Result<ADataEntries>),
+    GetADataValue(Result<Vec<u8>>),
     GetADataIndices(Result<ADataIndices>),
     GetADataLastEntry(Result<(Vec<u8>, Vec<u8>)>),
     GetUnpubADataPermissionAtIndex(Result<ADataUnpubPermissions>),
@@ -114,6 +115,7 @@ impl fmt::Debug for Response {
                 write!(f, "Response::ListAuthKeysAndVersion({:?})", ErrorDebug(res))
             }
             GetAData(res) => write!(f, "Response::GetAData({:?})", ErrorDebug(res)),
+            GetADataValue(res) => write!(f, "Response::GetADataValue({:?})", ErrorDebug(res)),
             GetADataRange(res) => write!(f, "Response::GetADataRange({:?})", ErrorDebug(res)),
             GetADataIndices(res) => write!(f, "Response::GetADataIndices({:?})", ErrorDebug(res)),
             GetADataLastEntry(res) => {
