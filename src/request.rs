@@ -101,6 +101,10 @@ pub enum Request {
         // range: (Index::FromStart(0), Index::FromStart(5))
         range: (ADataIndex, ADataIndex),
     },
+    GetADataValue {
+        address: ADataAddress,
+        key: Vec<u8>,
+    },
     /// Get current indices: data, owners, permissions.
     GetADataIndices(ADataAddress),
     /// Get an entry with the current index.
@@ -230,6 +234,7 @@ impl fmt::Debug for Request {
                 PutAData(_) => "Request::PutAData",
                 GetAData(_) => "Request::GetAData",
                 GetADataShell { .. } => "Request::GetADataShell",
+                GetADataValue { .. } => "Request::GetADataValue ",
                 DeleteAData(_) => "Request::DeleteAData",
                 GetADataRange { .. } => "Request::GetADataRange",
                 GetADataIndices(_) => "Request::GetADataIndices",

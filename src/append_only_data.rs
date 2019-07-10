@@ -829,6 +829,15 @@ impl Data {
         }
     }
 
+    pub fn get(&self, key: &[u8]) -> Option<&Vec<u8>> {
+        match self {
+            Data::PubSeq(data) => data.get(key),
+            Data::PubUnseq(data) => data.get(key),
+            Data::UnpubSeq(data) => data.get(key),
+            Data::UnpubUnseq(data) => data.get(key),
+        }
+    }
+
     pub fn indices(&self) -> Result<Indices> {
         match self {
             Data::PubSeq(data) => indices!(data),
