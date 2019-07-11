@@ -778,6 +778,13 @@ impl Data {
             Data::Unseq(data) => data.check_permissions(request, requester),
         }
     }
+
+    pub fn owner(&self) -> PublicKey {
+        match self {
+            Data::Seq(data) => data.owners,
+            Data::Unseq(data) => data.owners,
+        }
+    }
 }
 
 impl From<SeqMutableData> for Data {
