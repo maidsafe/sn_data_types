@@ -753,6 +753,25 @@ impl Data {
         }
     }
 
+    pub fn set_user_permissions(
+        &mut self,
+        user: PublicKey,
+        permissions: PermissionSet,
+        version: u64,
+    ) -> Result<()> {
+        match self {
+            Data::Seq(data) => data.set_user_permissions(user, permissions, version),
+            Data::Unseq(data) => data.set_user_permissions(user, permissions, version),
+        }
+    }
+
+    pub fn del_user_permissions(&mut self, user: PublicKey, version: u64) -> Result<()> {
+        match self {
+            Data::Seq(data) => data.del_user_permissions(user, version),
+            Data::Unseq(data) => data.del_user_permissions(user, version),
+        }
+    }
+
     pub fn check_permissions(&self, request: &Request, requester: PublicKey) -> Result<()> {
         match self {
             Data::Seq(data) => data.check_permissions(request, requester),
