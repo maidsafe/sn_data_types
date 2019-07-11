@@ -158,7 +158,7 @@ pub trait MutableData:
 
     fn user_permissions(&self, user: PublicKey) -> Result<&PermissionSet>;
 
-    fn check_permissions(&self, rpc: Request, requester: PublicKey) -> Result<()>;
+    fn check_permissions(&self, rpc: &Request, requester: PublicKey) -> Result<()>;
 
     fn set_user_permissions(
         &mut self,
@@ -238,7 +238,7 @@ macro_rules! impl_mutable_data {
                 self.permissions.get(&user).ok_or(Error::NoSuchKey)
             }
 
-            fn check_permissions(&self, request: Request, requester: PublicKey) -> Result<()> {
+            fn check_permissions(&self, request: &Request, requester: PublicKey) -> Result<()> {
                 if self.owners == requester {
                     Ok(())
                 } else {
@@ -327,7 +327,7 @@ macro_rules! impl_mutable_data {
     };
 }
 
-fn check_permissions_for_key(permissions: &PermissionSet, request: Request) -> Result<()> {
+fn check_permissions_for_key(permissions: &PermissionSet, request: &Request) -> Result<()> {
     match request {
         Request::GetMData { .. }
         | Request::GetMDataShell { .. }
@@ -660,6 +660,14 @@ impl Address {
         }
     }
 
+    pub fn is_seq(&self) -> bool {
+        self.kind() == Kind::Seq
+    }
+
+    pub fn is_unseq(&self) -> bool {
+        self.kind() == Kind::Unseq
+    }
+
     pub fn name(&self) -> &XorName {
         match self {
             Address::Unseq { ref name, .. } | Address::Seq { ref name, .. } => name,
@@ -710,10 +718,45 @@ impl Data {
         self.address().kind()
     }
 
+    pub fn version(&self) -> u64 {
+        match self {
+            Data::Seq(data) => data.version(),
+            Data::Unseq(data) => data.version(),
+        }
+    }
+
+    pub fn keys(&self) -> BTreeSet<Vec<u8>> {
+        match self {
+            Data::Seq(data) => data.keys(),
+            Data::Unseq(data) => data.keys(),
+        }
+    }
+
     pub fn shell(&self) -> Self {
         match self {
             Data::Seq(data) => Data::Seq(data.shell()),
             Data::Unseq(data) => Data::Unseq(data.shell()),
+        }
+    }
+
+    pub fn permissions(&self) -> BTreeMap<PublicKey, PermissionSet> {
+        match self {
+            Data::Seq(data) => data.permissions(),
+            Data::Unseq(data) => data.permissions(),
+        }
+    }
+
+    pub fn user_permissions(&self, user: PublicKey) -> Result<&PermissionSet> {
+        match self {
+            Data::Seq(data) => data.user_permissions(user),
+            Data::Unseq(data) => data.user_permissions(user),
+        }
+    }
+
+    pub fn check_permissions(&self, request: &Request, requester: PublicKey) -> Result<()> {
+        match self {
+            Data::Seq(data) => data.check_permissions(request, requester),
+            Data::Unseq(data) => data.check_permissions(request, requester),
         }
     }
 }
