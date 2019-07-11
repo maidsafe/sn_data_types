@@ -8,6 +8,7 @@
 // Software.
 
 use crate::{utils, EntryError, Error, PublicKey, Request, Result, XorName};
+use hex_fmt::HexFmt;
 use multibase::Decodable;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -40,7 +41,7 @@ impl Debug for SeqMutableData {
     }
 }
 
-/// A value in `Sequenced MutableData`
+/// A value in `Sequenced MutableData`.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub struct Value {
     /// Actual data.
@@ -49,20 +50,9 @@ pub struct Value {
     pub version: u64,
 }
 
-impl Value {
-    pub fn new(data: Vec<u8>, version: u64) -> Self {
-        Value { data, version }
-    }
-}
-
 impl Debug for Value {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{} :: {}",
-            std::str::from_utf8(&self.data).unwrap(),
-            self.version
-        )
+        write!(f, "{:<8} :: {}", HexFmt(&self.data), self.version)
     }
 }
 
