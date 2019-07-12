@@ -730,6 +730,15 @@ pub enum Address {
 }
 
 impl Address {
+    pub fn from_kind(kind: Kind, name: XorName, tag: u64) -> Self {
+        match kind {
+            Kind::PubSeq => Address::PubSeq { name, tag },
+            Kind::PubUnseq => Address::PubUnseq { name, tag },
+            Kind::UnpubSeq => Address::UnpubSeq { name, tag },
+            Kind::UnpubUnseq => Address::UnpubUnseq { name, tag },
+        }
+    }
+
     pub fn kind(&self) -> Kind {
         match self {
             Address::PubSeq { .. } => Kind::PubSeq,
