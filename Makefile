@@ -11,6 +11,9 @@ build-container:
 	docker rmi -f maidsafe/safe-nd-build:${SAFE_ND_VERSION}
 	docker build -f Dockerfile.build -t maidsafe/safe-nd-build:${SAFE_ND_VERSION} .
 
+push-container:
+	docker push maidsafe/safe-nd-build:${SAFE_ND_VERSION}
+
 test:
 ifeq ($(UNAME_S),Linux)
 	docker run --name "safe-nd-build-${UUID}" -v "${PWD}":/usr/src/safe-nd:Z \

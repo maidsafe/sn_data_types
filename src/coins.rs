@@ -71,7 +71,7 @@ impl FromStr for Coins {
             let units = itr
                 .next()
                 .and_then(|s| s.parse::<u64>().ok())
-                .ok_or(Error::FailedToParseCoins)?;
+                .ok_or_else(|| Error::FailedToParse("Can't parse coin units".to_string()))?;
 
             units
                 .checked_mul(COIN_TO_RAW_CONVERSION)
@@ -86,7 +86,7 @@ impl FromStr for Coins {
             } else {
                 let parsed_remainder = remainder_str
                     .parse::<u64>()
-                    .map_err(|_| Error::FailedToParseCoins)?;
+                    .map_err(|_| Error::FailedToParse("Can't parse coin remainder".to_string()))?;
 
                 let remainder_conversion = COIN_TO_RAW_POWER_OF_10_CONVERSION
                     .checked_sub(remainder_str.len() as u32)
@@ -150,9 +150,22 @@ mod tests {
             unwrap!(Coins::from_str("4294967295.9999999990000")),
         );
 
-        assert_eq!(Err(Error::FailedToParseCoins), Coins::from_str("a"));
-        assert_eq!(Err(Error::FailedToParseCoins), Coins::from_str("0.a"));
-        assert_eq!(Err(Error::FailedToParseCoins), Coins::from_str("0.0.0"));
+        assert_eq!(
+            Err(Error::FailedToParse("Can't parse coin units".to_string())),
+            Coins::from_str("a")
+        );
+        assert_eq!(
+            Err(Error::FailedToParse(
+                "Can't parse coin remainder".to_string()
+            )),
+            Coins::from_str("0.a")
+        );
+        assert_eq!(
+            Err(Error::FailedToParse(
+                "Can't parse coin remainder".to_string()
+            )),
+            Coins::from_str("0.0.0")
+        );
         assert_eq!(Err(Error::LossOfPrecision), Coins::from_str("0.0000000009"));
         assert_eq!(Err(Error::ExcessiveValue), Coins::from_str("4294967296"));
     }

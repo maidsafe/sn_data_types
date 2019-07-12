@@ -11,19 +11,19 @@ pub mod app;
 pub mod client;
 pub mod node;
 
-use crate::{Error, XorName};
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use crate::{utils, Result, XorName};
+use multibase::Decodable;
+use serde::{Deserialize, Serialize};
 use std::fmt::{self, Debug, Display, Formatter};
 use threshold_crypto::{
     serde_impl::SerdeSecret, PublicKey as BlsPublicKey, PublicKeyShare as BlsPublicKeyShare,
     SecretKey as BlsSecretKey, SecretKeyShare as BlsSecretKeyShare,
 };
-use unwrap::unwrap;
 
 /// An enum representing the identity of a network Node or Client.
 ///
 /// It includes public signing key(s), and provides the entity's network address, i.e. its `name()`.
-#[derive(Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Serialize, Deserialize, PartialOrd, Ord, Hash)]
 pub enum PublicId {
     /// The public identity of a network Node.
     Node(node::PublicId),
@@ -41,6 +41,16 @@ impl PublicId {
             PublicId::Client(pub_id) => pub_id.name(),
             PublicId::App(pub_id) => pub_id.owner_name(),
         }
+    }
+
+    /// Returns the PublicId serialised and encoded in z-base-32.
+    pub fn encode_to_zbase32(&self) -> String {
+        utils::encode(&self)
+    }
+
+    /// Create from z-base-32 encoded string.
+    pub fn decode_from_zbase32<T: Decodable>(encoded: T) -> Result<Self> {
+        utils::decode(encoded)
     }
 }
 
@@ -73,72 +83,70 @@ struct BlsKeypairShare {
     pub public: BlsPublicKeyShare,
 }
 
-fn encode_to_base64<T: Serialize>(data: &T) -> String {
-    let serialised = unwrap!(bincode::serialize(&data));
-    base64::encode(&serialised)
-}
-
-fn decode_from_base64<I: ?Sized + AsRef<[u8]>, O: DeserializeOwned>(
-    encoded: &I,
-) -> Result<O, Error> {
-    let decoded =
-        base64::decode(encoded).map_err(|e| Error::FailedToParseIdentity(e.to_string()))?;
-    Ok(bincode::deserialize(&decoded).map_err(|e| Error::FailedToParseIdentity(e.to_string()))?)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ClientFullId;
+    use crate::{ClientFullId, Error};
     use unwrap::unwrap;
 
     #[test]
-    fn encode_client_public_id_to_base64() {
+    fn zbase32_encode_decode_client_public_id() {
         let mut rng = rand::thread_rng();
         let id = client::FullId::new_ed25519(&mut rng);
         assert_eq!(
-            unwrap!(client::PublicId::decode_from_base64(
-                &id.public_id().encode_to_base64()
+            unwrap!(client::PublicId::decode_from_zbase32(
+                &id.public_id().encode_to_zbase32()
             )),
             *id.public_id()
         );
 
         let node_id = node::FullId::new(&mut rng);
-        assert!(
-            match client::PublicId::decode_from_base64(&node_id.public_id().encode_to_base64()) {
-                Err(Error::FailedToParseIdentity(_)) => true,
-                _ => false,
-            }
-        );
-        assert!(client::PublicId::decode_from_base64("sdkjf832939fjs").is_err());
+        assert!(match client::PublicId::decode_from_zbase32(
+            &node_id.public_id().encode_to_zbase32()
+        ) {
+            Err(Error::FailedToParse(_)) => true,
+            _ => false,
+        });
+        assert!(client::PublicId::decode_from_zbase32("sdkjf832939fjs").is_err());
     }
 
     #[test]
-    fn encode_node_public_id_to_base64() {
+    fn zbase32_encode_decode_node_public_id() {
         let mut rng = rand::thread_rng();
         let mut id = node::FullId::new(&mut rng);
         let bls_secret_key = threshold_crypto::SecretKeySet::random(1, &mut rng);
         id.set_bls_keys(bls_secret_key.secret_key_share(0));
         assert_eq!(
-            unwrap!(node::PublicId::decode_from_base64(
-                &id.public_id().encode_to_base64()
+            unwrap!(node::PublicId::decode_from_zbase32(
+                &id.public_id().encode_to_zbase32()
             )),
             *id.public_id()
         );
-        assert!(node::PublicId::decode_from_base64("7djsk38").is_err());
+        assert!(node::PublicId::decode_from_zbase32("7djsk38").is_err());
     }
 
     #[test]
-    fn encode_app_public_id_to_base64() {
+    fn zbase32_encode_decode_app_public_id() {
         let mut rng = rand::thread_rng();
         let owner = ClientFullId::new_ed25519(&mut rng);
         let id = app::FullId::new_ed25519(&mut rng, owner.public_id().clone());
         assert_eq!(
-            unwrap!(app::PublicId::decode_from_base64(
-                &id.public_id().encode_to_base64()
+            unwrap!(app::PublicId::decode_from_zbase32(
+                &id.public_id().encode_to_zbase32()
             )),
             *id.public_id()
         );
-        assert!(app::PublicId::decode_from_base64("7od8fh2").is_err());
+        assert!(app::PublicId::decode_from_zbase32("7od8fh2").is_err());
+    }
+
+    #[test]
+    fn zbase32_encode_decode_enum_public_id() {
+        let mut rng = rand::thread_rng();
+        let id = PublicId::Client(client::FullId::new_ed25519(&mut rng).public_id().clone());
+        assert_eq!(
+            id,
+            unwrap!(PublicId::decode_from_zbase32(&id.encode_to_zbase32()))
+        );
+        assert!(PublicId::decode_from_zbase32("c419cxim9").is_err());
     }
 }

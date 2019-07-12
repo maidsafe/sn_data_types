@@ -8,24 +8,12 @@
 // Software.
 
 use crate::{
-    request::AppendOnlyData, ADataIndices, ADataOwner, ADataPubPermissionSet, ADataPubPermissions,
-    ADataUnpubPermissionSet, ADataUnpubPermissions, AppPermissions, Coins, IDataKind,
-    MDataPermissionSet, MDataValue, PublicKey, Result, SeqMutableData, UnseqMutableData,
+    errors::ErrorDebug, AData, ADataEntries, ADataIndices, ADataOwner, ADataPubPermissionSet,
+    ADataPubPermissions, ADataUnpubPermissionSet, ADataUnpubPermissions, AppPermissions, Coins,
+    IData, MData, MDataPermissionSet, MDataValue, PublicKey, Result, Signature, Transaction,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
-
-/// Safecoin transaction.
-#[derive(Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
-pub enum Transaction {
-    /// The associated `CoinBalance` was successfully credited with this `Credit`.
-    Success(Coins),
-    /// This transaction is not known by the associated `CoinBalance`.  This could be because it was
-    /// never known, or is no longer known.
-    NoSuchTransaction,
-    /// The requested `CoinBalance` doesn't exist.
-    NoSuchCoinBalance,
-}
 
 /// RPC responses from vaults.
 #[allow(clippy::large_enum_variant, clippy::type_complexity, missing_docs)]
@@ -34,69 +22,54 @@ pub enum Response {
     //
     // ===== Immutable Data =====
     //
-    GetIData(Result<IDataKind>),
-    PutIData(Result<()>),
-    DeleteUnpubIData(Result<()>),
+    GetIData(Result<IData>),
     //
     // ===== Mutable Data =====
     //
-    /// Get unsequenced Mutable Data.
-    GetUnseqMData(Result<UnseqMutableData>),
-    PutUnseqMData(Result<()>),
-    GetSeqMData(Result<SeqMutableData>),
-    PutSeqMData(Result<()>),
-    GetSeqMDataShell(Result<SeqMutableData>),
-    GetUnseqMDataShell(Result<UnseqMutableData>),
+    GetMData(Result<MData>),
+    GetMDataShell(Result<MData>),
     GetMDataVersion(Result<u64>),
     ListUnseqMDataEntries(Result<BTreeMap<Vec<u8>, Vec<u8>>>),
     ListSeqMDataEntries(Result<BTreeMap<Vec<u8>, MDataValue>>),
     ListMDataKeys(Result<BTreeSet<Vec<u8>>>),
     ListSeqMDataValues(Result<Vec<MDataValue>>),
     ListUnseqMDataValues(Result<Vec<Vec<u8>>>),
-    DeleteMData(Result<()>),
-    SetMDataUserPermissions(Result<()>),
-    DelMDataUserPermissions(Result<()>),
     ListMDataUserPermissions(Result<MDataPermissionSet>),
     ListMDataPermissions(Result<BTreeMap<PublicKey, MDataPermissionSet>>),
-    MutateSeqMDataEntries(Result<()>),
-    MutateUnseqMDataEntries(Result<()>),
     GetSeqMDataValue(Result<MDataValue>),
     GetUnseqMDataValue(Result<Vec<u8>>),
     //
     // ===== Append Only Data =====
     //
-    PutAData(Result<()>),
-    GetAData(Result<AppendOnlyData>),
-    GetADataShell(Result<AppendOnlyData>),
+    GetAData(Result<AData>),
+    GetADataShell(Result<AData>),
     GetADataOwners(Result<ADataOwner>),
-    GetADataRange(Result<Vec<(Vec<u8>, Vec<u8>)>>),
+    GetADataRange(Result<ADataEntries>),
+    GetADataValue(Result<Vec<u8>>),
     GetADataIndices(Result<ADataIndices>),
     GetADataLastEntry(Result<(Vec<u8>, Vec<u8>)>),
     GetUnpubADataPermissionAtIndex(Result<ADataUnpubPermissions>),
     GetPubADataPermissionAtIndex(Result<ADataPubPermissions>),
     GetPubADataUserPermissions(Result<ADataPubPermissionSet>),
     GetUnpubADataUserPermissions(Result<ADataUnpubPermissionSet>),
-    AddUnpubADataPermissions(Result<()>),
-    AddPubADataPermissions(Result<()>),
-    SetADataOwner(Result<()>),
-    AppendSeq(Result<()>),
-    AppendUnseq(Result<()>),
-    DeleteAData(Result<()>),
     //
     // ===== Coins =====
     //
-    TransferCoins(Result<()>),
-    GetTransaction(Result<Transaction>),
     GetBalance(Result<Coins>),
+    Transaction(Result<Transaction>),
     //
     // ===== Client (Owner) to SrcElders =====
     //
     /// Returns a list of authorised keys from Elders and the account version.
     ListAuthKeysAndVersion(Result<(BTreeMap<PublicKey, AppPermissions>, u64)>),
-    /// Returns a success or failure status of adding an authorised key.
-    InsAuthKey(Result<()>),
-    /// Returns a success or failure status of deleting an authorised key.
-    DelAuthKey(Result<()>),
+    //
+    // ===== Login Packet =====
+    //
+    /// Returns an encrypted login packet
+    GetLoginPacket(Result<(Vec<u8>, Signature)>),
+    //
+    /// Returns a success or failure status for a mutation operation.
+    Mutation(Result<()>),
 }
 
 use std::fmt;
@@ -104,60 +77,86 @@ use std::fmt;
 impl fmt::Debug for Response {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use Response::*;
-        write!(
-            f,
-            "{}",
-            match *self {
-                // IData
-                GetIData(..) => "Response::GetIData",
-                PutIData(..) => "Response::PutIData",
-                DeleteUnpubIData(..) => "Response::DeleteUnpubIData",
-                // MData
-                DeleteMData(..) => "Response::DeleteMData",
-                GetUnseqMData(..) => "Response::GetUnseqMData",
-                PutUnseqMData(..) => "Response::PutUnseqMData",
-                GetSeqMData(..) => "Response::GetSeqMData",
-                PutSeqMData(..) => "Response::PutSeqMData",
-                GetSeqMDataShell(..) => "Response::GetMDataShell",
-                GetUnseqMDataShell(..) => "Response::GetMDataShell",
-                GetMDataVersion(..) => "Response::GetMDataVersion",
-                ListUnseqMDataEntries(..) => "Response::ListUnseqMDataEntries",
-                ListSeqMDataEntries(..) => "Response::ListSeqMDataEntries",
-                ListMDataKeys(..) => "Response::ListMDataKeys",
-                ListSeqMDataValues(..) => "Response::ListSeqMDataValues",
-                ListUnseqMDataValues(..) => "Response::ListUnseqMDataValues",
-                SetMDataUserPermissions(..) => "Response::SetMDataUserPermissions",
-                DelMDataUserPermissions(..) => "Response::DelMDataUserPermissions",
-                ListMDataPermissions(..) => "Response::ListMDataPermissions",
-                ListMDataUserPermissions(..) => "Response::ListMDataUserPermissions",
-                MutateSeqMDataEntries(..) => "Response::MutateSeqMDataEntries",
-                MutateUnseqMDataEntries(..) => "Response::MutateUnseqMDataEntries",
-                GetSeqMDataValue(..) => "Response::GetSeqMDataValue",
-                GetUnseqMDataValue(..) => "Response::GetUnseqMDataValue",
-                TransferCoins(..) => "Response::TransferCoins",
-                GetTransaction(..) => "Response::GetTransaction",
-                GetBalance(..) => "Response::GetBalance",
-                ListAuthKeysAndVersion(..) => "Response::ListAuthKeysAndVersion",
-                InsAuthKey(..) => "Response::InsAuthKey",
-                DelAuthKey(..) => "Response::DelAuthKey",
-                PutAData(..) => "Response::PutAData",
-                GetAData(..) => "Response::GetAData",
-                GetADataRange(..) => "Response::GetADataRange",
-                GetADataIndices(..) => "Response::GetADataIndices",
-                GetADataLastEntry(..) => "Response::GetADataLastEntry",
-                GetUnpubADataPermissionAtIndex(..) => "Response::GetADataPermissionAtIndex",
-                GetPubADataPermissionAtIndex(..) => "Response::GetADataPermissionAtIndex",
-                GetPubADataUserPermissions(..) => "Response::GetPubADataUserPermissions",
-                GetUnpubADataUserPermissions(..) => "Response::GetUnpubADataUserPermissions",
-                AddUnpubADataPermissions(..) => "Response::AddUnpubADataPermissions",
-                AddPubADataPermissions(..) => "Response::AddPubADataPermissions",
-                AppendSeq(..) => "Response::AppendSeq",
-                AppendUnseq(..) => "Response::AppendUnseq",
-                DeleteAData(..) => "Response::DeleteAData",
-                GetADataShell(..) => "Response::GetADataShell",
-                GetADataOwners(..) => "Response::GetADataOwners",
-                SetADataOwner(..) => "Response::SetADataOwner",
+        match self {
+            // IData
+            GetIData(res) => write!(f, "Response::GetIData({:?})", ErrorDebug(res)),
+            // MData
+            GetMData(res) => write!(f, "Response::GetMData({:?})", ErrorDebug(res)),
+            GetMDataShell(res) => write!(f, "Response::GetMDataShell({:?})", ErrorDebug(res)),
+            GetMDataVersion(res) => write!(f, "Response::GetMDataVersion({:?})", ErrorDebug(res)),
+            ListUnseqMDataEntries(res) => {
+                write!(f, "Response::ListUnseqMDataEntries({:?})", ErrorDebug(res))
             }
-        )
+            ListSeqMDataEntries(res) => {
+                write!(f, "Response::ListSeqMDataEntries({:?})", ErrorDebug(res))
+            }
+            ListMDataKeys(res) => write!(f, "Response::ListMDataKeys({:?})", ErrorDebug(res)),
+            ListSeqMDataValues(res) => {
+                write!(f, "Response::ListSeqMDataValues({:?})", ErrorDebug(res))
+            }
+            ListUnseqMDataValues(res) => {
+                write!(f, "Response::ListUnseqMDataValues({:?})", ErrorDebug(res))
+            }
+            ListMDataPermissions(res) => {
+                write!(f, "Response::ListMDataPermissions({:?})", ErrorDebug(res))
+            }
+            ListMDataUserPermissions(res) => write!(
+                f,
+                "Response::ListMDataUserPermissions({:?})",
+                ErrorDebug(res)
+            ),
+            GetSeqMDataValue(res) => write!(f, "Response::GetSeqMDataValue({:?})", ErrorDebug(res)),
+            GetUnseqMDataValue(res) => {
+                write!(f, "Response::GetUnseqMDataValue({:?})", ErrorDebug(res))
+            }
+            Transaction(res) => write!(f, "Response::Transaction({:?})", ErrorDebug(res)),
+            GetBalance(res) => write!(f, "Response::GetBalance({:?})", ErrorDebug(res)),
+            ListAuthKeysAndVersion(res) => {
+                write!(f, "Response::ListAuthKeysAndVersion({:?})", ErrorDebug(res))
+            }
+            GetAData(res) => write!(f, "Response::GetAData({:?})", ErrorDebug(res)),
+            GetADataValue(res) => write!(f, "Response::GetADataValue({:?})", ErrorDebug(res)),
+            GetADataRange(res) => write!(f, "Response::GetADataRange({:?})", ErrorDebug(res)),
+            GetADataIndices(res) => write!(f, "Response::GetADataIndices({:?})", ErrorDebug(res)),
+            GetADataLastEntry(res) => {
+                write!(f, "Response::GetADataLastEntry({:?})", ErrorDebug(res))
+            }
+            GetUnpubADataPermissionAtIndex(res) => write!(
+                f,
+                "Response::GetUnpubADataPermissionAtIndex({:?})",
+                ErrorDebug(res)
+            ),
+            GetPubADataPermissionAtIndex(res) => write!(
+                f,
+                "Response::GetPubADataPermissionAtIndex({:?})",
+                ErrorDebug(res)
+            ),
+            GetPubADataUserPermissions(res) => write!(
+                f,
+                "Response::GetPubADataUserPermissions({:?})",
+                ErrorDebug(res)
+            ),
+            GetUnpubADataUserPermissions(res) => write!(
+                f,
+                "Response::GetUnpubADataUserPermissions({:?})",
+                ErrorDebug(res)
+            ),
+            GetADataShell(res) => write!(f, "Response::GetADataShell({:?})", ErrorDebug(res)),
+            GetADataOwners(res) => write!(f, "Response::GetADataOwners({:?})", ErrorDebug(res)),
+            GetLoginPacket(res) => write!(f, "Response::GetLoginPacket({:?})", ErrorDebug(res)),
+            Mutation(res) => write!(f, "Response::Mutation({:?})", ErrorDebug(res)),
+        }
     }
+}
+
+#[test]
+fn debug_format() {
+    let response = Response::Mutation(Ok(()));
+    assert_eq!(format!("{:?}", response), "Response::Mutation(Success)");
+    use crate::Error;
+    let errored_response = Response::GetADataShell(Err(Error::AccessDenied));
+    assert_eq!(
+        format!("{:?}", errored_response),
+        "Response::GetADataShell(AccessDenied)"
+    );
 }

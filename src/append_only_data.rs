@@ -7,14 +7,20 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::{Error, PublicKey, Request, Result, XorName};
+use crate::{utils, Error, PublicKey, Request, Result, XorName};
+use multibase::Decodable;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fmt::{self, Debug, Formatter},
+    hash::Hash,
+};
 
 pub type PubSeqAppendOnlyData = SeqAppendOnlyData<PubPermissions>;
 pub type PubUnseqAppendOnlyData = UnseqAppendOnlyData<PubPermissions>;
 pub type UnpubSeqAppendOnlyData = SeqAppendOnlyData<UnpubPermissions>;
 pub type UnpubUnseqAppendOnlyData = UnseqAppendOnlyData<UnpubPermissions>;
+pub type Entries = Vec<(Vec<u8>, Vec<u8>)>;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum User {
@@ -120,50 +126,6 @@ impl PubPermissionSet {
             Action::Read => Some(true), // It's published data, so it's always allowed to read it.
             Action::Append => self.append,
             Action::ManagePermissions => self.manage_permissions,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
-pub enum Address {
-    PubSeq { name: XorName, tag: u64 },
-    PubUnseq { name: XorName, tag: u64 },
-    UnpubSeq { name: XorName, tag: u64 },
-    UnpubUnseq { name: XorName, tag: u64 },
-}
-
-impl Address {
-    pub fn new_pub_seq(name: XorName, tag: u64) -> Self {
-        Address::PubSeq { name, tag }
-    }
-
-    pub fn new_pub_unseq(name: XorName, tag: u64) -> Self {
-        Address::PubUnseq { name, tag }
-    }
-
-    pub fn new_unpub_seq(name: XorName, tag: u64) -> Self {
-        Address::UnpubSeq { name, tag }
-    }
-
-    pub fn new_unpub_unseq(name: XorName, tag: u64) -> Self {
-        Address::UnpubUnseq { name, tag }
-    }
-
-    pub fn name(&self) -> &XorName {
-        match self {
-            Address::PubSeq { ref name, .. }
-            | Address::PubUnseq { ref name, .. }
-            | Address::UnpubSeq { ref name, .. }
-            | Address::UnpubUnseq { ref name, .. } => name,
-        }
-    }
-
-    pub fn tag(&self) -> u64 {
-        match self {
-            Address::PubSeq { tag, .. }
-            | Address::PubUnseq { tag, .. }
-            | Address::UnpubSeq { tag, .. }
-            | Address::UnpubUnseq { tag, .. } => *tag,
         }
     }
 }
@@ -315,7 +277,7 @@ pub struct Owner {
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
 struct AppendOnly<P: Permissions> {
     address: Address,
-    data: Vec<(Vec<u8>, Vec<u8>)>,
+    data: Entries,
     permissions: Vec<P>,
     // This is the history of owners, with each entry representing an owner.  Each single owner
     // could represent an individual user, or a group of users, depending on the `PublicKey` type.
@@ -331,13 +293,13 @@ pub trait AppendOnlyData<P> {
     fn get(&self, key: &[u8]) -> Option<&Vec<u8>>;
 
     /// Return the last entry in the Data (if it is present).
-    fn last(&self) -> Option<(Vec<u8>, Vec<u8>)>;
+    fn last_entry(&self) -> Option<(Vec<u8>, Vec<u8>)>;
 
     /// Get a list of keys and values with the given indices.
-    fn in_range(&self, start: Index, end: Index) -> Option<Vec<(Vec<u8>, Vec<u8>)>>;
+    fn in_range(&self, start: Index, end: Index) -> Option<Entries>;
 
     /// Return all entries.
-    fn entries(&self) -> &Vec<(Vec<u8>, Vec<u8>)>;
+    fn entries(&self) -> &Entries;
 
     /// Return the address of this AppendOnlyData.
     fn address(&self) -> &Address;
@@ -363,7 +325,7 @@ pub trait AppendOnlyData<P> {
 
     /// Add a new permissions entry.
     /// The `Permissions` struct should contain valid indices.
-    fn append_permissions(&mut self, permissions: P) -> Result<()>;
+    fn append_permissions(&mut self, permissions: P, permissions_idx: u64) -> Result<()>;
 
     /// Fetch perms at index.
     fn fetch_permissions_at_index(&self, perm_index: u64) -> Option<&P>;
@@ -375,13 +337,13 @@ pub trait AppendOnlyData<P> {
     fn owners_range(&self, start: Index, end: Index) -> Option<&[Owner]>;
 
     /// Add a new owner entry.
-    fn append_owner(&mut self, owner: Owner) -> Result<()>;
+    fn append_owner(&mut self, owner: Owner, owners_idx: u64) -> Result<()>;
 }
 
 /// Common methods for published and unpublished unsequenced `AppendOnlyData`.
 pub trait UnseqAppendOnly {
     /// Append new entries.
-    fn append(&mut self, entries: &[(Vec<u8>, Vec<u8>)]) -> Result<()>;
+    fn append(&mut self, entries: Entries) -> Result<()>;
 }
 
 /// Common methods for published and unpublished sequenced `AppendOnlyData`.
@@ -390,7 +352,7 @@ pub trait SeqAppendOnly {
     ///
     /// If the specified `last_entries_index` does not match the last recorded entries index, an
     /// error will be returned.
-    fn append(&mut self, entries: &[(Vec<u8>, Vec<u8>)], last_entries_index: u64) -> Result<()>;
+    fn append(&mut self, entries: Entries, last_entries_index: u64) -> Result<()>;
 }
 
 macro_rules! impl_appendable_data {
@@ -398,14 +360,14 @@ macro_rules! impl_appendable_data {
         #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
         pub struct $flavour<P>
         where
-            P: Permissions + std::hash::Hash + Clone,
+            P: Permissions + Hash + Clone,
         {
             inner: AppendOnly<P>,
         }
 
         impl<P> $flavour<P>
         where
-            P: Permissions + std::hash::Hash + Clone,
+            P: Permissions + Hash + Clone,
         {
             pub fn shell(&self, index: u64) -> Result<Self> {
                 if index > self.entry_index() {
@@ -437,30 +399,11 @@ macro_rules! impl_appendable_data {
                     },
                 })
             }
-
-            pub fn check_permission(&self, request: &Request, requester: PublicKey) -> Result<()> {
-                if self
-                    .inner
-                    .owners
-                    .last()
-                    .ok_or_else(|| Error::NoSuchData)?
-                    .public_key
-                    == requester
-                {
-                    Ok(())
-                } else {
-                    self.inner
-                        .permissions
-                        .last()
-                        .ok_or_else(|| Error::NoSuchData)?
-                        .check_permissions_for_key(requester, request)
-                }
-            }
         }
 
         impl<P> AppendOnlyData<P> for $flavour<P>
         where
-            P: Permissions + std::hash::Hash + Clone,
+            P: Permissions + Hash + Clone,
         {
             fn address(&self) -> &Address {
                 &self.inner.address
@@ -493,7 +436,7 @@ macro_rules! impl_appendable_data {
                     .find_map(|(k, v)| if k.as_slice() == key { Some(v) } else { None })
             }
 
-            fn last(&self) -> Option<(Vec<u8>, Vec<u8>)> {
+            fn last_entry(&self) -> Option<(Vec<u8>, Vec<u8>)> {
                 match self.inner.data.last() {
                     Some(tup) => Some(tup.clone()),
                     None => None,
@@ -508,7 +451,7 @@ macro_rules! impl_appendable_data {
                 self.inner.owners.get(owners_index as usize)
             }
 
-            fn in_range(&self, start: Index, end: Index) -> Option<Vec<(Vec<u8>, Vec<u8>)>> {
+            fn in_range(&self, start: Index, end: Index) -> Option<Entries> {
                 let idx_start = match start {
                     Index::FromStart(idx) => idx as usize,
                     Index::FromEnd(idx) => self.inner.data.len() - (idx as usize),
@@ -533,7 +476,7 @@ macro_rules! impl_appendable_data {
                 Some(self.inner.data[idx_start..idx_end].to_vec())
             }
 
-            fn entries(&self) -> &Vec<(Vec<u8>, Vec<u8>)> {
+            fn entries(&self) -> &Entries {
                 &self.inner.data
             }
 
@@ -585,23 +528,29 @@ macro_rules! impl_appendable_data {
                 Some(&self.inner.owners[idx_start..idx_end])
             }
 
-            fn append_permissions(&mut self, permissions: P) -> Result<()> {
+            fn append_permissions(&mut self, permissions: P, permissions_idx: u64) -> Result<()> {
                 if permissions.data_index() != self.entry_index() {
                     return Err(Error::InvalidSuccessor(self.entry_index()));
                 }
                 if permissions.owner_entry_index() != self.owners_index() {
                     return Err(Error::InvalidOwnersSuccessor(self.owners_index()));
                 }
+                if self.permissions_index() != permissions_idx {
+                    return Err(Error::InvalidSuccessor(self.permissions_index()));
+                }
                 self.inner.permissions.push(permissions);
                 Ok(())
             }
 
-            fn append_owner(&mut self, owner: Owner) -> Result<()> {
+            fn append_owner(&mut self, owner: Owner, owners_idx: u64) -> Result<()> {
                 if owner.data_index != self.entry_index() {
                     return Err(Error::InvalidSuccessor(self.entry_index()));
                 }
                 if owner.permissions_index != self.permissions_index() {
                     return Err(Error::InvalidPermissionsSuccessor(self.permissions_index()));
+                }
+                if self.owners_index() != owners_idx {
+                    return Err(Error::InvalidSuccessor(self.owners_index()));
                 }
                 self.inner.owners.push(owner);
                 Ok(())
@@ -617,12 +566,18 @@ impl SeqAppendOnlyData<PubPermissions> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             inner: AppendOnly {
-                address: Address::new_pub_seq(name, tag),
+                address: Address::PubSeq { name, tag },
                 data: Vec::new(),
                 permissions: Vec::new(),
                 owners: Vec::new(),
             },
         }
+    }
+}
+
+impl Debug for SeqAppendOnlyData<PubPermissions> {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        write!(formatter, "PubSeqAppendOnlyData {:?}", self.name())
     }
 }
 
@@ -630,12 +585,18 @@ impl UnseqAppendOnlyData<PubPermissions> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             inner: AppendOnly {
-                address: Address::new_pub_unseq(name, tag),
+                address: Address::PubUnseq { name, tag },
                 data: Vec::new(),
                 permissions: Vec::new(),
                 owners: Vec::new(),
             },
         }
+    }
+}
+
+impl Debug for UnseqAppendOnlyData<PubPermissions> {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        write!(formatter, "PubUnseqAppendOnlyData {:?}", self.name())
     }
 }
 
@@ -643,12 +604,18 @@ impl SeqAppendOnlyData<UnpubPermissions> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             inner: AppendOnly {
-                address: Address::new_unpub_seq(name, tag),
+                address: Address::UnpubSeq { name, tag },
                 data: Vec::new(),
                 permissions: Vec::new(),
                 owners: Vec::new(),
             },
         }
+    }
+}
+
+impl Debug for SeqAppendOnlyData<UnpubPermissions> {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        write!(formatter, "PubSeqAppendOnlyData {:?}", self.name())
     }
 }
 
@@ -656,7 +623,7 @@ impl UnseqAppendOnlyData<UnpubPermissions> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             inner: AppendOnly {
-                address: Address::new_unpub_unseq(name, tag),
+                address: Address::UnpubUnseq { name, tag },
                 data: Vec::new(),
                 permissions: Vec::new(),
                 owners: Vec::new(),
@@ -665,45 +632,327 @@ impl UnseqAppendOnlyData<UnpubPermissions> {
     }
 }
 
+impl Debug for UnseqAppendOnlyData<UnpubPermissions> {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        write!(formatter, "UnpubUnseqAppendOnlyData {:?}", self.name())
+    }
+}
+
+fn check_dup(data: &[(Vec<u8>, Vec<u8>)], entries: &mut Entries) -> Result<()> {
+    let new: BTreeSet<&Vec<u8>> = entries.iter().map(|(key, _value)| key).collect();
+
+    // If duplicate entries are present in the push.
+    if new.len() < entries.len() {
+        return Err(Error::DuplicateEntryKeys);
+    }
+
+    let existing: BTreeSet<&Vec<u8>> = data.iter().map(|(key, _value)| key).collect();
+    if !existing.is_disjoint(&new) {
+        let dup: Entries = entries
+            .drain(..)
+            .filter(|(key, _value)| existing.contains(&key))
+            .collect();
+        return Err(Error::KeysExist(dup));
+    }
+    Ok(())
+}
+
 impl<P> SeqAppendOnly for SeqAppendOnlyData<P>
 where
-    P: Permissions + std::hash::Hash + Clone,
+    P: Permissions + Hash + Clone,
 {
-    fn append(&mut self, entries: &[(Vec<u8>, Vec<u8>)], last_entries_index: u64) -> Result<()> {
+    fn append(&mut self, mut entries: Entries, last_entries_index: u64) -> Result<()> {
+        check_dup(&self.inner.data, entries.as_mut())?;
+
         if last_entries_index != self.inner.data.len() as u64 {
             return Err(Error::InvalidSuccessor(self.inner.data.len() as u64));
         }
-        self.inner.data.extend(entries.iter().cloned());
+
+        self.inner.data.extend(entries);
         Ok(())
     }
 }
 
 impl<P> UnseqAppendOnly for UnseqAppendOnlyData<P>
 where
-    P: Permissions + std::hash::Hash + Clone,
+    P: Permissions + Hash + Clone,
 {
-    fn append(&mut self, entries: &[(Vec<u8>, Vec<u8>)]) -> Result<()> {
-        self.inner.data.extend(entries.iter().cloned());
+    fn append(&mut self, mut entries: Entries) -> Result<()> {
+        check_dup(&self.inner.data, entries.as_mut())?;
+
+        self.inner.data.extend(entries);
         Ok(())
     }
+}
+
+macro_rules! check_perm {
+    ($data: ident, $requester: ident, $request: ident) => {
+        if $data
+            .fetch_owner_at_index($data.owners_index() - 1)
+            .ok_or_else(|| Error::NoSuchData)?
+            .public_key
+            == $requester
+        {
+            Ok(())
+        } else {
+            $data
+                .fetch_permissions_at_index($data.permissions_index() - 1)
+                .ok_or_else(|| Error::NoSuchData)?
+                .check_permissions_for_key($requester, $request)
+        }
+    };
+}
+
+macro_rules! indices {
+    ($data: ident) => {
+        Ok(Indices::new(
+            $data.entry_index(),
+            $data.owners_index(),
+            $data.permissions_index(),
+        ))
+    };
+}
+
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
+pub enum Kind {
+    PubSeq,
+    PubUnseq,
+    UnpubSeq,
+    UnpubUnseq,
+}
+
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
+pub enum Address {
+    PubSeq { name: XorName, tag: u64 },
+    PubUnseq { name: XorName, tag: u64 },
+    UnpubSeq { name: XorName, tag: u64 },
+    UnpubUnseq { name: XorName, tag: u64 },
+}
+
+impl Address {
+    pub fn kind(&self) -> Kind {
+        match self {
+            Address::PubSeq { .. } => Kind::PubSeq,
+            Address::PubUnseq { .. } => Kind::PubUnseq,
+            Address::UnpubSeq { .. } => Kind::UnpubSeq,
+            Address::UnpubUnseq { .. } => Kind::UnpubUnseq,
+        }
+    }
+
+    pub fn name(&self) -> &XorName {
+        match self {
+            Address::PubSeq { ref name, .. }
+            | Address::PubUnseq { ref name, .. }
+            | Address::UnpubSeq { ref name, .. }
+            | Address::UnpubUnseq { ref name, .. } => name,
+        }
+    }
+
+    pub fn tag(&self) -> u64 {
+        match self {
+            Address::PubSeq { tag, .. }
+            | Address::PubUnseq { tag, .. }
+            | Address::UnpubSeq { tag, .. }
+            | Address::UnpubUnseq { tag, .. } => *tag,
+        }
+    }
+
+    /// Returns the Address serialised and encoded in z-base-32.
+    pub fn encode_to_zbase32(&self) -> String {
+        utils::encode(&self)
+    }
+
+    /// Create from z-base-32 encoded string.
+    pub fn decode_from_zbase32<I: Decodable>(encoded: I) -> Result<Self> {
+        utils::decode(encoded)
+    }
+}
+
+/// Object storing an appendonly data variant.
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
+pub enum Data {
+    PubSeq(PubSeqAppendOnlyData),
+    PubUnseq(PubUnseqAppendOnlyData),
+    UnpubSeq(UnpubSeqAppendOnlyData),
+    UnpubUnseq(UnpubUnseqAppendOnlyData),
+}
+
+impl Data {
+    pub fn check_permission(&self, request: &Request, requester: PublicKey) -> Result<()> {
+        match self {
+            Data::PubSeq(data) => check_perm!(data, requester, request),
+            Data::PubUnseq(data) => check_perm!(data, requester, request),
+            Data::UnpubSeq(data) => check_perm!(data, requester, request),
+            Data::UnpubUnseq(data) => check_perm!(data, requester, request),
+        }
+    }
+
+    pub fn address(&self) -> &Address {
+        match self {
+            Data::PubSeq(data) => data.address(),
+            Data::PubUnseq(data) => data.address(),
+            Data::UnpubSeq(data) => data.address(),
+            Data::UnpubUnseq(data) => data.address(),
+        }
+    }
+
+    pub fn name(&self) -> &XorName {
+        self.address().name()
+    }
+
+    pub fn tag(&self) -> u64 {
+        self.address().tag()
+    }
+
+    pub fn kind(&self) -> Kind {
+        self.address().kind()
+    }
+
+    pub fn permissions_index(&self) -> u64 {
+        match self {
+            Data::PubSeq(data) => data.permissions_index(),
+            Data::PubUnseq(data) => data.permissions_index(),
+            Data::UnpubSeq(data) => data.permissions_index(),
+            Data::UnpubUnseq(data) => data.permissions_index(),
+        }
+    }
+
+    pub fn owners_index(&self) -> u64 {
+        match self {
+            Data::PubSeq(data) => data.owners_index(),
+            Data::PubUnseq(data) => data.owners_index(),
+            Data::UnpubSeq(data) => data.owners_index(),
+            Data::UnpubUnseq(data) => data.owners_index(),
+        }
+    }
+
+    pub fn in_range(&self, start: Index, end: Index) -> Option<Entries> {
+        match self {
+            Data::PubSeq(data) => data.in_range(start, end),
+            Data::PubUnseq(data) => data.in_range(start, end),
+            Data::UnpubSeq(data) => data.in_range(start, end),
+            Data::UnpubUnseq(data) => data.in_range(start, end),
+        }
+    }
+
+    pub fn get(&self, key: &[u8]) -> Option<&Vec<u8>> {
+        match self {
+            Data::PubSeq(data) => data.get(key),
+            Data::PubUnseq(data) => data.get(key),
+            Data::UnpubSeq(data) => data.get(key),
+            Data::UnpubUnseq(data) => data.get(key),
+        }
+    }
+
+    pub fn indices(&self) -> Result<Indices> {
+        match self {
+            Data::PubSeq(data) => indices!(data),
+            Data::PubUnseq(data) => indices!(data),
+            Data::UnpubSeq(data) => indices!(data),
+            Data::UnpubUnseq(data) => indices!(data),
+        }
+    }
+
+    pub fn last_entry(&self) -> Option<(Vec<u8>, Vec<u8>)> {
+        match self {
+            Data::PubSeq(data) => data.last_entry(),
+            Data::PubUnseq(data) => data.last_entry(),
+            Data::UnpubSeq(data) => data.last_entry(),
+            Data::UnpubUnseq(data) => data.last_entry(),
+        }
+    }
+
+    pub fn get_owners(&self, idx: u64) -> Option<&Owner> {
+        match self {
+            Data::PubSeq(data) => data.fetch_owner_at_index(idx),
+            Data::PubUnseq(data) => data.fetch_owner_at_index(idx),
+            Data::UnpubSeq(data) => data.fetch_owner_at_index(idx),
+            Data::UnpubUnseq(data) => data.fetch_owner_at_index(idx),
+        }
+    }
+
+    pub fn pub_user_permissions(&self, user: User, idx: u64) -> Result<PubPermissionSet> {
+        match self {
+            Data::PubSeq(data) => data.fetch_permissions_at_index(idx),
+            Data::PubUnseq(data) => data.fetch_permissions_at_index(idx),
+            _ => None,
+        }
+        .and_then(|permissions| permissions.permissions().get(&user))
+        .cloned()
+        .ok_or(Error::NoSuchEntry)
+    }
+
+    pub fn unpub_user_permissions(&self, user: PublicKey, idx: u64) -> Result<UnpubPermissionSet> {
+        match self {
+            Data::UnpubSeq(data) => data.fetch_permissions_at_index(idx),
+            Data::UnpubUnseq(data) => data.fetch_permissions_at_index(idx),
+            _ => None,
+        }
+        .and_then(|permissions| permissions.permissions().get(&user).cloned())
+        .ok_or(Error::NoSuchEntry)
+    }
+
+    pub fn shell(&self, idx: u64) -> Result<Self> {
+        match self {
+            Data::PubSeq(adata) => adata.shell(idx).map(Data::PubSeq),
+            Data::PubUnseq(adata) => adata.shell(idx).map(Data::PubUnseq),
+            Data::UnpubSeq(adata) => adata.shell(idx).map(Data::UnpubSeq),
+            Data::UnpubUnseq(adata) => adata.shell(idx).map(Data::UnpubUnseq),
+        }
+    }
+}
+
+impl From<PubSeqAppendOnlyData> for Data {
+    fn from(data: PubSeqAppendOnlyData) -> Self {
+        Data::PubSeq(data)
+    }
+}
+
+impl From<PubUnseqAppendOnlyData> for Data {
+    fn from(data: PubUnseqAppendOnlyData) -> Self {
+        Data::PubUnseq(data)
+    }
+}
+
+impl From<UnpubSeqAppendOnlyData> for Data {
+    fn from(data: UnpubSeqAppendOnlyData) -> Self {
+        Data::UnpubSeq(data)
+    }
+}
+
+impl From<UnpubUnseqAppendOnlyData> for Data {
+    fn from(data: UnpubUnseqAppendOnlyData) -> Self {
+        Data::UnpubUnseq(data)
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
+pub struct AppendOperation {
+    // Address of an AppendOnlyData object on the network.
+    pub address: Address,
+    // A list of entries to append.
+    pub values: Entries,
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use threshold_crypto::SecretKey;
-    use unwrap::unwrap;
+    use unwrap::{unwrap, unwrap_err};
 
     #[test]
     fn append_permissions() {
         let mut data = SeqAppendOnlyData::<UnpubPermissions>::new(XorName([1; 32]), 10000);
 
         // Append the first permission set with correct indices - should pass.
-        let res = data.append_permissions(UnpubPermissions {
-            permissions: BTreeMap::new(),
-            data_index: 0,
-            owner_entry_index: 0,
-        });
+        let res = data.append_permissions(
+            UnpubPermissions {
+                permissions: BTreeMap::new(),
+                data_index: 0,
+                owner_entry_index: 0,
+            },
+            0,
+        );
 
         match res {
             Ok(()) => (),
@@ -717,11 +966,14 @@ mod tests {
         );
 
         // Append another permissions entry with incorrect indices - should fail.
-        let res = data.append_permissions(UnpubPermissions {
-            permissions: BTreeMap::new(),
-            data_index: 64,
-            owner_entry_index: 0,
-        });
+        let res = data.append_permissions(
+            UnpubPermissions {
+                permissions: BTreeMap::new(),
+                data_index: 64,
+                owner_entry_index: 0,
+            },
+            1,
+        );
 
         match res {
             Err(_) => (),
@@ -742,11 +994,14 @@ mod tests {
         let mut data = SeqAppendOnlyData::<UnpubPermissions>::new(XorName([1; 32]), 10000);
 
         // Append the first owner with correct indices - should pass.
-        let res = data.append_owner(Owner {
-            public_key: owner_pk,
-            data_index: 0,
-            permissions_index: 0,
-        });
+        let res = data.append_owner(
+            Owner {
+                public_key: owner_pk,
+                data_index: 0,
+                permissions_index: 0,
+            },
+            0,
+        );
 
         match res {
             Ok(()) => (),
@@ -760,11 +1015,14 @@ mod tests {
         );
 
         // Append another owners entry with incorrect indices - should fail.
-        let res = data.append_owner(Owner {
-            public_key: owner_pk,
-            data_index: 64,
-            permissions_index: 0,
-        });
+        let res = data.append_owner(
+            Owner {
+                public_key: owner_pk,
+                data_index: 64,
+                permissions_index: 0,
+            },
+            1,
+        );
 
         match res {
             Err(_) => (),
@@ -781,12 +1039,7 @@ mod tests {
     #[test]
     fn seq_append_entries() {
         let mut data = SeqAppendOnlyData::<PubPermissions>::new(XorName([1; 32]), 10000);
-        let res = data.append(&[(b"hello".to_vec(), b"world".to_vec())], 0);
-
-        match res {
-            Ok(()) => (),
-            Err(x) => panic!("Unexpected error: {:?}", x),
-        }
+        unwrap!(data.append(vec![(b"hello".to_vec(), b"world".to_vec())], 0));
     }
 
     #[test]
@@ -796,18 +1049,99 @@ mod tests {
 
         let mut data = SeqAppendOnlyData::<UnpubPermissions>::new(XorName([1; 32]), 10000);
 
-        let _ = data.append_owner(Owner {
-            public_key: owner_pk,
-            data_index: 0,
-            permissions_index: 0,
-        });
+        let _ = data.append_owner(
+            Owner {
+                public_key: owner_pk,
+                data_index: 0,
+                permissions_index: 0,
+            },
+            0,
+        );
 
-        let _ = data.append_owner(Owner {
-            public_key: owner_pk1,
-            data_index: 0,
-            permissions_index: 0,
-        });
+        let _ = data.append_owner(
+            Owner {
+                public_key: owner_pk1,
+                data_index: 0,
+                permissions_index: 0,
+            },
+            1,
+        );
 
         assert_eq!(data.owners_index(), unwrap!(data.shell(0)).owners_index());
+    }
+
+    #[test]
+    fn zbase32_encode_decode_adata_address() {
+        let name = XorName(rand::random());
+        let address = Address::UnpubSeq { name, tag: 15000 };
+        let encoded = address.encode_to_zbase32();
+        let decoded = unwrap!(self::Address::decode_from_zbase32(&encoded));
+        assert_eq!(address, decoded);
+    }
+
+    #[test]
+    fn append_unseq_data_test() {
+        let mut data = UnpubUnseqAppendOnlyData::new(XorName(rand::random()), 10);
+
+        // Assert that the entries are not appended because of duplicate keys.
+        let entries = vec![
+            (b"KEY1".to_vec(), b"VALUE1".to_vec()),
+            (b"KEY2".to_vec(), b"VALUE2".to_vec()),
+            (b"KEY1".to_vec(), b"VALUE1".to_vec()),
+        ];
+        assert_eq!(Error::DuplicateEntryKeys, unwrap_err!(data.append(entries)));
+
+        // Assert that the entries are appended because there are no duplicate keys.
+        let entries1 = vec![
+            (b"KEY1".to_vec(), b"VALUE1".to_vec()),
+            (b"KEY2".to_vec(), b"VALUE2".to_vec()),
+        ];
+
+        unwrap!(data.append(entries1));
+
+        // Assert that entries are not appended because they duplicate some keys appended previously.
+        let entries2 = vec![(b"KEY2".to_vec(), b"VALUE2".to_vec())];
+        assert_eq!(
+            Error::KeysExist(entries2.clone()),
+            unwrap_err!(data.append(entries2))
+        );
+
+        // Assert that no duplicate keys are present and the append operation is successful.
+        let entries3 = vec![(b"KEY3".to_vec(), b"VALUE3".to_vec())];
+        unwrap!(data.append(entries3));
+    }
+
+    #[test]
+    fn append_seq_data_test() {
+        let mut data = UnpubSeqAppendOnlyData::new(XorName(rand::random()), 10);
+
+        // Assert that the entries are not appended because of duplicate keys.
+        let entries = vec![
+            (b"KEY1".to_vec(), b"VALUE1".to_vec()),
+            (b"KEY2".to_vec(), b"VALUE2".to_vec()),
+            (b"KEY1".to_vec(), b"VALUE1".to_vec()),
+        ];
+        assert_eq!(
+            Error::DuplicateEntryKeys,
+            unwrap_err!(data.append(entries, 0))
+        );
+
+        // Assert that the entries are appended because there are no duplicate keys.
+        let entries1 = vec![
+            (b"KEY1".to_vec(), b"VALUE1".to_vec()),
+            (b"KEY2".to_vec(), b"VALUE2".to_vec()),
+        ];
+        unwrap!(data.append(entries1, 0));
+
+        // Assert that entries are not appended because they duplicate some keys appended previously.
+        let entries2 = vec![(b"KEY2".to_vec(), b"VALUE2".to_vec())];
+        assert_eq!(
+            Error::KeysExist(entries2.clone()),
+            unwrap_err!(data.append(entries2, 2))
+        );
+
+        // Assert that no duplicate keys are present and the append operation is successful.
+        let entries3 = vec![(b"KEY3".to_vec(), b"VALUE3".to_vec())];
+        unwrap!(data.append(entries3, 2));
     }
 }

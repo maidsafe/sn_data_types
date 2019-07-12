@@ -8,11 +8,17 @@
 // Software.
 
 use super::BlsKeypairShare;
-use crate::{Ed25519Digest, Error, PublicKey, Signature, XorName};
+use crate::{utils, Ed25519Digest, Error, PublicKey, Signature, XorName};
 use ed25519_dalek::{Keypair as Ed25519Keypair, PublicKey as Ed25519PublicKey};
+use hex_fmt::HexFmt;
+use multibase::Decodable;
 use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::fmt::{self, Debug, Display, Formatter};
+use std::{
+    cmp::Ordering,
+    fmt::{self, Debug, Display, Formatter},
+    hash::{Hash, Hasher},
+};
 use threshold_crypto::{
     serde_impl::SerdeSecret, PublicKeyShare as BlsPublicKeyShare,
     SecretKeyShare as BlsSecretKeyShare,
@@ -124,14 +130,14 @@ impl PublicId {
         &self.bls
     }
 
-    /// Returns the PublicId serialised and encoded in standard base64.
-    pub fn encode_to_base64(&self) -> String {
-        super::encode_to_base64(&self)
+    /// Returns the PublicId serialised and encoded in z-base-32.
+    pub fn encode_to_zbase32(&self) -> String {
+        utils::encode(&self)
     }
 
-    /// Create from standard base64 encoded string.
-    pub fn decode_from_base64<T: ?Sized + AsRef<[u8]>>(encoded: &T) -> Result<Self, Error> {
-        super::decode_from_base64(encoded)
+    /// Create from z-base-32 encoded string.
+    pub fn decode_from_zbase32<T: Decodable>(encoded: T) -> Result<Self, Error> {
+        utils::decode(encoded)
     }
 }
 
@@ -150,9 +156,28 @@ impl<'de> Deserialize<'de> for PublicId {
     }
 }
 
+impl Ord for PublicId {
+    fn cmp(&self, other: &PublicId) -> Ordering {
+        utils::serialise(&self).cmp(&utils::serialise(other))
+    }
+}
+
+impl PartialOrd for PublicId {
+    fn partial_cmp(&self, other: &PublicId) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+#[allow(clippy::derive_hash_xor_eq)]
+impl Hash for PublicId {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        utils::serialise(&self).hash(state)
+    }
+}
+
 impl Debug for PublicId {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "Node({:?})", self.ed25519)
+        write!(formatter, "Node({:<8})", HexFmt(&self.ed25519.to_bytes()))
     }
 }
 

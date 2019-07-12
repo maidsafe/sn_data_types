@@ -7,160 +7,17 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
+mod login_packet;
+
+pub use self::login_packet::{LoginPacket, MAX_LOGIN_PACKET_BYTES};
 use crate::{
-    ADataAddress, ADataIndex, ADataIndices, ADataOwner, ADataPubPermissionSet, ADataPubPermissions,
-    ADataUnpubPermissionSet, ADataUnpubPermissions, ADataUser, AppPermissions,
-    AppendOnlyData as AppendOnlyTrait, Coins, Error, IDataAddress, IDataKind, MDataAddress,
-    MDataPermissionSet, MDataSeqEntryAction, MDataUnseqEntryAction, PubSeqAppendOnlyData,
-    PubUnseqAppendOnlyData, PublicKey, SeqMutableData, UnpubSeqAppendOnlyData,
-    UnpubUnseqAppendOnlyData, UnseqMutableData, XorName,
+    AData, ADataAddress, ADataAppend, ADataIndex, ADataOwner, ADataPubPermissions,
+    ADataUnpubPermissions, ADataUser, AppPermissions, Coins, IData, IDataAddress, MData,
+    MDataAddress, MDataPermissionSet, MDataSeqEntryActions, MDataUnseqEntryActions, PublicKey,
+    TransactionId, XorName,
 };
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeMap, fmt};
-
-#[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
-pub enum AppendOnlyData {
-    PubSeq(PubSeqAppendOnlyData),
-    UnpubSeq(UnpubSeqAppendOnlyData),
-    PubUnseq(PubUnseqAppendOnlyData),
-    UnpubUnseq(UnpubUnseqAppendOnlyData),
-}
-
-impl AppendOnlyData {
-    pub fn address(&self) -> &ADataAddress {
-        match self {
-            AppendOnlyData::PubSeq(data) => data.address(),
-            AppendOnlyData::PubUnseq(data) => data.address(),
-            AppendOnlyData::UnpubSeq(data) => data.address(),
-            AppendOnlyData::UnpubUnseq(data) => data.address(),
-        }
-    }
-
-    pub fn name(&self) -> &XorName {
-        self.address().name()
-    }
-
-    pub fn tag(&self) -> u64 {
-        self.address().tag()
-    }
-
-    pub fn permissions_index(&self) -> u64 {
-        match self {
-            AppendOnlyData::PubSeq(data) => data.permissions_index(),
-            AppendOnlyData::PubUnseq(data) => data.permissions_index(),
-            AppendOnlyData::UnpubSeq(data) => data.permissions_index(),
-            AppendOnlyData::UnpubUnseq(data) => data.permissions_index(),
-        }
-    }
-
-    pub fn owners_index(&self) -> u64 {
-        match self {
-            AppendOnlyData::PubSeq(data) => data.owners_index(),
-            AppendOnlyData::PubUnseq(data) => data.owners_index(),
-            AppendOnlyData::UnpubSeq(data) => data.owners_index(),
-            AppendOnlyData::UnpubUnseq(data) => data.owners_index(),
-        }
-    }
-
-    pub fn in_range(&self, start: ADataIndex, end: ADataIndex) -> Option<Vec<(Vec<u8>, Vec<u8>)>> {
-        match self {
-            AppendOnlyData::PubSeq(data) => data.in_range(start, end),
-            AppendOnlyData::PubUnseq(data) => data.in_range(start, end),
-            AppendOnlyData::UnpubSeq(data) => data.in_range(start, end),
-            AppendOnlyData::UnpubUnseq(data) => data.in_range(start, end),
-        }
-    }
-
-    pub fn indices(&self) -> Result<ADataIndices, Error> {
-        match self {
-            AppendOnlyData::PubSeq(data) => Ok(ADataIndices::new(
-                data.entry_index(),
-                data.owners_index(),
-                data.permissions_index(),
-            )),
-            AppendOnlyData::PubUnseq(data) => Ok(ADataIndices::new(
-                data.entry_index(),
-                data.owners_index(),
-                data.permissions_index(),
-            )),
-            AppendOnlyData::UnpubSeq(data) => Ok(ADataIndices::new(
-                data.entry_index(),
-                data.owners_index(),
-                data.permissions_index(),
-            )),
-            AppendOnlyData::UnpubUnseq(data) => Ok(ADataIndices::new(
-                data.entry_index(),
-                data.owners_index(),
-                data.permissions_index(),
-            )),
-        }
-    }
-
-    pub fn last_entry(&self) -> Option<(Vec<u8>, Vec<u8>)> {
-        match self {
-            AppendOnlyData::PubSeq(data) => data.last(),
-            AppendOnlyData::PubUnseq(data) => data.last(),
-            AppendOnlyData::UnpubSeq(data) => data.last(),
-            AppendOnlyData::UnpubUnseq(data) => data.last(),
-        }
-    }
-
-    pub fn get_owners(&self, idx: u64) -> Option<&ADataOwner> {
-        match self {
-            AppendOnlyData::PubSeq(data) => data.fetch_owner_at_index(idx),
-            AppendOnlyData::PubUnseq(data) => data.fetch_owner_at_index(idx),
-            AppendOnlyData::UnpubSeq(data) => data.fetch_owner_at_index(idx),
-            AppendOnlyData::UnpubUnseq(data) => data.fetch_owner_at_index(idx),
-        }
-    }
-
-    pub fn get_pub_user_permissions(
-        &self,
-        user: ADataUser,
-        idx: u64,
-    ) -> Result<ADataPubPermissionSet, Error> {
-        match self {
-            AppendOnlyData::PubSeq(data) => data.fetch_permissions_at_index(idx),
-            AppendOnlyData::PubUnseq(data) => data.fetch_permissions_at_index(idx),
-            _ => None,
-        }
-        .and_then(|permissions| permissions.permissions().get(&user))
-        .cloned()
-        .ok_or(Error::NoSuchEntry)
-    }
-
-    pub fn get_unpub_user_permissions(
-        &self,
-        user: PublicKey,
-        idx: u64,
-    ) -> Result<ADataUnpubPermissionSet, Error> {
-        match self {
-            AppendOnlyData::UnpubSeq(data) => data.fetch_permissions_at_index(idx),
-            AppendOnlyData::UnpubUnseq(data) => data.fetch_permissions_at_index(idx),
-            _ => None,
-        }
-        .and_then(|permissions| permissions.permissions().get(&user).cloned())
-        .ok_or(Error::NoSuchEntry)
-    }
-
-    pub fn get_shell(&self, idx: u64) -> Result<Self, Error> {
-        use AppendOnlyData::*;
-        match self {
-            PubSeq(adata) => adata.shell(idx).map(PubSeq),
-            PubUnseq(adata) => adata.shell(idx).map(PubUnseq),
-            UnpubSeq(adata) => adata.shell(idx).map(UnpubSeq),
-            UnpubUnseq(adata) => adata.shell(idx).map(UnpubUnseq),
-        }
-    }
-}
-
-#[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
-pub struct AppendOperation {
-    // Address of an AppendOnlyData object on the network.
-    pub address: ADataAddress,
-    // A list of entries to append.
-    pub values: Vec<(Vec<u8>, Vec<u8>)>,
-}
+use std::fmt;
 
 /// RPC Request that is sent to vaults
 #[allow(clippy::large_enum_variant, missing_docs)]
@@ -169,14 +26,13 @@ pub enum Request {
     //
     // ===== Immutable Data =====
     //
-    PutIData(IDataKind),
+    PutIData(IData),
     GetIData(IDataAddress),
     DeleteUnpubIData(IDataAddress),
     //
     // ===== Mutable Data =====
     //
-    PutUnseqMData(UnseqMutableData),
-    PutSeqMData(SeqMutableData),
+    PutMData(MData),
     GetMData(MDataAddress),
     GetMDataValue {
         address: MDataAddress,
@@ -206,17 +62,17 @@ pub enum Request {
     },
     MutateSeqMDataEntries {
         address: MDataAddress,
-        actions: BTreeMap<Vec<u8>, MDataSeqEntryAction>,
+        actions: MDataSeqEntryActions,
     },
     MutateUnseqMDataEntries {
         address: MDataAddress,
-        actions: BTreeMap<Vec<u8>, MDataUnseqEntryAction>,
+        actions: MDataUnseqEntryActions,
     },
     //
     // ===== Append Only Data =====
     //
     /// Put a new AppendOnlyData onto the network.
-    PutAData(AppendOnlyData),
+    PutAData(AData),
     /// Get AppendOnlyData from the network.
     GetAData(ADataAddress),
     /// Get `AppendOnlyData` shell at a certain point in history (`data_index` refers to the list
@@ -244,6 +100,10 @@ pub enum Request {
         // Get first 5 entries:
         // range: (Index::FromStart(0), Index::FromStart(5))
         range: (ADataIndex, ADataIndex),
+    },
+    GetADataValue {
+        address: ADataAddress,
+        key: Vec<u8>,
     },
     /// Get current indices: data, owners, permissions.
     GetADataIndices(ADataAddress),
@@ -275,39 +135,54 @@ pub enum Request {
     AddPubADataPermissions {
         address: ADataAddress,
         permissions: ADataPubPermissions,
+        permissions_idx: u64,
     },
     /// Add a new `permissions` entry.
     AddUnpubADataPermissions {
         address: ADataAddress,
         permissions: ADataUnpubPermissions,
+        permissions_idx: u64,
     },
     /// Add a new `owners` entry. Only the current owner(s) can perform this action.
     SetADataOwner {
         address: ADataAddress,
         owner: ADataOwner,
+        owners_idx: u64,
     },
     AppendSeq {
-        append: AppendOperation,
+        append: ADataAppend,
         index: u64,
     },
-    AppendUnseq(AppendOperation),
+    AppendUnseq(ADataAppend),
     //
     // ===== Coins =====
     //
     /// Balance transfer
     TransferCoins {
-        source: XorName,
         destination: XorName,
         amount: Coins,
-        transaction_id: u64, // TODO: Use the trait UUID
-    },
-    /// Get transaction
-    GetTransaction {
-        coins_balance_id: XorName,
-        transaction_id: u64, // TODO: Use the trait UUID
+        transaction_id: TransactionId,
     },
     /// Get current wallet balance
-    GetBalance(XorName),
+    GetBalance,
+    /// Create a new coin balance
+    CreateBalance {
+        new_balance_owner: PublicKey,
+        amount: Coins,
+        transaction_id: TransactionId,
+    },
+    //
+    // ===== Login Packet =====
+    //
+    CreateLoginPacket(LoginPacket),
+    CreateLoginPacketFor {
+        new_owner: PublicKey,
+        amount: Coins,
+        transaction_id: TransactionId,
+        new_login_packet: LoginPacket,
+    },
+    UpdateLoginPacket(LoginPacket),
+    GetLoginPacket(XorName),
     //
     // ===== Client (Owner) to SrcElders =====
     //
@@ -343,8 +218,7 @@ impl fmt::Debug for Request {
                 GetIData(_) => "Request::GetIData",
                 DeleteUnpubIData(_) => "Request::DeleteUnpubIData",
                 // MData
-                PutUnseqMData(_) => "Request::PutUnseqMData",
-                PutSeqMData(_) => "Request::PutSeqMData",
+                PutMData(_) => "Request::PutMData",
                 GetMData(_) => "Request::GetMData",
                 GetMDataValue { .. } => "Request::GetMDataValue",
                 DeleteMData(_) => "Request::DeleteMData",
@@ -363,6 +237,7 @@ impl fmt::Debug for Request {
                 PutAData(_) => "Request::PutAData",
                 GetAData(_) => "Request::GetAData",
                 GetADataShell { .. } => "Request::GetADataShell",
+                GetADataValue { .. } => "Request::GetADataValue ",
                 DeleteAData(_) => "Request::DeleteAData",
                 GetADataRange { .. } => "Request::GetADataRange",
                 GetADataIndices(_) => "Request::GetADataIndices",
@@ -377,11 +252,15 @@ impl fmt::Debug for Request {
                 AppendSeq { .. } => "Request::AppendSeq",
                 AppendUnseq(_) => "Request::AppendUnseq",
                 TransferCoins { .. } => "Request::TransferCoins",
-                GetTransaction { .. } => "Request::GetTransaction",
-                GetBalance(_) => "Request::GetBalance",
+                GetBalance => "Request::GetBalance",
                 ListAuthKeysAndVersion => "Request::ListAuthKeysAndVersion",
                 InsAuthKey { .. } => "Request::InsAuthKey",
                 DelAuthKey { .. } => "Request::DelAuthKey",
+                CreateBalance { .. } => "Request::CreateBalance",
+                CreateLoginPacket { .. } => "Request::CreateLoginPacket",
+                CreateLoginPacketFor { .. } => "Request::CreateLoginPacketFor",
+                UpdateLoginPacket { .. } => "Request::UpdateLoginPacket",
+                GetLoginPacket(..) => "Request::GetLoginPacket",
             }
         )
     }

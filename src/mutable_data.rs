@@ -7,10 +7,14 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::{EntryError, Error, PublicKey, Request, Result, XorName};
+use crate::{utils, EntryError, Error, PublicKey, Request, Result, XorName};
+use hex_fmt::HexFmt;
+use multibase::Decodable;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{btree_map::Entry, BTreeMap, BTreeSet},
+    fmt::{self, Debug, Formatter},
+    hash::Hash,
     mem,
 };
 
@@ -31,7 +35,13 @@ pub struct SeqMutableData {
     owners: PublicKey,
 }
 
-/// A value in `Sequenced MutableData`
+impl Debug for SeqMutableData {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        write!(formatter, "SeqMutableData {:?}", self.name())
+    }
+}
+
+/// A value in `Sequenced MutableData`.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub struct Value {
     /// Actual data.
@@ -40,20 +50,9 @@ pub struct Value {
     pub version: u64,
 }
 
-impl Value {
-    pub fn new(data: Vec<u8>, version: u64) -> Self {
-        Value { data, version }
-    }
-}
-
-impl std::fmt::Debug for Value {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "{} :: {}",
-            std::str::from_utf8(&self.data).unwrap(),
-            self.version
-        )
+impl Debug for Value {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{:<8} :: {}", HexFmt(&self.data), self.version)
     }
 }
 
@@ -72,6 +71,12 @@ pub struct UnseqMutableData {
     /// Contains a set of owners of this data. DataManagers enforce that a mutation request is
     /// coming from the MaidManager Authority of the Owner.
     owners: PublicKey,
+}
+
+impl Debug for UnseqMutableData {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        write!(formatter, "UnseqMutableData {:?}", self.name())
+    }
 }
 
 /// Set of user permissions.
@@ -122,12 +127,16 @@ pub enum Action {
 }
 
 /// Defines common functions in both sequenced and unsequenced types
-pub trait MutableData {
+pub trait MutableData:
+    Hash + Eq + PartialEq + PartialOrd + Ord + Clone + Serialize + Debug
+{
     fn address(&self) -> &Address;
 
     fn name(&self) -> &XorName;
 
     fn tag(&self) -> u64;
+
+    fn kind(&self) -> Kind;
 
     fn version(&self) -> u64;
 
@@ -139,7 +148,7 @@ pub trait MutableData {
 
     fn user_permissions(&self, user: PublicKey) -> Result<&PermissionSet>;
 
-    fn check_permissions(&self, rpc: Request, requester: PublicKey) -> Result<()>;
+    fn check_permissions(&self, rpc: &Request, requester: PublicKey) -> Result<()>;
 
     fn set_user_permissions(
         &mut self,
@@ -165,7 +174,7 @@ macro_rules! impl_mutable_data {
             /// Returns the Shell of the data
             pub fn shell(&self) -> Self {
                 Self {
-                    address: self.address,
+                    address: self.address.clone(),
                     data: BTreeMap::new(),
                     permissions: self.permissions.clone(),
                     version: self.version,
@@ -188,6 +197,11 @@ macro_rules! impl_mutable_data {
             /// Returns the tag type of the Mutable data
             fn tag(&self) -> u64 {
                 self.address.tag()
+            }
+
+            /// Returns the kind of the Mutable data.
+            fn kind(&self) -> Kind {
+                self.address.kind()
             }
 
             /// Returns the version of the Mutable data
@@ -214,7 +228,7 @@ macro_rules! impl_mutable_data {
                 self.permissions.get(&user).ok_or(Error::NoSuchKey)
             }
 
-            fn check_permissions(&self, request: Request, requester: PublicKey) -> Result<()> {
+            fn check_permissions(&self, request: &Request, requester: PublicKey) -> Result<()> {
                 if self.owners == requester {
                     Ok(())
                 } else {
@@ -303,7 +317,7 @@ macro_rules! impl_mutable_data {
     };
 }
 
-fn check_permissions_for_key(permissions: &PermissionSet, request: Request) -> Result<()> {
+fn check_permissions_for_key(permissions: &PermissionSet, request: &Request) -> Result<()> {
     match request {
         Request::GetMData { .. }
         | Request::GetMDataShell { .. }
@@ -346,7 +360,7 @@ impl UnseqMutableData {
     /// Create a new Unsequenced Mutable Data
     pub fn new(name: XorName, tag: u64, owners: PublicKey) -> Self {
         Self {
-            address: Address::new_unseq(name, tag),
+            address: Address::Unseq { name, tag },
             data: Default::default(),
             permissions: Default::default(),
             version: 0,
@@ -363,7 +377,7 @@ impl UnseqMutableData {
         owners: PublicKey,
     ) -> Self {
         Self {
-            address: Address::new_unseq(name, tag),
+            address: Address::Unseq { name, tag },
             data,
             permissions,
             version: 0,
@@ -393,10 +407,10 @@ impl UnseqMutableData {
 
     pub fn mutate_entries(
         &mut self,
-        actions: BTreeMap<Vec<u8>, UnseqEntryAction>,
+        actions: UnseqEntryActions,
         requester: PublicKey,
     ) -> Result<()> {
-        let (insert, update, delete) = actions.into_iter().fold(
+        let (insert, update, delete) = actions.actions.into_iter().fold(
             (
                 BTreeMap::<Vec<u8>, Vec<u8>>::new(),
                 BTreeMap::<Vec<u8>, Vec<u8>>::new(),
@@ -477,7 +491,7 @@ impl SeqMutableData {
     /// Create a new Sequenced Mutable Data
     pub fn new(name: XorName, tag: u64, owners: PublicKey) -> Self {
         Self {
-            address: Address::new_seq(name, tag),
+            address: Address::Seq { name, tag },
             data: Default::default(),
             permissions: Default::default(),
             version: 0,
@@ -494,7 +508,7 @@ impl SeqMutableData {
         owners: PublicKey,
     ) -> Self {
         Self {
-            address: Address::new_seq(name, tag),
+            address: Address::Seq { name, tag },
             data,
             permissions,
             version: 0,
@@ -523,13 +537,9 @@ impl SeqMutableData {
     }
 
     /// Mutates entries (key + value pairs) in bulk
-    pub fn mutate_entries(
-        &mut self,
-        actions: BTreeMap<Vec<u8>, SeqEntryAction>,
-        requester: PublicKey,
-    ) -> Result<()> {
+    pub fn mutate_entries(&mut self, actions: SeqEntryActions, requester: PublicKey) -> Result<()> {
         // Deconstruct actions into inserts, updates, and deletes
-        let (insert, update, delete) = actions.into_iter().fold(
+        let (insert, update, delete) = actions.actions.into_iter().fold(
             (BTreeMap::new(), BTreeMap::new(), BTreeMap::new()),
             |(mut insert, mut update, mut delete), (key, item)| {
                 match item {
@@ -621,32 +631,31 @@ impl SeqMutableData {
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
+pub enum Kind {
+    Unseq,
+    Seq,
+}
+
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Address {
     Unseq { name: XorName, tag: u64 },
     Seq { name: XorName, tag: u64 },
 }
 
 impl Address {
-    pub fn new_unseq(name: XorName, tag: u64) -> Self {
-        Address::Unseq { name, tag }
-    }
-
-    pub fn new_seq(name: XorName, tag: u64) -> Self {
-        Address::Seq { name, tag }
+    pub fn kind(&self) -> Kind {
+        match self {
+            Address::Seq { .. } => Kind::Seq,
+            Address::Unseq { .. } => Kind::Unseq,
+        }
     }
 
     pub fn is_seq(&self) -> bool {
-        match self {
-            Address::Seq { .. } => true,
-            _ => false,
-        }
+        self.kind() == Kind::Seq
     }
 
     pub fn is_unseq(&self) -> bool {
-        match self {
-            Address::Unseq { .. } => true,
-            _ => false,
-        }
+        self.kind() == Kind::Unseq
     }
 
     pub fn name(&self) -> &XorName {
@@ -659,6 +668,124 @@ impl Address {
         match self {
             Address::Unseq { tag, .. } | Address::Seq { tag, .. } => *tag,
         }
+    }
+
+    /// Returns the Address serialised and encoded in z-base-32.
+    pub fn encode_to_zbase32(&self) -> String {
+        utils::encode(&self)
+    }
+
+    /// Create from z-base-32 encoded string.
+    pub fn decode_from_zbase32<T: Decodable>(encoded: T) -> Result<Self> {
+        utils::decode(encoded)
+    }
+}
+
+/// Object storing a mutable data variant.
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
+pub enum Data {
+    Seq(SeqMutableData),
+    Unseq(UnseqMutableData),
+}
+
+impl Data {
+    pub fn address(&self) -> &Address {
+        match self {
+            Data::Seq(data) => data.address(),
+            Data::Unseq(data) => data.address(),
+        }
+    }
+
+    pub fn name(&self) -> &XorName {
+        self.address().name()
+    }
+
+    pub fn tag(&self) -> u64 {
+        self.address().tag()
+    }
+
+    pub fn kind(&self) -> Kind {
+        self.address().kind()
+    }
+
+    pub fn version(&self) -> u64 {
+        match self {
+            Data::Seq(data) => data.version(),
+            Data::Unseq(data) => data.version(),
+        }
+    }
+
+    pub fn keys(&self) -> BTreeSet<Vec<u8>> {
+        match self {
+            Data::Seq(data) => data.keys(),
+            Data::Unseq(data) => data.keys(),
+        }
+    }
+
+    pub fn shell(&self) -> Self {
+        match self {
+            Data::Seq(data) => Data::Seq(data.shell()),
+            Data::Unseq(data) => Data::Unseq(data.shell()),
+        }
+    }
+
+    pub fn permissions(&self) -> BTreeMap<PublicKey, PermissionSet> {
+        match self {
+            Data::Seq(data) => data.permissions(),
+            Data::Unseq(data) => data.permissions(),
+        }
+    }
+
+    pub fn user_permissions(&self, user: PublicKey) -> Result<&PermissionSet> {
+        match self {
+            Data::Seq(data) => data.user_permissions(user),
+            Data::Unseq(data) => data.user_permissions(user),
+        }
+    }
+
+    pub fn set_user_permissions(
+        &mut self,
+        user: PublicKey,
+        permissions: PermissionSet,
+        version: u64,
+    ) -> Result<()> {
+        match self {
+            Data::Seq(data) => data.set_user_permissions(user, permissions, version),
+            Data::Unseq(data) => data.set_user_permissions(user, permissions, version),
+        }
+    }
+
+    pub fn del_user_permissions(&mut self, user: PublicKey, version: u64) -> Result<()> {
+        match self {
+            Data::Seq(data) => data.del_user_permissions(user, version),
+            Data::Unseq(data) => data.del_user_permissions(user, version),
+        }
+    }
+
+    pub fn check_permissions(&self, request: &Request, requester: PublicKey) -> Result<()> {
+        match self {
+            Data::Seq(data) => data.check_permissions(request, requester),
+            Data::Unseq(data) => data.check_permissions(request, requester),
+        }
+    }
+
+    pub fn owner(&self) -> PublicKey {
+        match self {
+            Data::Seq(data) => data.owners,
+            Data::Unseq(data) => data.owners,
+        }
+    }
+}
+
+impl From<SeqMutableData> for Data {
+    fn from(data: SeqMutableData) -> Self {
+        Data::Seq(data)
+    }
+}
+
+impl From<UnseqMutableData> for Data {
+    fn from(data: UnseqMutableData) -> Self {
+        Data::Unseq(data)
     }
 }
 
@@ -683,12 +810,17 @@ pub enum UnseqEntryAction {
 }
 
 /// Helper struct to build entry actions on `MutableData`
-#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
+#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug, Default)]
 pub struct SeqEntryActions {
     actions: BTreeMap<Vec<u8>, SeqEntryAction>,
 }
 
 impl SeqEntryActions {
+    /// Create a new Sequenced Entry Actions list
+    pub fn new() -> Self {
+        Default::default()
+    }
+
     /// Insert a new key-value pair
     pub fn ins(mut self, key: Vec<u8>, content: Vec<u8>, version: u64) -> Self {
         let _ = self.actions.insert(
@@ -726,12 +858,17 @@ impl Into<BTreeMap<Vec<u8>, SeqEntryAction>> for SeqEntryActions {
     }
 }
 
-#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
+#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug, Default)]
 pub struct UnseqEntryActions {
     actions: BTreeMap<Vec<u8>, UnseqEntryAction>,
 }
 
 impl UnseqEntryActions {
+    /// Create a new Unsequenced Entry Actions list
+    pub fn new() -> Self {
+        Default::default()
+    }
+
     /// Insert a new key-value pair
     pub fn ins(mut self, key: Vec<u8>, content: Vec<u8>) -> Self {
         let _ = self.actions.insert(key, UnseqEntryAction::Ins(content));
@@ -754,5 +891,20 @@ impl UnseqEntryActions {
 impl Into<BTreeMap<Vec<u8>, UnseqEntryAction>> for UnseqEntryActions {
     fn into(self) -> BTreeMap<Vec<u8>, UnseqEntryAction> {
         self.actions
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::{Address, XorName};
+    use unwrap::unwrap;
+
+    #[test]
+    fn zbase32_encode_decode_mdata_address() {
+        let name = XorName(rand::random());
+        let address = Address::Seq { name, tag: 15000 };
+        let encoded = address.encode_to_zbase32();
+        let decoded = unwrap!(self::Address::decode_from_zbase32(&encoded));
+        assert_eq!(address, decoded);
     }
 }
