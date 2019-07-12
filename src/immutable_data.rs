@@ -183,6 +183,13 @@ pub enum Address {
 }
 
 impl Address {
+    pub fn from_kind(kind: Kind, name: XorName) -> Self {
+        match kind {
+            Kind::Pub => Address::Pub(name),
+            Kind::Unpub => Address::Unpub(name),
+        }
+    }
+
     pub fn kind(&self) -> Kind {
         match self {
             Address::Unpub(_) => Kind::Unpub,

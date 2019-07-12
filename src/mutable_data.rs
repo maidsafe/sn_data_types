@@ -643,6 +643,13 @@ pub enum Address {
 }
 
 impl Address {
+    pub fn from_kind(kind: Kind, name: XorName, tag: u64) -> Self {
+        match kind {
+            Kind::Seq => Address::Seq { name, tag },
+            Kind::Unseq => Address::Unseq { name, tag },
+        }
+    }
+
     pub fn kind(&self) -> Kind {
         match self {
             Address::Seq { .. } => Kind::Seq,
