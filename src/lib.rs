@@ -89,7 +89,7 @@ pub use immutable_data::{
     UnpubImmutableData, MAX_IMMUTABLE_DATA_SIZE_IN_BYTES,
 };
 pub use mutable_data::{
-    Action as MDataAction, Address as MDataAddress, Data as MData, Kind as MDataKind, MutableData,
+    Action as MDataAction, Address as MDataAddress, Data as MData, Kind as MDataKind,
     PermissionSet as MDataPermissionSet, SeqEntryAction as MDataSeqEntryAction,
     SeqEntryActions as MDataSeqEntryActions, SeqMutableData,
     UnseqEntryAction as MDataUnseqEntryAction, UnseqEntryActions as MDataUnseqEntryActions,

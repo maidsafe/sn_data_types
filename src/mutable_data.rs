@@ -7,14 +7,13 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::{utils, EntryError, Error, PublicKey, Request, Result, XorName};
+use crate::{utils, EntryError, Error, PublicKey, Result, XorName};
 use hex_fmt::HexFmt;
 use multibase::Decodable;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{btree_map::Entry, BTreeMap, BTreeSet},
     fmt::{self, Debug, Formatter},
-    hash::Hash,
     mem,
 };
 
@@ -126,48 +125,6 @@ pub enum Action {
     ManagePermissions,
 }
 
-/// Defines common functions in both sequenced and unsequenced types
-pub trait MutableData:
-    Hash + Eq + PartialEq + PartialOrd + Ord + Clone + Serialize + Debug
-{
-    fn address(&self) -> &Address;
-
-    fn name(&self) -> &XorName;
-
-    fn tag(&self) -> u64;
-
-    fn kind(&self) -> Kind;
-
-    fn version(&self) -> u64;
-
-    fn owners(&self) -> &PublicKey;
-
-    fn keys(&self) -> BTreeSet<Vec<u8>>;
-
-    fn permissions(&self) -> BTreeMap<PublicKey, PermissionSet>;
-
-    fn user_permissions(&self, user: PublicKey) -> Result<&PermissionSet>;
-
-    fn check_permissions(&self, rpc: &Request, requester: PublicKey) -> Result<()>;
-
-    fn set_user_permissions(
-        &mut self,
-        user: PublicKey,
-        permissions: PermissionSet,
-        version: u64,
-    ) -> Result<()>;
-
-    fn del_user_permissions(&mut self, user: PublicKey, version: u64) -> Result<()>;
-
-    fn del_user_permissions_without_validation(&mut self, user: PublicKey, version: u64) -> bool;
-
-    fn change_owner(&mut self, new_owner: PublicKey, version: u64) -> Result<()>;
-
-    fn change_owner_without_validation(&mut self, new_owner: PublicKey, version: u64) -> bool;
-
-    fn is_action_allowed(&self, requester: &PublicKey, action: Action) -> bool;
-}
-
 macro_rules! impl_mutable_data {
     ($flavour:ident) => {
         impl $flavour {
@@ -181,67 +138,76 @@ macro_rules! impl_mutable_data {
                     owners: self.owners,
                 }
             }
-        }
 
-        impl MutableData for $flavour {
             /// Returns the address of the Mutable data
-            fn address(&self) -> &Address {
+            pub fn address(&self) -> &Address {
                 &self.address
             }
 
             /// Returns the name of the Mutable data
-            fn name(&self) -> &XorName {
+            pub fn name(&self) -> &XorName {
                 self.address.name()
             }
 
             /// Returns the tag type of the Mutable data
-            fn tag(&self) -> u64 {
+            pub fn tag(&self) -> u64 {
                 self.address.tag()
             }
 
             /// Returns the kind of the Mutable data.
-            fn kind(&self) -> Kind {
+            pub fn kind(&self) -> Kind {
                 self.address.kind()
             }
 
             /// Returns the version of the Mutable data
-            fn version(&self) -> u64 {
+            pub fn version(&self) -> u64 {
                 self.version
             }
 
             /// Returns the owner key
-            fn owners(&self) -> &PublicKey {
+            pub fn owners(&self) -> &PublicKey {
                 &self.owners
             }
 
             /// Returns all the keys in the data
-            fn keys(&self) -> BTreeSet<Vec<u8>> {
+            pub fn keys(&self) -> BTreeSet<Vec<u8>> {
                 self.data.keys().cloned().collect()
             }
 
             /// Gets a complete list of permissions
-            fn permissions(&self) -> BTreeMap<PublicKey, PermissionSet> {
+            pub fn permissions(&self) -> BTreeMap<PublicKey, PermissionSet> {
                 self.permissions.clone()
             }
 
-            fn user_permissions(&self, user: PublicKey) -> Result<&PermissionSet> {
+            pub fn user_permissions(&self, user: PublicKey) -> Result<&PermissionSet> {
                 self.permissions.get(&user).ok_or(Error::NoSuchKey)
             }
 
-            fn check_permissions(&self, request: &Request, requester: PublicKey) -> Result<()> {
+            pub fn check_is_owner(&self, requester: PublicKey) -> Result<()> {
                 if self.owners == requester {
                     Ok(())
                 } else {
-                    check_permissions_for_key(
-                        self.user_permissions(requester)
-                            .map_err(|_| Error::AccessDenied)?,
-                        request,
-                    )
+                    Err(Error::AccessDenied)
+                }
+            }
+
+            pub fn check_permissions(&self, action: Action, requester: PublicKey) -> Result<()> {
+                if self.owners == requester {
+                    Ok(())
+                } else {
+                    let permissions = self
+                        .user_permissions(requester)
+                        .map_err(|_| Error::AccessDenied)?;
+                    if permissions.is_allowed(action) {
+                        Ok(())
+                    } else {
+                        Err(Error::AccessDenied)
+                    }
                 }
             }
 
             /// Insert or update permissions for the provided user.
-            fn set_user_permissions(
+            pub fn set_user_permissions(
                 &mut self,
                 user: PublicKey,
                 permissions: PermissionSet,
@@ -256,7 +222,7 @@ macro_rules! impl_mutable_data {
             }
 
             /// Delete permissions for the provided user.
-            fn del_user_permissions(&mut self, user: PublicKey, version: u64) -> Result<()> {
+            pub fn del_user_permissions(&mut self, user: PublicKey, version: u64) -> Result<()> {
                 if version != self.version + 1 {
                     return Err(Error::InvalidSuccessor(self.version));
                 }
@@ -269,7 +235,7 @@ macro_rules! impl_mutable_data {
             }
 
             /// Delete user permissions without performing any validation.
-            fn del_user_permissions_without_validation(
+            pub fn del_user_permissions_without_validation(
                 &mut self,
                 user: PublicKey,
                 version: u64,
@@ -283,7 +249,7 @@ macro_rules! impl_mutable_data {
             }
 
             /// Change owner of the mutable data.
-            fn change_owner(&mut self, new_owner: PublicKey, version: u64) -> Result<()> {
+            pub fn change_owner(&mut self, new_owner: PublicKey, version: u64) -> Result<()> {
                 if version != self.version + 1 {
                     return Err(Error::InvalidSuccessor(self.version));
                 }
@@ -293,7 +259,7 @@ macro_rules! impl_mutable_data {
             }
 
             /// Change the owner without performing any validation.
-            fn change_owner_without_validation(
+            pub fn change_owner_without_validation(
                 &mut self,
                 new_owner: PublicKey,
                 version: u64,
@@ -307,7 +273,7 @@ macro_rules! impl_mutable_data {
                 true
             }
 
-            fn is_action_allowed(&self, requester: &PublicKey, action: Action) -> bool {
+            pub fn is_action_allowed(&self, requester: &PublicKey, action: Action) -> bool {
                 match self.permissions.get(requester) {
                     Some(perms) => perms.is_allowed(action),
                     None => false,
@@ -315,41 +281,6 @@ macro_rules! impl_mutable_data {
             }
         }
     };
-}
-
-fn check_permissions_for_key(permissions: &PermissionSet, request: &Request) -> Result<()> {
-    match request {
-        Request::GetMData { .. }
-        | Request::GetMDataShell { .. }
-        | Request::GetMDataVersion { .. }
-        | Request::ListMDataKeys { .. }
-        | Request::ListMDataEntries { .. }
-        | Request::ListMDataValues { .. }
-        | Request::GetMDataValue { .. }
-        | Request::ListMDataPermissions { .. }
-        | Request::ListMDataUserPermissions { .. } => {
-            if permissions.is_allowed(Action::Read) {
-                Ok(())
-            } else {
-                Err(Error::AccessDenied)
-            }
-        }
-
-        Request::SetMDataUserPermissions { .. } | Request::DelMDataUserPermissions { .. } => {
-            if permissions.is_allowed(Action::ManagePermissions) {
-                Ok(())
-            } else {
-                Err(Error::AccessDenied)
-            }
-        }
-
-        // Mutation permissions are checked later
-        Request::MutateSeqMDataEntries { .. } | Request::MutateUnseqMDataEntries { .. } => Ok(()),
-
-        Request::DeleteMData { .. } => Err(Error::AccessDenied),
-
-        _ => Err(Error::InvalidOperation),
-    }
 }
 
 impl_mutable_data!(SeqMutableData);
@@ -769,10 +700,17 @@ impl Data {
         }
     }
 
-    pub fn check_permissions(&self, request: &Request, requester: PublicKey) -> Result<()> {
+    pub fn check_permissions(&self, action: Action, requester: PublicKey) -> Result<()> {
         match self {
-            Data::Seq(data) => data.check_permissions(request, requester),
-            Data::Unseq(data) => data.check_permissions(request, requester),
+            Data::Seq(data) => data.check_permissions(action, requester),
+            Data::Unseq(data) => data.check_permissions(action, requester),
+        }
+    }
+
+    pub fn check_is_owner(&self, requester: PublicKey) -> Result<()> {
+        match self {
+            Data::Seq(data) => data.check_is_owner(requester),
+            Data::Unseq(data) => data.check_is_owner(requester),
         }
     }
 
