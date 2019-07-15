@@ -7,7 +7,7 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::{utils, Error, PublicKey, Request, Result, XorName};
+use crate::{utils, Error, PublicKey, Result, XorName};
 use multibase::Decodable;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -134,7 +134,6 @@ pub trait Permissions {
     fn is_action_allowed(&self, requester: PublicKey, action: Action) -> Result<()>;
     fn data_index(&self) -> u64;
     fn owner_entry_index(&self) -> u64;
-    fn check_permissions_for_key(&self, requester: PublicKey, request: &Request) -> Result<()>;
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
@@ -172,27 +171,6 @@ impl Permissions for UnpubPermissions {
 
     fn owner_entry_index(&self) -> u64 {
         self.owner_entry_index
-    }
-
-    fn check_permissions_for_key(&self, requester: PublicKey, request: &Request) -> Result<()> {
-        match request {
-            Request::GetAData(..)
-            | Request::GetADataShell { .. }
-            | Request::GetADataRange { .. }
-            | Request::GetADataIndices(..)
-            | Request::GetADataLastEntry(..)
-            | Request::GetADataPermissions { .. }
-            | Request::GetUnpubADataUserPermissions { .. }
-            | Request::GetADataOwners { .. } => self.is_action_allowed(requester, Action::Read),
-            Request::AddUnpubADataPermissions { .. } => {
-                self.is_action_allowed(requester, Action::ManagePermissions)
-            }
-            Request::AppendSeq { .. } | Request::AppendUnseq { .. } => {
-                self.is_action_allowed(requester, Action::Append)
-            }
-            Request::DeleteAData { .. } | Request::SetADataOwner { .. } => Err(Error::AccessDenied),
-            _ => Err(Error::InvalidOperation),
-        }
     }
 }
 
@@ -241,27 +219,6 @@ impl Permissions for PubPermissions {
 
     fn owner_entry_index(&self) -> u64 {
         self.owner_entry_index
-    }
-
-    fn check_permissions_for_key(&self, requester: PublicKey, request: &Request) -> Result<()> {
-        match request {
-            Request::GetAData(..)
-            | Request::GetADataShell { .. }
-            | Request::GetADataRange { .. }
-            | Request::GetADataIndices(..)
-            | Request::GetADataLastEntry(..)
-            | Request::GetADataPermissions { .. }
-            | Request::GetPubADataUserPermissions { .. }
-            | Request::GetADataOwners { .. } => Ok(()),
-            Request::AddPubADataPermissions { .. } => {
-                self.is_action_allowed(requester, Action::ManagePermissions)
-            }
-            Request::AppendSeq { .. } | Request::AppendUnseq { .. } => {
-                self.is_action_allowed(requester, Action::Append)
-            }
-            Request::DeleteAData { .. } | Request::SetADataOwner { .. } => Err(Error::AccessDenied),
-            _ => Err(Error::InvalidOperation),
-        }
     }
 }
 
@@ -686,7 +643,7 @@ where
 }
 
 macro_rules! check_perm {
-    ($data: ident, $requester: ident, $request: ident) => {
+    ($data: ident, $requester: ident, $action: ident) => {
         if $data
             .fetch_owner_at_index($data.owners_index() - 1)
             .ok_or_else(|| Error::NoSuchData)?
@@ -698,7 +655,7 @@ macro_rules! check_perm {
             $data
                 .fetch_permissions_at_index($data.permissions_index() - 1)
                 .ok_or_else(|| Error::NoSuchData)?
-                .check_permissions_for_key($requester, $request)
+                .is_action_allowed($requester, $action)
         }
     };
 }
@@ -787,12 +744,12 @@ pub enum Data {
 }
 
 impl Data {
-    pub fn check_permission(&self, request: &Request, requester: PublicKey) -> Result<()> {
+    pub fn check_permission(&self, action: Action, requester: PublicKey) -> Result<()> {
         match self {
-            Data::PubSeq(data) => check_perm!(data, requester, request),
-            Data::PubUnseq(data) => check_perm!(data, requester, request),
-            Data::UnpubSeq(data) => check_perm!(data, requester, request),
-            Data::UnpubUnseq(data) => check_perm!(data, requester, request),
+            Data::PubSeq(data) => check_perm!(data, requester, action),
+            Data::PubUnseq(data) => check_perm!(data, requester, action),
+            Data::UnpubSeq(data) => check_perm!(data, requester, action),
+            Data::UnpubUnseq(data) => check_perm!(data, requester, action),
         }
     }
 
