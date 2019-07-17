@@ -51,22 +51,22 @@ impl From<u64> for Index {
 // Set of data, owners, permissions Indices.
 #[derive(Copy, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Indices {
-    data_index: u64,
+    entries_index: u64,
     owners_index: u64,
     permissions_index: u64,
 }
 
 impl Indices {
-    pub fn new(data_index: u64, owners_index: u64, permissions_index: u64) -> Self {
+    pub fn new(entries_index: u64, owners_index: u64, permissions_index: u64) -> Self {
         Indices {
-            data_index,
+            entries_index,
             owners_index,
             permissions_index,
         }
     }
 
-    pub fn data_index(&self) -> u64 {
-        self.data_index
+    pub fn entries_index(&self) -> u64 {
+        self.entries_index
     }
 
     pub fn owners_index(&self) -> u64 {
@@ -143,17 +143,17 @@ impl PubPermissionSet {
 
 pub trait Permissions {
     fn is_action_allowed(&self, requester: PublicKey, action: Action) -> Result<()>;
-    fn data_index(&self) -> u64;
-    fn owner_entry_index(&self) -> u64;
+    fn entries_index(&self) -> u64;
+    fn owners_index(&self) -> u64;
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub struct UnpubPermissions {
     pub permissions: BTreeMap<PublicKey, UnpubPermissionSet>,
     /// The current index of the data when this permission change happened
-    pub data_index: u64,
+    pub entries_index: u64,
     /// The current index of the owners when this permission change happened
-    pub owner_entry_index: u64,
+    pub owners_index: u64,
 }
 
 impl UnpubPermissions {
@@ -176,12 +176,12 @@ impl Permissions for UnpubPermissions {
         }
     }
 
-    fn data_index(&self) -> u64 {
-        self.data_index
+    fn entries_index(&self) -> u64 {
+        self.entries_index
     }
 
-    fn owner_entry_index(&self) -> u64 {
-        self.owner_entry_index
+    fn owners_index(&self) -> u64 {
+        self.owners_index
     }
 }
 
@@ -189,9 +189,9 @@ impl Permissions for UnpubPermissions {
 pub struct PubPermissions {
     pub permissions: BTreeMap<User, PubPermissionSet>,
     /// The current index of the data when this permission change happened
-    pub data_index: u64,
+    pub entries_index: u64,
     /// The current index of the owners when this permission change happened
-    pub owner_entry_index: u64,
+    pub owners_index: u64,
 }
 
 impl PubPermissions {
@@ -224,12 +224,12 @@ impl Permissions for PubPermissions {
         }
     }
 
-    fn data_index(&self) -> u64 {
-        self.data_index
+    fn entries_index(&self) -> u64 {
+        self.entries_index
     }
 
-    fn owner_entry_index(&self) -> u64 {
-        self.owner_entry_index
+    fn owners_index(&self) -> u64 {
+        self.owners_index
     }
 }
 
@@ -237,7 +237,7 @@ impl Permissions for PubPermissions {
 pub struct Owner {
     pub public_key: PublicKey,
     /// The current index of the data when this ownership change happened
-    pub data_index: u64,
+    pub entries_index: u64,
     /// The current index of the permissions when this ownership change happened
     pub permissions_index: u64,
 }
@@ -279,7 +279,7 @@ pub trait AppendOnlyData<P> {
     fn tag(&self) -> u64;
 
     /// Return the last entry index.
-    fn entry_index(&self) -> u64;
+    fn entries_index(&self) -> u64;
 
     /// Return the last owners index.
     fn owners_index(&self) -> u64;
@@ -296,10 +296,10 @@ pub trait AppendOnlyData<P> {
     fn append_permissions(&mut self, permissions: P, permissions_idx: u64) -> Result<()>;
 
     /// Fetch perms at index.
-    fn fetch_permissions_at_index(&self, perm_index: impl Into<Index>) -> Option<&P>;
+    fn permissions(&self, perm_index: impl Into<Index>) -> Option<&P>;
 
-    /// Fetch owners at index.
-    fn fetch_owner_at_index(&self, owners_index: impl Into<Index>) -> Option<&Owner>;
+    /// Fetch owner at index.
+    fn owner(&self, owners_index: impl Into<Index>) -> Option<&Owner>;
 
     /// Get a complete list of owners from the entry in the permissions list at the specified index.
     fn owners_range(&self, start: Index, end: Index) -> Option<&[Owner]>;
@@ -337,15 +337,16 @@ macro_rules! impl_appendable_data {
         where
             P: Permissions + Hash + Clone,
         {
-            pub fn shell(&self, data_index: impl Into<Index>) -> Result<Self> {
-                let data_index = to_absolute_index(data_index.into(), self.entry_index() as usize)
-                    .ok_or(Error::NoSuchEntry)? as u64;
+            pub fn shell(&self, entries_index: impl Into<Index>) -> Result<Self> {
+                let entries_index =
+                    to_absolute_index(entries_index.into(), self.entries_index() as usize)
+                        .ok_or(Error::NoSuchEntry)? as u64;
 
                 let permissions = self
                     .inner
                     .permissions
                     .iter()
-                    .filter(|perm| perm.data_index() <= data_index)
+                    .filter(|perm| perm.entries_index() <= entries_index)
                     .cloned()
                     .collect();
 
@@ -353,7 +354,7 @@ macro_rules! impl_appendable_data {
                     .inner
                     .owners
                     .iter()
-                    .filter(|owner| owner.data_index <= data_index)
+                    .filter(|owner| owner.entries_index <= entries_index)
                     .cloned()
                     .collect();
 
@@ -384,7 +385,7 @@ macro_rules! impl_appendable_data {
                 self.inner.address.tag()
             }
 
-            fn entry_index(&self) -> u64 {
+            fn entries_index(&self) -> u64 {
                 self.inner.data.len() as u64
             }
 
@@ -410,12 +411,12 @@ macro_rules! impl_appendable_data {
                 }
             }
 
-            fn fetch_permissions_at_index(&self, index: impl Into<Index>) -> Option<&P> {
+            fn permissions(&self, index: impl Into<Index>) -> Option<&P> {
                 let index = to_absolute_index(index.into(), self.inner.permissions.len())?;
                 self.inner.permissions.get(index)
             }
 
-            fn fetch_owner_at_index(&self, index: impl Into<Index>) -> Option<&Owner> {
+            fn owner(&self, index: impl Into<Index>) -> Option<&Owner> {
                 let index = to_absolute_index(index.into(), self.inner.owners.len())?;
                 self.inner.owners.get(index)
             }
@@ -440,10 +441,10 @@ macro_rules! impl_appendable_data {
             }
 
             fn append_permissions(&mut self, permissions: P, permissions_idx: u64) -> Result<()> {
-                if permissions.data_index() != self.entry_index() {
-                    return Err(Error::InvalidSuccessor(self.entry_index()));
+                if permissions.entries_index() != self.entries_index() {
+                    return Err(Error::InvalidSuccessor(self.entries_index()));
                 }
-                if permissions.owner_entry_index() != self.owners_index() {
+                if permissions.owners_index() != self.owners_index() {
                     return Err(Error::InvalidOwnersSuccessor(self.owners_index()));
                 }
                 if self.permissions_index() != permissions_idx {
@@ -454,8 +455,8 @@ macro_rules! impl_appendable_data {
             }
 
             fn append_owner(&mut self, owner: Owner, owners_idx: u64) -> Result<()> {
-                if owner.data_index != self.entry_index() {
-                    return Err(Error::InvalidSuccessor(self.entry_index()));
+                if owner.entries_index != self.entries_index() {
+                    return Err(Error::InvalidSuccessor(self.entries_index()));
                 }
                 if owner.permissions_index != self.permissions_index() {
                     return Err(Error::InvalidPermissionsSuccessor(self.permissions_index()));
@@ -599,7 +600,7 @@ where
 macro_rules! check_perm {
     ($data: ident, $requester: ident, $action: ident) => {
         if $data
-            .fetch_owner_at_index($data.owners_index() - 1)
+            .owner($data.owners_index() - 1)
             .ok_or_else(|| Error::NoSuchData)?
             .public_key
             == $requester
@@ -607,7 +608,7 @@ macro_rules! check_perm {
             Ok(())
         } else {
             $data
-                .fetch_permissions_at_index($data.permissions_index() - 1)
+                .permissions($data.permissions_index() - 1)
                 .ok_or_else(|| Error::NoSuchData)?
                 .is_action_allowed($requester, $action)
         }
@@ -617,7 +618,7 @@ macro_rules! check_perm {
 macro_rules! indices {
     ($data: ident) => {
         Ok(Indices::new(
-            $data.entry_index(),
+            $data.entries_index(),
             $data.owners_index(),
             $data.permissions_index(),
         ))
@@ -728,12 +729,12 @@ impl Data {
         self.address().kind()
     }
 
-    pub fn data_index(&self) -> u64 {
+    pub fn entries_index(&self) -> u64 {
         match self {
-            Data::PubSeq(data) => data.entry_index(),
-            Data::PubUnseq(data) => data.entry_index(),
-            Data::UnpubSeq(data) => data.entry_index(),
-            Data::UnpubUnseq(data) => data.entry_index(),
+            Data::PubSeq(data) => data.entries_index(),
+            Data::PubUnseq(data) => data.entries_index(),
+            Data::UnpubSeq(data) => data.entries_index(),
+            Data::UnpubUnseq(data) => data.entries_index(),
         }
     }
 
@@ -791,12 +792,12 @@ impl Data {
         }
     }
 
-    pub fn get_owners(&self, idx: impl Into<Index>) -> Option<&Owner> {
+    pub fn owner(&self, idx: impl Into<Index>) -> Option<&Owner> {
         match self {
-            Data::PubSeq(data) => data.fetch_owner_at_index(idx),
-            Data::PubUnseq(data) => data.fetch_owner_at_index(idx),
-            Data::UnpubSeq(data) => data.fetch_owner_at_index(idx),
-            Data::UnpubUnseq(data) => data.fetch_owner_at_index(idx),
+            Data::PubSeq(data) => data.owner(idx),
+            Data::PubUnseq(data) => data.owner(idx),
+            Data::UnpubSeq(data) => data.owner(idx),
+            Data::UnpubUnseq(data) => data.owner(idx),
         }
     }
 
@@ -826,8 +827,8 @@ impl Data {
 
     pub fn pub_permissions(&self, idx: impl Into<Index>) -> Result<&PubPermissions> {
         let perms = match self {
-            Data::PubSeq(data) => data.fetch_permissions_at_index(idx),
-            Data::PubUnseq(data) => data.fetch_permissions_at_index(idx),
+            Data::PubSeq(data) => data.permissions(idx),
+            Data::PubUnseq(data) => data.permissions(idx),
             _ => return Err(Error::NoSuchData),
         };
         perms.ok_or(Error::NoSuchEntry)
@@ -835,8 +836,8 @@ impl Data {
 
     pub fn unpub_permissions(&self, idx: impl Into<Index>) -> Result<&UnpubPermissions> {
         let perms = match self {
-            Data::UnpubSeq(data) => data.fetch_permissions_at_index(idx),
-            Data::UnpubUnseq(data) => data.fetch_permissions_at_index(idx),
+            Data::UnpubSeq(data) => data.permissions(idx),
+            Data::UnpubUnseq(data) => data.permissions(idx),
             _ => return Err(Error::NoSuchData),
         };
         perms.ok_or(Error::NoSuchEntry)
@@ -917,8 +918,8 @@ mod tests {
         let res = data.append_permissions(
             UnpubPermissions {
                 permissions: BTreeMap::new(),
-                data_index: 0,
-                owner_entry_index: 0,
+                entries_index: 0,
+                owners_index: 0,
             },
             0,
         );
@@ -938,8 +939,8 @@ mod tests {
         let res = data.append_permissions(
             UnpubPermissions {
                 permissions: BTreeMap::new(),
-                data_index: 64,
-                owner_entry_index: 0,
+                entries_index: 64,
+                owners_index: 0,
             },
             1,
         );
@@ -966,7 +967,7 @@ mod tests {
         let res = data.append_owner(
             Owner {
                 public_key: owner_pk,
-                data_index: 0,
+                entries_index: 0,
                 permissions_index: 0,
             },
             0,
@@ -987,7 +988,7 @@ mod tests {
         let res = data.append_owner(
             Owner {
                 public_key: owner_pk,
-                data_index: 64,
+                entries_index: 64,
                 permissions_index: 0,
             },
             1,
@@ -1021,7 +1022,7 @@ mod tests {
         let _ = data.append_owner(
             Owner {
                 public_key: owner_pk,
-                data_index: 0,
+                entries_index: 0,
                 permissions_index: 0,
             },
             0,
@@ -1030,7 +1031,7 @@ mod tests {
         let _ = data.append_owner(
             Owner {
                 public_key: owner_pk1,
-                data_index: 0,
+                entries_index: 0,
                 permissions_index: 0,
             },
             1,
@@ -1181,8 +1182,8 @@ mod tests {
 
         let mut pub_perms = PubPermissions {
             permissions: BTreeMap::new(),
-            data_index: 0,
-            owner_entry_index: 0,
+            entries_index: 0,
+            owners_index: 0,
         };
         let _ = pub_perms
             .permissions
@@ -1190,8 +1191,8 @@ mod tests {
 
         let mut unpub_perms = UnpubPermissions {
             permissions: BTreeMap::new(),
-            data_index: 0,
-            owner_entry_index: 0,
+            entries_index: 0,
+            owners_index: 0,
         };
         let _ = unpub_perms
             .permissions
