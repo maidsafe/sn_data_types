@@ -61,6 +61,10 @@ impl LoginPacket {
     pub fn signature(&self) -> &Signature {
         &self.signature
     }
+
+    pub fn into_data_and_signature(self) -> (Vec<u8>, Signature) {
+        (self.data, self.signature)
+    }
 }
 
 #[cfg(test)]
