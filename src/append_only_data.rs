@@ -781,24 +781,28 @@ impl Data {
     }
 
     pub fn pub_user_permissions(&self, user: User, idx: u64) -> Result<PubPermissionSet> {
-        match self {
+        let perms = match self {
             Data::PubSeq(data) => data.fetch_permissions_at_index(idx),
             Data::PubUnseq(data) => data.fetch_permissions_at_index(idx),
-            _ => None,
-        }
-        .and_then(|permissions| permissions.permissions().get(&user))
-        .cloned()
-        .ok_or(Error::NoSuchEntry)
+            _ => return Err(Error::NoSuchData),
+        };
+
+        perms
+            .and_then(|perms| perms.permissions().get(&user))
+            .cloned()
+            .ok_or(Error::NoSuchEntry)
     }
 
     pub fn unpub_user_permissions(&self, user: PublicKey, idx: u64) -> Result<UnpubPermissionSet> {
-        match self {
+        let perms = match self {
             Data::UnpubSeq(data) => data.fetch_permissions_at_index(idx),
             Data::UnpubUnseq(data) => data.fetch_permissions_at_index(idx),
-            _ => None,
-        }
-        .and_then(|permissions| permissions.permissions().get(&user).cloned())
-        .ok_or(Error::NoSuchEntry)
+            _ => return Err(Error::NoSuchData),
+        };
+
+        perms
+            .and_then(|permissions| permissions.permissions().get(&user).cloned())
+            .ok_or(Error::NoSuchEntry)
     }
 
     pub fn shell(&self, idx: u64) -> Result<Self> {
@@ -1131,5 +1135,60 @@ mod tests {
             None
         );
         assert_eq!(data.in_range(Index::FromEnd(3), Index::FromEnd(0)), None);
+    }
+
+    #[test]
+    fn permissions_kind_mismatch() {
+        let public_key = PublicKey::Bls(SecretKey::random().public_key());
+
+        let mut pub_perms = PubPermissions {
+            permissions: BTreeMap::new(),
+            data_index: 0,
+            owner_entry_index: 0,
+        };
+        let _ = pub_perms
+            .permissions
+            .insert(User::Key(public_key), PubPermissionSet::new(false, false));
+
+        let mut unpub_perms = UnpubPermissions {
+            permissions: BTreeMap::new(),
+            data_index: 0,
+            owner_entry_index: 0,
+        };
+        let _ = unpub_perms
+            .permissions
+            .insert(public_key, UnpubPermissionSet::new(false, false, false));
+
+        // pub, unseq
+        let mut data = PubUnseqAppendOnlyData::new(rand::random(), 20);
+        unwrap!(data.append_permissions(pub_perms.clone(), 0));
+        let data = Data::from(data);
+
+        assert!(data.pub_user_permissions(User::Key(public_key), 0).is_ok());
+        assert!(data.unpub_user_permissions(public_key, 0) == Err(Error::NoSuchData));
+
+        // pub, seq
+        let mut data = PubSeqAppendOnlyData::new(rand::random(), 20);
+        unwrap!(data.append_permissions(pub_perms, 0));
+        let data = Data::from(data);
+
+        assert!(data.pub_user_permissions(User::Key(public_key), 0).is_ok());
+        assert!(data.unpub_user_permissions(public_key, 0) == Err(Error::NoSuchData));
+
+        // unpub, unseq
+        let mut data = UnpubUnseqAppendOnlyData::new(rand::random(), 20);
+        unwrap!(data.append_permissions(unpub_perms.clone(), 0));
+        let data = Data::from(data);
+
+        assert!(data.unpub_user_permissions(public_key, 0).is_ok());
+        assert!(data.pub_user_permissions(User::Key(public_key), 0) == Err(Error::NoSuchData));
+
+        // unpub, seq
+        let mut data = UnpubSeqAppendOnlyData::new(rand::random(), 20);
+        unwrap!(data.append_permissions(unpub_perms, 0));
+        let data = Data::from(data);
+
+        assert!(data.unpub_user_permissions(public_key, 0).is_ok());
+        assert!(data.pub_user_permissions(User::Key(public_key), 0) == Err(Error::NoSuchData));
     }
 }
