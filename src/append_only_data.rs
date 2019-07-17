@@ -110,16 +110,20 @@ pub struct PubPermissionSet {
 }
 
 impl PubPermissionSet {
-    pub fn new(append: bool, manage_perms: bool) -> Self {
+    pub fn new(append: impl Into<Option<bool>>, manage_perms: impl Into<Option<bool>>) -> Self {
         PubPermissionSet {
-            append: Some(append),
-            manage_permissions: Some(manage_perms),
+            append: append.into(),
+            manage_permissions: manage_perms.into(),
         }
     }
 
-    pub fn set_perms(&mut self, append: bool, manage_perms: bool) {
-        self.append = Some(append);
-        self.manage_permissions = Some(manage_perms);
+    pub fn set_perms(
+        &mut self,
+        append: impl Into<Option<bool>>,
+        manage_perms: impl Into<Option<bool>>,
+    ) {
+        self.append = append.into();
+        self.manage_permissions = manage_perms.into();
     }
 
     pub fn is_allowed(self, action: Action) -> Option<bool> {
