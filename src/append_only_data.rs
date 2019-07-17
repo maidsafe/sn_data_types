@@ -72,7 +72,7 @@ impl Indices {
     }
 }
 
-#[derive(Copy, Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
+#[derive(Copy, Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub struct UnpubPermissionSet {
     read: bool,
     append: bool,
@@ -103,7 +103,7 @@ impl UnpubPermissionSet {
     }
 }
 
-#[derive(Copy, Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
+#[derive(Copy, Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub struct PubPermissionSet {
     append: Option<bool>,
     manage_permissions: Option<bool>,
@@ -223,7 +223,7 @@ impl Permissions for PubPermissions {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
 pub struct Owner {
     pub public_key: PublicKey,
     /// The current index of the data when this ownership change happened
@@ -1165,7 +1165,10 @@ mod tests {
         let data = Data::from(data);
 
         assert!(data.pub_user_permissions(User::Key(public_key), 0).is_ok());
-        assert!(data.unpub_user_permissions(public_key, 0) == Err(Error::NoSuchData));
+        assert_eq!(
+            data.unpub_user_permissions(public_key, 0),
+            Err(Error::NoSuchData)
+        );
 
         // pub, seq
         let mut data = PubSeqAppendOnlyData::new(rand::random(), 20);
@@ -1173,7 +1176,10 @@ mod tests {
         let data = Data::from(data);
 
         assert!(data.pub_user_permissions(User::Key(public_key), 0).is_ok());
-        assert!(data.unpub_user_permissions(public_key, 0) == Err(Error::NoSuchData));
+        assert_eq!(
+            data.unpub_user_permissions(public_key, 0),
+            Err(Error::NoSuchData)
+        );
 
         // unpub, unseq
         let mut data = UnpubUnseqAppendOnlyData::new(rand::random(), 20);
@@ -1181,7 +1187,10 @@ mod tests {
         let data = Data::from(data);
 
         assert!(data.unpub_user_permissions(public_key, 0).is_ok());
-        assert!(data.pub_user_permissions(User::Key(public_key), 0) == Err(Error::NoSuchData));
+        assert_eq!(
+            data.pub_user_permissions(User::Key(public_key), 0),
+            Err(Error::NoSuchData)
+        );
 
         // unpub, seq
         let mut data = UnpubSeqAppendOnlyData::new(rand::random(), 20);
@@ -1189,6 +1198,9 @@ mod tests {
         let data = Data::from(data);
 
         assert!(data.unpub_user_permissions(public_key, 0).is_ok());
-        assert!(data.pub_user_permissions(User::Key(public_key), 0) == Err(Error::NoSuchData));
+        assert_eq!(
+            data.pub_user_permissions(User::Key(public_key), 0),
+            Err(Error::NoSuchData)
+        );
     }
 }
