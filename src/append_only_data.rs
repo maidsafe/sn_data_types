@@ -14,6 +14,7 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     fmt::{self, Debug, Formatter},
     hash::Hash,
+    ops::Range,
 };
 
 pub type PubSeqAppendOnlyData = SeqAppendOnlyData<PubPermissions>;
@@ -409,28 +410,8 @@ macro_rules! impl_appendable_data {
             }
 
             fn in_range(&self, start: Index, end: Index) -> Option<Entries> {
-                let idx_start = match start {
-                    Index::FromStart(idx) => idx as usize,
-                    Index::FromEnd(idx) => self.inner.data.len() - (idx as usize),
-                };
-                let idx_end = match end {
-                    Index::FromStart(idx) => idx as usize,
-                    Index::FromEnd(idx) => self.inner.data.len() - (idx as usize),
-                };
-
-                // Check bounds
-                if idx_start > self.inner.data.len() {
-                    return None;
-                }
-                if idx_end < idx_start {
-                    return None;
-                }
-                if idx_start == idx_end {
-                    // Return empty slice because range len is 0
-                    return Some(Vec::new());
-                }
-
-                Some(self.inner.data[idx_start..idx_end].to_vec())
+                let range = to_absolute_range(start, end, self.inner.data.len())?;
+                Some(self.inner.data[range].to_vec())
             }
 
             fn entries(&self) -> &Entries {
@@ -438,51 +419,13 @@ macro_rules! impl_appendable_data {
             }
 
             fn permissions_range(&self, start: Index, end: Index) -> Option<&[P]> {
-                // Check bounds
-                let idx_start = match start {
-                    Index::FromStart(idx) => idx as usize,
-                    Index::FromEnd(idx) => self.inner.permissions.len() - (idx as usize),
-                };
-                let idx_end = match end {
-                    Index::FromStart(idx) => idx as usize,
-                    Index::FromEnd(idx) => self.inner.permissions.len() - (idx as usize),
-                };
-                if idx_start > self.inner.permissions.len() {
-                    return None;
-                }
-                if idx_end < idx_start {
-                    return None;
-                }
-                if idx_start == idx_end {
-                    // Empty slice
-                    return Some(&[]);
-                }
-
-                Some(&self.inner.permissions[idx_start..idx_end])
+                let range = to_absolute_range(start, end, self.inner.permissions.len())?;
+                Some(&self.inner.permissions[range])
             }
 
             fn owners_range(&self, start: Index, end: Index) -> Option<&[Owner]> {
-                // Check bounds
-                let idx_start = match start {
-                    Index::FromStart(idx) => idx as usize,
-                    Index::FromEnd(idx) => self.inner.owners.len() - (idx as usize),
-                };
-                let idx_end = match end {
-                    Index::FromStart(idx) => idx as usize,
-                    Index::FromEnd(idx) => self.inner.owners.len() - (idx as usize),
-                };
-                if idx_start > self.inner.owners.len() {
-                    return None;
-                }
-                if idx_end < idx_start {
-                    return None;
-                }
-                if idx_start == idx_end {
-                    // Empty slice
-                    return Some(&[]);
-                }
-
-                Some(&self.inner.owners[idx_start..idx_end])
+                let range = to_absolute_range(start, end, self.inner.owners.len())?;
+                Some(&self.inner.owners[range])
             }
 
             fn append_permissions(&mut self, permissions: P, permissions_idx: u64) -> Result<()> {
@@ -900,6 +843,25 @@ pub struct AppendOperation {
     pub values: Entries,
 }
 
+fn to_absolute_index(index: Index, count: usize) -> Option<usize> {
+    match index {
+        Index::FromStart(index) if index as usize <= count => Some(index as usize),
+        Index::FromStart(_) => None,
+        Index::FromEnd(index) => count.checked_sub(index as usize),
+    }
+}
+
+fn to_absolute_range(start: Index, end: Index, count: usize) -> Option<Range<usize>> {
+    let start = to_absolute_index(start, count)?;
+    let end = to_absolute_index(end, count)?;
+
+    if start <= end {
+        Some(start..end)
+    } else {
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1109,5 +1071,65 @@ mod tests {
         // Assert that no duplicate keys are present and the append operation is successful.
         let entries3 = vec![(b"KEY3".to_vec(), b"VALUE3".to_vec())];
         unwrap!(data.append(entries3, 2));
+    }
+
+    #[test]
+    fn in_range() {
+        let mut data = PubSeqAppendOnlyData::new(rand::random(), 10);
+        let entries = vec![
+            (b"key0".to_vec(), b"value0".to_vec()),
+            (b"key1".to_vec(), b"value1".to_vec()),
+        ];
+        unwrap!(data.append(entries, 0));
+
+        assert_eq!(
+            data.in_range(Index::FromStart(0), Index::FromStart(0)),
+            Some(vec![])
+        );
+        assert_eq!(
+            data.in_range(Index::FromStart(0), Index::FromStart(1)),
+            Some(vec![(b"key0".to_vec(), b"value0".to_vec())])
+        );
+        assert_eq!(
+            data.in_range(Index::FromStart(0), Index::FromStart(2)),
+            Some(vec![
+                (b"key0".to_vec(), b"value0".to_vec()),
+                (b"key1".to_vec(), b"value1".to_vec())
+            ])
+        );
+
+        assert_eq!(
+            data.in_range(Index::FromEnd(2), Index::FromEnd(1)),
+            Some(vec![(b"key0".to_vec(), b"value0".to_vec()),])
+        );
+        assert_eq!(
+            data.in_range(Index::FromEnd(2), Index::FromEnd(0)),
+            Some(vec![
+                (b"key0".to_vec(), b"value0".to_vec()),
+                (b"key1".to_vec(), b"value1".to_vec())
+            ])
+        );
+
+        assert_eq!(
+            data.in_range(Index::FromStart(0), Index::FromEnd(0)),
+            Some(vec![
+                (b"key0".to_vec(), b"value0".to_vec()),
+                (b"key1".to_vec(), b"value1".to_vec())
+            ])
+        );
+
+        // start > end
+        assert_eq!(
+            data.in_range(Index::FromStart(1), Index::FromStart(0)),
+            None
+        );
+        assert_eq!(data.in_range(Index::FromEnd(1), Index::FromEnd(2)), None);
+
+        // overflow
+        assert_eq!(
+            data.in_range(Index::FromStart(0), Index::FromStart(3)),
+            None
+        );
+        assert_eq!(data.in_range(Index::FromEnd(3), Index::FromEnd(0)), None);
     }
 }
