@@ -23,7 +23,7 @@ pub type UnpubSeqAppendOnlyData = SeqAppendOnlyData<UnpubPermissions>;
 pub type UnpubUnseqAppendOnlyData = UnseqAppendOnlyData<UnpubPermissions>;
 pub type Entries = Vec<(Vec<u8>, Vec<u8>)>;
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
 pub enum User {
     Anyone,
     Key(PublicKey),
@@ -233,7 +233,7 @@ impl Permissions for PubPermissions {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
 pub struct Owner {
     pub public_key: PublicKey,
     /// The current index of the data when this ownership change happened
