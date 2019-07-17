@@ -721,6 +721,15 @@ impl Data {
         self.address().kind()
     }
 
+    pub fn data_index(&self) -> u64 {
+        match self {
+            Data::PubSeq(data) => data.entry_index(),
+            Data::PubUnseq(data) => data.entry_index(),
+            Data::UnpubSeq(data) => data.entry_index(),
+            Data::UnpubUnseq(data) => data.entry_index(),
+        }
+    }
+
     pub fn permissions_index(&self) -> u64 {
         match self {
             Data::PubSeq(data) => data.permissions_index(),
