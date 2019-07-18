@@ -306,6 +306,9 @@ pub trait AppendOnlyData<P> {
 
     /// Add a new owner entry.
     fn append_owner(&mut self, owner: Owner, owners_idx: u64) -> Result<()>;
+
+    /// Check if the requester is the last owner.
+    fn check_is_last_owner(&self, requester: PublicKey) -> Result<()>;
 }
 
 /// Common methods for published and unpublished unsequenced `AppendOnlyData`.
@@ -466,6 +469,19 @@ macro_rules! impl_appendable_data {
                 }
                 self.inner.owners.push(owner);
                 Ok(())
+            }
+
+            fn check_is_last_owner(&self, requester: PublicKey) -> Result<()> {
+                if self
+                    .owner(Index::FromEnd(1))
+                    .ok_or_else(|| Error::InvalidOwners)?
+                    .public_key
+                    == requester
+                {
+                    Ok(())
+                } else {
+                    Err(Error::AccessDenied)
+                }
             }
         }
     };
@@ -798,6 +814,15 @@ impl Data {
             Data::PubUnseq(data) => data.owner(idx),
             Data::UnpubSeq(data) => data.owner(idx),
             Data::UnpubUnseq(data) => data.owner(idx),
+        }
+    }
+
+    pub fn check_is_last_owner(&self, requester: PublicKey) -> Result<()> {
+        match self {
+            Data::PubSeq(data) => data.check_is_last_owner(requester),
+            Data::PubUnseq(data) => data.check_is_last_owner(requester),
+            Data::UnpubSeq(data) => data.check_is_last_owner(requester),
+            Data::UnpubUnseq(data) => data.check_is_last_owner(requester),
         }
     }
 
