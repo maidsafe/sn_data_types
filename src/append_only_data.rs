@@ -600,16 +600,16 @@ where
 macro_rules! check_perm {
     ($data: ident, $requester: ident, $action: ident) => {
         if $data
-            .owner($data.owners_index() - 1)
-            .ok_or_else(|| Error::NoSuchData)?
+            .owner(Index::FromEnd(1))
+            .ok_or(Error::InvalidOwners)?
             .public_key
             == $requester
         {
             Ok(())
         } else {
             $data
-                .permissions($data.permissions_index() - 1)
-                .ok_or_else(|| Error::NoSuchData)?
+                .permissions(Index::FromEnd(1))
+                .ok_or(Error::InvalidPermissions)?
                 .is_action_allowed($requester, $action)
         }
     };
@@ -1285,5 +1285,17 @@ mod tests {
 
     fn gen_public_key() -> PublicKey {
         PublicKey::Bls(SecretKey::random().public_key())
+    }
+
+    #[test]
+    fn check_permission_without_owner_shouldnt_crash() {
+        let data = Data::from(SeqAppendOnlyData::<UnpubPermissions>::new(
+            XorName([1; 32]),
+            10000,
+        ));
+        assert_eq!(
+            data.check_permission(Action::Append, gen_public_key()),
+            Err(Error::InvalidOwners)
+        );
     }
 }
