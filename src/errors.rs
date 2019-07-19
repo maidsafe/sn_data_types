@@ -7,7 +7,7 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::Entries;
+use crate::ADataEntries;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
@@ -53,7 +53,7 @@ pub enum Error {
     /// Key does not exist
     NoSuchKey,
     /// The key(s) of the entry or entries contained in this error already exist
-    KeysExist(Entries),
+    KeysExist(ADataEntries),
     /// Duplicate Entries in this push
     DuplicateEntryKeys,
     /// The list of owner keys is invalid
@@ -75,7 +75,7 @@ pub enum Error {
     SigningKeyTypeMismatch,
     /// Failed signature validation.
     InvalidSignature,
-    /// Recieved a request with a duplicate MessageId
+    /// Received a request with a duplicate MessageId
     DuplicateMessageId,
     /// Network error occurring at Vault level which has no bearing on clients, e.g. serialisation
     /// failure or database failure
