@@ -8,9 +8,10 @@
 // Software.
 
 use crate::{
-    errors::ErrorDebug, AData, ADataEntries, ADataIndices, ADataOwner, ADataPubPermissionSet,
-    ADataPubPermissions, ADataUnpubPermissionSet, ADataUnpubPermissions, AppPermissions, Coins,
-    Error, IData, MData, MDataPermissionSet, MDataValue, PublicKey, Result, Signature, Transaction,
+    errors::ErrorDebug, AData, ADataEntries, ADataEntry, ADataIndices, ADataOwner,
+    ADataPubPermissionSet, ADataPubPermissions, ADataUnpubPermissionSet, ADataUnpubPermissions,
+    AppPermissions, Coins, Error, IData, MData, MDataPermissionSet, MDataValue, PublicKey, Result,
+    Signature, Transaction,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -51,7 +52,7 @@ pub enum Response {
     GetADataRange(Result<ADataEntries>),
     GetADataValue(Result<Vec<u8>>),
     GetADataIndices(Result<ADataIndices>),
-    GetADataLastEntry(Result<(Vec<u8>, Vec<u8>)>),
+    GetADataLastEntry(Result<ADataEntry>),
     GetUnpubADataPermissionAtIndex(Result<ADataUnpubPermissions>),
     GetPubADataPermissionAtIndex(Result<ADataPubPermissions>),
     GetPubADataUserPermissions(Result<ADataPubPermissionSet>),
@@ -115,7 +116,7 @@ try_from!(AData, GetAData, GetADataShell);
 try_from!(ADataOwner, GetADataOwners);
 try_from!(ADataEntries, GetADataRange);
 try_from!(ADataIndices, GetADataIndices);
-try_from!((Vec<u8>, Vec<u8>), GetADataLastEntry);
+try_from!(ADataEntry, GetADataLastEntry);
 try_from!(ADataUnpubPermissions, GetUnpubADataPermissionAtIndex);
 try_from!(ADataPubPermissions, GetPubADataPermissionAtIndex);
 try_from!(ADataPubPermissionSet, GetPubADataUserPermissions);
