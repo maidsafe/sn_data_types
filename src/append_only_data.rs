@@ -273,7 +273,7 @@ pub trait AppendOnlyData<P> {
     fn get(&self, key: &[u8]) -> Option<&Vec<u8>>;
 
     /// Return the last entry in the Data (if it is present).
-    fn last_entry(&self) -> Option<Entry>;
+    fn last_entry(&self) -> Option<&Entry>;
 
     /// Get a list of keys and values with the given indices.
     fn in_range(&self, start: Index, end: Index) -> Option<Entries>;
@@ -422,8 +422,8 @@ macro_rules! impl_appendable_data {
                 })
             }
 
-            fn last_entry(&self) -> Option<Entry> {
-                self.inner.data.last().cloned()
+            fn last_entry(&self) -> Option<&Entry> {
+                self.inner.data.last()
             }
 
             fn permissions(&self, index: impl Into<Index>) -> Option<&P> {
@@ -811,7 +811,7 @@ impl Data {
         }
     }
 
-    pub fn last_entry(&self) -> Option<Entry> {
+    pub fn last_entry(&self) -> Option<&Entry> {
         match self {
             Data::PubSeq(data) => data.last_entry(),
             Data::PubUnseq(data) => data.last_entry(),
