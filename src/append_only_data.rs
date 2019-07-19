@@ -306,6 +306,9 @@ pub trait AppendOnlyData<P> {
 
     /// Add a new owner entry.
     fn append_owner(&mut self, owner: Owner, owners_idx: u64) -> Result<()>;
+
+    /// Check if the requester is the last owner.
+    fn check_is_last_owner(&self, requester: PublicKey) -> Result<()>;
 }
 
 /// Common methods for published and unpublished unsequenced `AppendOnlyData`.
@@ -467,6 +470,19 @@ macro_rules! impl_appendable_data {
                 self.inner.owners.push(owner);
                 Ok(())
             }
+
+            fn check_is_last_owner(&self, requester: PublicKey) -> Result<()> {
+                if self
+                    .owner(Index::FromEnd(1))
+                    .ok_or_else(|| Error::InvalidOwners)?
+                    .public_key
+                    == requester
+                {
+                    Ok(())
+                } else {
+                    Err(Error::AccessDenied)
+                }
+            }
         }
     };
 }
@@ -600,16 +616,16 @@ where
 macro_rules! check_perm {
     ($data: ident, $requester: ident, $action: ident) => {
         if $data
-            .owner($data.owners_index() - 1)
-            .ok_or_else(|| Error::NoSuchData)?
+            .owner(Index::FromEnd(1))
+            .ok_or(Error::InvalidOwners)?
             .public_key
             == $requester
         {
             Ok(())
         } else {
             $data
-                .permissions($data.permissions_index() - 1)
-                .ok_or_else(|| Error::NoSuchData)?
+                .permissions(Index::FromEnd(1))
+                .ok_or(Error::InvalidPermissions)?
                 .is_action_allowed($requester, $action)
         }
     };
@@ -798,6 +814,15 @@ impl Data {
             Data::PubUnseq(data) => data.owner(idx),
             Data::UnpubSeq(data) => data.owner(idx),
             Data::UnpubUnseq(data) => data.owner(idx),
+        }
+    }
+
+    pub fn check_is_last_owner(&self, requester: PublicKey) -> Result<()> {
+        match self {
+            Data::PubSeq(data) => data.check_is_last_owner(requester),
+            Data::PubUnseq(data) => data.check_is_last_owner(requester),
+            Data::UnpubSeq(data) => data.check_is_last_owner(requester),
+            Data::UnpubUnseq(data) => data.check_is_last_owner(requester),
         }
     }
 
@@ -1285,5 +1310,17 @@ mod tests {
 
     fn gen_public_key() -> PublicKey {
         PublicKey::Bls(SecretKey::random().public_key())
+    }
+
+    #[test]
+    fn check_permission_without_owner_shouldnt_crash() {
+        let data = Data::from(SeqAppendOnlyData::<UnpubPermissions>::new(
+            XorName([1; 32]),
+            10000,
+        ));
+        assert_eq!(
+            data.check_permission(Action::Append, gen_public_key()),
+            Err(Error::InvalidOwners)
+        );
     }
 }
