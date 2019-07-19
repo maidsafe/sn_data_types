@@ -69,12 +69,12 @@ mod utils;
 
 pub use append_only_data::{
     Action as ADataAction, Address as ADataAddress, AppendOnlyData, AppendOperation as ADataAppend,
-    Data as AData, Entries as ADataEntries, Entries, Index as ADataIndex, Indices as ADataIndices,
-    Kind as ADataKind, Owner as ADataOwner, PubPermissionSet as ADataPubPermissionSet,
-    PubPermissions as ADataPubPermissions, PubSeqAppendOnlyData, PubUnseqAppendOnlyData,
-    SeqAppendOnly, UnpubPermissionSet as ADataUnpubPermissionSet,
-    UnpubPermissions as ADataUnpubPermissions, UnpubSeqAppendOnlyData, UnpubUnseqAppendOnlyData,
-    UnseqAppendOnly, User as ADataUser,
+    Data as AData, Entries as ADataEntries, Entry as ADataEntry, Index as ADataIndex,
+    Indices as ADataIndices, Kind as ADataKind, Owner as ADataOwner,
+    PubPermissionSet as ADataPubPermissionSet, PubPermissions as ADataPubPermissions,
+    PubSeqAppendOnlyData, PubUnseqAppendOnlyData, SeqAppendOnly,
+    UnpubPermissionSet as ADataUnpubPermissionSet, UnpubPermissions as ADataUnpubPermissions,
+    UnpubSeqAppendOnlyData, UnpubUnseqAppendOnlyData, UnseqAppendOnly, User as ADataUser,
 };
 pub use coins::{Coins, MAX_COINS_VALUE};
 pub use errors::{EntryError, Error, Result};

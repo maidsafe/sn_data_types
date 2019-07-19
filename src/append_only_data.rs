@@ -21,7 +21,7 @@ pub type PubSeqAppendOnlyData = SeqAppendOnlyData<PubPermissions>;
 pub type PubUnseqAppendOnlyData = UnseqAppendOnlyData<PubPermissions>;
 pub type UnpubSeqAppendOnlyData = SeqAppendOnlyData<UnpubPermissions>;
 pub type UnpubUnseqAppendOnlyData = UnseqAppendOnlyData<UnpubPermissions>;
-pub type Entries = Vec<(Vec<u8>, Vec<u8>)>;
+pub type Entries = Vec<Entry>;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
 pub enum User {
@@ -242,6 +242,18 @@ pub struct Owner {
     pub permissions_index: u64,
 }
 
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default, Debug)]
+pub struct Entry {
+    pub key: Vec<u8>,
+    pub value: Vec<u8>,
+}
+
+impl Entry {
+    pub fn new(key: Vec<u8>, value: Vec<u8>) -> Self {
+        Self { key, value }
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
 struct AppendOnly<P: Permissions> {
     address: Address,
@@ -261,7 +273,7 @@ pub trait AppendOnlyData<P> {
     fn get(&self, key: &[u8]) -> Option<&Vec<u8>>;
 
     /// Return the last entry in the Data (if it is present).
-    fn last_entry(&self) -> Option<(Vec<u8>, Vec<u8>)>;
+    fn last_entry(&self) -> Option<&Entry>;
 
     /// Get a list of keys and values with the given indices.
     fn in_range(&self, start: Index, end: Index) -> Option<Entries>;
@@ -401,17 +413,17 @@ macro_rules! impl_appendable_data {
             }
 
             fn get(&self, key: &[u8]) -> Option<&Vec<u8>> {
-                self.inner
-                    .data
-                    .iter()
-                    .find_map(|(k, v)| if k.as_slice() == key { Some(v) } else { None })
+                self.inner.data.iter().find_map(|entry| {
+                    if entry.key.as_slice() == key {
+                        Some(&entry.value)
+                    } else {
+                        None
+                    }
+                })
             }
 
-            fn last_entry(&self) -> Option<(Vec<u8>, Vec<u8>)> {
-                match self.inner.data.last() {
-                    Some(tup) => Some(tup.clone()),
-                    None => None,
-                }
+            fn last_entry(&self) -> Option<&Entry> {
+                self.inner.data.last()
             }
 
             fn permissions(&self, index: impl Into<Index>) -> Option<&P> {
@@ -566,19 +578,19 @@ impl Debug for UnseqAppendOnlyData<UnpubPermissions> {
     }
 }
 
-fn check_dup(data: &[(Vec<u8>, Vec<u8>)], entries: &mut Entries) -> Result<()> {
-    let new: BTreeSet<&Vec<u8>> = entries.iter().map(|(key, _value)| key).collect();
+fn check_dup(data: &[Entry], entries: &mut Entries) -> Result<()> {
+    let new: BTreeSet<&Vec<u8>> = entries.iter().map(|entry| &entry.key).collect();
 
     // If duplicate entries are present in the push.
     if new.len() < entries.len() {
         return Err(Error::DuplicateEntryKeys);
     }
 
-    let existing: BTreeSet<&Vec<u8>> = data.iter().map(|(key, _value)| key).collect();
+    let existing: BTreeSet<&Vec<u8>> = data.iter().map(|entry| &entry.key).collect();
     if !existing.is_disjoint(&new) {
         let dup: Entries = entries
             .drain(..)
-            .filter(|(key, _value)| existing.contains(&key))
+            .filter(|entry| existing.contains(&entry.key))
             .collect();
         return Err(Error::KeysExist(dup));
     }
@@ -799,7 +811,7 @@ impl Data {
         }
     }
 
-    pub fn last_entry(&self) -> Option<(Vec<u8>, Vec<u8>)> {
+    pub fn last_entry(&self) -> Option<&Entry> {
         match self {
             Data::PubSeq(data) => data.last_entry(),
             Data::PubUnseq(data) => data.last_entry(),
@@ -1034,7 +1046,7 @@ mod tests {
     #[test]
     fn seq_append_entries() {
         let mut data = SeqAppendOnlyData::<PubPermissions>::new(XorName([1; 32]), 10000);
-        unwrap!(data.append(vec![(b"hello".to_vec(), b"world".to_vec())], 0));
+        unwrap!(data.append(vec![Entry::new(b"hello".to_vec(), b"world".to_vec())], 0));
     }
 
     #[test]
@@ -1080,29 +1092,29 @@ mod tests {
 
         // Assert that the entries are not appended because of duplicate keys.
         let entries = vec![
-            (b"KEY1".to_vec(), b"VALUE1".to_vec()),
-            (b"KEY2".to_vec(), b"VALUE2".to_vec()),
-            (b"KEY1".to_vec(), b"VALUE1".to_vec()),
+            Entry::new(b"KEY1".to_vec(), b"VALUE1".to_vec()),
+            Entry::new(b"KEY2".to_vec(), b"VALUE2".to_vec()),
+            Entry::new(b"KEY1".to_vec(), b"VALUE1".to_vec()),
         ];
         assert_eq!(Error::DuplicateEntryKeys, unwrap_err!(data.append(entries)));
 
         // Assert that the entries are appended because there are no duplicate keys.
         let entries1 = vec![
-            (b"KEY1".to_vec(), b"VALUE1".to_vec()),
-            (b"KEY2".to_vec(), b"VALUE2".to_vec()),
+            Entry::new(b"KEY1".to_vec(), b"VALUE1".to_vec()),
+            Entry::new(b"KEY2".to_vec(), b"VALUE2".to_vec()),
         ];
 
         unwrap!(data.append(entries1));
 
         // Assert that entries are not appended because they duplicate some keys appended previously.
-        let entries2 = vec![(b"KEY2".to_vec(), b"VALUE2".to_vec())];
+        let entries2 = vec![Entry::new(b"KEY2".to_vec(), b"VALUE2".to_vec())];
         assert_eq!(
             Error::KeysExist(entries2.clone()),
             unwrap_err!(data.append(entries2))
         );
 
         // Assert that no duplicate keys are present and the append operation is successful.
-        let entries3 = vec![(b"KEY3".to_vec(), b"VALUE3".to_vec())];
+        let entries3 = vec![Entry::new(b"KEY3".to_vec(), b"VALUE3".to_vec())];
         unwrap!(data.append(entries3));
     }
 
@@ -1112,9 +1124,9 @@ mod tests {
 
         // Assert that the entries are not appended because of duplicate keys.
         let entries = vec![
-            (b"KEY1".to_vec(), b"VALUE1".to_vec()),
-            (b"KEY2".to_vec(), b"VALUE2".to_vec()),
-            (b"KEY1".to_vec(), b"VALUE1".to_vec()),
+            Entry::new(b"KEY1".to_vec(), b"VALUE1".to_vec()),
+            Entry::new(b"KEY2".to_vec(), b"VALUE2".to_vec()),
+            Entry::new(b"KEY1".to_vec(), b"VALUE1".to_vec()),
         ];
         assert_eq!(
             Error::DuplicateEntryKeys,
@@ -1123,20 +1135,20 @@ mod tests {
 
         // Assert that the entries are appended because there are no duplicate keys.
         let entries1 = vec![
-            (b"KEY1".to_vec(), b"VALUE1".to_vec()),
-            (b"KEY2".to_vec(), b"VALUE2".to_vec()),
+            Entry::new(b"KEY1".to_vec(), b"VALUE1".to_vec()),
+            Entry::new(b"KEY2".to_vec(), b"VALUE2".to_vec()),
         ];
         unwrap!(data.append(entries1, 0));
 
         // Assert that entries are not appended because they duplicate some keys appended previously.
-        let entries2 = vec![(b"KEY2".to_vec(), b"VALUE2".to_vec())];
+        let entries2 = vec![Entry::new(b"KEY2".to_vec(), b"VALUE2".to_vec())];
         assert_eq!(
             Error::KeysExist(entries2.clone()),
             unwrap_err!(data.append(entries2, 2))
         );
 
         // Assert that no duplicate keys are present and the append operation is successful.
-        let entries3 = vec![(b"KEY3".to_vec(), b"VALUE3".to_vec())];
+        let entries3 = vec![Entry::new(b"KEY3".to_vec(), b"VALUE3".to_vec())];
         unwrap!(data.append(entries3, 2));
     }
 
@@ -1144,8 +1156,8 @@ mod tests {
     fn in_range() {
         let mut data = PubSeqAppendOnlyData::new(rand::random(), 10);
         let entries = vec![
-            (b"key0".to_vec(), b"value0".to_vec()),
-            (b"key1".to_vec(), b"value1".to_vec()),
+            Entry::new(b"key0".to_vec(), b"value0".to_vec()),
+            Entry::new(b"key1".to_vec(), b"value1".to_vec()),
         ];
         unwrap!(data.append(entries, 0));
 
@@ -1155,33 +1167,33 @@ mod tests {
         );
         assert_eq!(
             data.in_range(Index::FromStart(0), Index::FromStart(1)),
-            Some(vec![(b"key0".to_vec(), b"value0".to_vec())])
+            Some(vec![Entry::new(b"key0".to_vec(), b"value0".to_vec())])
         );
         assert_eq!(
             data.in_range(Index::FromStart(0), Index::FromStart(2)),
             Some(vec![
-                (b"key0".to_vec(), b"value0".to_vec()),
-                (b"key1".to_vec(), b"value1".to_vec())
+                Entry::new(b"key0".to_vec(), b"value0".to_vec()),
+                Entry::new(b"key1".to_vec(), b"value1".to_vec())
             ])
         );
 
         assert_eq!(
             data.in_range(Index::FromEnd(2), Index::FromEnd(1)),
-            Some(vec![(b"key0".to_vec(), b"value0".to_vec()),])
+            Some(vec![Entry::new(b"key0".to_vec(), b"value0".to_vec()),])
         );
         assert_eq!(
             data.in_range(Index::FromEnd(2), Index::FromEnd(0)),
             Some(vec![
-                (b"key0".to_vec(), b"value0".to_vec()),
-                (b"key1".to_vec(), b"value1".to_vec())
+                Entry::new(b"key0".to_vec(), b"value0".to_vec()),
+                Entry::new(b"key1".to_vec(), b"value1".to_vec())
             ])
         );
 
         assert_eq!(
             data.in_range(Index::FromStart(0), Index::FromEnd(0)),
             Some(vec![
-                (b"key0".to_vec(), b"value0".to_vec()),
-                (b"key1".to_vec(), b"value1".to_vec())
+                Entry::new(b"key0".to_vec(), b"value0".to_vec()),
+                Entry::new(b"key1".to_vec(), b"value1".to_vec())
             ])
         );
 
