@@ -29,7 +29,7 @@ pub enum User {
     Key(PublicKey),
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Eq, PartialEq)]
 pub enum Action {
     Read,
     Append,
@@ -172,7 +172,7 @@ impl Permissions for UnpubPermissions {
                     Err(Error::AccessDenied)
                 }
             }
-            None => Err(Error::NoSuchEntry),
+            None => Err(Error::InvalidPermissions),
         }
     }
 
@@ -195,11 +195,10 @@ pub struct PubPermissions {
 }
 
 impl PubPermissions {
-    fn check_anyone_permissions(&self, action: Action) -> bool {
-        match self.permissions.get(&User::Anyone) {
-            None => false,
-            Some(perms) => perms.is_allowed(action).unwrap_or(false),
-        }
+    fn is_action_allowed_by_user(&self, user: &User, action: Action) -> Option<bool> {
+        self.permissions
+            .get(user)
+            .and_then(|perms| perms.is_allowed(action))
     }
 
     pub fn permissions(&self) -> &BTreeMap<User, PubPermissionSet> {
@@ -209,18 +208,13 @@ impl PubPermissions {
 
 impl Permissions for PubPermissions {
     fn is_action_allowed(&self, requester: PublicKey, action: Action) -> Result<()> {
-        match self.permissions.get(&User::Key(requester)) {
-            Some(perms) => {
-                if perms
-                    .is_allowed(action)
-                    .unwrap_or_else(|| self.check_anyone_permissions(action))
-                {
-                    Ok(())
-                } else {
-                    Err(Error::AccessDenied)
-                }
-            }
-            None => Err(Error::NoSuchEntry),
+        match self
+            .is_action_allowed_by_user(&User::Key(requester), action)
+            .or_else(|| self.is_action_allowed_by_user(&User::Anyone, action))
+        {
+            Some(true) => Ok(()),
+            Some(false) => Err(Error::AccessDenied),
+            None => Err(Error::InvalidPermissions),
         }
     }
 
@@ -729,8 +723,18 @@ pub enum Data {
 impl Data {
     pub fn check_permission(&self, action: Action, requester: PublicKey) -> Result<()> {
         match self {
-            Data::PubSeq(data) => check_perm!(data, requester, action),
-            Data::PubUnseq(data) => check_perm!(data, requester, action),
+            Data::PubSeq(data) => {
+                if action == Action::Read {
+                    return Ok(());
+                }
+                check_perm!(data, requester, action)
+            }
+            Data::PubUnseq(data) => {
+                if action == Action::Read {
+                    return Ok(());
+                }
+                check_perm!(data, requester, action)
+            }
             Data::UnpubSeq(data) => check_perm!(data, requester, action),
             Data::UnpubUnseq(data) => check_perm!(data, requester, action),
         }
@@ -1325,14 +1329,138 @@ mod tests {
     }
 
     #[test]
-    fn check_permission_without_owner_shouldnt_crash() {
-        let data = Data::from(SeqAppendOnlyData::<UnpubPermissions>::new(
-            XorName([1; 32]),
-            10000,
-        ));
+    fn check_pub_permission() {
+        let public_key_0 = gen_public_key();
+        let public_key_1 = gen_public_key();
+        let public_key_2 = gen_public_key();
+        let mut inner = SeqAppendOnlyData::<PubPermissions>::new(XorName([1; 32]), 100);
+
+        // no owner
+        let data = Data::from(inner.clone());
         assert_eq!(
-            data.check_permission(Action::Append, gen_public_key()),
+            data.check_permission(Action::Append, public_key_0),
             Err(Error::InvalidOwners)
+        );
+        // data is published - read always allowed
+        assert_eq!(data.check_permission(Action::Read, public_key_0), Ok(()));
+
+        // no permissions
+        unwrap!(inner.append_owner(
+            Owner {
+                public_key: public_key_0,
+                entries_index: 0,
+                permissions_index: 0,
+            },
+            0,
+        ));
+        let data = Data::from(inner.clone());
+
+        assert_eq!(data.check_permission(Action::Append, public_key_0), Ok(()));
+        assert_eq!(
+            data.check_permission(Action::Append, public_key_1),
+            Err(Error::InvalidPermissions)
+        );
+        // data is published - read always allowed
+        assert_eq!(data.check_permission(Action::Read, public_key_0), Ok(()));
+        assert_eq!(data.check_permission(Action::Read, public_key_1), Ok(()));
+
+        // with permissions
+        let mut permissions = PubPermissions {
+            permissions: BTreeMap::new(),
+            entries_index: 0,
+            owners_index: 1,
+        };
+        let _ = permissions
+            .permissions
+            .insert(User::Anyone, PubPermissionSet::new(true, false));
+        let _ = permissions
+            .permissions
+            .insert(User::Key(public_key_1), PubPermissionSet::new(None, true));
+        unwrap!(inner.append_permissions(permissions, 0));
+        let data = Data::from(inner);
+
+        // existing key fallback
+        assert_eq!(data.check_permission(Action::Append, public_key_1), Ok(()));
+        // existing key override
+        assert_eq!(
+            data.check_permission(Action::ManagePermissions, public_key_1),
+            Ok(())
+        );
+        // non-existing keys are handled by `Anyone`
+        assert_eq!(data.check_permission(Action::Append, public_key_2), Ok(()));
+        assert_eq!(
+            data.check_permission(Action::ManagePermissions, public_key_2),
+            Err(Error::AccessDenied)
+        );
+        // data is published - read always allowed
+        assert_eq!(data.check_permission(Action::Read, public_key_0), Ok(()));
+        assert_eq!(data.check_permission(Action::Read, public_key_1), Ok(()));
+        assert_eq!(data.check_permission(Action::Read, public_key_2), Ok(()));
+    }
+
+    #[test]
+    fn check_unpub_permission() {
+        let public_key_0 = gen_public_key();
+        let public_key_1 = gen_public_key();
+        let public_key_2 = gen_public_key();
+        let mut inner = SeqAppendOnlyData::<UnpubPermissions>::new(XorName([1; 32]), 100);
+
+        // no owner
+        let data = Data::from(inner.clone());
+        assert_eq!(
+            data.check_permission(Action::Read, public_key_0),
+            Err(Error::InvalidOwners)
+        );
+
+        // no permissions
+        unwrap!(inner.append_owner(
+            Owner {
+                public_key: public_key_0,
+                entries_index: 0,
+                permissions_index: 0,
+            },
+            0,
+        ));
+        let data = Data::from(inner.clone());
+
+        assert_eq!(data.check_permission(Action::Read, public_key_0), Ok(()));
+        assert_eq!(
+            data.check_permission(Action::Read, public_key_1),
+            Err(Error::InvalidPermissions)
+        );
+
+        // with permissions
+        let mut permissions = UnpubPermissions {
+            permissions: BTreeMap::new(),
+            entries_index: 0,
+            owners_index: 1,
+        };
+        let _ = permissions
+            .permissions
+            .insert(public_key_1, UnpubPermissionSet::new(true, true, false));
+        unwrap!(inner.append_permissions(permissions, 0));
+        let data = Data::from(inner);
+
+        // existing key
+        assert_eq!(data.check_permission(Action::Read, public_key_1), Ok(()));
+        assert_eq!(data.check_permission(Action::Append, public_key_1), Ok(()));
+        assert_eq!(
+            data.check_permission(Action::ManagePermissions, public_key_1),
+            Err(Error::AccessDenied)
+        );
+
+        // non-existing key
+        assert_eq!(
+            data.check_permission(Action::Read, public_key_2),
+            Err(Error::InvalidPermissions)
+        );
+        assert_eq!(
+            data.check_permission(Action::Append, public_key_2),
+            Err(Error::InvalidPermissions)
+        );
+        assert_eq!(
+            data.check_permission(Action::ManagePermissions, public_key_2),
+            Err(Error::InvalidPermissions)
         );
     }
 }
