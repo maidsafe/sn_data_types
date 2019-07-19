@@ -64,7 +64,7 @@ pub enum Response {
     //
     // ===== Client (Owner) to SrcElders =====
     //
-    /// Returns a list of authorised keys from Elders and the account version.
+    /// Returns a list of authorised keys and the version of the auth keys container from Elders.
     ListAuthKeysAndVersion(Result<(BTreeMap<PublicKey, AppPermissions>, u64)>),
     //
     // ===== Login Packet =====
