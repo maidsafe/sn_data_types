@@ -652,6 +652,24 @@ pub enum Kind {
     UnpubUnseq,
 }
 
+impl Kind {
+    pub fn is_pub(self) -> bool {
+        self == Kind::PubSeq || self == Kind::PubUnseq
+    }
+
+    pub fn is_unpub(self) -> bool {
+        !self.is_pub()
+    }
+
+    pub fn is_seq(self) -> bool {
+        self == Kind::PubSeq || self == Kind::UnpubSeq
+    }
+
+    pub fn is_unseq(self) -> bool {
+        !self.is_seq()
+    }
+}
+
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Address {
     PubSeq { name: XorName, tag: u64 },
@@ -695,6 +713,22 @@ impl Address {
             | Address::UnpubSeq { tag, .. }
             | Address::UnpubUnseq { tag, .. } => *tag,
         }
+    }
+
+    pub fn is_pub(&self) -> bool {
+        self.kind().is_pub()
+    }
+
+    pub fn is_unpub(&self) -> bool {
+        !self.kind().is_unpub()
+    }
+
+    pub fn is_seq(&self) -> bool {
+        self.kind().is_seq()
+    }
+
+    pub fn is_unseq(&self) -> bool {
+        !self.kind().is_unseq()
     }
 
     /// Returns the Address serialised and encoded in z-base-32.
@@ -746,6 +780,10 @@ impl Data {
         }
     }
 
+    pub fn kind(&self) -> Kind {
+        self.address().kind()
+    }
+
     pub fn name(&self) -> &XorName {
         self.address().name()
     }
@@ -754,8 +792,20 @@ impl Data {
         self.address().tag()
     }
 
-    pub fn kind(&self) -> Kind {
-        self.address().kind()
+    pub fn is_pub(&self) -> bool {
+        self.kind().is_pub()
+    }
+
+    pub fn is_unpub(&self) -> bool {
+        !self.kind().is_unpub()
+    }
+
+    pub fn is_seq(&self) -> bool {
+        self.kind().is_seq()
+    }
+
+    pub fn is_unseq(&self) -> bool {
+        !self.kind().is_unseq()
     }
 
     pub fn entries_index(&self) -> u64 {
