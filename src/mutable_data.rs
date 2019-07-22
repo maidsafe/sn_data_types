@@ -859,6 +859,33 @@ impl Into<BTreeMap<Vec<u8>, UnseqEntryAction>> for UnseqEntryActions {
     }
 }
 
+#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
+pub enum EntryActions {
+    Seq(SeqEntryActions),
+    Unseq(UnseqEntryActions),
+}
+
+impl EntryActions {
+    pub fn kind(&self) -> Kind {
+        match self {
+            EntryActions::Seq(_) => Kind::Seq,
+            EntryActions::Unseq(_) => Kind::Unseq,
+        }
+    }
+}
+
+impl From<SeqEntryActions> for EntryActions {
+    fn from(entry_actions: SeqEntryActions) -> Self {
+        EntryActions::Seq(entry_actions)
+    }
+}
+
+impl From<UnseqEntryActions> for EntryActions {
+    fn from(entry_actions: UnseqEntryActions) -> Self {
+        EntryActions::Unseq(entry_actions)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::{Address, XorName};

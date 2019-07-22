@@ -13,8 +13,7 @@ pub use self::login_packet::{LoginPacket, MAX_LOGIN_PACKET_BYTES};
 use crate::{
     AData, ADataAddress, ADataAppend, ADataIndex, ADataOwner, ADataPubPermissions,
     ADataUnpubPermissions, ADataUser, AppPermissions, Coins, IData, IDataAddress, MData,
-    MDataAddress, MDataPermissionSet, MDataSeqEntryActions, MDataUnseqEntryActions, PublicKey,
-    TransactionId, XorName,
+    MDataAddress, MDataEntryActions, MDataPermissionSet, PublicKey, TransactionId, XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -60,13 +59,9 @@ pub enum Request {
         address: MDataAddress,
         user: PublicKey,
     },
-    MutateSeqMDataEntries {
+    MutateMDataEntries {
         address: MDataAddress,
-        actions: MDataSeqEntryActions,
-    },
-    MutateUnseqMDataEntries {
-        address: MDataAddress,
-        actions: MDataUnseqEntryActions,
+        actions: MDataEntryActions,
     },
     //
     // ===== Append Only Data =====
@@ -231,8 +226,7 @@ impl fmt::Debug for Request {
                 DelMDataUserPermissions { .. } => "Request::DelMDataUserPermissions",
                 ListMDataPermissions(_) => "Request::ListMDataPermissions",
                 ListMDataUserPermissions { .. } => "Request::ListMDataUserPermissions",
-                MutateSeqMDataEntries { .. } => "Request::MutateSeqMDataEntries",
-                MutateUnseqMDataEntries { .. } => "Request::MutateUnseqMDataEntries",
+                MutateMDataEntries { .. } => "Request::MutateMDataEntries",
                 // AData
                 PutAData(_) => "Request::PutAData",
                 GetAData(_) => "Request::GetAData",
