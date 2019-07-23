@@ -184,13 +184,17 @@ pub enum Message {
         response: Response,
         message_id: MessageId,
     },
+    Notification {
+        notification: Notification,
+    },
 }
 
 impl Message {
-    pub fn message_id(&self) -> MessageId {
+    pub fn message_id(&self) -> Option<MessageId> {
         match self {
-            Message::Request { message_id, .. } => *message_id,
-            Message::Response { message_id, .. } => *message_id,
+            Message::Request { message_id, .. } => Some(*message_id),
+            Message::Response { message_id, .. } => Some(*message_id),
+            Message::Notification { .. } => None,
         }
     }
 }
@@ -223,6 +227,10 @@ pub enum Challenge {
     Request(Vec<u8>),
     Response(PublicId, Signature),
 }
+
+/// Notification of a transaction.
+#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
+pub struct Notification(pub Transaction);
 
 #[cfg(test)]
 mod test {
