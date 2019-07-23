@@ -71,10 +71,11 @@ pub use append_only_data::{
     Action as ADataAction, Address as ADataAddress, AppendOnlyData, AppendOperation as ADataAppend,
     Data as AData, Entries as ADataEntries, Entry as ADataEntry, Index as ADataIndex,
     Indices as ADataIndices, Kind as ADataKind, Owner as ADataOwner,
-    PubPermissionSet as ADataPubPermissionSet, PubPermissions as ADataPubPermissions,
-    PubSeqAppendOnlyData, PubUnseqAppendOnlyData, SeqAppendOnly,
-    UnpubPermissionSet as ADataUnpubPermissionSet, UnpubPermissions as ADataUnpubPermissions,
-    UnpubSeqAppendOnlyData, UnpubUnseqAppendOnlyData, UnseqAppendOnly, User as ADataUser,
+    Permissions as ADataPermissions, PubPermissionSet as ADataPubPermissionSet,
+    PubPermissions as ADataPubPermissions, PubSeqAppendOnlyData, PubUnseqAppendOnlyData,
+    SeqAppendOnly, UnpubPermissionSet as ADataUnpubPermissionSet,
+    UnpubPermissions as ADataUnpubPermissions, UnpubSeqAppendOnlyData, UnpubUnseqAppendOnlyData,
+    UnseqAppendOnly, User as ADataUser,
 };
 pub use coins::{Coins, MAX_COINS_VALUE};
 pub use errors::{EntryError, Error, Result};
@@ -89,11 +90,13 @@ pub use immutable_data::{
     UnpubImmutableData, MAX_IMMUTABLE_DATA_SIZE_IN_BYTES,
 };
 pub use mutable_data::{
-    Action as MDataAction, Address as MDataAddress, Data as MData,
+    Action as MDataAction, Address as MDataAddress, Data as MData, Entries as MDataEntries,
     EntryActions as MDataEntryActions, Kind as MDataKind, PermissionSet as MDataPermissionSet,
-    SeqEntryAction as MDataSeqEntryAction, SeqEntryActions as MDataSeqEntryActions, SeqMutableData,
-    UnseqEntryAction as MDataUnseqEntryAction, UnseqEntryActions as MDataUnseqEntryActions,
-    UnseqMutableData, Value as MDataValue,
+    SeqEntries as MDataSeqEntries, SeqEntryAction as MDataSeqEntryAction,
+    SeqEntryActions as MDataSeqEntryActions, SeqMutableData, SeqValue as MDataSeqValue,
+    UnseqEntries as MDataUnseqEntries, UnseqEntryAction as MDataUnseqEntryAction,
+    UnseqEntryActions as MDataUnseqEntryActions, UnseqMutableData, Value as MDataValue,
+    Values as MDataValues,
 };
 pub use public_key::{PublicKey, Signature};
 pub use request::{LoginPacket, Request, MAX_LOGIN_PACKET_BYTES};
