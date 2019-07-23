@@ -110,10 +110,10 @@ impl PermissionSet {
     }
 }
 
-/// Set of Actions that can be performed on the Data
+/// Set of Actions that can be performed on the Data.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum Action {
-    /// Permission to read entries
+    /// Permission to read entries.
     Read,
     /// Permission to insert new entries.
     Insert,
@@ -714,7 +714,7 @@ impl Data {
         }
     }
 
-    pub fn owner(&self) -> PublicKey {
+    pub fn owners(&self) -> PublicKey {
         match self {
             Data::Seq(data) => data.owners,
             Data::Unseq(data) => data.owners,
