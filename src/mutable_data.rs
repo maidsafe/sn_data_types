@@ -740,6 +740,23 @@ impl Data {
             Data::Unseq(data) => data.owner,
         }
     }
+
+    pub fn mutate_entries(&mut self, actions: EntryActions, requester: PublicKey) -> Result<()> {
+        match self {
+            Data::Seq(data) => {
+                if let EntryActions::Seq(actions) = actions {
+                    return data.mutate_entries(actions, requester);
+                }
+            }
+            Data::Unseq(data) => {
+                if let EntryActions::Unseq(actions) = actions {
+                    return data.mutate_entries(actions, requester);
+                }
+            }
+        }
+
+        Err(Error::InvalidOperation)
+    }
 }
 
 impl From<SeqMutableData> for Data {
