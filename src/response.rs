@@ -9,8 +9,8 @@
 
 use crate::{
     errors::ErrorDebug, AData, ADataEntries, ADataEntry, ADataIndices, ADataOwner,
-    ADataPubPermissionSet, ADataPubPermissions, ADataUnpubPermissionSet, ADataUnpubPermissions,
-    AppPermissions, Coins, Error, IData, MData, MDataPermissionSet, MDataValue, PublicKey, Result,
+    ADataPermissions, ADataPubPermissionSet, ADataUnpubPermissionSet, AppPermissions, Coins, Error,
+    IData, MData, MDataEntries, MDataPermissionSet, MDataValue, MDataValues, PublicKey, Result,
     Signature, Transaction,
 };
 use serde::{Deserialize, Serialize};
@@ -34,15 +34,12 @@ pub enum Response {
     GetMData(Result<MData>),
     GetMDataShell(Result<MData>),
     GetMDataVersion(Result<u64>),
-    ListUnseqMDataEntries(Result<BTreeMap<Vec<u8>, Vec<u8>>>),
-    ListSeqMDataEntries(Result<BTreeMap<Vec<u8>, MDataValue>>),
+    ListMDataEntries(Result<MDataEntries>),
     ListMDataKeys(Result<BTreeSet<Vec<u8>>>),
-    ListSeqMDataValues(Result<Vec<MDataValue>>),
-    ListUnseqMDataValues(Result<Vec<Vec<u8>>>),
+    ListMDataValues(Result<MDataValues>),
     ListMDataUserPermissions(Result<MDataPermissionSet>),
     ListMDataPermissions(Result<BTreeMap<PublicKey, MDataPermissionSet>>),
-    GetSeqMDataValue(Result<MDataValue>),
-    GetUnseqMDataValue(Result<Vec<u8>>),
+    GetMDataValue(Result<MDataValue>),
     //
     // ===== Append Only Data =====
     //
@@ -53,8 +50,7 @@ pub enum Response {
     GetADataValue(Result<Vec<u8>>),
     GetADataIndices(Result<ADataIndices>),
     GetADataLastEntry(Result<ADataEntry>),
-    GetUnpubADataPermissionAtIndex(Result<ADataUnpubPermissions>),
-    GetPubADataPermissionAtIndex(Result<ADataPubPermissions>),
+    GetADataPermissions(Result<ADataPermissions>),
     GetPubADataUserPermissions(Result<ADataPubPermissionSet>),
     GetUnpubADataUserPermissions(Result<ADataUnpubPermissionSet>),
     //
@@ -63,15 +59,17 @@ pub enum Response {
     GetBalance(Result<Coins>),
     Transaction(Result<Transaction>),
     //
+    // ===== Login Packet =====
+    //
+    /// Returns an encrypted login packet
+    GetLoginPacket(Result<(Vec<u8>, Signature)>),
+    //
     // ===== Client (Owner) to SrcElders =====
     //
     /// Returns a list of authorised keys and the version of the auth keys container from Elders.
     ListAuthKeysAndVersion(Result<(BTreeMap<PublicKey, AppPermissions>, u64)>),
     //
-    // ===== Login Packet =====
-    //
-    /// Returns an encrypted login packet
-    GetLoginPacket(Result<(Vec<u8>, Signature)>),
+    // ===== Mutation =====
     //
     /// Returns a success or failure status for a mutation operation.
     Mutation(Result<()>),
@@ -103,22 +101,19 @@ macro_rules! try_from {
 try_from!(IData, GetIData);
 try_from!(MData, GetMData, GetMDataShell);
 try_from!(u64, GetMDataVersion);
-try_from!(BTreeMap<Vec<u8>, Vec<u8>>, ListUnseqMDataEntries);
-try_from!(BTreeMap<Vec<u8>, MDataValue>, ListSeqMDataEntries);
+try_from!(MDataEntries, ListMDataEntries);
 try_from!(BTreeSet<Vec<u8>>, ListMDataKeys);
-try_from!(Vec<MDataValue>, ListSeqMDataValues);
-try_from!(Vec<Vec<u8>>, ListUnseqMDataValues);
+try_from!(MDataValues, ListMDataValues);
 try_from!(MDataPermissionSet, ListMDataUserPermissions);
 try_from!(BTreeMap<PublicKey, MDataPermissionSet>, ListMDataPermissions);
-try_from!(MDataValue, GetSeqMDataValue);
-try_from!(Vec<u8>, GetUnseqMDataValue, GetADataValue);
+try_from!(MDataValue, GetMDataValue);
+try_from!(Vec<u8>, GetADataValue);
 try_from!(AData, GetAData, GetADataShell);
 try_from!(ADataOwner, GetADataOwners);
 try_from!(ADataEntries, GetADataRange);
 try_from!(ADataIndices, GetADataIndices);
 try_from!(ADataEntry, GetADataLastEntry);
-try_from!(ADataUnpubPermissions, GetUnpubADataPermissionAtIndex);
-try_from!(ADataPubPermissions, GetPubADataPermissionAtIndex);
+try_from!(ADataPermissions, GetADataPermissions);
 try_from!(ADataPubPermissionSet, GetPubADataUserPermissions);
 try_from!(ADataUnpubPermissionSet, GetUnpubADataUserPermissions);
 try_from!(Coins, GetBalance);
@@ -140,19 +135,9 @@ impl fmt::Debug for Response {
             GetMData(res) => write!(f, "Response::GetMData({:?})", ErrorDebug(res)),
             GetMDataShell(res) => write!(f, "Response::GetMDataShell({:?})", ErrorDebug(res)),
             GetMDataVersion(res) => write!(f, "Response::GetMDataVersion({:?})", ErrorDebug(res)),
-            ListUnseqMDataEntries(res) => {
-                write!(f, "Response::ListUnseqMDataEntries({:?})", ErrorDebug(res))
-            }
-            ListSeqMDataEntries(res) => {
-                write!(f, "Response::ListSeqMDataEntries({:?})", ErrorDebug(res))
-            }
+            ListMDataEntries(res) => write!(f, "Response::ListMDataEntries({:?})", ErrorDebug(res)),
             ListMDataKeys(res) => write!(f, "Response::ListMDataKeys({:?})", ErrorDebug(res)),
-            ListSeqMDataValues(res) => {
-                write!(f, "Response::ListSeqMDataValues({:?})", ErrorDebug(res))
-            }
-            ListUnseqMDataValues(res) => {
-                write!(f, "Response::ListUnseqMDataValues({:?})", ErrorDebug(res))
-            }
+            ListMDataValues(res) => write!(f, "Response::ListMDataValues({:?})", ErrorDebug(res)),
             ListMDataPermissions(res) => {
                 write!(f, "Response::ListMDataPermissions({:?})", ErrorDebug(res))
             }
@@ -161,15 +146,8 @@ impl fmt::Debug for Response {
                 "Response::ListMDataUserPermissions({:?})",
                 ErrorDebug(res)
             ),
-            GetSeqMDataValue(res) => write!(f, "Response::GetSeqMDataValue({:?})", ErrorDebug(res)),
-            GetUnseqMDataValue(res) => {
-                write!(f, "Response::GetUnseqMDataValue({:?})", ErrorDebug(res))
-            }
-            Transaction(res) => write!(f, "Response::Transaction({:?})", ErrorDebug(res)),
-            GetBalance(res) => write!(f, "Response::GetBalance({:?})", ErrorDebug(res)),
-            ListAuthKeysAndVersion(res) => {
-                write!(f, "Response::ListAuthKeysAndVersion({:?})", ErrorDebug(res))
-            }
+            GetMDataValue(res) => write!(f, "Response::GetMDataValue({:?})", ErrorDebug(res)),
+            // AData
             GetAData(res) => write!(f, "Response::GetAData({:?})", ErrorDebug(res)),
             GetADataValue(res) => write!(f, "Response::GetADataValue({:?})", ErrorDebug(res)),
             GetADataRange(res) => write!(f, "Response::GetADataRange({:?})", ErrorDebug(res)),
@@ -177,16 +155,9 @@ impl fmt::Debug for Response {
             GetADataLastEntry(res) => {
                 write!(f, "Response::GetADataLastEntry({:?})", ErrorDebug(res))
             }
-            GetUnpubADataPermissionAtIndex(res) => write!(
-                f,
-                "Response::GetUnpubADataPermissionAtIndex({:?})",
-                ErrorDebug(res)
-            ),
-            GetPubADataPermissionAtIndex(res) => write!(
-                f,
-                "Response::GetPubADataPermissionAtIndex({:?})",
-                ErrorDebug(res)
-            ),
+            GetADataPermissions(res) => {
+                write!(f, "Response::GetADataPermissions({:?})", ErrorDebug(res))
+            }
             GetPubADataUserPermissions(res) => write!(
                 f,
                 "Response::GetPubADataUserPermissions({:?})",
@@ -199,7 +170,16 @@ impl fmt::Debug for Response {
             ),
             GetADataShell(res) => write!(f, "Response::GetADataShell({:?})", ErrorDebug(res)),
             GetADataOwners(res) => write!(f, "Response::GetADataOwners({:?})", ErrorDebug(res)),
+            // Coins
+            GetBalance(res) => write!(f, "Response::GetBalance({:?})", ErrorDebug(res)),
+            Transaction(res) => write!(f, "Response::Transaction({:?})", ErrorDebug(res)),
+            // Login Packet
             GetLoginPacket(res) => write!(f, "Response::GetLoginPacket({:?})", ErrorDebug(res)),
+            // Client (Owner) to SrcElders
+            ListAuthKeysAndVersion(res) => {
+                write!(f, "Response::ListAuthKeysAndVersion({:?})", ErrorDebug(res))
+            }
+            // Mutation
             Mutation(res) => write!(f, "Response::Mutation({:?})", ErrorDebug(res)),
         }
     }
