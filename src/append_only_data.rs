@@ -142,7 +142,7 @@ impl PubPermissionSet {
 }
 
 pub trait Perm {
-    fn is_action_allowed(&self, requester: PublicKey, action: Action) -> Result<()>;
+    fn is_action_allowed(&self, requester: &PublicKey, action: Action) -> Result<()>;
     fn entries_index(&self) -> u64;
     fn owners_index(&self) -> u64;
 }
@@ -163,8 +163,8 @@ impl UnpubPermissions {
 }
 
 impl Perm for UnpubPermissions {
-    fn is_action_allowed(&self, requester: PublicKey, action: Action) -> Result<()> {
-        match self.permissions.get(&requester) {
+    fn is_action_allowed(&self, requester: &PublicKey, action: Action) -> Result<()> {
+        match self.permissions.get(requester) {
             Some(perms) => {
                 if perms.is_allowed(action) {
                     Ok(())
@@ -207,9 +207,9 @@ impl PubPermissions {
 }
 
 impl Perm for PubPermissions {
-    fn is_action_allowed(&self, requester: PublicKey, action: Action) -> Result<()> {
+    fn is_action_allowed(&self, requester: &PublicKey, action: Action) -> Result<()> {
         match self
-            .is_action_allowed_by_user(&User::Key(requester), action)
+            .is_action_allowed_by_user(&User::Key(*requester), action)
             .or_else(|| self.is_action_allowed_by_user(&User::Anyone, action))
         {
             Some(true) => Ok(()),
@@ -329,7 +329,7 @@ pub trait AppendOnlyData<P> {
     fn append_owner(&mut self, owner: Owner, owners_index: u64) -> Result<()>;
 
     /// Check if the requester is the last owner.
-    fn check_is_last_owner(&self, requester: PublicKey) -> Result<()>;
+    fn check_is_last_owner(&self, requester: &PublicKey) -> Result<()>;
 }
 
 /// Common methods for published and unpublished unsequenced `AppendOnlyData`.
@@ -492,12 +492,12 @@ macro_rules! impl_appendable_data {
                 Ok(())
             }
 
-            fn check_is_last_owner(&self, requester: PublicKey) -> Result<()> {
+            fn check_is_last_owner(&self, requester: &PublicKey) -> Result<()> {
                 if self
                     .owner(Index::FromEnd(1))
                     .ok_or_else(|| Error::InvalidOwners)?
                     .public_key
-                    == requester
+                    == *requester
                 {
                     Ok(())
                 } else {
@@ -640,7 +640,7 @@ macro_rules! check_perm {
             .owner(Index::FromEnd(1))
             .ok_or(Error::InvalidOwners)?
             .public_key
-            == $requester
+            == *$requester
         {
             Ok(())
         } else {
@@ -770,7 +770,7 @@ pub enum Data {
 }
 
 impl Data {
-    pub fn check_permission(&self, action: Action, requester: PublicKey) -> Result<()> {
+    pub fn check_permission(&self, action: Action, requester: &PublicKey) -> Result<()> {
         match self {
             Data::PubSeq(data) => {
                 if action == Action::Read {
@@ -898,7 +898,7 @@ impl Data {
         }
     }
 
-    pub fn check_is_last_owner(&self, requester: PublicKey) -> Result<()> {
+    pub fn check_is_last_owner(&self, requester: &PublicKey) -> Result<()> {
         match self {
             Data::PubSeq(data) => data.check_is_last_owner(requester),
             Data::PubUnseq(data) => data.check_is_last_owner(requester),
@@ -909,24 +909,24 @@ impl Data {
 
     pub fn pub_user_permissions(
         &self,
-        user: User,
+        user: &User,
         index: impl Into<Index>,
     ) -> Result<PubPermissionSet> {
         self.pub_permissions(index)?
             .permissions()
-            .get(&user)
+            .get(user)
             .cloned()
             .ok_or(Error::NoSuchEntry)
     }
 
     pub fn unpub_user_permissions(
         &self,
-        user: PublicKey,
+        user: &PublicKey,
         index: impl Into<Index>,
     ) -> Result<UnpubPermissionSet> {
         self.unpub_permissions(index)?
             .permissions()
-            .get(&user)
+            .get(user)
             .cloned()
             .ok_or(Error::NoSuchEntry)
     }
@@ -1313,15 +1313,15 @@ mod tests {
         assert_eq!(data.unpub_permissions(0), Err(Error::NoSuchData));
 
         assert_eq!(
-            data.pub_user_permissions(User::Key(public_key), 0),
+            data.pub_user_permissions(&User::Key(public_key), 0),
             Ok(PubPermissionSet::new(false, false))
         );
         assert_eq!(
-            data.unpub_user_permissions(public_key, 0),
+            data.unpub_user_permissions(&public_key, 0),
             Err(Error::NoSuchData)
         );
         assert_eq!(
-            data.pub_user_permissions(User::Key(invalid_public_key), 0),
+            data.pub_user_permissions(&User::Key(invalid_public_key), 0),
             Err(Error::NoSuchEntry)
         );
 
@@ -1334,15 +1334,15 @@ mod tests {
         assert_eq!(data.unpub_permissions(0), Err(Error::NoSuchData));
 
         assert_eq!(
-            data.pub_user_permissions(User::Key(public_key), 0),
+            data.pub_user_permissions(&User::Key(public_key), 0),
             Ok(PubPermissionSet::new(false, false))
         );
         assert_eq!(
-            data.unpub_user_permissions(public_key, 0),
+            data.unpub_user_permissions(&public_key, 0),
             Err(Error::NoSuchData)
         );
         assert_eq!(
-            data.pub_user_permissions(User::Key(invalid_public_key), 0),
+            data.pub_user_permissions(&User::Key(invalid_public_key), 0),
             Err(Error::NoSuchEntry)
         );
 
@@ -1355,15 +1355,15 @@ mod tests {
         assert_eq!(data.pub_permissions(0), Err(Error::NoSuchData));
 
         assert_eq!(
-            data.unpub_user_permissions(public_key, 0),
+            data.unpub_user_permissions(&public_key, 0),
             Ok(UnpubPermissionSet::new(false, false, false))
         );
         assert_eq!(
-            data.pub_user_permissions(User::Key(public_key), 0),
+            data.pub_user_permissions(&User::Key(public_key), 0),
             Err(Error::NoSuchData)
         );
         assert_eq!(
-            data.unpub_user_permissions(invalid_public_key, 0),
+            data.unpub_user_permissions(&invalid_public_key, 0),
             Err(Error::NoSuchEntry)
         );
 
@@ -1376,15 +1376,15 @@ mod tests {
         assert_eq!(data.pub_permissions(0), Err(Error::NoSuchData));
 
         assert_eq!(
-            data.unpub_user_permissions(public_key, 0),
+            data.unpub_user_permissions(&public_key, 0),
             Ok(UnpubPermissionSet::new(false, false, false))
         );
         assert_eq!(
-            data.pub_user_permissions(User::Key(public_key), 0),
+            data.pub_user_permissions(&User::Key(public_key), 0),
             Err(Error::NoSuchData)
         );
         assert_eq!(
-            data.unpub_user_permissions(invalid_public_key, 0),
+            data.unpub_user_permissions(&invalid_public_key, 0),
             Err(Error::NoSuchEntry)
         );
     }
@@ -1403,11 +1403,11 @@ mod tests {
         // no owner
         let data = Data::from(inner.clone());
         assert_eq!(
-            data.check_permission(Action::Append, public_key_0),
+            data.check_permission(Action::Append, &public_key_0),
             Err(Error::InvalidOwners)
         );
         // data is published - read always allowed
-        assert_eq!(data.check_permission(Action::Read, public_key_0), Ok(()));
+        assert_eq!(data.check_permission(Action::Read, &public_key_0), Ok(()));
 
         // no permissions
         unwrap!(inner.append_owner(
@@ -1420,14 +1420,14 @@ mod tests {
         ));
         let data = Data::from(inner.clone());
 
-        assert_eq!(data.check_permission(Action::Append, public_key_0), Ok(()));
+        assert_eq!(data.check_permission(Action::Append, &public_key_0), Ok(()));
         assert_eq!(
-            data.check_permission(Action::Append, public_key_1),
+            data.check_permission(Action::Append, &public_key_1),
             Err(Error::InvalidPermissions)
         );
         // data is published - read always allowed
-        assert_eq!(data.check_permission(Action::Read, public_key_0), Ok(()));
-        assert_eq!(data.check_permission(Action::Read, public_key_1), Ok(()));
+        assert_eq!(data.check_permission(Action::Read, &public_key_0), Ok(()));
+        assert_eq!(data.check_permission(Action::Read, &public_key_1), Ok(()));
 
         // with permissions
         let mut permissions = PubPermissions {
@@ -1445,22 +1445,22 @@ mod tests {
         let data = Data::from(inner);
 
         // existing key fallback
-        assert_eq!(data.check_permission(Action::Append, public_key_1), Ok(()));
+        assert_eq!(data.check_permission(Action::Append, &public_key_1), Ok(()));
         // existing key override
         assert_eq!(
-            data.check_permission(Action::ManagePermissions, public_key_1),
+            data.check_permission(Action::ManagePermissions, &public_key_1),
             Ok(())
         );
         // non-existing keys are handled by `Anyone`
-        assert_eq!(data.check_permission(Action::Append, public_key_2), Ok(()));
+        assert_eq!(data.check_permission(Action::Append, &public_key_2), Ok(()));
         assert_eq!(
-            data.check_permission(Action::ManagePermissions, public_key_2),
+            data.check_permission(Action::ManagePermissions, &public_key_2),
             Err(Error::AccessDenied)
         );
         // data is published - read always allowed
-        assert_eq!(data.check_permission(Action::Read, public_key_0), Ok(()));
-        assert_eq!(data.check_permission(Action::Read, public_key_1), Ok(()));
-        assert_eq!(data.check_permission(Action::Read, public_key_2), Ok(()));
+        assert_eq!(data.check_permission(Action::Read, &public_key_0), Ok(()));
+        assert_eq!(data.check_permission(Action::Read, &public_key_1), Ok(()));
+        assert_eq!(data.check_permission(Action::Read, &public_key_2), Ok(()));
     }
 
     #[test]
@@ -1473,7 +1473,7 @@ mod tests {
         // no owner
         let data = Data::from(inner.clone());
         assert_eq!(
-            data.check_permission(Action::Read, public_key_0),
+            data.check_permission(Action::Read, &public_key_0),
             Err(Error::InvalidOwners)
         );
 
@@ -1488,9 +1488,9 @@ mod tests {
         ));
         let data = Data::from(inner.clone());
 
-        assert_eq!(data.check_permission(Action::Read, public_key_0), Ok(()));
+        assert_eq!(data.check_permission(Action::Read, &public_key_0), Ok(()));
         assert_eq!(
-            data.check_permission(Action::Read, public_key_1),
+            data.check_permission(Action::Read, &public_key_1),
             Err(Error::InvalidPermissions)
         );
 
@@ -1507,24 +1507,24 @@ mod tests {
         let data = Data::from(inner);
 
         // existing key
-        assert_eq!(data.check_permission(Action::Read, public_key_1), Ok(()));
-        assert_eq!(data.check_permission(Action::Append, public_key_1), Ok(()));
+        assert_eq!(data.check_permission(Action::Read, &public_key_1), Ok(()));
+        assert_eq!(data.check_permission(Action::Append, &public_key_1), Ok(()));
         assert_eq!(
-            data.check_permission(Action::ManagePermissions, public_key_1),
+            data.check_permission(Action::ManagePermissions, &public_key_1),
             Err(Error::AccessDenied)
         );
 
         // non-existing key
         assert_eq!(
-            data.check_permission(Action::Read, public_key_2),
+            data.check_permission(Action::Read, &public_key_2),
             Err(Error::InvalidPermissions)
         );
         assert_eq!(
-            data.check_permission(Action::Append, public_key_2),
+            data.check_permission(Action::Append, &public_key_2),
             Err(Error::InvalidPermissions)
         );
         assert_eq!(
-            data.check_permission(Action::ManagePermissions, public_key_2),
+            data.check_permission(Action::ManagePermissions, &public_key_2),
             Err(Error::InvalidPermissions)
         );
     }
