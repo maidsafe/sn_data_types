@@ -210,30 +210,21 @@ impl Request {
 
         match *self {
             // IData
-            PutIData(_) => Response::Mutation(Err(error)),
             GetIData(_) => Response::GetIData(Err(error)),
-            DeleteUnpubIData(_) => Response::Mutation(Err(error)),
             // MData
-            PutMData(_) => Response::Mutation(Err(error)),
             GetMData(_) => Response::GetMData(Err(error)),
             GetMDataValue { .. } => Response::GetMDataValue(Err(error)),
-            DeleteMData(_) => Response::Mutation(Err(error)),
             GetMDataShell(_) => Response::GetMDataShell(Err(error)),
             GetMDataVersion(_) => Response::GetMDataVersion(Err(error)),
             ListMDataEntries(_) => Response::ListMDataEntries(Err(error)),
             ListMDataKeys(_) => Response::ListMDataKeys(Err(error)),
             ListMDataValues(_) => Response::ListMDataValues(Err(error)),
-            SetMDataUserPermissions { .. } => Response::Mutation(Err(error)),
-            DelMDataUserPermissions { .. } => Response::Mutation(Err(error)),
             ListMDataPermissions(_) => Response::ListMDataPermissions(Err(error)),
             ListMDataUserPermissions { .. } => Response::ListMDataUserPermissions(Err(error)),
-            MutateMDataEntries { .. } => Response::Mutation(Err(error)),
             // AData
-            PutAData(_) => Response::Mutation(Err(error)),
             GetAData(_) => Response::GetAData(Err(error)),
             GetADataShell { .. } => Response::GetADataShell(Err(error)),
             GetADataValue { .. } => Response::GetADataValue(Err(error)),
-            DeleteAData(_) => Response::Mutation(Err(error)),
             GetADataRange { .. } => Response::GetADataRange(Err(error)),
             GetADataIndices(_) => Response::GetADataIndices(Err(error)),
             GetADataLastEntry(_) => Response::GetADataLastEntry(Err(error)),
@@ -243,24 +234,42 @@ impl Request {
                 Response::GetUnpubADataUserPermissions(Err(error))
             }
             GetADataOwners { .. } => Response::GetADataOwners(Err(error)),
-            AddPubADataPermissions { .. } => Response::Mutation(Err(error)),
-            AddUnpubADataPermissions { .. } => Response::Mutation(Err(error)),
-            SetADataOwner { .. } => Response::Mutation(Err(error)),
-            AppendSeq { .. } => Response::Mutation(Err(error)),
-            AppendUnseq(_) => Response::Mutation(Err(error)),
             // Coins
             TransferCoins { .. } => Response::Transaction(Err(error)),
             GetBalance => Response::GetBalance(Err(error)),
             CreateBalance { .. } => Response::Transaction(Err(error)),
             // Login Packet
-            CreateLoginPacket { .. } => Response::Mutation(Err(error)),
-            CreateLoginPacketFor { .. } => Response::Mutation(Err(error)),
-            UpdateLoginPacket { .. } => Response::Mutation(Err(error)),
             GetLoginPacket(..) => Response::GetLoginPacket(Err(error)),
             // Client (Owner) to SrcElders
             ListAuthKeysAndVersion => Response::ListAuthKeysAndVersion(Err(error)),
-            InsAuthKey { .. } => Response::Mutation(Err(error)),
+
+            // Mutation
+
+            // IData
+            PutIData(_) |
+            DeleteUnpubIData(_) |
+            // MData
+            PutMData(_) |
+            DeleteMData(_) |
+            SetMDataUserPermissions { .. } |
+            DelMDataUserPermissions { .. } |
+            MutateMDataEntries { .. } |
+            // AData
+            PutAData(_) |
+            DeleteAData(_) |
+            AddPubADataPermissions { .. } |
+            AddUnpubADataPermissions { .. } |
+            SetADataOwner { .. } |
+            AppendSeq { .. } |
+            AppendUnseq(_) |
+            // Login Packet
+            CreateLoginPacket { .. } |
+            CreateLoginPacketFor { .. } |
+            UpdateLoginPacket { .. } |
+            // Client (Owner) to SrcElders
+            InsAuthKey { .. } |
             DelAuthKey { .. } => Response::Mutation(Err(error)),
+
         }
     }
 }
