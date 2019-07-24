@@ -185,12 +185,6 @@ impl Perm for UnpubPermissions {
     }
 }
 
-impl Into<Permissions> for UnpubPermissions {
-    fn into(self) -> Permissions {
-        Permissions::Unpub(self)
-    }
-}
-
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub struct PubPermissions {
     pub permissions: BTreeMap<User, PubPermissionSet>,
@@ -233,16 +227,22 @@ impl Perm for PubPermissions {
     }
 }
 
-impl Into<Permissions> for PubPermissions {
-    fn into(self) -> Permissions {
-        Permissions::Pub(self)
-    }
-}
-
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub enum Permissions {
     Pub(PubPermissions),
     Unpub(UnpubPermissions),
+}
+
+impl From<UnpubPermissions> for Permissions {
+    fn from(permissions: UnpubPermissions) -> Self {
+        Permissions::Unpub(permissions)
+    }
+}
+
+impl From<PubPermissions> for Permissions {
+    fn from(permissions: PubPermissions) -> Self {
+        Permissions::Pub(permissions)
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]

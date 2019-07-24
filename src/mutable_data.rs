@@ -80,33 +80,21 @@ impl Debug for SeqValue {
     }
 }
 
-impl Into<Value> for SeqValue {
-    fn into(self) -> Value {
-        Value::Seq(self)
-    }
-}
-
-impl Into<Value> for Vec<u8> {
-    fn into(self) -> Value {
-        Value::Unseq(self)
-    }
-}
-
 #[derive(Debug, Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub enum Value {
     Seq(SeqValue),
     Unseq(Vec<u8>),
 }
 
-impl Into<Values> for Vec<SeqValue> {
-    fn into(self) -> Values {
-        Values::Seq(self)
+impl From<SeqValue> for Value {
+    fn from(value: SeqValue) -> Self {
+        Value::Seq(value)
     }
 }
 
-impl Into<Values> for Vec<Vec<u8>> {
-    fn into(self) -> Values {
-        Values::Unseq(self)
+impl From<Vec<u8>> for Value {
+    fn from(value: Vec<u8>) -> Self {
+        Value::Unseq(value)
     }
 }
 
@@ -114,6 +102,18 @@ impl Into<Values> for Vec<Vec<u8>> {
 pub enum Values {
     Seq(Vec<SeqValue>),
     Unseq(Vec<Vec<u8>>),
+}
+
+impl From<Vec<SeqValue>> for Values {
+    fn from(values: Vec<SeqValue>) -> Self {
+        Values::Seq(values)
+    }
+}
+
+impl From<Vec<Vec<u8>>> for Values {
+    fn from(values: Vec<Vec<u8>>) -> Self {
+        Values::Unseq(values)
+    }
 }
 
 /// Set of user permissions.
@@ -870,9 +870,9 @@ impl SeqEntryActions {
     }
 }
 
-impl Into<BTreeMap<Vec<u8>, SeqEntryAction>> for SeqEntryActions {
-    fn into(self) -> BTreeMap<Vec<u8>, SeqEntryAction> {
-        self.actions
+impl From<SeqEntryActions> for BTreeMap<Vec<u8>, SeqEntryAction> {
+    fn from(actions: SeqEntryActions) -> Self {
+        actions.actions
     }
 }
 
@@ -906,9 +906,9 @@ impl UnseqEntryActions {
     }
 }
 
-impl Into<BTreeMap<Vec<u8>, UnseqEntryAction>> for UnseqEntryActions {
-    fn into(self) -> BTreeMap<Vec<u8>, UnseqEntryAction> {
-        self.actions
+impl From<UnseqEntryActions> for BTreeMap<Vec<u8>, UnseqEntryAction> {
+    fn from(actions: UnseqEntryActions) -> Self {
+        actions.actions
     }
 }
 
@@ -940,25 +940,24 @@ impl From<UnseqEntryActions> for EntryActions {
 }
 
 pub type SeqEntries = BTreeMap<Vec<u8>, SeqValue>;
-
-impl Into<Entries> for SeqEntries {
-    fn into(self) -> Entries {
-        Entries::Seq(self)
-    }
-}
-
 pub type UnseqEntries = BTreeMap<Vec<u8>, Vec<u8>>;
-
-impl Into<Entries> for UnseqEntries {
-    fn into(self) -> Entries {
-        Entries::Unseq(self)
-    }
-}
 
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
 pub enum Entries {
     Seq(SeqEntries),
     Unseq(UnseqEntries),
+}
+
+impl From<SeqEntries> for Entries {
+    fn from(entries: SeqEntries) -> Self {
+        Entries::Seq(entries)
+    }
+}
+
+impl From<UnseqEntries> for Entries {
+    fn from(entries: UnseqEntries) -> Self {
+        Entries::Unseq(entries)
+    }
 }
 
 #[cfg(test)]
