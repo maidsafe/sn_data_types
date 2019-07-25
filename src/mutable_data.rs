@@ -17,7 +17,7 @@ use std::{
     mem,
 };
 
-/// Mutable data that is unpublished on the network. This data can only be fetched by the owners or
+/// Mutable data that is unpublished on the network. This data can only be fetched by the owner or
 /// those in the permissions fields with `Permission::Read` access.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub struct SeqMutableData {
@@ -29,9 +29,9 @@ pub struct SeqMutableData {
     permissions: BTreeMap<PublicKey, PermissionSet>,
     /// Version should be increased for any changes to MutableData fields except for data.
     version: u64,
-    /// Contains a set of owners of this data. DataManagers enforce that a mutation request is
-    /// coming from the MaidManager Authority of the Owner.
-    owners: PublicKey,
+    /// Contains the owner of this data. DataManagers enforce that a mutation request is coming from
+    /// the MaidManager Authority of the Owner.
+    owner: PublicKey,
 }
 
 impl Debug for SeqMutableData {
@@ -55,7 +55,7 @@ impl Debug for Value {
     }
 }
 
-/// Mutable data that is unpublished on the network. This data can only be fetch by the owners or
+/// Mutable data that is unpublished on the network. This data can only be fetch by the owner or
 /// those in the permissions fields with `Permission::Read` access.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub struct UnseqMutableData {
@@ -67,9 +67,9 @@ pub struct UnseqMutableData {
     permissions: BTreeMap<PublicKey, PermissionSet>,
     /// Version should be increased for any changes to MutableData fields except for data.
     version: u64,
-    /// Contains a set of owners of this data. DataManagers enforce that a mutation request is
-    /// coming from the MaidManager Authority of the Owner.
-    owners: PublicKey,
+    /// Contains the owner of this data. DataManagers enforce that a mutation request is coming from
+    /// the MaidManager Authority of the Owner.
+    owner: PublicKey,
 }
 
 impl Debug for UnseqMutableData {
@@ -135,7 +135,7 @@ macro_rules! impl_mutable_data {
                     data: BTreeMap::new(),
                     permissions: self.permissions.clone(),
                     version: self.version,
-                    owners: self.owners,
+                    owner: self.owner,
                 }
             }
 
@@ -165,8 +165,8 @@ macro_rules! impl_mutable_data {
             }
 
             /// Returns the owner key
-            pub fn owners(&self) -> &PublicKey {
-                &self.owners
+            pub fn owner(&self) -> &PublicKey {
+                &self.owner
             }
 
             /// Returns all the keys in the data
@@ -184,7 +184,7 @@ macro_rules! impl_mutable_data {
             }
 
             pub fn check_is_owner(&self, requester: PublicKey) -> Result<()> {
-                if self.owners == requester {
+                if self.owner == requester {
                     Ok(())
                 } else {
                     Err(Error::AccessDenied)
@@ -192,7 +192,7 @@ macro_rules! impl_mutable_data {
             }
 
             pub fn check_permissions(&self, action: Action, requester: PublicKey) -> Result<()> {
-                if self.owners == requester {
+                if self.owner == requester {
                     Ok(())
                 } else {
                     let permissions = self
@@ -253,7 +253,7 @@ macro_rules! impl_mutable_data {
                 if version != self.version + 1 {
                     return Err(Error::InvalidSuccessor(self.version));
                 }
-                self.owners = new_owner;
+                self.owner = new_owner;
                 self.version = version;
                 Ok(())
             }
@@ -268,7 +268,7 @@ macro_rules! impl_mutable_data {
                     return false;
                 }
 
-                self.owners = new_owner;
+                self.owner = new_owner;
                 self.version = version;
                 true
             }
@@ -289,13 +289,13 @@ impl_mutable_data!(UnseqMutableData);
 /// Implements functions which are COMMON for both the mutable data
 impl UnseqMutableData {
     /// Create a new Unsequenced Mutable Data
-    pub fn new(name: XorName, tag: u64, owners: PublicKey) -> Self {
+    pub fn new(name: XorName, tag: u64, owner: PublicKey) -> Self {
         Self {
             address: Address::Unseq { name, tag },
             data: Default::default(),
             permissions: Default::default(),
             version: 0,
-            owners,
+            owner,
         }
     }
 
@@ -305,14 +305,14 @@ impl UnseqMutableData {
         tag: u64,
         data: BTreeMap<Vec<u8>, Vec<u8>>,
         permissions: BTreeMap<PublicKey, PermissionSet>,
-        owners: PublicKey,
+        owner: PublicKey,
     ) -> Self {
         Self {
             address: Address::Unseq { name, tag },
             data,
             permissions,
             version: 0,
-            owners,
+            owner,
         }
     }
 
@@ -363,7 +363,7 @@ impl UnseqMutableData {
             },
         );
 
-        if *self.owners() != requester
+        if *self.owner() != requester
             && ((!insert.is_empty() && !self.is_action_allowed(&requester, Action::Insert))
                 || (!update.is_empty() && !self.is_action_allowed(&requester, Action::Update))
                 || (!delete.is_empty() && !self.is_action_allowed(&requester, Action::Delete)))
@@ -420,13 +420,13 @@ impl UnseqMutableData {
 /// Implements functions for sequenced Mutable Data.
 impl SeqMutableData {
     /// Create a new Sequenced Mutable Data
-    pub fn new(name: XorName, tag: u64, owners: PublicKey) -> Self {
+    pub fn new(name: XorName, tag: u64, owner: PublicKey) -> Self {
         Self {
             address: Address::Seq { name, tag },
             data: Default::default(),
             permissions: Default::default(),
             version: 0,
-            owners,
+            owner,
         }
     }
 
@@ -436,14 +436,14 @@ impl SeqMutableData {
         tag: u64,
         data: BTreeMap<Vec<u8>, Value>,
         permissions: BTreeMap<PublicKey, PermissionSet>,
-        owners: PublicKey,
+        owner: PublicKey,
     ) -> Self {
         Self {
             address: Address::Seq { name, tag },
             data,
             permissions,
             version: 0,
-            owners,
+            owner,
         }
     }
 
@@ -488,7 +488,7 @@ impl SeqMutableData {
             },
         );
 
-        if *self.owners() != requester
+        if *self.owner() != requester
             && ((!insert.is_empty() && !self.is_action_allowed(&requester, Action::Insert))
                 || (!update.is_empty() && !self.is_action_allowed(&requester, Action::Update))
                 || (!delete.is_empty() && !self.is_action_allowed(&requester, Action::Delete)))
@@ -714,10 +714,10 @@ impl Data {
         }
     }
 
-    pub fn owners(&self) -> PublicKey {
+    pub fn owner(&self) -> PublicKey {
         match self {
-            Data::Seq(data) => data.owners,
-            Data::Unseq(data) => data.owners,
+            Data::Seq(data) => data.owner,
+            Data::Unseq(data) => data.owner,
         }
     }
 }
