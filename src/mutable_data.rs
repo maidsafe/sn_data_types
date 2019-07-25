@@ -29,8 +29,9 @@ pub struct SeqMutableData {
     permissions: BTreeMap<PublicKey, PermissionSet>,
     /// Version should be increased for any changes to MutableData fields except for data.
     version: u64,
-    /// Contains the owner of this data. DataManagers enforce that a mutation request is coming from
-    /// the MaidManager Authority of the Owner.
+    /// Contains the public key of an owner or owners of this data.
+    ///
+    /// Data Handlers in vaults enforce that a mutation request has a valid signature of the owner.
     owner: PublicKey,
 }
 
@@ -67,8 +68,9 @@ pub struct UnseqMutableData {
     permissions: BTreeMap<PublicKey, PermissionSet>,
     /// Version should be increased for any changes to MutableData fields except for data.
     version: u64,
-    /// Contains the owner of this data. DataManagers enforce that a mutation request is coming from
-    /// the MaidManager Authority of the Owner.
+    /// Contains the public key of an owner or owners of this data.
+    ///
+    /// Data Handlers in vaults enforce that a mutation request has a valid signature of the owner.
     owner: PublicKey,
 }
 
