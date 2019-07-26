@@ -18,7 +18,7 @@ multibase = "~0.6.0"
 rand = "~0.6.5"
 serde = { version = "~1.0.97", features = ["derive"] }
 sha3 = "~0.8.2"
-threshold_crypto = { git = "https://github.com/poanetwork/threshold_crypto.git", branch = "master" }
+threshold_crypto = "~0.3.2"
 tiny-keccak = "~1.5.0"
 unwrap = "~1.2.1"
 
