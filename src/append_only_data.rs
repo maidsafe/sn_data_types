@@ -7,7 +7,7 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::{utils, Error, PublicKey, Result, Seq, Unseq, XorName};
+use crate::{utils, Error, PublicKey, Result, XorName};
 use multibase::Decodable;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{
@@ -22,6 +22,14 @@ pub type PubUnseqAppendOnlyData = AppendOnlyData<PubPermissions, Unseq>;
 pub type UnpubSeqAppendOnlyData = AppendOnlyData<UnpubPermissions, Seq>;
 pub type UnpubUnseqAppendOnlyData = AppendOnlyData<UnpubPermissions, Unseq>;
 pub type Entries = Vec<Entry>;
+
+/// Marker for sequential data.
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
+pub struct Seq;
+
+/// Marker for unsequential data.
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
+pub struct Unseq;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
 pub enum User {

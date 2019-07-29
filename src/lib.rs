@@ -94,8 +94,8 @@ pub use mutable_data::{
     SeqEntries as MDataSeqEntries, SeqEntryAction as MDataSeqEntryAction,
     SeqEntryActions as MDataSeqEntryActions, SeqMutableData, SeqValue as MDataSeqValue,
     UnseqEntries as MDataUnseqEntries, UnseqEntryAction as MDataUnseqEntryAction,
-    UnseqEntryActions as MDataUnseqEntryActions, UnseqMutableData, Value as MDataValue,
-    Values as MDataValues,
+    UnseqEntryActions as MDataUnseqEntryActions, UnseqMutableData, UnseqValue as MDataUnseqValue,
+    Value as MDataValue, Values as MDataValues,
 };
 pub use public_key::{PublicKey, Signature};
 pub use request::{LoginPacket, Request, MAX_LOGIN_PACKET_BYTES};
@@ -265,14 +265,6 @@ pub enum Challenge {
 /// Notification of a transaction.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
 pub struct Notification(pub Transaction);
-
-/// Marker for sequential data.
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
-pub struct Seq;
-
-/// Marker for unsequential data.
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
-pub struct Unseq;
 
 #[cfg(test)]
 mod test {
