@@ -8,9 +8,7 @@
 // Software.
 
 use super::client::Keypair;
-use crate::{
-    utils, ClientFullId, ClientPublicId, Ed25519Digest, Error, PublicKey, Signature, XorName,
-};
+use crate::{utils, ClientFullId, ClientPublicId, Error, PublicKey, Signature, XorName};
 use multibase::Decodable;
 use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Serialize};
@@ -54,7 +52,7 @@ impl FullId {
     /// Creates a detached signature of `data`.
     pub fn sign<T: AsRef<[u8]>>(&self, data: T) -> Signature {
         match &self.keypair {
-            Keypair::Ed25519(keys) => Signature::Ed25519(keys.sign::<Ed25519Digest>(data.as_ref())),
+            Keypair::Ed25519(keys) => Signature::Ed25519(keys.sign(data.as_ref())),
             Keypair::Bls(keys) => Signature::Bls(keys.secret.inner().sign(data)),
             Keypair::BlsShare(keys) => Signature::BlsShare(keys.secret.inner().sign(data)),
         }

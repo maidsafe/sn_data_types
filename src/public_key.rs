@@ -7,19 +7,15 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::{utils, Ed25519Digest, Error, Result, XorName, XOR_NAME_LEN};
+use crate::{utils, Error, Result, XorName, XOR_NAME_LEN};
 use ed25519_dalek;
 use hex_fmt::HexFmt;
 use multibase::Decodable;
 use serde::{Deserialize, Serialize};
-use std::{
-    cmp::Ordering,
-    fmt::{self, Debug, Display, Formatter},
-    hash::{Hash, Hasher},
-};
+use std::fmt::{self, Debug, Display, Formatter};
 use threshold_crypto;
 
-#[derive(Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 #[allow(clippy::large_enum_variant)]
 pub enum PublicKey {
     Ed25519(ed25519_dalek::PublicKey),
@@ -31,7 +27,7 @@ impl PublicKey {
     pub fn verify<T: AsRef<[u8]>>(&self, signature: &Signature, data: T) -> Result<()> {
         let is_valid = match (self, signature) {
             (PublicKey::Ed25519(pub_key), Signature::Ed25519(sig)) => {
-                pub_key.verify::<Ed25519Digest>(data.as_ref(), sig).is_ok()
+                pub_key.verify(data.as_ref(), sig).is_ok()
             }
             (PublicKey::Bls(pub_key), Signature::Bls(sig)) => pub_key.verify(sig, data),
             (PublicKey::BlsShare(pub_key), Signature::BlsShare(sig)) => pub_key.verify(sig, data),
@@ -50,25 +46,6 @@ impl PublicKey {
 
     pub fn decode_from_zbase32<I: Decodable>(encoded: I) -> Result<Self> {
         utils::decode(encoded)
-    }
-}
-
-#[allow(clippy::derive_hash_xor_eq)]
-impl Hash for PublicKey {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        utils::serialise(&self).hash(state)
-    }
-}
-
-impl Ord for PublicKey {
-    fn cmp(&self, other: &PublicKey) -> Ordering {
-        utils::serialise(&self).cmp(&utils::serialise(other))
-    }
-}
-
-impl PartialOrd for PublicKey {
-    fn partial_cmp(&self, other: &PublicKey) -> Option<Ordering> {
-        Some(self.cmp(other))
     }
 }
 
@@ -132,7 +109,7 @@ impl Display for PublicKey {
     }
 }
 
-#[derive(Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 #[allow(clippy::large_enum_variant)]
 pub enum Signature {
     Ed25519(ed25519_dalek::Signature),
@@ -155,25 +132,6 @@ impl From<ed25519_dalek::Signature> for Signature {
 impl From<threshold_crypto::SignatureShare> for Signature {
     fn from(sig: threshold_crypto::SignatureShare) -> Self {
         Signature::BlsShare(sig)
-    }
-}
-
-#[allow(clippy::derive_hash_xor_eq)]
-impl Hash for Signature {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        utils::serialise(&self).hash(state)
-    }
-}
-
-impl Ord for Signature {
-    fn cmp(&self, other: &Signature) -> Ordering {
-        utils::serialise(&self).cmp(&utils::serialise(other))
-    }
-}
-
-impl PartialOrd for Signature {
-    fn partial_cmp(&self, other: &Signature) -> Option<Ordering> {
-        Some(self.cmp(other))
     }
 }
 

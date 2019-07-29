@@ -8,7 +8,7 @@
 // Software.
 
 use super::{BlsKeypair, BlsKeypairShare};
-use crate::{utils, Ed25519Digest, Error, PublicKey, Signature, XorName};
+use crate::{utils, Error, PublicKey, Signature, XorName};
 use ed25519_dalek::Keypair as Ed25519Keypair;
 use multibase::Decodable;
 use rand::{CryptoRng, Rng};
@@ -35,7 +35,7 @@ pub struct FullId {
 impl FullId {
     /// Constructs a `FullId` with a random Ed25519 keypair.
     pub fn new_ed25519<T: CryptoRng + Rng>(rng: &mut T) -> Self {
-        let ed25519_keypair = Ed25519Keypair::generate::<Ed25519Digest, _>(rng);
+        let ed25519_keypair = Ed25519Keypair::generate(rng);
         let public_key = PublicKey::Ed25519(ed25519_keypair.public);
         let public_id = PublicId {
             name: public_key.into(),
@@ -87,7 +87,7 @@ impl FullId {
     /// Creates a detached signature of `data`.
     pub fn sign<T: AsRef<[u8]>>(&self, data: T) -> Signature {
         match &self.keypair {
-            Keypair::Ed25519(keys) => Signature::Ed25519(keys.sign::<Ed25519Digest>(data.as_ref())),
+            Keypair::Ed25519(keys) => Signature::Ed25519(keys.sign(data.as_ref())),
             Keypair::Bls(keys) => Signature::Bls(keys.secret.inner().sign(data)),
             Keypair::BlsShare(keys) => Signature::BlsShare(keys.secret.inner().sign(data)),
         }
