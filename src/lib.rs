@@ -73,9 +73,8 @@ pub use append_only_data::{
     Indices as ADataIndices, Kind as ADataKind, Owner as ADataOwner,
     Permissions as ADataPermissions, PubPermissionSet as ADataPubPermissionSet,
     PubPermissions as ADataPubPermissions, PubSeqAppendOnlyData, PubUnseqAppendOnlyData,
-    SeqAppendOnly, UnpubPermissionSet as ADataUnpubPermissionSet,
-    UnpubPermissions as ADataUnpubPermissions, UnpubSeqAppendOnlyData, UnpubUnseqAppendOnlyData,
-    UnseqAppendOnly, User as ADataUser,
+    UnpubPermissionSet as ADataUnpubPermissionSet, UnpubPermissions as ADataUnpubPermissions,
+    UnpubSeqAppendOnlyData, UnpubUnseqAppendOnlyData, User as ADataUser,
 };
 pub use coins::{Coins, MAX_COINS_VALUE};
 pub use errors::{EntryError, Error, Result};
@@ -266,6 +265,14 @@ pub enum Challenge {
 /// Notification of a transaction.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
 pub struct Notification(pub Transaction);
+
+/// Marker for sequential data.
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
+pub struct Seq;
+
+/// Marker for unsequential data.
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
+pub struct Unseq;
 
 #[cfg(test)]
 mod test {

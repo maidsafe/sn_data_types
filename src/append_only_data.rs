@@ -7,9 +7,9 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::{utils, Error, PublicKey, Result, XorName};
+use crate::{utils, Error, PublicKey, Result, Seq, Unseq, XorName};
 use multibase::Decodable;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fmt::{self, Debug, Formatter},
@@ -17,10 +17,10 @@ use std::{
     ops::Range,
 };
 
-pub type PubSeqAppendOnlyData = SeqAppendOnlyData<PubPermissions>;
-pub type PubUnseqAppendOnlyData = UnseqAppendOnlyData<PubPermissions>;
-pub type UnpubSeqAppendOnlyData = SeqAppendOnlyData<UnpubPermissions>;
-pub type UnpubUnseqAppendOnlyData = UnseqAppendOnlyData<UnpubPermissions>;
+pub type PubSeqAppendOnlyData = AppendOnlyData<PubPermissions, Seq>;
+pub type PubUnseqAppendOnlyData = AppendOnlyData<PubPermissions, Unseq>;
+pub type UnpubSeqAppendOnlyData = AppendOnlyData<UnpubPermissions, Seq>;
+pub type UnpubUnseqAppendOnlyData = AppendOnlyData<UnpubPermissions, Unseq>;
 pub type Entries = Vec<Entry>;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
@@ -141,7 +141,7 @@ impl PubPermissionSet {
     }
 }
 
-pub trait Perm {
+pub trait Perm: Clone + Eq + Ord + Hash + Serialize + DeserializeOwned {
     fn is_action_allowed(&self, requester: PublicKey, action: Action) -> Result<()>;
     fn entries_index(&self) -> u64;
     fn owners_index(&self) -> u64;
@@ -267,321 +267,300 @@ impl Entry {
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
-struct AppendOnly<P: Perm> {
+pub struct AppendOnlyData<P, S> {
     address: Address,
     data: Entries,
     permissions: Vec<P>,
     // This is the history of owners, with each entry representing an owner.  Each single owner
     // could represent an individual user, or a group of users, depending on the `PublicKey` type.
     owners: Vec<Owner>,
+    _flavour: S,
 }
 
 /// Common methods for all `AppendOnlyData` flavours.
-pub trait AppendOnlyData<P> {
+impl<P, S> AppendOnlyData<P, S>
+where
+    P: Perm,
+    S: Copy,
+{
+    /// Returns the data shell - that is - everything except the entries themselves.
+    pub fn shell(&self, entries_index: impl Into<Index>) -> Result<Self> {
+        let entries_index = to_absolute_index(entries_index.into(), self.entries_index() as usize)
+            .ok_or(Error::NoSuchEntry)? as u64;
+
+        let permissions = self
+            .permissions
+            .iter()
+            .filter(|perm| perm.entries_index() <= entries_index)
+            .cloned()
+            .collect();
+
+        let owners = self
+            .owners
+            .iter()
+            .filter(|owner| owner.entries_index <= entries_index)
+            .cloned()
+            .collect();
+
+        Ok(Self {
+            address: self.address,
+            data: Vec::new(),
+            permissions,
+            owners,
+            _flavour: self._flavour,
+        })
+    }
+
     /// Return a value for the given key (if it is present).
-    fn get(&self, key: &[u8]) -> Option<&Vec<u8>>;
+    pub fn get(&self, key: &[u8]) -> Option<&Vec<u8>> {
+        self.data.iter().find_map(|entry| {
+            if entry.key.as_slice() == key {
+                Some(&entry.value)
+            } else {
+                None
+            }
+        })
+    }
 
     /// Return the last entry in the Data (if it is present).
-    fn last_entry(&self) -> Option<&Entry>;
+    pub fn last_entry(&self) -> Option<&Entry> {
+        self.data.last()
+    }
 
     /// Get a list of keys and values with the given indices.
-    fn in_range(&self, start: Index, end: Index) -> Option<Entries>;
+    pub fn in_range(&self, start: Index, end: Index) -> Option<Entries> {
+        let range = to_absolute_range(start, end, self.data.len())?;
+        Some(self.data[range].to_vec())
+    }
 
     /// Return all entries.
-    fn entries(&self) -> &Entries;
+    pub fn entries(&self) -> &Entries {
+        &self.data
+    }
 
     /// Return the address of this AppendOnlyData.
-    fn address(&self) -> &Address;
+    pub fn address(&self) -> &Address {
+        &self.address
+    }
 
     /// Return the name of this AppendOnlyData.
-    fn name(&self) -> &XorName;
+    pub fn name(&self) -> &XorName {
+        self.address.name()
+    }
 
     /// Return the type tag of this AppendOnlyData.
-    fn tag(&self) -> u64;
+    pub fn tag(&self) -> u64 {
+        self.address.tag()
+    }
 
     /// Return the last entry index.
-    fn entries_index(&self) -> u64;
+    pub fn entries_index(&self) -> u64 {
+        self.data.len() as u64
+    }
 
     /// Return the last owners index.
-    fn owners_index(&self) -> u64;
+    pub fn owners_index(&self) -> u64 {
+        self.owners.len() as u64
+    }
 
     /// Return the last permissions index.
-    fn permissions_index(&self) -> u64;
+    pub fn permissions_index(&self) -> u64 {
+        self.permissions.len() as u64
+    }
 
     /// Get a complete list of permissions from the entry in the permissions list at the specified
     /// index.
-    fn permissions_range(&self, start: Index, end: Index) -> Option<&[P]>;
+    pub fn permissions_range(&self, start: Index, end: Index) -> Option<&[P]> {
+        let range = to_absolute_range(start, end, self.permissions.len())?;
+        Some(&self.permissions[range])
+    }
 
     /// Add a new permissions entry.
     /// The `Perm` struct should contain valid indices.
-    fn append_permissions(&mut self, permissions: P, permissions_idx: u64) -> Result<()>;
+    pub fn append_permissions(&mut self, permissions: P, permissions_idx: u64) -> Result<()> {
+        if permissions.entries_index() != self.entries_index() {
+            return Err(Error::InvalidSuccessor(self.entries_index()));
+        }
+        if permissions.owners_index() != self.owners_index() {
+            return Err(Error::InvalidOwnersSuccessor(self.owners_index()));
+        }
+        if self.permissions_index() != permissions_idx {
+            return Err(Error::InvalidSuccessor(self.permissions_index()));
+        }
+        self.permissions.push(permissions);
+        Ok(())
+    }
 
     /// Fetch perms at index.
-    fn permissions(&self, perm_index: impl Into<Index>) -> Option<&P>;
+    pub fn permissions(&self, index: impl Into<Index>) -> Option<&P> {
+        let index = to_absolute_index(index.into(), self.permissions.len())?;
+        self.permissions.get(index)
+    }
+
+    pub fn check_permission(&self, requester: PublicKey, action: Action) -> Result<()> {
+        if self
+            .owner(Index::FromEnd(1))
+            .ok_or(Error::InvalidOwners)?
+            .public_key
+            == requester
+        {
+            Ok(())
+        } else {
+            self.permissions(Index::FromEnd(1))
+                .ok_or(Error::InvalidPermissions)?
+                .is_action_allowed(requester, action)
+        }
+    }
 
     /// Fetch owner at index.
-    fn owner(&self, owners_index: impl Into<Index>) -> Option<&Owner>;
+    pub fn owner(&self, index: impl Into<Index>) -> Option<&Owner> {
+        let index = to_absolute_index(index.into(), self.owners.len())?;
+        self.owners.get(index)
+    }
 
     /// Get a complete list of owners from the entry in the permissions list at the specified index.
-    fn owners_range(&self, start: Index, end: Index) -> Option<&[Owner]>;
-
+    pub fn owners_range(&self, start: Index, end: Index) -> Option<&[Owner]> {
+        let range = to_absolute_range(start, end, self.owners.len())?;
+        Some(&self.owners[range])
+    }
     /// Add a new owner entry.
-    fn append_owner(&mut self, owner: Owner, owners_index: u64) -> Result<()>;
+    pub fn append_owner(&mut self, owner: Owner, index: u64) -> Result<()> {
+        if owner.entries_index != self.entries_index() {
+            return Err(Error::InvalidSuccessor(self.entries_index()));
+        }
+        if owner.permissions_index != self.permissions_index() {
+            return Err(Error::InvalidPermissionsSuccessor(self.permissions_index()));
+        }
+        if self.owners_index() != index {
+            return Err(Error::InvalidSuccessor(self.owners_index()));
+        }
+        self.owners.push(owner);
+        Ok(())
+    }
 
     /// Check if the requester is the last owner.
-    fn check_is_last_owner(&self, requester: PublicKey) -> Result<()>;
+    pub fn check_is_last_owner(&self, requester: PublicKey) -> Result<()> {
+        if self
+            .owner(Index::FromEnd(1))
+            .ok_or_else(|| Error::InvalidOwners)?
+            .public_key
+            == requester
+        {
+            Ok(())
+        } else {
+            Err(Error::AccessDenied)
+        }
+    }
+
+    pub fn indices(&self) -> Indices {
+        Indices::new(
+            self.entries_index(),
+            self.owners_index(),
+            self.permissions_index(),
+        )
+    }
 }
 
-/// Common methods for published and unpublished unsequenced `AppendOnlyData`.
-pub trait UnseqAppendOnly {
+/// Common methods for unsequential flavours.
+impl<P: Perm> AppendOnlyData<P, Unseq> {
     /// Append new entries.
-    fn append(&mut self, entries: Entries) -> Result<()>;
+    pub fn append(&mut self, mut entries: Entries) -> Result<()> {
+        check_dup(&self.data, entries.as_mut())?;
+
+        self.data.extend(entries);
+        Ok(())
+    }
 }
 
-/// Common methods for published and unpublished sequenced `AppendOnlyData`.
-pub trait SeqAppendOnly {
+/// Common methods for sequential flavours.
+impl<P: Perm> AppendOnlyData<P, Seq> {
     /// Append new entries.
     ///
     /// If the specified `last_entries_index` does not match the last recorded entries index, an
     /// error will be returned.
-    fn append(&mut self, entries: Entries, last_entries_index: u64) -> Result<()>;
+    pub fn append(&mut self, mut entries: Entries, last_entries_index: u64) -> Result<()> {
+        check_dup(&self.data, entries.as_mut())?;
+
+        if last_entries_index != self.data.len() as u64 {
+            return Err(Error::InvalidSuccessor(self.data.len() as u64));
+        }
+
+        self.data.extend(entries);
+        Ok(())
+    }
 }
 
-macro_rules! impl_appendable_data {
-    ($flavour:ident) => {
-        #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
-        pub struct $flavour<P>
-        where
-            P: Perm + Hash + Clone,
-        {
-            inner: AppendOnly<P>,
-        }
-
-        impl<P> $flavour<P>
-        where
-            P: Perm + Hash + Clone,
-        {
-            pub fn shell(&self, entries_index: impl Into<Index>) -> Result<Self> {
-                let entries_index =
-                    to_absolute_index(entries_index.into(), self.entries_index() as usize)
-                        .ok_or(Error::NoSuchEntry)? as u64;
-
-                let permissions = self
-                    .inner
-                    .permissions
-                    .iter()
-                    .filter(|perm| perm.entries_index() <= entries_index)
-                    .cloned()
-                    .collect();
-
-                let owners = self
-                    .inner
-                    .owners
-                    .iter()
-                    .filter(|owner| owner.entries_index <= entries_index)
-                    .cloned()
-                    .collect();
-
-                Ok(Self {
-                    inner: AppendOnly {
-                        address: self.inner.address,
-                        data: Vec::new(),
-                        permissions,
-                        owners,
-                    },
-                })
-            }
-        }
-
-        impl<P> AppendOnlyData<P> for $flavour<P>
-        where
-            P: Perm + Hash + Clone,
-        {
-            fn address(&self) -> &Address {
-                &self.inner.address
-            }
-
-            fn name(&self) -> &XorName {
-                self.inner.address.name()
-            }
-
-            fn tag(&self) -> u64 {
-                self.inner.address.tag()
-            }
-
-            fn entries_index(&self) -> u64 {
-                self.inner.data.len() as u64
-            }
-
-            fn owners_index(&self) -> u64 {
-                self.inner.owners.len() as u64
-            }
-
-            fn permissions_index(&self) -> u64 {
-                self.inner.permissions.len() as u64
-            }
-
-            fn get(&self, key: &[u8]) -> Option<&Vec<u8>> {
-                self.inner.data.iter().find_map(|entry| {
-                    if entry.key.as_slice() == key {
-                        Some(&entry.value)
-                    } else {
-                        None
-                    }
-                })
-            }
-
-            fn last_entry(&self) -> Option<&Entry> {
-                self.inner.data.last()
-            }
-
-            fn permissions(&self, index: impl Into<Index>) -> Option<&P> {
-                let index = to_absolute_index(index.into(), self.inner.permissions.len())?;
-                self.inner.permissions.get(index)
-            }
-
-            fn owner(&self, owners_index: impl Into<Index>) -> Option<&Owner> {
-                let index = to_absolute_index(owners_index.into(), self.inner.owners.len())?;
-                self.inner.owners.get(index)
-            }
-
-            fn in_range(&self, start: Index, end: Index) -> Option<Entries> {
-                let range = to_absolute_range(start, end, self.inner.data.len())?;
-                Some(self.inner.data[range].to_vec())
-            }
-
-            fn entries(&self) -> &Entries {
-                &self.inner.data
-            }
-
-            fn permissions_range(&self, start: Index, end: Index) -> Option<&[P]> {
-                let range = to_absolute_range(start, end, self.inner.permissions.len())?;
-                Some(&self.inner.permissions[range])
-            }
-
-            fn owners_range(&self, start: Index, end: Index) -> Option<&[Owner]> {
-                let range = to_absolute_range(start, end, self.inner.owners.len())?;
-                Some(&self.inner.owners[range])
-            }
-
-            fn append_permissions(&mut self, permissions: P, permissions_idx: u64) -> Result<()> {
-                if permissions.entries_index() != self.entries_index() {
-                    return Err(Error::InvalidSuccessor(self.entries_index()));
-                }
-                if permissions.owners_index() != self.owners_index() {
-                    return Err(Error::InvalidOwnersSuccessor(self.owners_index()));
-                }
-                if self.permissions_index() != permissions_idx {
-                    return Err(Error::InvalidSuccessor(self.permissions_index()));
-                }
-                self.inner.permissions.push(permissions);
-                Ok(())
-            }
-
-            fn append_owner(&mut self, owner: Owner, owners_idx: u64) -> Result<()> {
-                if owner.entries_index != self.entries_index() {
-                    return Err(Error::InvalidSuccessor(self.entries_index()));
-                }
-                if owner.permissions_index != self.permissions_index() {
-                    return Err(Error::InvalidPermissionsSuccessor(self.permissions_index()));
-                }
-                if self.owners_index() != owners_idx {
-                    return Err(Error::InvalidSuccessor(self.owners_index()));
-                }
-                self.inner.owners.push(owner);
-                Ok(())
-            }
-
-            fn check_is_last_owner(&self, requester: PublicKey) -> Result<()> {
-                if self
-                    .owner(Index::FromEnd(1))
-                    .ok_or_else(|| Error::InvalidOwners)?
-                    .public_key
-                    == requester
-                {
-                    Ok(())
-                } else {
-                    Err(Error::AccessDenied)
-                }
-            }
-        }
-    };
-}
-
-impl_appendable_data!(SeqAppendOnlyData);
-impl_appendable_data!(UnseqAppendOnlyData);
-
-impl SeqAppendOnlyData<PubPermissions> {
+/// Published + Sequential
+impl AppendOnlyData<PubPermissions, Seq> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
-            inner: AppendOnly {
-                address: Address::PubSeq { name, tag },
-                data: Vec::new(),
-                permissions: Vec::new(),
-                owners: Vec::new(),
-            },
+            address: Address::PubSeq { name, tag },
+            data: Vec::new(),
+            permissions: Vec::new(),
+            owners: Vec::new(),
+            _flavour: Seq,
         }
     }
 }
 
-impl Debug for SeqAppendOnlyData<PubPermissions> {
+impl Debug for AppendOnlyData<PubPermissions, Seq> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PubSeqAppendOnlyData {:?}", self.name())
     }
 }
 
-impl UnseqAppendOnlyData<PubPermissions> {
+/// Published + Unsequential
+impl AppendOnlyData<PubPermissions, Unseq> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
-            inner: AppendOnly {
-                address: Address::PubUnseq { name, tag },
-                data: Vec::new(),
-                permissions: Vec::new(),
-                owners: Vec::new(),
-            },
+            address: Address::PubUnseq { name, tag },
+            data: Vec::new(),
+            permissions: Vec::new(),
+            owners: Vec::new(),
+            _flavour: Unseq,
         }
     }
 }
 
-impl Debug for UnseqAppendOnlyData<PubPermissions> {
+impl Debug for AppendOnlyData<PubPermissions, Unseq> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PubUnseqAppendOnlyData {:?}", self.name())
     }
 }
 
-impl SeqAppendOnlyData<UnpubPermissions> {
+/// Unpublished + Sequential
+impl AppendOnlyData<UnpubPermissions, Seq> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
-            inner: AppendOnly {
-                address: Address::UnpubSeq { name, tag },
-                data: Vec::new(),
-                permissions: Vec::new(),
-                owners: Vec::new(),
-            },
+            address: Address::UnpubSeq { name, tag },
+            data: Vec::new(),
+            permissions: Vec::new(),
+            owners: Vec::new(),
+            _flavour: Seq,
         }
     }
 }
 
-impl Debug for SeqAppendOnlyData<UnpubPermissions> {
+impl Debug for AppendOnlyData<UnpubPermissions, Seq> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "PubSeqAppendOnlyData {:?}", self.name())
+        write!(formatter, "UnpubSeqAppendOnlyData {:?}", self.name())
     }
 }
 
-impl UnseqAppendOnlyData<UnpubPermissions> {
+/// Unpublished + Unsequential
+impl AppendOnlyData<UnpubPermissions, Unseq> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
-            inner: AppendOnly {
-                address: Address::UnpubUnseq { name, tag },
-                data: Vec::new(),
-                permissions: Vec::new(),
-                owners: Vec::new(),
-            },
+            address: Address::UnpubUnseq { name, tag },
+            data: Vec::new(),
+            permissions: Vec::new(),
+            owners: Vec::new(),
+            _flavour: Unseq,
         }
     }
 }
 
-impl Debug for UnseqAppendOnlyData<UnpubPermissions> {
+impl Debug for AppendOnlyData<UnpubPermissions, Unseq> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "UnpubUnseqAppendOnlyData {:?}", self.name())
     }
@@ -604,62 +583,6 @@ fn check_dup(data: &[Entry], entries: &mut Entries) -> Result<()> {
         return Err(Error::KeysExist(dup));
     }
     Ok(())
-}
-
-impl<P> SeqAppendOnly for SeqAppendOnlyData<P>
-where
-    P: Perm + Hash + Clone,
-{
-    fn append(&mut self, mut entries: Entries, last_entries_index: u64) -> Result<()> {
-        check_dup(&self.inner.data, entries.as_mut())?;
-
-        if last_entries_index != self.inner.data.len() as u64 {
-            return Err(Error::InvalidSuccessor(self.inner.data.len() as u64));
-        }
-
-        self.inner.data.extend(entries);
-        Ok(())
-    }
-}
-
-impl<P> UnseqAppendOnly for UnseqAppendOnlyData<P>
-where
-    P: Perm + Hash + Clone,
-{
-    fn append(&mut self, mut entries: Entries) -> Result<()> {
-        check_dup(&self.inner.data, entries.as_mut())?;
-
-        self.inner.data.extend(entries);
-        Ok(())
-    }
-}
-
-macro_rules! check_perm {
-    ($data: ident, $requester: ident, $action: ident) => {
-        if $data
-            .owner(Index::FromEnd(1))
-            .ok_or(Error::InvalidOwners)?
-            .public_key
-            == $requester
-        {
-            Ok(())
-        } else {
-            $data
-                .permissions(Index::FromEnd(1))
-                .ok_or(Error::InvalidPermissions)?
-                .is_action_allowed($requester, $action)
-        }
-    };
-}
-
-macro_rules! indices {
-    ($data: ident) => {
-        Ok(Indices::new(
-            $data.entries_index(),
-            $data.owners_index(),
-            $data.permissions_index(),
-        ))
-    };
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
@@ -771,21 +694,16 @@ pub enum Data {
 
 impl Data {
     pub fn check_permission(&self, action: Action, requester: PublicKey) -> Result<()> {
+        match (self, action) {
+            (Data::PubSeq(_), Action::Read) | (Data::PubUnseq(_), Action::Read) => return Ok(()),
+            _ => (),
+        }
+
         match self {
-            Data::PubSeq(data) => {
-                if action == Action::Read {
-                    return Ok(());
-                }
-                check_perm!(data, requester, action)
-            }
-            Data::PubUnseq(data) => {
-                if action == Action::Read {
-                    return Ok(());
-                }
-                check_perm!(data, requester, action)
-            }
-            Data::UnpubSeq(data) => check_perm!(data, requester, action),
-            Data::UnpubUnseq(data) => check_perm!(data, requester, action),
+            Data::PubSeq(data) => data.check_permission(requester, action),
+            Data::PubUnseq(data) => data.check_permission(requester, action),
+            Data::UnpubSeq(data) => data.check_permission(requester, action),
+            Data::UnpubUnseq(data) => data.check_permission(requester, action),
         }
     }
 
@@ -871,12 +789,12 @@ impl Data {
         }
     }
 
-    pub fn indices(&self) -> Result<Indices> {
+    pub fn indices(&self) -> Indices {
         match self {
-            Data::PubSeq(data) => indices!(data),
-            Data::PubUnseq(data) => indices!(data),
-            Data::UnpubSeq(data) => indices!(data),
-            Data::UnpubUnseq(data) => indices!(data),
+            Data::PubSeq(data) => data.indices(),
+            Data::PubUnseq(data) => data.indices(),
+            Data::UnpubSeq(data) => data.indices(),
+            Data::UnpubUnseq(data) => data.indices(),
         }
     }
 
@@ -1018,7 +936,7 @@ mod tests {
 
     #[test]
     fn append_permissions() {
-        let mut data = SeqAppendOnlyData::<UnpubPermissions>::new(XorName([1; 32]), 10000);
+        let mut data = UnpubSeqAppendOnlyData::new(XorName([1; 32]), 10000);
 
         // Append the first permission set with correct indices - should pass.
         let res = data.append_permissions(
@@ -1067,7 +985,7 @@ mod tests {
     fn append_owners() {
         let owner_pk = gen_public_key();
 
-        let mut data = SeqAppendOnlyData::<UnpubPermissions>::new(XorName([1; 32]), 10000);
+        let mut data = UnpubSeqAppendOnlyData::new(XorName([1; 32]), 10000);
 
         // Append the first owner with correct indices - should pass.
         let res = data.append_owner(
@@ -1114,7 +1032,7 @@ mod tests {
 
     #[test]
     fn seq_append_entries() {
-        let mut data = SeqAppendOnlyData::<PubPermissions>::new(XorName([1; 32]), 10000);
+        let mut data = PubSeqAppendOnlyData::new(XorName([1; 32]), 10000);
         unwrap!(data.append(vec![Entry::new(b"hello".to_vec(), b"world".to_vec())], 0));
     }
 
@@ -1123,7 +1041,7 @@ mod tests {
         let owner_pk = gen_public_key();
         let owner_pk1 = gen_public_key();
 
-        let mut data = SeqAppendOnlyData::<UnpubPermissions>::new(XorName([1; 32]), 10000);
+        let mut data = UnpubSeqAppendOnlyData::new(XorName([1; 32]), 10000);
 
         let _ = data.append_owner(
             Owner {
@@ -1398,7 +1316,7 @@ mod tests {
         let public_key_0 = gen_public_key();
         let public_key_1 = gen_public_key();
         let public_key_2 = gen_public_key();
-        let mut inner = SeqAppendOnlyData::<PubPermissions>::new(XorName([1; 32]), 100);
+        let mut inner = PubSeqAppendOnlyData::new(XorName([1; 32]), 100);
 
         // no owner
         let data = Data::from(inner.clone());
@@ -1468,7 +1386,7 @@ mod tests {
         let public_key_0 = gen_public_key();
         let public_key_1 = gen_public_key();
         let public_key_2 = gen_public_key();
-        let mut inner = SeqAppendOnlyData::<UnpubPermissions>::new(XorName([1; 32]), 100);
+        let mut inner = UnpubSeqAppendOnlyData::new(XorName([1; 32]), 100);
 
         // no owner
         let data = Data::from(inner.clone());
