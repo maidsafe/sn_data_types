@@ -30,20 +30,17 @@ pub struct Coins(u64);
 
 impl Coins {
     /// New value from a number of nano coin.
-    pub fn from_nano(value: u64) -> Result<Self> {
-        if value > MAX_COINS_VALUE.0 {
-            return Err(Error::ExcessiveValue);
-        }
-        Ok(Self(value))
+    pub const fn from_nano(value: u64) -> Self {
+        Self(value)
     }
 
     /// The maximum value a `Coins` can represent.
-    pub fn max_value() -> Self {
+    pub const fn max_value() -> Self {
         MAX_COINS_VALUE
     }
 
     /// Total coin expressed in number of nano coin.
-    pub fn as_nano(self) -> u64 {
+    pub const fn as_nano(self) -> u64 {
         self.0
     }
 
@@ -51,14 +48,25 @@ impl Coins {
     pub fn checked_add(self, rhs: Coins) -> Option<Coins> {
         self.0
             .checked_add(rhs.0)
-            .and_then(|nano| Coins::from_nano(nano).ok())
+            .map(Self::from_nano)
+            .and_then(|coins| coins.validate().ok())
     }
 
     // Computes self - rhs, returning None if overflow occurred.
     pub fn checked_sub(self, rhs: Coins) -> Option<Coins> {
         self.0
             .checked_sub(rhs.0)
-            .and_then(|nano| Coins::from_nano(nano).ok())
+            .map(Self::from_nano)
+            .and_then(|coins| coins.validate().ok())
+    }
+
+    /// Check that the coins amount is valid - that is - not exceeding max allowed value.
+    pub fn validate(self) -> Result<Self> {
+        if self <= MAX_COINS_VALUE {
+            Ok(self)
+        } else {
+            Err(Error::ExcessiveValue)
+        }
     }
 }
 
@@ -95,19 +103,18 @@ impl FromStr for Coins {
             }
         };
 
-        Self::from_nano(converted_units + remainder)
+        Self::from_nano(converted_units + remainder).validate()
     }
 }
 
 impl Debug for Coins {
-    #[allow(trivial_casts)]
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-        (self as &dyn Display).fmt(formatter)
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        Display::fmt(self, formatter)
     }
 }
 
 impl Display for Coins {
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         let unit = self.0 / COIN_TO_RAW_CONVERSION;
         let remainder = self.0 % COIN_TO_RAW_CONVERSION;
         write!(formatter, "{}.{}", unit, format!("{:09}", remainder))
