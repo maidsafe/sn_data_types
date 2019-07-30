@@ -26,3 +26,14 @@ else
 	cargo fmt -- --check
 	cargo test --verbose --release
 endif
+
+publish:
+ifndef CRATES_IO_TOKEN
+	@echo "A login token for crates.io must be provided."
+	@exit 1
+endif
+	rm -rf artifacts
+	docker run --rm -v "${PWD}":/usr/src/safe-nd:Z \
+		-u ${USER_ID}:${GROUP_ID} \
+		maidsafe/safe-nd-build:build \
+		/bin/bash -c "cargo login ${CRATES_IO_TOKEN} && cargo package && cargo publish"
