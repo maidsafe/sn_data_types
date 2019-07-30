@@ -224,7 +224,7 @@ impl Default for MessageId {
 #[allow(clippy::large_enum_variant)]
 #[derive(Serialize, Deserialize)]
 pub enum Challenge {
-    Request(Vec<u8>),
+    Request(PublicId, Vec<u8>),
     Response(PublicId, Signature),
 }
 

@@ -260,9 +260,6 @@ struct AppendOnly<P: Permissions> {
 
 /// Common methods for all `AppendOnlyData` flavours.
 pub trait AppendOnlyData<P> {
-    // /// Get a list of permissions for the provided user from the last entry in the permissions list.
-    // fn user_permissions(&self, user: &User) -> Result<&PubPermissionSet>;
-
     /// Return a value for the given key (if it is present).
     fn get(&self, key: &[u8]) -> Option<&Vec<u8>>;
 
@@ -311,7 +308,7 @@ pub trait AppendOnlyData<P> {
     fn owners_range(&self, start: Index, end: Index) -> Option<&[Owner]>;
 
     /// Add a new owner entry.
-    fn append_owner(&mut self, owner: Owner, owners_idx: u64) -> Result<()>;
+    fn append_owner(&mut self, owner: Owner, owners_index: u64) -> Result<()>;
 
     /// Check if the requester is the last owner.
     fn check_is_last_owner(&self, requester: PublicKey) -> Result<()>;
@@ -425,8 +422,8 @@ macro_rules! impl_appendable_data {
                 self.inner.permissions.get(index)
             }
 
-            fn owner(&self, index: impl Into<Index>) -> Option<&Owner> {
-                let index = to_absolute_index(index.into(), self.inner.owners.len())?;
+            fn owner(&self, owners_index: impl Into<Index>) -> Option<&Owner> {
+                let index = to_absolute_index(owners_index.into(), self.inner.owners.len())?;
                 self.inner.owners.get(index)
             }
 
@@ -655,6 +652,24 @@ pub enum Kind {
     UnpubUnseq,
 }
 
+impl Kind {
+    pub fn is_pub(self) -> bool {
+        self == Kind::PubSeq || self == Kind::PubUnseq
+    }
+
+    pub fn is_unpub(self) -> bool {
+        !self.is_pub()
+    }
+
+    pub fn is_seq(self) -> bool {
+        self == Kind::PubSeq || self == Kind::UnpubSeq
+    }
+
+    pub fn is_unseq(self) -> bool {
+        !self.is_seq()
+    }
+}
+
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Address {
     PubSeq { name: XorName, tag: u64 },
@@ -698,6 +713,22 @@ impl Address {
             | Address::UnpubSeq { tag, .. }
             | Address::UnpubUnseq { tag, .. } => *tag,
         }
+    }
+
+    pub fn is_pub(&self) -> bool {
+        self.kind().is_pub()
+    }
+
+    pub fn is_unpub(&self) -> bool {
+        !self.kind().is_unpub()
+    }
+
+    pub fn is_seq(&self) -> bool {
+        self.kind().is_seq()
+    }
+
+    pub fn is_unseq(&self) -> bool {
+        !self.kind().is_unseq()
     }
 
     /// Returns the Address serialised and encoded in z-base-32.
@@ -749,6 +780,10 @@ impl Data {
         }
     }
 
+    pub fn kind(&self) -> Kind {
+        self.address().kind()
+    }
+
     pub fn name(&self) -> &XorName {
         self.address().name()
     }
@@ -757,8 +792,20 @@ impl Data {
         self.address().tag()
     }
 
-    pub fn kind(&self) -> Kind {
-        self.address().kind()
+    pub fn is_pub(&self) -> bool {
+        self.kind().is_pub()
+    }
+
+    pub fn is_unpub(&self) -> bool {
+        !self.kind().is_unpub()
+    }
+
+    pub fn is_seq(&self) -> bool {
+        self.kind().is_seq()
+    }
+
+    pub fn is_unseq(&self) -> bool {
+        !self.kind().is_unseq()
     }
 
     pub fn entries_index(&self) -> u64 {
@@ -824,12 +871,12 @@ impl Data {
         }
     }
 
-    pub fn owner(&self, idx: impl Into<Index>) -> Option<&Owner> {
+    pub fn owner(&self, owners_index: impl Into<Index>) -> Option<&Owner> {
         match self {
-            Data::PubSeq(data) => data.owner(idx),
-            Data::PubUnseq(data) => data.owner(idx),
-            Data::UnpubSeq(data) => data.owner(idx),
-            Data::UnpubUnseq(data) => data.owner(idx),
+            Data::PubSeq(data) => data.owner(owners_index),
+            Data::PubUnseq(data) => data.owner(owners_index),
+            Data::UnpubSeq(data) => data.owner(owners_index),
+            Data::UnpubUnseq(data) => data.owner(owners_index),
         }
     }
 
@@ -845,9 +892,9 @@ impl Data {
     pub fn pub_user_permissions(
         &self,
         user: User,
-        idx: impl Into<Index>,
+        index: impl Into<Index>,
     ) -> Result<PubPermissionSet> {
-        self.pub_permissions(idx)?
+        self.pub_permissions(index)?
             .permissions()
             .get(&user)
             .cloned()
@@ -857,39 +904,39 @@ impl Data {
     pub fn unpub_user_permissions(
         &self,
         user: PublicKey,
-        idx: impl Into<Index>,
+        index: impl Into<Index>,
     ) -> Result<UnpubPermissionSet> {
-        self.unpub_permissions(idx)?
+        self.unpub_permissions(index)?
             .permissions()
             .get(&user)
             .cloned()
             .ok_or(Error::NoSuchEntry)
     }
 
-    pub fn pub_permissions(&self, idx: impl Into<Index>) -> Result<&PubPermissions> {
+    pub fn pub_permissions(&self, index: impl Into<Index>) -> Result<&PubPermissions> {
         let perms = match self {
-            Data::PubSeq(data) => data.permissions(idx),
-            Data::PubUnseq(data) => data.permissions(idx),
+            Data::PubSeq(data) => data.permissions(index),
+            Data::PubUnseq(data) => data.permissions(index),
             _ => return Err(Error::NoSuchData),
         };
         perms.ok_or(Error::NoSuchEntry)
     }
 
-    pub fn unpub_permissions(&self, idx: impl Into<Index>) -> Result<&UnpubPermissions> {
+    pub fn unpub_permissions(&self, index: impl Into<Index>) -> Result<&UnpubPermissions> {
         let perms = match self {
-            Data::UnpubSeq(data) => data.permissions(idx),
-            Data::UnpubUnseq(data) => data.permissions(idx),
+            Data::UnpubSeq(data) => data.permissions(index),
+            Data::UnpubUnseq(data) => data.permissions(index),
             _ => return Err(Error::NoSuchData),
         };
         perms.ok_or(Error::NoSuchEntry)
     }
 
-    pub fn shell(&self, idx: impl Into<Index>) -> Result<Self> {
+    pub fn shell(&self, index: impl Into<Index>) -> Result<Self> {
         match self {
-            Data::PubSeq(adata) => adata.shell(idx).map(Data::PubSeq),
-            Data::PubUnseq(adata) => adata.shell(idx).map(Data::PubUnseq),
-            Data::UnpubSeq(adata) => adata.shell(idx).map(Data::UnpubSeq),
-            Data::UnpubUnseq(adata) => adata.shell(idx).map(Data::UnpubUnseq),
+            Data::PubSeq(adata) => adata.shell(index).map(Data::PubSeq),
+            Data::PubUnseq(adata) => adata.shell(index).map(Data::PubUnseq),
+            Data::UnpubSeq(adata) => adata.shell(index).map(Data::UnpubSeq),
+            Data::UnpubUnseq(adata) => adata.shell(index).map(Data::UnpubUnseq),
         }
     }
 }
