@@ -8,17 +8,17 @@ UUID := $(shell uuidgen | sed 's/-//g')
 
 build-container:
 	rm -rf target/
-	docker rmi -f maidsafe/safe-nd-build:${SAFE_ND_VERSION}
-	docker build -f Dockerfile.build -t maidsafe/safe-nd-build:${SAFE_ND_VERSION} .
+	docker rmi -f maidsafe/safe-nd-build:build
+	docker build -f Dockerfile.build -t maidsafe/safe-nd-build:build .
 
 push-container:
-	docker push maidsafe/safe-nd-build:${SAFE_ND_VERSION}
+	docker push maidsafe/safe-nd-build:build
 
 test:
 ifeq ($(UNAME_S),Linux)
 	docker run --name "safe-nd-build-${UUID}" -v "${PWD}":/usr/src/safe-nd:Z \
 		-u ${USER_ID}:${GROUP_ID} \
-		maidsafe/safe-nd-build:${SAFE_ND_VERSION} \
+		maidsafe/safe-nd-build:build \
 		/bin/bash -c "cargo fmt -- --check --verbose && cargo clippy --verbose --release --all-targets && cargo test --verbose --release"
 	docker cp "safe-nd-build-${UUID}":/target .
 	docker rm "safe-nd-build-${UUID}"
