@@ -720,7 +720,7 @@ impl Address {
     }
 
     pub fn is_unpub(&self) -> bool {
-        !self.kind().is_unpub()
+        self.kind().is_unpub()
     }
 
     pub fn is_seq(&self) -> bool {
@@ -728,7 +728,7 @@ impl Address {
     }
 
     pub fn is_unseq(&self) -> bool {
-        !self.kind().is_unseq()
+        self.kind().is_unseq()
     }
 
     /// Returns the Address serialised and encoded in z-base-32.
@@ -797,7 +797,7 @@ impl Data {
     }
 
     pub fn is_unpub(&self) -> bool {
-        !self.kind().is_unpub()
+        self.kind().is_unpub()
     }
 
     pub fn is_seq(&self) -> bool {
@@ -805,7 +805,7 @@ impl Data {
     }
 
     pub fn is_unseq(&self) -> bool {
-        !self.kind().is_unseq()
+        self.kind().is_unseq()
     }
 
     pub fn entries_index(&self) -> u64 {
