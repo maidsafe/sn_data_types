@@ -176,6 +176,16 @@ pub enum Kind {
     Pub,
 }
 
+impl Kind {
+    pub fn is_pub(self) -> bool {
+        self == Kind::Pub
+    }
+
+    pub fn is_unpub(self) -> bool {
+        !self.is_pub()
+    }
+}
+
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Address {
     Unpub(XorName),
@@ -201,6 +211,14 @@ impl Address {
         match self {
             Address::Unpub(ref name) | Address::Pub(ref name) => name,
         }
+    }
+
+    pub fn is_pub(&self) -> bool {
+        self.kind().is_pub()
+    }
+
+    pub fn is_unpub(&self) -> bool {
+        self.kind().is_unpub()
     }
 
     /// Returns the Address serialised and encoded in z-base-32.
@@ -235,6 +253,14 @@ impl Data {
 
     pub fn kind(&self) -> Kind {
         self.address().kind()
+    }
+
+    pub fn is_pub(&self) -> bool {
+        self.kind().is_pub()
+    }
+
+    pub fn is_unpub(&self) -> bool {
+        self.kind().is_unpub()
     }
 }
 

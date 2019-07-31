@@ -118,6 +118,38 @@ pub enum Data {
     AppendOnly(AData),
 }
 
+impl Data {
+    pub fn is_pub(&self) -> bool {
+        match *self {
+            Data::Immutable(ref idata) => idata.is_pub(),
+            Data::Mutable(_) => false,
+            Data::AppendOnly(ref adata) => adata.is_pub(),
+        }
+    }
+
+    pub fn is_unpub(&self) -> bool {
+        !self.is_pub()
+    }
+}
+
+impl From<IData> for Data {
+    fn from(data: IData) -> Self {
+        Data::Immutable(data)
+    }
+}
+
+impl From<MData> for Data {
+    fn from(data: MData) -> Self {
+        Data::Mutable(data)
+    }
+}
+
+impl From<AData> for Data {
+    fn from(data: AData) -> Self {
+        Data::AppendOnly(data)
+    }
+}
+
 /// Permissions for an app stored by the Elders.
 #[derive(
     Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Default, Debug,
