@@ -77,7 +77,7 @@ pub use append_only_data::{
     UnpubPermissions as ADataUnpubPermissions, UnpubSeqAppendOnlyData, UnpubUnseqAppendOnlyData,
     UnseqAppendOnly, User as ADataUser,
 };
-pub use coins::{Coins, MAX_COINS_VALUE};
+pub use coins::Coins;
 pub use errors::{EntryError, Error, Result};
 pub use identity::{
     app::{FullId as AppFullId, PublicId as AppPublicId},

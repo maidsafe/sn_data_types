@@ -20,10 +20,6 @@ const COIN_TO_RAW_POWER_OF_10_CONVERSION: u32 = 9;
 /// The conversion from coin to raw value
 const COIN_TO_RAW_CONVERSION: u64 = 1_000_000_000;
 
-/// The maximum amount of safecoin represented by a single `Coins`.
-pub const MAX_COINS_VALUE: Coins =
-    Coins((u32::max_value() as u64 + 1) * COIN_TO_RAW_CONVERSION - 1);
-
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 /// Structure representing a safecoin amount.
 pub struct Coins(u64);
@@ -34,11 +30,6 @@ impl Coins {
         Self(value)
     }
 
-    /// The maximum value a `Coins` can represent.
-    pub const fn max_value() -> Self {
-        MAX_COINS_VALUE
-    }
-
     /// Total coin expressed in number of nano coin.
     pub const fn as_nano(self) -> u64 {
         self.0
@@ -46,27 +37,12 @@ impl Coins {
 
     // Computes self + rhs, returning None if overflow occurred.
     pub fn checked_add(self, rhs: Coins) -> Option<Coins> {
-        self.0
-            .checked_add(rhs.0)
-            .map(Self::from_nano)
-            .and_then(|coins| coins.validate().ok())
+        self.0.checked_add(rhs.0).map(Self::from_nano)
     }
 
     // Computes self - rhs, returning None if overflow occurred.
     pub fn checked_sub(self, rhs: Coins) -> Option<Coins> {
-        self.0
-            .checked_sub(rhs.0)
-            .map(Self::from_nano)
-            .and_then(|coins| coins.validate().ok())
-    }
-
-    /// Check that the coins amount is valid - that is - not exceeding max allowed value.
-    pub fn validate(self) -> Result<Self> {
-        if self <= MAX_COINS_VALUE {
-            Ok(self)
-        } else {
-            Err(Error::ExcessiveValue)
-        }
+        self.0.checked_sub(rhs.0).map(Self::from_nano)
     }
 }
 
@@ -103,7 +79,7 @@ impl FromStr for Coins {
             }
         };
 
-        Self::from_nano(converted_units + remainder).validate()
+        Ok(Self::from_nano(converted_units + remainder))
     }
 }
 
@@ -124,6 +100,7 @@ impl Display for Coins {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::u64;
     use unwrap::unwrap;
 
     #[test]
@@ -149,11 +126,11 @@ mod tests {
             unwrap!(Coins::from_str("4294967295"))
         );
         assert_eq!(
-            MAX_COINS_VALUE,
+            Coins(4_294_967_295_999_999_999),
             unwrap!(Coins::from_str("4294967295.999999999")),
         );
         assert_eq!(
-            MAX_COINS_VALUE,
+            Coins(4_294_967_295_999_999_999),
             unwrap!(Coins::from_str("4294967295.9999999990000")),
         );
 
@@ -174,7 +151,7 @@ mod tests {
             Coins::from_str("0.0.0")
         );
         assert_eq!(Err(Error::LossOfPrecision), Coins::from_str("0.0000000009"));
-        assert_eq!(Err(Error::ExcessiveValue), Coins::from_str("4294967296"));
+        assert_eq!(Err(Error::ExcessiveValue), Coins::from_str("18446744074"));
     }
 
     #[test]
@@ -188,20 +165,16 @@ mod tests {
             "4294967295.000000000",
             format!("{}", Coins(4_294_967_295_000_000_000))
         );
-        assert_eq!("4294967295.999999999", format!("{}", MAX_COINS_VALUE));
     }
 
     #[test]
     fn checked_add_sub() {
-        assert_eq!(
-            Some(MAX_COINS_VALUE),
-            Coins(MAX_COINS_VALUE.0 - 1).checked_add(Coins(1))
-        );
-        assert_eq!(None, MAX_COINS_VALUE.checked_add(Coins(1)));
-        assert_eq!(None, MAX_COINS_VALUE.checked_add(MAX_COINS_VALUE));
+        assert_eq!(Some(Coins(3)), Coins(1).checked_add(Coins(2)));
+        assert_eq!(None, Coins(u64::MAX).checked_add(Coins(1)));
+        assert_eq!(None, Coins(u64::MAX).checked_add(Coins(u64::MAX)));
 
-        assert_eq!(Some(Coins(0)), MAX_COINS_VALUE.checked_sub(MAX_COINS_VALUE));
-        assert_eq!(None, Coins(0).checked_sub(MAX_COINS_VALUE));
+        assert_eq!(Some(Coins(0)), Coins(u64::MAX).checked_sub(Coins(u64::MAX)));
+        assert_eq!(None, Coins(0).checked_sub(Coins(u64::MAX)));
         assert_eq!(None, Coins(10).checked_sub(Coins(11)));
     }
 }
