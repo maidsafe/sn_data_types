@@ -141,7 +141,7 @@ impl PubPermissionSet {
     }
 }
 
-pub trait Permissions {
+pub trait Perm {
     fn is_action_allowed(&self, requester: PublicKey, action: Action) -> Result<()>;
     fn entries_index(&self) -> u64;
     fn owners_index(&self) -> u64;
@@ -157,12 +157,12 @@ pub struct UnpubPermissions {
 }
 
 impl UnpubPermissions {
-    pub fn permissions(&self) -> BTreeMap<PublicKey, UnpubPermissionSet> {
-        self.permissions.clone()
+    pub fn permissions(&self) -> &BTreeMap<PublicKey, UnpubPermissionSet> {
+        &self.permissions
     }
 }
 
-impl Permissions for UnpubPermissions {
+impl Perm for UnpubPermissions {
     fn is_action_allowed(&self, requester: PublicKey, action: Action) -> Result<()> {
         match self.permissions.get(&requester) {
             Some(perms) => {
@@ -206,7 +206,7 @@ impl PubPermissions {
     }
 }
 
-impl Permissions for PubPermissions {
+impl Perm for PubPermissions {
     fn is_action_allowed(&self, requester: PublicKey, action: Action) -> Result<()> {
         match self
             .is_action_allowed_by_user(&User::Key(requester), action)
@@ -224,6 +224,24 @@ impl Permissions for PubPermissions {
 
     fn owners_index(&self) -> u64 {
         self.owners_index
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
+pub enum Permissions {
+    Pub(PubPermissions),
+    Unpub(UnpubPermissions),
+}
+
+impl From<UnpubPermissions> for Permissions {
+    fn from(permissions: UnpubPermissions) -> Self {
+        Permissions::Unpub(permissions)
+    }
+}
+
+impl From<PubPermissions> for Permissions {
+    fn from(permissions: PubPermissions) -> Self {
+        Permissions::Pub(permissions)
     }
 }
 
@@ -249,7 +267,7 @@ impl Entry {
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
-struct AppendOnly<P: Permissions> {
+struct AppendOnly<P: Perm> {
     address: Address,
     data: Entries,
     permissions: Vec<P>,
@@ -295,7 +313,7 @@ pub trait AppendOnlyData<P> {
     fn permissions_range(&self, start: Index, end: Index) -> Option<&[P]>;
 
     /// Add a new permissions entry.
-    /// The `Permissions` struct should contain valid indices.
+    /// The `Perm` struct should contain valid indices.
     fn append_permissions(&mut self, permissions: P, permissions_idx: u64) -> Result<()>;
 
     /// Fetch perms at index.
@@ -334,14 +352,14 @@ macro_rules! impl_appendable_data {
         #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
         pub struct $flavour<P>
         where
-            P: Permissions + Hash + Clone,
+            P: Perm + Hash + Clone,
         {
             inner: AppendOnly<P>,
         }
 
         impl<P> $flavour<P>
         where
-            P: Permissions + Hash + Clone,
+            P: Perm + Hash + Clone,
         {
             pub fn shell(&self, entries_index: impl Into<Index>) -> Result<Self> {
                 let entries_index =
@@ -377,7 +395,7 @@ macro_rules! impl_appendable_data {
 
         impl<P> AppendOnlyData<P> for $flavour<P>
         where
-            P: Permissions + Hash + Clone,
+            P: Perm + Hash + Clone,
         {
             fn address(&self) -> &Address {
                 &self.inner.address
@@ -590,7 +608,7 @@ fn check_dup(data: &[Entry], entries: &mut Entries) -> Result<()> {
 
 impl<P> SeqAppendOnly for SeqAppendOnlyData<P>
 where
-    P: Permissions + Hash + Clone,
+    P: Perm + Hash + Clone,
 {
     fn append(&mut self, mut entries: Entries, last_entries_index: u64) -> Result<()> {
         check_dup(&self.inner.data, entries.as_mut())?;
@@ -606,7 +624,7 @@ where
 
 impl<P> UnseqAppendOnly for UnseqAppendOnlyData<P>
 where
-    P: Permissions + Hash + Clone,
+    P: Perm + Hash + Clone,
 {
     fn append(&mut self, mut entries: Entries) -> Result<()> {
         check_dup(&self.inner.data, entries.as_mut())?;
