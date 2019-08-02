@@ -839,6 +839,10 @@ impl SeqEntryActions {
         Default::default()
     }
 
+    pub fn actions(&self) -> &BTreeMap<Vec<u8>, SeqEntryAction> {
+        &self.actions
+    }
+
     /// Insert a new key-value pair
     pub fn ins(mut self, key: Vec<u8>, content: Vec<u8>, version: u64) -> Self {
         let _ = self.actions.insert(
@@ -873,6 +877,12 @@ impl SeqEntryActions {
 impl From<SeqEntryActions> for BTreeMap<Vec<u8>, SeqEntryAction> {
     fn from(actions: SeqEntryActions) -> Self {
         actions.actions
+    }
+}
+
+impl From<BTreeMap<Vec<u8>, SeqEntryAction>> for SeqEntryActions {
+    fn from(actions: BTreeMap<Vec<u8>, SeqEntryAction>) -> Self {
+        SeqEntryActions { actions }
     }
 }
 
