@@ -262,6 +262,27 @@ impl Data {
     pub fn is_unpub(&self) -> bool {
         self.kind().is_unpub()
     }
+
+    pub fn value(&self) -> &Vec<u8> {
+        match self {
+            Data::Unpub(data) => data.value(),
+            Data::Pub(data) => data.value(),
+        }
+    }
+
+    pub fn validate_size(&self) -> bool {
+        match self {
+            Data::Unpub(data) => data.validate_size(),
+            Data::Pub(data) => data.validate_size(),
+        }
+    }
+
+    pub fn serialised_size(&self) -> u64 {
+        match self {
+            Data::Unpub(data) => data.serialised_size(),
+            Data::Pub(data) => data.serialised_size(),
+        }
+    }
 }
 
 impl From<UnpubImmutableData> for Data {
