@@ -19,15 +19,20 @@ use std::{
 };
 use threshold_crypto;
 
+/// Wrapper for different public key types.
 #[derive(Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
-#[allow(clippy::large_enum_variant)]
 pub enum PublicKey {
+    /// Ed25519 public key.
     Ed25519(ed25519_dalek::PublicKey),
+    /// BLS public key.
     Bls(threshold_crypto::PublicKey),
+    /// BLS public key share.
     BlsShare(threshold_crypto::PublicKeyShare),
 }
 
 impl PublicKey {
+    /// Returns `Ok(())` if `signature` matches the message and `Err(Error::InvalidSignature)`
+    /// otherwise.
     pub fn verify<T: AsRef<[u8]>>(&self, signature: &Signature, data: T) -> Result<()> {
         let is_valid = match (self, signature) {
             (PublicKey::Ed25519(pub_key), Signature::Ed25519(sig)) => {
@@ -44,10 +49,12 @@ impl PublicKey {
         }
     }
 
+    /// Returns the `PublicKey` serialised and encoded in z-base-32.
     pub fn encode_to_zbase32(&self) -> String {
         utils::encode(&self)
     }
 
+    /// Creates from z-base-32 encoded string.
     pub fn decode_from_zbase32<I: Decodable>(encoded: I) -> Result<Self> {
         utils::decode(encoded)
     }
@@ -132,11 +139,15 @@ impl Display for PublicKey {
     }
 }
 
+/// Wrapper for different signature types.
 #[derive(Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[allow(clippy::large_enum_variant)]
 pub enum Signature {
+    /// Ed25519 signature.
     Ed25519(ed25519_dalek::Signature),
+    /// BLS signature.
     Bls(threshold_crypto::Signature),
+    /// BLS signature share.
     BlsShare(threshold_crypto::SignatureShare),
 }
 

@@ -10,11 +10,14 @@
 use crate::Coins;
 use serde::{Deserialize, Serialize};
 
+/// Transaction ID.
 pub type TransactionId = u64; // TODO: Use the trait UUID
 
 /// Coin transaction.
 #[derive(Copy, Clone, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Debug)]
 pub struct Transaction {
+    /// Transaction ID.
     pub id: TransactionId,
+    /// Amount of coins.
     pub amount: Coins,
 }

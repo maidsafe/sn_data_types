@@ -7,6 +7,8 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
+//! SAFE network data types.
+
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/maidsafe/QA/master/Images/maidsafe_logo.png",
     html_favicon_url = "https://maidsafe.net/img/favicon.ico",
@@ -52,8 +54,6 @@
     missing_debug_implementations,
     variant_size_differences
 )]
-// FIXME - write docs
-#![allow(missing_docs)]
 
 mod append_only_data;
 mod coins;
@@ -68,14 +68,14 @@ mod transaction;
 mod utils;
 
 pub use append_only_data::{
-    Action as ADataAction, Address as ADataAddress, AppendOnlyData, AppendOperation as ADataAppend,
-    Data as AData, Entries as ADataEntries, Entry as ADataEntry, Index as ADataIndex,
-    Indices as ADataIndices, Kind as ADataKind, Owner as ADataOwner,
-    Permissions as ADataPermissions, PubPermissionSet as ADataPubPermissionSet,
-    PubPermissions as ADataPubPermissions, PubSeqAppendOnlyData, PubUnseqAppendOnlyData,
-    SeqAppendOnly, UnpubPermissionSet as ADataUnpubPermissionSet,
-    UnpubPermissions as ADataUnpubPermissions, UnpubSeqAppendOnlyData, UnpubUnseqAppendOnlyData,
-    UnseqAppendOnly, User as ADataUser,
+    Action as ADataAction, Address as ADataAddress, AppendOnlyData,
+    AppendOperation as ADataAppendOperation, Data as AData, Entries as ADataEntries,
+    Entry as ADataEntry, Index as ADataIndex, Indices as ADataIndices, Kind as ADataKind,
+    Owner as ADataOwner, Permissions as ADataPermissions,
+    PubPermissionSet as ADataPubPermissionSet, PubPermissions as ADataPubPermissions,
+    PubSeqAppendOnlyData, PubUnseqAppendOnlyData, SeqAppendOnly,
+    UnpubPermissionSet as ADataUnpubPermissionSet, UnpubPermissions as ADataUnpubPermissions,
+    UnpubSeqAppendOnlyData, UnpubUnseqAppendOnlyData, UnseqAppendOnly, User as ADataUser,
 };
 pub use coins::{Coins, MAX_COINS_VALUE};
 pub use errors::{EntryError, Error, Result};
@@ -100,7 +100,7 @@ pub use mutable_data::{
 };
 pub use public_key::{PublicKey, Signature};
 pub use request::{LoginPacket, Request, MAX_LOGIN_PACKET_BYTES};
-pub use response::Response;
+pub use response::{Response, TryFromError};
 pub use sha3::Sha3_512 as Ed25519Digest;
 pub use transaction::{Transaction, TransactionId};
 pub use utils::verify_signature;
@@ -114,14 +114,19 @@ use rand::{
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Debug, Display, Formatter};
 
+/// Object storing a data variant.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Data {
+    /// ImmutableData.
     Immutable(IData),
+    /// MutableData.
     Mutable(MData),
+    /// AppendOnlyData.
     AppendOnly(AData),
 }
 
 impl Data {
+    /// Returns true if published.
     pub fn is_pub(&self) -> bool {
         match *self {
             Data::Immutable(ref idata) => idata.is_pub(),
@@ -130,6 +135,7 @@ impl Data {
         }
     }
 
+    /// Returns true if unpublished.
     pub fn is_unpub(&self) -> bool {
         !self.is_pub()
     }
@@ -153,11 +159,12 @@ impl From<AData> for Data {
     }
 }
 
-/// Permissions for an app stored by the Elders.
+/// Permissions for an app stored by the Client Handlers.
 #[derive(
     Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Default, Debug,
 )]
 pub struct AppPermissions {
+    /// Whether this app has permissions to transfer coins.
     pub transfer_coins: bool,
 }
 
@@ -177,10 +184,12 @@ pub const XOR_NAME_LEN: usize = 32;
 pub struct XorName(pub [u8; XOR_NAME_LEN]);
 
 impl XorName {
+    /// Returns the `XorName` serialised and encoded in z-base-32.
     pub fn encode_to_zbase32(&self) -> String {
         utils::encode(&self)
     }
 
+    /// Creates from z-base-32 encoded string.
     pub fn decode_from_zbase32<I: Decodable>(encoded: I) -> Result<Self> {
         utils::decode(encoded)
     }
@@ -210,21 +219,31 @@ impl Distribution<XorName> for Standard {
 #[allow(clippy::large_enum_variant)]
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub enum Message {
+    /// Request with the message ID.
     Request {
+        /// Request.
         request: Request,
+        /// Associated message ID.
         message_id: MessageId,
+        /// Signature of `(request, message_id)`. Optional if the request is read-only.
         signature: Option<Signature>,
     },
+    /// Response matched to the message ID.
     Response {
+        /// Response.
         response: Response,
+        /// Associated message ID.
         message_id: MessageId,
     },
+    /// Notification of a transaction.
     Notification {
+        /// Notification.
         notification: Notification,
     },
 }
 
 impl Message {
+    /// Gets the message ID, if applicable.
     pub fn message_id(&self) -> Option<MessageId> {
         match self {
             Message::Request { message_id, .. } => Some(*message_id),
@@ -234,7 +253,7 @@ impl Message {
     }
 }
 
-/// Unique ID for messages
+/// Unique ID for messages.
 ///
 /// This is used for deduplication: Since the network sends messages redundantly along different
 /// routes, the same message will usually arrive more than once at any given node. A message with
@@ -243,7 +262,7 @@ impl Message {
 pub struct MessageId(pub XorName);
 
 impl MessageId {
-    /// Generate a new `MessageId` with random content.
+    /// Generates a new `MessageId` with random content.
     pub fn new() -> MessageId {
         MessageId(rand::random())
     }
@@ -259,7 +278,10 @@ impl Default for MessageId {
 #[allow(clippy::large_enum_variant)]
 #[derive(Serialize, Deserialize)]
 pub enum Challenge {
+    /// Request from the Vault to clients containing the challenge.
     Request(PublicId, Vec<u8>),
+    /// Response from clients to Vaults, containing their public ID and the challenge signature
+    /// created using their corresponding secret key.
     Response(PublicId, Signature),
 }
 

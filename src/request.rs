@@ -11,7 +11,7 @@ mod login_packet;
 
 pub use self::login_packet::{LoginPacket, MAX_LOGIN_PACKET_BYTES};
 use crate::{
-    AData, ADataAddress, ADataAppend, ADataIndex, ADataOwner, ADataPubPermissions,
+    AData, ADataAddress, ADataAppendOperation, ADataIndex, ADataOwner, ADataPubPermissions,
     ADataUnpubPermissions, ADataUser, AppPermissions, Coins, Error, IData, IDataAddress, MData,
     MDataAddress, MDataEntryActions, MDataPermissionSet, PublicKey, Response, TransactionId,
     XorName,
@@ -19,49 +19,79 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-/// RPC Request that is sent to vaults
-#[allow(clippy::large_enum_variant, missing_docs)]
+/// RPC Request that is sent to vaults.
+#[allow(clippy::large_enum_variant)]
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub enum Request {
     //
     // ===== Immutable Data =====
     //
+    /// Put ImmutableData.
     PutIData(IData),
+    /// Get ImmutableData.
     GetIData(IDataAddress),
+    /// Delete unpublished ImmutableData.
     DeleteUnpubIData(IDataAddress),
     //
     // ===== Mutable Data =====
     //
+    /// Put MutableData.
     PutMData(MData),
+    /// Get MutableData.
     GetMData(MDataAddress),
+    /// Get MutableData value.
     GetMDataValue {
+        /// MutableData address.
         address: MDataAddress,
+        /// Key to get.
         key: Vec<u8>,
     },
+    /// Delete MutableData.
     DeleteMData(MDataAddress),
+    /// Get MutableData shell.
     GetMDataShell(MDataAddress),
+    /// Get MutableData version.
     GetMDataVersion(MDataAddress),
+    /// List MutableData entries.
     ListMDataEntries(MDataAddress),
+    /// List MutableData keys.
     ListMDataKeys(MDataAddress),
+    /// List MutableData values.
     ListMDataValues(MDataAddress),
+    /// Set MutableData user permissions.
     SetMDataUserPermissions {
+        /// MutableData address.
         address: MDataAddress,
+        /// User to set permissions for.
         user: PublicKey,
+        /// New permissions.
         permissions: MDataPermissionSet,
+        /// Version to set.
         version: u64,
     },
+    /// Delete MutableData user permissions.
     DelMDataUserPermissions {
+        /// MutableData address.
         address: MDataAddress,
+        /// User to delete permissions for.
         user: PublicKey,
+        /// Version to delete.
         version: u64,
     },
+    /// List MutableData permissions.
     ListMDataPermissions(MDataAddress),
+    /// Get MutableData permissions for a user.
     ListMDataUserPermissions {
+        /// MutableData address.
         address: MDataAddress,
+        /// User to get permissions for.
         user: PublicKey,
     },
+    /// Mutate MutableData entries.
     MutateMDataEntries {
+        /// MutableData address.
         address: MDataAddress,
+        /// Mutation actions to perform.
         actions: MDataEntryActions,
     },
     //
@@ -71,120 +101,163 @@ pub enum Request {
     PutAData(AData),
     /// Get AppendOnlyData from the network.
     GetAData(ADataAddress),
-    /// Get `AppendOnlyData` shell at a certain point in history (`data_index` refers to the list
-    /// of data).
+    /// Get AppendOnlyData shell at a certain point in history (`data_index` refers to the list of
+    /// data).
     GetADataShell {
+        /// AppendOnlyData address.
         address: ADataAddress,
+        /// Index of the data at which to get the shell.
         data_index: ADataIndex,
     },
-    /// Delete an unpublished unsequenced `AppendOnlyData`.
+    /// Delete an unpublished `AppendOnlyData`.
     ///
     /// This operation MUST return an error if applied to published AppendOnlyData. Only the current
     /// owner(s) can perform this action.
     DeleteAData(ADataAddress),
     /// Get a range of entries from an AppendOnlyData object on the network.
     GetADataRange {
+        /// AppendOnlyData address.
         address: ADataAddress,
-        // Range of entries to fetch.
-        //
-        // For example, get 10 last entries:
-        // range: (Index::FromEnd(10), Index::FromEnd(0))
-        //
-        // Get all entries:
-        // range: (Index::FromStart(0), Index::FromEnd(0))
-        //
-        // Get first 5 entries:
-        // range: (Index::FromStart(0), Index::FromStart(5))
+        /// Range of entries to fetch.
+        ///
+        /// For example, get 10 last entries:
+        /// range: (Index::FromEnd(10), Index::FromEnd(0))
+        ///
+        /// Get all entries:
+        /// range: (Index::FromStart(0), Index::FromEnd(0))
+        ///
+        /// Get first 5 entries:
+        /// range: (Index::FromStart(0), Index::FromStart(5))
         range: (ADataIndex, ADataIndex),
     },
+    /// Get AppendOnlyData value.
     GetADataValue {
+        /// AppendOnlyData address.
         address: ADataAddress,
+        /// Key to get.
         key: Vec<u8>,
     },
     /// Get current indices: data, owners, permissions.
     GetADataIndices(ADataAddress),
     /// Get an entry with the current index.
     GetADataLastEntry(ADataAddress),
-    /// Get permissions at the provided index.
+    /// List all permissions at the provided index.
     GetADataPermissions {
+        /// AppendOnlyData address.
         address: ADataAddress,
+        /// Permissions index.
         permissions_index: ADataIndex,
     },
-    /// Get permissions for a specified user(s).
+    /// Get published permissions for a specified user(s).
     GetPubADataUserPermissions {
+        /// AppendOnlyData address.
         address: ADataAddress,
+        /// Permissions index.
         permissions_index: ADataIndex,
+        /// User to get permissions for.
         user: ADataUser,
     },
-    /// Get permissions for a specified public key.
+    /// Get unpublished permissions for a specified user(s).
     GetUnpubADataUserPermissions {
+        /// AppendOnlyData address.
         address: ADataAddress,
+        /// Permissions index.
         permissions_index: ADataIndex,
+        /// User to get permissions for.
         public_key: PublicKey,
     },
     /// Get owners at the provided index.
     GetADataOwners {
+        /// AppendOnlyData address.
         address: ADataAddress,
+        /// Onwers index.
         owners_index: ADataIndex,
     },
-    /// Add a new `permissions` entry.
+    /// Add a new published `permissions` entry.
     AddPubADataPermissions {
+        /// AppendOnlyData address.
         address: ADataAddress,
+        /// Published permissions.
         permissions: ADataPubPermissions,
-        permissions_idx: u64,
+        /// Index to add to.
+        permissions_index: u64,
     },
-    /// Add a new `permissions` entry.
+    /// Add a new unpublished `permissions` entry.
     AddUnpubADataPermissions {
+        /// AppendOnlyData address.
         address: ADataAddress,
+        /// Unpublished permissions.
         permissions: ADataUnpubPermissions,
-        permissions_idx: u64,
+        /// Index to add to.
+        permissions_index: u64,
     },
     /// Add a new `owners` entry. Only the current owner(s) can perform this action.
     SetADataOwner {
+        /// AppendOnlyData address.
         address: ADataAddress,
+        /// New owner.
         owner: ADataOwner,
-        owners_idx: u64,
+        /// Owners index.
+        owners_index: u64,
     },
+    /// Append sequenced AppendOnlyData at the given index.
     AppendSeq {
-        append: ADataAppend,
+        /// Entries to append.
+        append: ADataAppendOperation,
+        /// Index.
         index: u64,
     },
-    AppendUnseq(ADataAppend),
+    /// Append unsequenced AppendOnlyData.
+    AppendUnseq(ADataAppendOperation),
     //
     // ===== Coins =====
     //
-    /// Balance transfer
+    /// Balance transfer.
     TransferCoins {
+        /// The destination to transfer to.
         destination: XorName,
+        /// The amount in coins to transfer.
         amount: Coins,
+        /// The ID of the transaction.
         transaction_id: TransactionId,
     },
-    /// Get current wallet balance
+    /// Get current wallet balance.
     GetBalance,
-    /// Create a new coin balance
+    /// Create a new coin balance.
     CreateBalance {
+        /// The new owner of the balance.
         new_balance_owner: PublicKey,
+        /// The new balance amount in coins.
         amount: Coins,
+        /// The ID of the transaction.
         transaction_id: TransactionId,
     },
     //
     // ===== Login Packet =====
     //
+    /// Create a login packet.
     CreateLoginPacket(LoginPacket),
+    /// Create a login packet for a given user and transfer some initial coins.
     CreateLoginPacketFor {
+        /// The new owner of the login packet.
         new_owner: PublicKey,
+        /// The new balance amount in coins.
         amount: Coins,
+        /// The ID of the transaction.
         transaction_id: TransactionId,
+        /// The new login packet.
         new_login_packet: LoginPacket,
     },
+    /// Update a login packet.
     UpdateLoginPacket(LoginPacket),
+    /// Get an encrypted login packet.
     GetLoginPacket(XorName),
     //
     // ===== Client (Owner) to SrcElders =====
     //
     /// List authorised keys and version stored by Elders.
     ListAuthKeysAndVersion,
-    /// Inserts an authorised key (for an app, user, etc.).
+    /// Insert an authorised key (for an app, user, etc.).
     InsAuthKey {
         /// Authorised key to be inserted
         key: PublicKey,
@@ -193,7 +266,7 @@ pub enum Request {
         /// Permissions
         permissions: AppPermissions,
     },
-    /// Deletes an authorised key.
+    /// Delete an authorised key.
     DelAuthKey {
         /// Authorised key to be deleted
         key: PublicKey,
@@ -203,7 +276,7 @@ pub enum Request {
 }
 
 impl Request {
-    /// Create a Response containing an error, with the Response variant corresponding to the
+    /// Creates a Response containing an error, with the Response variant corresponding to the
     /// Request variant.
     pub fn error_response(&self, error: Error) -> Response {
         use Request::*;
