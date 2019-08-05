@@ -47,14 +47,14 @@ impl Coins {
         self.0
     }
 
-    // Computes self + rhs, returning None if overflow occurred.
+    /// Computes `self + rhs`, returning `None` if overflow occurred.
     pub fn checked_add(self, rhs: Coins) -> Option<Coins> {
         self.0
             .checked_add(rhs.0)
             .and_then(|nano| Coins::from_nano(nano).ok())
     }
 
-    // Computes self - rhs, returning None if overflow occurred.
+    /// Computes `self - rhs`, returning `None` if overflow occurred.
     pub fn checked_sub(self, rhs: Coins) -> Option<Coins> {
         self.0
             .checked_sub(rhs.0)

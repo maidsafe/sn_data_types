@@ -17,12 +17,15 @@ use std::{
 };
 use tiny_keccak;
 
-/// Maximum allowed size for a serialised Immutable Data (ID) to grow to
+/// Maximum allowed size for a serialised ImmutableData to grow to.
 pub const MAX_IMMUTABLE_DATA_SIZE_IN_BYTES: u64 = 1024 * 1024 + 10 * 1024;
 
+/// Unpublished ImmutableData: an immutable chunk of data which can be deleted. Can only be fetched
+/// by the listed owner.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone)]
 pub struct UnpubImmutableData {
-    /// Address.
+    /// Network address. Omitted when serialising and calculated from the `value` and `owner` when
+    /// deserialising.
     address: Address,
     /// Contained data.
     value: Vec<u8>,
@@ -32,7 +35,7 @@ pub struct UnpubImmutableData {
 }
 
 impl UnpubImmutableData {
-    /// Creates a new instance of `UnpubImmutableData`
+    /// Creates a new instance of `UnpubImmutableData`.
     pub fn new(value: Vec<u8>, owner: PublicKey) -> Self {
         let hash_of_value = tiny_keccak::sha3_256(&value);
         let serialised_contents = utils::serialise(&(hash_of_value, &owner));
@@ -75,7 +78,7 @@ impl UnpubImmutableData {
         serialized_size(self).unwrap_or(u64::MAX)
     }
 
-    /// Return true if the size is valid
+    /// Returns `true` if the size is valid.
     pub fn validate_size(&self) -> bool {
         self.serialised_size() <= MAX_IMMUTABLE_DATA_SIZE_IN_BYTES
     }
@@ -101,18 +104,18 @@ impl Debug for UnpubImmutableData {
     }
 }
 
-/// An immutable chunk of data.
-///
-/// Note that the `name` member is omitted when serialising `ImmutableData` and is calculated from
-/// the `value` when deserialising.
+/// Published ImmutableData: an immutable chunk of data which cannot be deleted.
 #[derive(Hash, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct PubImmutableData {
+    /// Network address. Omitted when serialising and calculated from the `value` when
+    /// deserialising.
     address: Address,
+    /// Contained data.
     value: Vec<u8>,
 }
 
 impl PubImmutableData {
-    /// Creates a new instance of `ImmutableData`
+    /// Creates a new instance of `ImmutableData`.
     pub fn new(value: Vec<u8>) -> Self {
         Self {
             address: Address::Pub(XorName(tiny_keccak::sha3_256(&value))),
@@ -145,7 +148,7 @@ impl PubImmutableData {
         serialized_size(self).unwrap_or(u64::MAX)
     }
 
-    /// Return true if the size is valid
+    /// Returns true if the size is valid.
     pub fn validate_size(&self) -> bool {
         self.serialised_size() <= MAX_IMMUTABLE_DATA_SIZE_IN_BYTES
     }
@@ -170,9 +173,12 @@ impl Debug for PubImmutableData {
     }
 }
 
+/// Kind of an ImmutableData.
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Kind {
+    /// Unpublished.
     Unpub,
+    /// Published.
     Pub,
 }
 
@@ -186,22 +192,28 @@ impl Kind {
         }
     }
 
+    /// Returns true if published.
     pub fn is_pub(self) -> bool {
         self == Kind::Pub
     }
 
+    /// Returns true if unpublished.
     pub fn is_unpub(self) -> bool {
         !self.is_pub()
     }
 }
 
+/// Address of an ImmutableData.
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Address {
+    /// Unpublished namespace.
     Unpub(XorName),
+    /// Published namespace.
     Pub(XorName),
 }
 
 impl Address {
+    /// Constructs an `Address` given `kind` and `name`.
     pub fn from_kind(kind: Kind, name: XorName) -> Self {
         match kind {
             Kind::Pub => Address::Pub(name),
@@ -209,6 +221,7 @@ impl Address {
         }
     }
 
+    /// Returns the kind.
     pub fn kind(&self) -> Kind {
         match self {
             Address::Unpub(_) => Kind::Unpub,
@@ -216,16 +229,19 @@ impl Address {
         }
     }
 
+    /// Returns the name.
     pub fn name(&self) -> &XorName {
         match self {
             Address::Unpub(ref name) | Address::Pub(ref name) => name,
         }
     }
 
+    /// Returns true if published.
     pub fn is_pub(&self) -> bool {
         self.kind().is_pub()
     }
 
+    /// Returns true if unpublished.
     pub fn is_unpub(&self) -> bool {
         self.kind().is_unpub()
     }
@@ -235,20 +251,23 @@ impl Address {
         utils::encode(&self)
     }
 
-    /// Create from z-base-32 encoded string.
+    /// Creates from z-base-32 encoded string.
     pub fn decode_from_zbase32<T: Decodable>(encoded: T) -> Result<Self, Error> {
         utils::decode(encoded)
     }
 }
 
-/// Object storing an immutable data variant.
+/// Object storing an ImmutableData variant.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Data {
+    /// Unpublished ImmutableData.
     Unpub(UnpubImmutableData),
+    /// Published ImmutableData.
     Pub(PubImmutableData),
 }
 
 impl Data {
+    /// Returns the address.
     pub fn address(&self) -> &Address {
         match self {
             Data::Unpub(data) => data.address(),
@@ -256,22 +275,27 @@ impl Data {
         }
     }
 
+    /// Returns the name.
     pub fn name(&self) -> &XorName {
         self.address().name()
     }
 
+    /// Returns the kind.
     pub fn kind(&self) -> Kind {
         self.address().kind()
     }
 
+    /// Returns true if published.
     pub fn is_pub(&self) -> bool {
         self.kind().is_pub()
     }
 
+    /// Returns true if unpublished.
     pub fn is_unpub(&self) -> bool {
         self.kind().is_unpub()
     }
 
+    /// Returns the value.
     pub fn value(&self) -> &Vec<u8> {
         match self {
             Data::Unpub(data) => data.value(),
@@ -279,6 +303,7 @@ impl Data {
         }
     }
 
+    /// Returns `true` if the size is valid.
     pub fn validate_size(&self) -> bool {
         match self {
             Data::Unpub(data) => data.validate_size(),
@@ -286,6 +311,7 @@ impl Data {
         }
     }
 
+    /// Returns size of this data after serialisation.
     pub fn serialised_size(&self) -> u64 {
         match self {
             Data::Unpub(data) => data.serialised_size(),

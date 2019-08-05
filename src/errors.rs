@@ -32,6 +32,7 @@ impl<'a, T> Debug for ErrorDebug<'a, T> {
     }
 }
 
+/// Main error type for the crate.
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Error {
     /// Access is denied for a given requester

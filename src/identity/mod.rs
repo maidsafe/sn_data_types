@@ -48,7 +48,7 @@ impl PublicId {
         utils::encode(&self)
     }
 
-    /// Create from z-base-32 encoded string.
+    /// Creates from z-base-32 encoded string.
     pub fn decode_from_zbase32<T: Decodable>(encoded: T) -> Result<Self> {
         utils::decode(encoded)
     }
