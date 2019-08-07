@@ -177,6 +177,15 @@ pub enum Kind {
 }
 
 impl Kind {
+    /// Creates `Kind` from a `published` flag.
+    pub fn from_flag(published: bool) -> Self {
+        if published {
+            Kind::Pub
+        } else {
+            Kind::Unpub
+        }
+    }
+
     pub fn is_pub(self) -> bool {
         self == Kind::Pub
     }

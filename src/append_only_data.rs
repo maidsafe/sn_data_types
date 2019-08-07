@@ -671,6 +671,16 @@ pub enum Kind {
 }
 
 impl Kind {
+    /// Creates `Kind` from `published` and `sequenced` flags.
+    pub fn from_flags(published: bool, sequenced: bool) -> Self {
+        match (published, sequenced) {
+            (true, true) => Kind::PubSeq,
+            (true, false) => Kind::PubUnseq,
+            (false, true) => Kind::UnpubSeq,
+            (false, false) => Kind::UnpubUnseq,
+        }
+    }
+
     pub fn is_pub(self) -> bool {
         self == Kind::PubSeq || self == Kind::PubUnseq
     }

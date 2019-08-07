@@ -606,6 +606,15 @@ pub enum Kind {
 }
 
 impl Kind {
+    /// Creates `Kind` from a `sequenced` flag.
+    pub fn from_flag(sequenced: bool) -> Self {
+        if sequenced {
+            Kind::Seq
+        } else {
+            Kind::Unseq
+        }
+    }
+
     pub fn is_seq(self) -> bool {
         self == Kind::Seq
     }
