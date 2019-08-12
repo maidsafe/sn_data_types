@@ -961,6 +961,11 @@ impl SeqEntryActions {
         &self.actions
     }
 
+    /// Converts SeqEntryActions struct to a BTreeMap of the keys with their corresponding action.
+    pub fn into_actions(self) -> BTreeMap<Vec<u8>, SeqEntryAction> {
+        self.actions
+    }
+
     /// Inserts a new key-value pair.
     ///
     /// Requires the new `version` of the sequenced entry content. If it does not match the current
@@ -999,6 +1004,11 @@ impl SeqEntryActions {
         let _ = self.actions.insert(key, SeqEntryAction::Del(version));
         self
     }
+
+    /// Adds a SeqEntryAction to the list of actions, replacing it if it is already present
+    pub fn add_action(&mut self, key: Vec<u8>, action: SeqEntryAction) {
+        let _ = self.actions.insert(key, action);
+    }
 }
 
 impl From<SeqEntryActions> for BTreeMap<Vec<u8>, SeqEntryAction> {
@@ -1025,6 +1035,16 @@ impl UnseqEntryActions {
         Default::default()
     }
 
+    /// Gets the actions.
+    pub fn actions(&self) -> &BTreeMap<Vec<u8>, UnseqEntryAction> {
+        &self.actions
+    }
+
+    /// Converts UnseqEntryActions struct to a BTreeMap of the keys with their corresponding action.
+    pub fn into_actions(self) -> BTreeMap<Vec<u8>, UnseqEntryAction> {
+        self.actions
+    }
+
     /// Insert a new key-value pair
     pub fn ins(mut self, key: Vec<u8>, content: Vec<u8>) -> Self {
         let _ = self.actions.insert(key, UnseqEntryAction::Ins(content));
@@ -1042,11 +1062,22 @@ impl UnseqEntryActions {
         let _ = self.actions.insert(key, UnseqEntryAction::Del);
         self
     }
+
+    /// Adds a UnseqEntryAction to the list of actions, replacing it if it is already present
+    pub fn add_action(&mut self, key: Vec<u8>, action: UnseqEntryAction) {
+        let _ = self.actions.insert(key, action);
+    }
 }
 
 impl From<UnseqEntryActions> for BTreeMap<Vec<u8>, UnseqEntryAction> {
     fn from(actions: UnseqEntryActions) -> Self {
         actions.actions
+    }
+}
+
+impl From<BTreeMap<Vec<u8>, UnseqEntryAction>> for UnseqEntryActions {
+    fn from(actions: BTreeMap<Vec<u8>, UnseqEntryAction>) -> Self {
+        UnseqEntryActions { actions }
     }
 }
 
