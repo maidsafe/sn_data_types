@@ -463,6 +463,8 @@ pub trait AppendOnlyData<P> {
 /// Common methods for published and unpublished unsequenced `AppendOnlyData`.
 pub trait UnseqAppendOnly {
     /// Appends new entries.
+    ///
+    /// Returns an error if duplicate entries are present.
     fn append(&mut self, entries: Entries) -> Result<()>;
 }
 
@@ -470,6 +472,7 @@ pub trait UnseqAppendOnly {
 pub trait SeqAppendOnly {
     /// Appends new entries.
     ///
+    /// Returns an error if duplicate entries are present.
     /// If the specified `last_entries_index` does not match the last recorded entries index, an
     /// error will be returned.
     fn append(&mut self, entries: Entries, last_entries_index: u64) -> Result<()>;
@@ -604,6 +607,11 @@ macro_rules! impl_appendable_data {
                 Some(&self.inner.owners[range])
             }
 
+            /// Adds a new permissions entry.
+            /// The `Perm` struct should contain valid indices.
+            ///
+            /// If the specified `permissions_index` does not match the last recorded permissions
+            /// index + 1, an error will be returned.
             fn append_permissions(&mut self, permissions: P, permissions_index: u64) -> Result<()> {
                 if permissions.entries_index() != self.entries_index() {
                     return Err(Error::InvalidSuccessor(self.entries_index()));
@@ -618,6 +626,10 @@ macro_rules! impl_appendable_data {
                 Ok(())
             }
 
+            /// Adds a new owner entry.
+            ///
+            /// If the specified `owners_index` does not match the last recorded owners index + 1,
+            /// an error will be returned.
             fn append_owner(&mut self, owner: Owner, owners_index: u64) -> Result<()> {
                 if owner.entries_index != self.entries_index() {
                     return Err(Error::InvalidSuccessor(self.entries_index()));
@@ -632,6 +644,12 @@ macro_rules! impl_appendable_data {
                 Ok(())
             }
 
+            /// Checks if the requester is the last owner.
+            ///
+            /// Returns:
+            /// `Ok(())` if the requester is the owner,
+            /// `Err::InvalidOwners` if the last owner is invalid,
+            /// `Err::AccessDenied` if the requester is not the owner.
             fn check_is_last_owner(&self, requester: PublicKey) -> Result<()> {
                 if self
                     .owner(Index::FromEnd(1))
@@ -1120,6 +1138,86 @@ impl Data {
             Data::PubUnseq(data) => data.owner(owners_index),
             Data::UnpubSeq(data) => data.owner(owners_index),
             Data::UnpubUnseq(data) => data.owner(owners_index),
+        }
+    }
+
+    /// Gets a complete list of owners from the entry in the permissions list at the specified
+    /// index.
+    pub fn owners_range(&self, start: Index, end: Index) -> Option<&[Owner]> {
+        match self {
+            Data::PubSeq(data) => data.owners_range(start, end),
+            Data::PubUnseq(data) => data.owners_range(start, end),
+            Data::UnpubSeq(data) => data.owners_range(start, end),
+            Data::UnpubUnseq(data) => data.owners_range(start, end),
+        }
+    }
+
+    /// Appends new entries.
+    ///
+    /// Returns an error if duplicate entries are present or the data is not sequenced.
+    pub fn append_seq(&mut self, entries: Entries, last_entries_index: u64) -> Result<()> {
+        match self {
+            Data::PubSeq(data) => data.append(entries, last_entries_index),
+            Data::UnpubSeq(data) => data.append(entries, last_entries_index),
+            _ => Err(Error::InvalidOperation),
+        }
+    }
+
+    /// Appends new entries.
+    ///
+    /// Returns an error if duplicate entries are present or the data is not unsequenced.
+    pub fn append_unseq(&mut self, entries: Entries) -> Result<()> {
+        match self {
+            Data::PubUnseq(data) => data.append(entries),
+            Data::UnpubUnseq(data) => data.append(entries),
+            _ => Err(Error::InvalidOperation),
+        }
+    }
+
+    /// Adds a new published permissions entry for published data.
+    /// The `Perm` struct should contain valid indices.
+    ///
+    /// If the specified `permissions_index` does not match the last recorded permissions index + 1
+    /// or if this data is not published, an error will be returned.
+    pub fn append_pub_permissions(
+        &mut self,
+        permissions: PubPermissions,
+        permissions_index: u64,
+    ) -> Result<()> {
+        match self {
+            Data::PubSeq(data) => data.append_permissions(permissions, permissions_index),
+            Data::PubUnseq(data) => data.append_permissions(permissions, permissions_index),
+            _ => Err(Error::InvalidOperation),
+        }
+    }
+
+    /// Adds a new unpublished permissions entry for unpublished data.
+    /// The `Perm` struct should contain valid indices.
+    ///
+    /// If the specified `permissions_index` does not match the last recorded permissions index + 1
+    /// or if this data is not unpublished, an error will be returned.
+    pub fn append_unpub_permissions(
+        &mut self,
+        permissions: UnpubPermissions,
+        permissions_index: u64,
+    ) -> Result<()> {
+        match self {
+            Data::UnpubSeq(data) => data.append_permissions(permissions, permissions_index),
+            Data::UnpubUnseq(data) => data.append_permissions(permissions, permissions_index),
+            _ => Err(Error::InvalidOperation),
+        }
+    }
+
+    /// Adds a new owner entry.
+    ///
+    /// If the specified `owners_index` does not match the last recorded owners index + 1, an error
+    /// will be returned.
+    pub fn append_owner(&mut self, owner: Owner, owners_index: u64) -> Result<()> {
+        match self {
+            Data::PubSeq(data) => data.append_owner(owner, owners_index),
+            Data::PubUnseq(data) => data.append_owner(owner, owners_index),
+            Data::UnpubSeq(data) => data.append_owner(owner, owners_index),
+            Data::UnpubUnseq(data) => data.append_owner(owner, owners_index),
         }
     }
 
