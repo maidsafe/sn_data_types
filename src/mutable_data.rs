@@ -922,10 +922,10 @@ impl From<UnseqMutableData> for Data {
     }
 }
 
-/// Action for a Sequenced Entry.
+/// Action for a sequenced Entry.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
 pub enum SeqEntryAction {
-    /// Inserts a new Sequenced entry.
+    /// Inserts a new sequenced entry.
     Ins(SeqValue),
     /// Updates an entry with a new value and version.
     Update(SeqValue),
@@ -933,10 +933,10 @@ pub enum SeqEntryAction {
     Del(u64),
 }
 
-/// Action for an Unsequenced Entry.
+/// Action for an unsequenced Entry.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
 pub enum UnseqEntryAction {
-    /// Inserts a new Unsequenced entry.
+    /// Inserts a new unsequenced entry.
     Ins(Vec<u8>),
     /// Updates an entry with a new value.
     Update(Vec<u8>),
@@ -947,11 +947,13 @@ pub enum UnseqEntryAction {
 /// Sequenced Entry Actions for given entry keys.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug, Default)]
 pub struct SeqEntryActions {
+    // A BTreeMap containing keys to which the corresponding sequenced entry action is to be
+    // performed.
     actions: BTreeMap<Vec<u8>, SeqEntryAction>,
 }
 
 impl SeqEntryActions {
-    /// Creates a new Sequenced Entry Actions list.
+    /// Creates a new sequenced Entry Actions list.
     pub fn new() -> Self {
         Default::default()
     }
@@ -1016,11 +1018,13 @@ impl From<BTreeMap<Vec<u8>, SeqEntryAction>> for SeqEntryActions {
 /// Unsequenced Entry Actions for given entry keys.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug, Default)]
 pub struct UnseqEntryActions {
+    // A BTreeMap containing keys to which the corresponding unsequenced entry action is to be
+    // performed.
     actions: BTreeMap<Vec<u8>, UnseqEntryAction>,
 }
 
 impl UnseqEntryActions {
-    /// Creates a new Unsequenced Entry Actions list.
+    /// Creates a new unsequenced Entry Actions list.
     pub fn new() -> Self {
         Default::default()
     }
