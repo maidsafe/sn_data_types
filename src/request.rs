@@ -220,6 +220,8 @@ pub enum Request {
         amount: Coins,
         /// The ID of the transaction.
         transaction_id: TransactionId,
+        /// If this transfer is a refund, this field contains the reason for it. Otherwise it is `None`.
+        refund_reason: Option<Error>,
     },
     /// Get current wallet balance.
     GetBalance,
