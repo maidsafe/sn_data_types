@@ -267,7 +267,7 @@ impl Perm for UnpubPermissions {
                     Err(Error::AccessDenied)
                 }
             }
-            None => Err(Error::InvalidPermissions),
+            None => Err(Error::AccessDenied),
         }
     }
 
@@ -318,7 +318,7 @@ impl Perm for PubPermissions {
         {
             Some(true) => Ok(()),
             Some(false) => Err(Error::AccessDenied),
-            None => Err(Error::InvalidPermissions),
+            None => Err(Error::AccessDenied),
         }
     }
 
@@ -806,7 +806,7 @@ macro_rules! check_perm {
         } else {
             $data
                 .permissions(Index::FromEnd(1))
-                .ok_or(Error::InvalidPermissions)?
+                .ok_or(Error::AccessDenied)?
                 .is_action_allowed($requester, $action)
         }
     };
@@ -1036,8 +1036,6 @@ impl Data {
     /// Returns:
     /// `Ok(())` if the permissions are valid,
     /// `Err::InvalidOwners` if the last owner is invalid,
-    /// `Err::InvalidPermissions` if the requester is not the owner and the last permissions are
-    /// invalid,
     /// `Err::AccessDenied` if the action is not allowed.
     pub fn check_permission(&self, action: Action, requester: PublicKey) -> Result<()> {
         match self {
@@ -1758,7 +1756,7 @@ mod tests {
         assert_eq!(data.check_permission(Action::Append, public_key_0), Ok(()));
         assert_eq!(
             data.check_permission(Action::Append, public_key_1),
-            Err(Error::InvalidPermissions)
+            Err(Error::AccessDenied)
         );
         // data is published - read always allowed
         assert_eq!(data.check_permission(Action::Read, public_key_0), Ok(()));
@@ -1826,7 +1824,7 @@ mod tests {
         assert_eq!(data.check_permission(Action::Read, public_key_0), Ok(()));
         assert_eq!(
             data.check_permission(Action::Read, public_key_1),
-            Err(Error::InvalidPermissions)
+            Err(Error::AccessDenied)
         );
 
         // with permissions
@@ -1852,15 +1850,15 @@ mod tests {
         // non-existing key
         assert_eq!(
             data.check_permission(Action::Read, public_key_2),
-            Err(Error::InvalidPermissions)
+            Err(Error::AccessDenied)
         );
         assert_eq!(
             data.check_permission(Action::Append, public_key_2),
-            Err(Error::InvalidPermissions)
+            Err(Error::AccessDenied)
         );
         assert_eq!(
             data.check_permission(Action::ManagePermissions, public_key_2),
-            Err(Error::InvalidPermissions)
+            Err(Error::AccessDenied)
         );
     }
 }
