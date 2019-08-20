@@ -135,7 +135,7 @@ impl Debug for PublicKey {
 impl Display for PublicKey {
     #[allow(trivial_casts)]
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        (self as &Debug).fmt(formatter)
+        Debug::fmt(self, formatter)
     }
 }
 
