@@ -1,5 +1,10 @@
 # safe-nd - Change Log
 
+## [0.3.0]
+
+- Deprecate the `InvalidPermissions` error variant in favour of `AccessDenied`
+- Fix deprecation errors on Rust 1.37
+
 ## [0.2.1]
 
 - Make some documentation fixes and additions.
