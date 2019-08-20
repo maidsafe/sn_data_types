@@ -126,8 +126,7 @@ impl Debug for PublicId {
 }
 
 impl Display for PublicId {
-    #[allow(trivial_casts)]
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        (self as &Debug).fmt(formatter)
+        Debug::fmt(self, formatter)
     }
 }

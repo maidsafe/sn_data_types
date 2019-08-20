@@ -202,9 +202,8 @@ impl Debug for XorName {
 }
 
 impl Display for XorName {
-    #[allow(trivial_casts)]
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        (self as &Debug).fmt(formatter)
+        Debug::fmt(self, formatter)
     }
 }
 
