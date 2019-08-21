@@ -308,10 +308,10 @@ impl Request {
             }
             GetADataOwners { .. } => Response::GetADataOwners(Err(error)),
             // Coins
-            TransferCoins { .. } => Response::Transaction(Err(error)),
             GetBalance => Response::GetBalance(Err(error)),
-            CreateBalance { .. } => Response::Transaction(Err(error)),
+            TransferCoins { .. } | CreateBalance { .. }
             // Login Packet
+            | CreateLoginPacketFor { .. } => Response::Transaction(Err(error)),
             GetLoginPacket(..) => Response::GetLoginPacket(Err(error)),
             // Client (Owner) to SrcElders
             ListAuthKeysAndVersion => Response::ListAuthKeysAndVersion(Err(error)),
@@ -337,7 +337,6 @@ impl Request {
             AppendUnseq(_) |
             // Login Packet
             CreateLoginPacket { .. } |
-            CreateLoginPacketFor { .. } |
             UpdateLoginPacket { .. } |
             // Client (Owner) to SrcElders
             InsAuthKey { .. } |
