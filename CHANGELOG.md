@@ -1,5 +1,9 @@
 # safe-nd - Change Log
 
+## [0.3.1]
+
+- Fixed bug in the `error_response` function to return a `Transaction` Response for `CreateLoginPacketFor`.
+
 ## [0.3.0]
 
 - Deprecate the `InvalidPermissions` error variant in favour of `AccessDenied`
