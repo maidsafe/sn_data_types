@@ -99,7 +99,7 @@ pub use mutable_data::{
     Values as MDataValues,
 };
 pub use public_key::{PublicKey, Signature};
-pub use request::{LoginPacket, Request, MAX_LOGIN_PACKET_BYTES};
+pub use request::{LoginPacket, Request, RequestType, MAX_LOGIN_PACKET_BYTES};
 pub use response::{Response, TryFromError};
 pub use sha3::Sha3_512 as Ed25519Digest;
 pub use transaction::{Transaction, TransactionId};

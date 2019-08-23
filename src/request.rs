@@ -19,6 +19,19 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
+/// The type of a `Request`.
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
+pub enum RequestType {
+    /// Request is a Get for public data.
+    GetForPub,
+    /// Request is a Get for private data.
+    GetForUnpub,
+    /// Request is a Mutation.
+    Mutation,
+    /// Request is a Transaction.
+    Transaction,
+}
+
 /// RPC Request that is sent to vaults.
 #[allow(clippy::large_enum_variant)]
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
@@ -276,6 +289,54 @@ pub enum Request {
 }
 
 impl Request {
+    /// Get the `RequestType` of this `Request`.
+    pub fn get_type(&self) -> RequestType {
+        use Request::*;
+
+        match *self {
+            GetIData(address) => {
+                if address.is_pub() {
+                    RequestType::GetForPub
+                } else {
+                    RequestType::GetForUnpub
+                }
+            }
+
+            GetAData(address)
+            | GetADataShell { address, .. }
+            | GetADataRange { address, .. }
+            | GetADataValue { address, .. }
+            | GetADataIndices(address)
+            | GetADataLastEntry(address)
+            | GetADataPermissions { address, .. }
+            | GetPubADataUserPermissions { address, .. }
+            | GetUnpubADataUserPermissions { address, .. }
+            | GetADataOwners { address, .. } => {
+                if address.is_pub() {
+                    RequestType::GetForPub
+                } else {
+                    RequestType::GetForUnpub
+                }
+            }
+
+            GetMData(_)
+            | GetMDataValue { .. }
+            | GetMDataShell(_)
+            | GetMDataVersion(_)
+            | ListMDataEntries(_)
+            | ListMDataKeys(_)
+            | ListMDataValues(_)
+            | ListMDataPermissions(_)
+            | ListMDataUserPermissions { .. } => RequestType::GetForUnpub,
+
+            TransferCoins { .. } | CreateBalance { .. } | CreateLoginPacketFor { .. } => {
+                RequestType::Transaction
+            }
+
+            _ => RequestType::Mutation,
+        }
+    }
+
     /// Creates a Response containing an error, with the Response variant corresponding to the
     /// Request variant.
     pub fn error_response(&self, error: Error) -> Response {
@@ -309,12 +370,17 @@ impl Request {
             GetADataOwners { .. } => Response::GetADataOwners(Err(error)),
             // Coins
             GetBalance => Response::GetBalance(Err(error)),
-            TransferCoins { .. } | CreateBalance { .. }
             // Login Packet
-            | CreateLoginPacketFor { .. } => Response::Transaction(Err(error)),
             GetLoginPacket(..) => Response::GetLoginPacket(Err(error)),
             // Client (Owner) to SrcElders
             ListAuthKeysAndVersion => Response::ListAuthKeysAndVersion(Err(error)),
+
+            // Transaction
+
+            // Coins
+            TransferCoins { .. } | CreateBalance { .. }
+            // Login Packet
+            | CreateLoginPacketFor { .. } => Response::Transaction(Err(error)),
 
             // Mutation
 
@@ -352,58 +418,58 @@ impl fmt::Debug for Request {
 
         write!(
             formatter,
-            "{}",
+            "Request::{}",
             match *self {
                 // IData
-                PutIData(_) => "Request::PutIData",
-                GetIData(_) => "Request::GetIData",
-                DeleteUnpubIData(_) => "Request::DeleteUnpubIData",
+                PutIData(_) => "PutIData",
+                GetIData(_) => "GetIData",
+                DeleteUnpubIData(_) => "DeleteUnpubIData",
                 // MData
-                PutMData(_) => "Request::PutMData",
-                GetMData(_) => "Request::GetMData",
-                GetMDataValue { .. } => "Request::GetMDataValue",
-                DeleteMData(_) => "Request::DeleteMData",
-                GetMDataShell(_) => "Request::GetMDataShell",
-                GetMDataVersion(_) => "Request::GetMDataVersion",
-                ListMDataEntries(_) => "Request::ListMDataEntries",
-                ListMDataKeys(_) => "Request::ListMDataKeys",
-                ListMDataValues(_) => "Request::ListMDataValues",
-                SetMDataUserPermissions { .. } => "Request::SetMDataUserPermissions",
-                DelMDataUserPermissions { .. } => "Request::DelMDataUserPermissions",
-                ListMDataPermissions(_) => "Request::ListMDataPermissions",
-                ListMDataUserPermissions { .. } => "Request::ListMDataUserPermissions",
-                MutateMDataEntries { .. } => "Request::MutateMDataEntries",
+                PutMData(_) => "PutMData",
+                GetMData(_) => "GetMData",
+                GetMDataValue { .. } => "GetMDataValue",
+                DeleteMData(_) => "DeleteMData",
+                GetMDataShell(_) => "GetMDataShell",
+                GetMDataVersion(_) => "GetMDataVersion",
+                ListMDataEntries(_) => "ListMDataEntries",
+                ListMDataKeys(_) => "ListMDataKeys",
+                ListMDataValues(_) => "ListMDataValues",
+                SetMDataUserPermissions { .. } => "SetMDataUserPermissions",
+                DelMDataUserPermissions { .. } => "DelMDataUserPermissions",
+                ListMDataPermissions(_) => "ListMDataPermissions",
+                ListMDataUserPermissions { .. } => "ListMDataUserPermissions",
+                MutateMDataEntries { .. } => "MutateMDataEntries",
                 // AData
-                PutAData(_) => "Request::PutAData",
-                GetAData(_) => "Request::GetAData",
-                GetADataShell { .. } => "Request::GetADataShell",
-                GetADataValue { .. } => "Request::GetADataValue ",
-                DeleteAData(_) => "Request::DeleteAData",
-                GetADataRange { .. } => "Request::GetADataRange",
-                GetADataIndices(_) => "Request::GetADataIndices",
-                GetADataLastEntry(_) => "Request::GetADataLastEntry",
-                GetADataPermissions { .. } => "Request::GetADataPermissions",
-                GetPubADataUserPermissions { .. } => "Request::GetPubADataUserPermissions",
-                GetUnpubADataUserPermissions { .. } => "Request::GetUnpubADataUserPermissions",
-                GetADataOwners { .. } => "Request::GetADataOwners",
-                AddPubADataPermissions { .. } => "Request::AddPubADataPermissions",
-                AddUnpubADataPermissions { .. } => "Request::AddUnpubADataPermissions",
-                SetADataOwner { .. } => "Request::SetADataOwner",
-                AppendSeq { .. } => "Request::AppendSeq",
-                AppendUnseq(_) => "Request::AppendUnseq",
+                PutAData(_) => "PutAData",
+                GetAData(_) => "GetAData",
+                GetADataShell { .. } => "GetADataShell",
+                GetADataValue { .. } => "GetADataValue ",
+                DeleteAData(_) => "DeleteAData",
+                GetADataRange { .. } => "GetADataRange",
+                GetADataIndices(_) => "GetADataIndices",
+                GetADataLastEntry(_) => "GetADataLastEntry",
+                GetADataPermissions { .. } => "GetADataPermissions",
+                GetPubADataUserPermissions { .. } => "GetPubADataUserPermissions",
+                GetUnpubADataUserPermissions { .. } => "GetUnpubADataUserPermissions",
+                GetADataOwners { .. } => "GetADataOwners",
+                AddPubADataPermissions { .. } => "AddPubADataPermissions",
+                AddUnpubADataPermissions { .. } => "AddUnpubADataPermissions",
+                SetADataOwner { .. } => "SetADataOwner",
+                AppendSeq { .. } => "AppendSeq",
+                AppendUnseq(_) => "AppendUnseq",
                 // Coins
-                TransferCoins { .. } => "Request::TransferCoins",
-                GetBalance => "Request::GetBalance",
-                CreateBalance { .. } => "Request::CreateBalance",
+                TransferCoins { .. } => "TransferCoins",
+                GetBalance => "GetBalance",
+                CreateBalance { .. } => "CreateBalance",
                 // Login Packet
-                CreateLoginPacket { .. } => "Request::CreateLoginPacket",
-                CreateLoginPacketFor { .. } => "Request::CreateLoginPacketFor",
-                UpdateLoginPacket { .. } => "Request::UpdateLoginPacket",
-                GetLoginPacket(..) => "Request::GetLoginPacket",
+                CreateLoginPacket { .. } => "CreateLoginPacket",
+                CreateLoginPacketFor { .. } => "CreateLoginPacketFor",
+                UpdateLoginPacket { .. } => "UpdateLoginPacket",
+                GetLoginPacket(..) => "GetLoginPacket",
                 // Client (Owner) to SrcElders
-                ListAuthKeysAndVersion => "Request::ListAuthKeysAndVersion",
-                InsAuthKey { .. } => "Request::InsAuthKey",
-                DelAuthKey { .. } => "Request::DelAuthKey",
+                ListAuthKeysAndVersion => "ListAuthKeysAndVersion",
+                InsAuthKey { .. } => "InsAuthKey",
+                DelAuthKey { .. } => "DelAuthKey",
             }
         )
     }
