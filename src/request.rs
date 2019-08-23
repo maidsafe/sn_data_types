@@ -23,9 +23,9 @@ use std::fmt;
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum RequestType {
     /// Request is a Get for public data.
-    GetForPub,
+    PublicGet,
     /// Request is a Get for private data.
-    GetForUnpub,
+    PrivateGet,
     /// Request is a Mutation.
     Mutation,
     /// Request is a Transaction.
@@ -294,13 +294,17 @@ impl Request {
         use Request::*;
 
         match *self {
+            // IData requests
+
             GetIData(address) => {
                 if address.is_pub() {
-                    RequestType::GetForPub
+                    RequestType::PublicGet
                 } else {
-                    RequestType::GetForUnpub
+                    RequestType::PrivateGet
                 }
             }
+
+            // AData requests
 
             GetAData(address)
             | GetADataShell { address, .. }
@@ -313,11 +317,13 @@ impl Request {
             | GetUnpubADataUserPermissions { address, .. }
             | GetADataOwners { address, .. } => {
                 if address.is_pub() {
-                    RequestType::GetForPub
+                    RequestType::PublicGet
                 } else {
-                    RequestType::GetForUnpub
+                    RequestType::PrivateGet
                 }
             }
+
+            // MData requests (always unpub)
 
             GetMData(_)
             | GetMDataValue { .. }
@@ -327,13 +333,49 @@ impl Request {
             | ListMDataKeys(_)
             | ListMDataValues(_)
             | ListMDataPermissions(_)
-            | ListMDataUserPermissions { .. } => RequestType::GetForUnpub,
+                | ListMDataUserPermissions { .. } => RequestType::PrivateGet,
 
-            TransferCoins { .. } | CreateBalance { .. } | CreateLoginPacketFor { .. } => {
+            // Coins
+            GetBalance |
+            // Login packet
+            GetLoginPacket(..) |
+            // Client (Owner) to SrcElders
+            ListAuthKeysAndVersion => RequestType::PrivateGet,
+
+            // Transaction
+
+            // Coins
+            TransferCoins { .. } | CreateBalance { .. } |
+            // Login Packet
+            CreateLoginPacketFor { .. } => {
                 RequestType::Transaction
             }
 
-            _ => RequestType::Mutation,
+            // Mutation
+
+            // IData
+            PutIData(_) |
+            DeleteUnpubIData(_) |
+            // MData
+            PutMData(_) |
+            DeleteMData(_) |
+            SetMDataUserPermissions { .. } |
+            DelMDataUserPermissions { .. } |
+            MutateMDataEntries { .. } |
+            // AData
+            PutAData(_) |
+            DeleteAData(_) |
+            AddPubADataPermissions { .. } |
+            AddUnpubADataPermissions { .. } |
+            SetADataOwner { .. } |
+            AppendSeq { .. } |
+            AppendUnseq(_) |
+            // Login Packet
+            CreateLoginPacket { .. } |
+            UpdateLoginPacket { .. } |
+            // Client (Owner) to SrcElders
+            InsAuthKey { .. } |
+            DelAuthKey { .. } => RequestType::Mutation,
         }
     }
 

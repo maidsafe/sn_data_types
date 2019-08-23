@@ -27,7 +27,7 @@
 //! does not have to pass version numbers for keys, but it still must pass the next version number
 //! while modifying the MutableData shell.
 
-use crate::{utils, EntryError, Error, PublicKey, Request, Result, XorName};
+use crate::{utils, EntryError, Error, PublicKey, Result, XorName};
 use hex_fmt::HexFmt;
 use multibase::Decodable;
 use serde::{Deserialize, Serialize};
@@ -872,36 +872,6 @@ impl Data {
         match self {
             Data::Seq(data) => data.check_permissions(action, requester),
             Data::Unseq(data) => data.check_permissions(action, requester),
-        }
-    }
-
-    /// Checks permissions for given `request` for the provided user.
-    ///
-    /// Returns:
-    /// See `check_permissions` and `check_is_last_owner` for possible errors.
-    pub fn check_request_permissions(&self, request: &Request, requester: PublicKey) -> Result<()> {
-        match request {
-            Request::GetMData { .. }
-            | Request::GetMDataShell { .. }
-            | Request::GetMDataVersion { .. }
-            | Request::ListMDataKeys { .. }
-            | Request::ListMDataEntries { .. }
-            | Request::ListMDataValues { .. }
-            | Request::GetMDataValue { .. }
-            | Request::ListMDataPermissions { .. }
-            | Request::ListMDataUserPermissions { .. } => {
-                self.check_permissions(Action::Read, requester)
-            }
-
-            Request::SetMDataUserPermissions { .. } | Request::DelMDataUserPermissions { .. } => {
-                self.check_permissions(Action::ManagePermissions, requester)
-            }
-
-            Request::MutateMDataEntries { .. } => Ok(()),
-
-            Request::DeleteMData { .. } => self.check_is_owner(requester),
-
-            _ => Err(Error::InvalidOperation),
         }
     }
 
