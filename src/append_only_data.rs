@@ -57,7 +57,7 @@
 //! index while appending. For unsequenced AppendOnlyData the client does not have to pass the
 //! index.
 
-use crate::{utils, Error, PublicKey, Request, Result, XorName};
+use crate::{utils, Error, PublicKey, Result, XorName};
 use multibase::Decodable;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -1053,42 +1053,6 @@ impl Data {
             }
             Data::UnpubSeq(data) => check_perm!(data, requester, action),
             Data::UnpubUnseq(data) => check_perm!(data, requester, action),
-        }
-    }
-
-    /// Checks permissions for given `request` for the provided user.
-    ///
-    /// Returns:
-    /// See `check_permission` and `check_is_last_owner` for possible errors.
-    pub fn check_request_permissions(&self, request: &Request, requester: PublicKey) -> Result<()> {
-        match request {
-            Request::GetAData(..)
-            | Request::GetADataShell { .. }
-            | Request::GetADataValue { .. }
-            | Request::GetADataRange { .. }
-            | Request::GetADataIndices(..)
-            | Request::GetADataLastEntry(..)
-            | Request::GetADataPermissions { .. }
-            | Request::GetPubADataUserPermissions { .. }
-            | Request::GetUnpubADataUserPermissions { .. }
-            | Request::GetADataOwners { .. } => match *self {
-                Data::PubUnseq(_) | Data::PubSeq(_) => Ok(()),
-                Data::UnpubSeq(_) | Data::UnpubUnseq(_) => {
-                    self.check_permission(Action::Read, requester)
-                }
-            },
-            Request::AppendSeq { .. } | Request::AppendUnseq { .. } => {
-                self.check_permission(Action::Append, requester)
-            }
-            Request::AddPubADataPermissions { .. } | Request::AddUnpubADataPermissions { .. } => {
-                self.check_permission(Action::ManagePermissions, requester)
-            }
-            Request::SetADataOwner { .. } => self.check_is_last_owner(requester),
-            Request::DeleteAData(_) => match *self {
-                Data::PubSeq(_) | Data::PubUnseq(_) => Err(Error::InvalidOperation),
-                Data::UnpubSeq(_) | Data::UnpubUnseq(_) => self.check_is_last_owner(requester),
-            },
-            _ => Err(Error::InvalidOperation),
         }
     }
 
