@@ -1,5 +1,9 @@
 # safe-nd - Change Log
 
+## [0.3.2]
+
+- Added `RequestType` and `Request::get_type`
+
 ## [0.3.1]
 
 - Fixed bug in the `error_response` function to return a `Transaction` Response for `CreateLoginPacketFor`.
