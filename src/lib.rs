@@ -166,6 +166,10 @@ impl From<AData> for Data {
 pub struct AppPermissions {
     /// Whether this app has permissions to transfer coins.
     pub transfer_coins: bool,
+    /// Whether this app has permissions to perform mutations.
+    pub perform_mutations: bool,
+    /// Whether this app has permissions to read the coin balance.
+    pub get_balance: bool,
 }
 
 /// Constant byte length of `XorName`.
