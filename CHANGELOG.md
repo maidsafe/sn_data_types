@@ -1,5 +1,9 @@
 # safe-nd - Change Log
 
+## [0.4.0]
+
+- Changed `AppPermissions` to include permissions for allowing mutations and getting a user's balance.
+
 ## [0.3.2]
 
 - Added `RequestType` and `Request::get_type`
