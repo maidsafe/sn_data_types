@@ -1370,81 +1370,42 @@ mod tests {
 
     #[test]
     fn get_entry() {
-        // pub, unseq
-        let mut data = PubUnseqAppendOnlyData::new(rand::random(), 10);
+        let name: XorName = rand::random();
+        let tag = 10;
+
+        let mut pub_seq = PubSeqAppendOnlyData::new(name, tag);
+        let mut unpub_seq = UnpubSeqAppendOnlyData::new(name, tag);
+        let mut pub_unseq = PubUnseqAppendOnlyData::new(name, tag);
+        let mut unpub_unseq = UnpubUnseqAppendOnlyData::new(name, tag);
+
         let entries = vec![
             Entry::new(b"key0".to_vec(), b"value0".to_vec()),
             Entry::new(b"key1".to_vec(), b"value1".to_vec()),
         ];
-        unwrap!(data.append(entries));
-        let data = Data::from(data);
 
-        assert_eq!(
-            data.entry(Index::FromStart(0)),
-            Some(&Entry::new(b"key0".to_vec(), b"value0".to_vec()))
-        );
-        assert_eq!(
-            data.entry(Index::FromStart(1)),
-            Some(&Entry::new(b"key1".to_vec(), b"value1".to_vec()))
-        );
-        assert_eq!(data.entry(2), None);
+        unwrap!(pub_seq.append(entries.clone(), 0));
+        unwrap!(unpub_seq.append(entries.clone(), 0));
+        unwrap!(pub_unseq.append(entries.clone()));
+        unwrap!(unpub_unseq.append(entries.clone()));
 
-        // pub, seq
-        let mut data = PubSeqAppendOnlyData::new(rand::random(), 10);
-        let entries = vec![
-            Entry::new(b"key0".to_vec(), b"value0".to_vec()),
-            Entry::new(b"key1".to_vec(), b"value1".to_vec()),
+        let data_vec: Vec<Data> = vec![
+            pub_seq.into(),
+            unpub_seq.into(),
+            pub_unseq.into(),
+            unpub_unseq.into(),
         ];
-        unwrap!(data.append(entries, 0));
-        let data = Data::from(data);
 
-        assert_eq!(
-            data.entry(Index::FromStart(0)),
-            Some(&Entry::new(b"key0".to_vec(), b"value0".to_vec()))
-        );
-        assert_eq!(
-            data.entry(Index::FromStart(1)),
-            Some(&Entry::new(b"key1".to_vec(), b"value1".to_vec()))
-        );
-        assert_eq!(data.entry(2), None);
-
-        // unpub, unseq
-        let mut data = UnpubUnseqAppendOnlyData::new(rand::random(), 10);
-        let entries = vec![
-            Entry::new(b"key0".to_vec(), b"value0".to_vec()),
-            Entry::new(b"key1".to_vec(), b"value1".to_vec()),
-        ];
-        unwrap!(data.append(entries));
-        let data = Data::from(data);
-
-        assert_eq!(
-            data.entry(Index::FromStart(0)),
-            Some(&Entry::new(b"key0".to_vec(), b"value0".to_vec()))
-        );
-        assert_eq!(
-            data.entry(Index::FromStart(1)),
-            Some(&Entry::new(b"key1".to_vec(), b"value1".to_vec()))
-        );
-        assert_eq!(data.entry(2), None);
-
-        // unpub, seq
-        let mut data = UnpubSeqAppendOnlyData::new(rand::random(), 10);
-        let entries = vec![
-            Entry::new(b"key0".to_vec(), b"value0".to_vec()),
-            Entry::new(b"key1".to_vec(), b"value1".to_vec()),
-        ];
-        unwrap!(data.append(entries, 0));
-        let data = Data::from(data);
-
-        assert_eq!(
-            data.entry(Index::FromStart(0)),
-            Some(&Entry::new(b"key0".to_vec(), b"value0".to_vec()))
-        );
-        assert_eq!(
-            data.entry(Index::FromStart(1)),
-            Some(&Entry::new(b"key1".to_vec(), b"value1".to_vec()))
-        );
-        assert_eq!(data.entry(2), None);
+        for data in data_vec {
+            assert_eq!(
+                data.entry(Index::FromStart(0)),
+                Some(&Entry::new(b"key0".to_vec(), b"value0".to_vec()))
+            );
+            assert_eq!(
+                data.entry(Index::FromStart(1)),
+                Some(&Entry::new(b"key1".to_vec(), b"value1".to_vec()))
+            );
+            assert_eq!(data.entry(2), None);
+        }
     }
 
     #[test]
