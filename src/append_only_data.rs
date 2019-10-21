@@ -441,6 +441,9 @@ pub trait AppendOnlyData<P> {
     /// Fetches owner at index.
     fn owner(&self, owners_index: impl Into<Index>) -> Option<&Owner>;
 
+    /// Fetches entry at index.
+    fn entry(&self, entry_index: impl Into<Index>) -> Option<&Entry>;
+
     /// Gets a complete list of owners from the entry in the permissions list at the specified
     /// index.
     fn owners_range(&self, start: Index, end: Index) -> Option<&[Owner]>;
@@ -585,6 +588,12 @@ macro_rules! impl_appendable_data {
             fn owner(&self, owners_index: impl Into<Index>) -> Option<&Owner> {
                 let index = to_absolute_index(owners_index.into(), self.inner.owners.len())?;
                 self.inner.owners.get(index)
+            }
+
+            /// Returns the entry at the index.
+            fn entry(&self, entry_index: impl Into<Index>) -> Option<&Entry> {
+                let index = to_absolute_index(entry_index.into(), self.inner.data.len())?;
+                self.inner.data.get(index)
             }
 
             fn in_range(&self, start: Index, end: Index) -> Option<Entries> {
@@ -1086,6 +1095,16 @@ impl Data {
         }
     }
 
+    /// Fetches entry at index.
+    pub fn entry(&self, entry_index: impl Into<Index>) -> Option<&Entry> {
+        match self {
+            Data::PubSeq(data) => data.entry(entry_index),
+            Data::PubUnseq(data) => data.entry(entry_index),
+            Data::UnpubSeq(data) => data.entry(entry_index),
+            Data::UnpubUnseq(data) => data.entry(entry_index),
+        }
+    }
+
     /// Gets a list of keys and values with the given indices.
     pub fn in_range(&self, start: Index, end: Index) -> Option<Entries> {
         match self {
@@ -1348,6 +1367,85 @@ mod tests {
     use super::*;
     use threshold_crypto::SecretKey;
     use unwrap::{unwrap, unwrap_err};
+    
+    #[test]
+    fn get_entry() {
+        // pub, unseq
+        let mut data = PubUnseqAppendOnlyData::new(rand::random(), 10);
+        let entries = vec![
+            Entry::new(b"key0".to_vec(), b"value0".to_vec()),
+            Entry::new(b"key1".to_vec(), b"value1".to_vec()),
+        ];
+        unwrap!(data.append(entries));
+        let data = Data::from(data);
+
+        assert_eq!(
+            data.entry(Index::FromStart(0)),
+            Some(&Entry::new(b"key0".to_vec(), b"value0".to_vec()))
+        );
+        assert_eq!(
+            data.entry(Index::FromStart(1)),
+            Some(&Entry::new(b"key1".to_vec(), b"value1".to_vec()))
+        );
+        assert_eq!(data.entry(2), None);
+
+        // pub, seq
+        let mut data = PubSeqAppendOnlyData::new(rand::random(), 10);
+        let entries = vec![
+            Entry::new(b"key0".to_vec(), b"value0".to_vec()),
+            Entry::new(b"key1".to_vec(), b"value1".to_vec()),
+        ];
+        unwrap!(data.append(entries, 0));
+        let data = Data::from(data);
+
+        assert_eq!(
+            data.entry(Index::FromStart(0)),
+            Some(&Entry::new(b"key0".to_vec(), b"value0".to_vec()))
+        );
+        assert_eq!(
+            data.entry(Index::FromStart(1)),
+            Some(&Entry::new(b"key1".to_vec(), b"value1".to_vec()))
+        );
+        assert_eq!(data.entry(2), None);
+
+        // unpub, unseq
+        let mut data = UnpubUnseqAppendOnlyData::new(rand::random(), 10);
+        let entries = vec![
+            Entry::new(b"key0".to_vec(), b"value0".to_vec()),
+            Entry::new(b"key1".to_vec(), b"value1".to_vec()),
+        ];
+        unwrap!(data.append(entries));
+        let data = Data::from(data);
+
+        assert_eq!(
+            data.entry(Index::FromStart(0)),
+            Some(&Entry::new(b"key0".to_vec(), b"value0".to_vec()))
+        );
+        assert_eq!(
+            data.entry(Index::FromStart(1)),
+            Some(&Entry::new(b"key1".to_vec(), b"value1".to_vec()))
+        );
+        assert_eq!(data.entry(2), None);
+
+        // unpub, seq
+        let mut data = UnpubSeqAppendOnlyData::new(rand::random(), 10);
+                let entries = vec![
+            Entry::new(b"key0".to_vec(), b"value0".to_vec()),
+            Entry::new(b"key1".to_vec(), b"value1".to_vec()),
+        ];
+        unwrap!(data.append(entries, 0));
+        let data = Data::from(data);
+
+        assert_eq!(
+            data.entry(Index::FromStart(0)),
+            Some(&Entry::new(b"key0".to_vec(), b"value0".to_vec()))
+        );
+        assert_eq!(
+            data.entry(Index::FromStart(1)),
+            Some(&Entry::new(b"key1".to_vec(), b"value1".to_vec()))
+        );
+        assert_eq!(data.entry(2), None);
+    }
 
     #[test]
     fn append_permissions() {
