@@ -1398,11 +1398,11 @@ mod tests {
         for data in data_vec {
             assert_eq!(
                 data.entry(Index::FromStart(0)),
-                Some(&Entry::new(b"key0".to_vec(), b"value0".to_vec()))
+                Some(&entries.clone()[0])
             );
             assert_eq!(
                 data.entry(Index::FromStart(1)),
-                Some(&Entry::new(b"key1".to_vec(), b"value1".to_vec()))
+                Some(&entries.clone()[1])
             );
             assert_eq!(data.entry(2), None);
         }
