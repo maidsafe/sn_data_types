@@ -1396,14 +1396,8 @@ mod tests {
         ];
 
         for data in data_vec {
-            assert_eq!(
-                data.entry(Index::FromStart(0)),
-                Some(&entries.clone()[0])
-            );
-            assert_eq!(
-                data.entry(Index::FromStart(1)),
-                Some(&entries.clone()[1])
-            );
+            assert_eq!(data.entry(Index::FromStart(0)), Some(&entries[0]));
+            assert_eq!(data.entry(Index::FromStart(1)), Some(&entries[1]));
             assert_eq!(data.entry(2), None);
         }
     }
