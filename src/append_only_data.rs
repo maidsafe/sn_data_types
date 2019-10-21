@@ -1367,7 +1367,7 @@ mod tests {
     use super::*;
     use threshold_crypto::SecretKey;
     use unwrap::{unwrap, unwrap_err};
-    
+
     #[test]
     fn get_entry() {
         // pub, unseq
@@ -1429,7 +1429,7 @@ mod tests {
 
         // unpub, seq
         let mut data = UnpubSeqAppendOnlyData::new(rand::random(), 10);
-                let entries = vec![
+        let entries = vec![
             Entry::new(b"key0".to_vec(), b"value0".to_vec()),
             Entry::new(b"key1".to_vec(), b"value1".to_vec()),
         ];
