@@ -1,9 +1,9 @@
 # safe-nd
 Safe Network Data Types
 
-|Crate|Documentation|CI|
-|:-:|:-:|:-:|
-|[![](http://meritbadge.herokuapp.com/safe-nd)](https://crates.io/crates/safe-nd)|[![Documentation](https://docs.rs/safe-nd/badge.svg)](https://docs.rs/safe-nd)|![](https://github.com/maidsafe/safe-nd/workflows/Master/badge.svg)|
+|Crate|Documentation|CI|Safe Rust|
+|:-:|:-:|:-:|:-:|
+|[![](http://meritbadge.herokuapp.com/safe-nd)](https://crates.io/crates/safe-nd)|[![Documentation](https://docs.rs/safe-nd/badge.svg)](https://docs.rs/safe-nd)|![](https://github.com/maidsafe/safe-nd/workflows/Master/badge.svg)|[![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-error.svg)](https://github.com/rust-secure-code/safety-dance/)|
 
 | [MaidSafe website](https://maidsafe.net) | [SAFE Dev Forum](https://forum.safedev.org) | [SAFE Network Forum](https://safenetforum.org) |
 |:-:|:-:|:-:|
