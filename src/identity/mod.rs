@@ -11,14 +11,10 @@ pub mod app;
 pub mod client;
 pub mod node;
 
-use crate::{utils, Result, XorName};
+use crate::{utils, PublicKey, Result, XorName};
 use multibase::Decodable;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Debug, Display, Formatter};
-use threshold_crypto::{
-    serde_impl::SerdeSecret, PublicKey as BlsPublicKey, PublicKeyShare as BlsPublicKeyShare,
-    SecretKey as BlsSecretKey, SecretKeyShare as BlsSecretKeyShare,
-};
 
 /// An enum representing the identity of a network Node or Client.
 ///
@@ -37,9 +33,45 @@ impl PublicId {
     /// Returns the entity's network address.
     pub fn name(&self) -> &XorName {
         match self {
-            PublicId::Node(pub_id) => pub_id.name(),
-            PublicId::Client(pub_id) => pub_id.name(),
-            PublicId::App(pub_id) => pub_id.owner_name(),
+            Self::Node(pub_id) => pub_id.name(),
+            Self::Client(pub_id) => pub_id.name(),
+            Self::App(pub_id) => pub_id.owner_name(),
+        }
+    }
+
+    /// Returns the node public id, if applicable.
+    pub fn node_public_id(&self) -> Option<&node::PublicId> {
+        if let Self::Node(id) = self {
+            Some(id)
+        } else {
+            None
+        }
+    }
+
+    /// Returns the client public id, if applicable.
+    pub fn client_public_id(&self) -> Option<&client::PublicId> {
+        if let Self::Client(id) = self {
+            Some(id)
+        } else {
+            None
+        }
+    }
+
+    /// Returns the app public id, if applicable.
+    pub fn app_public_id(&self) -> Option<&app::PublicId> {
+        if let Self::App(id) = self {
+            Some(id)
+        } else {
+            None
+        }
+    }
+
+    /// Returns the entity's public key, if applicable.
+    pub fn public_key(&self) -> Option<PublicKey> {
+        match self {
+            Self::Node(pub_id) => pub_id.bls_public_key().map(|key| key.into()),
+            Self::Client(pub_id) => Some(*pub_id.public_key()),
+            Self::App(pub_id) => Some(*pub_id.public_key()),
         }
     }
 
@@ -57,9 +89,9 @@ impl PublicId {
 impl Debug for PublicId {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match self {
-            PublicId::Node(pub_id) => write!(formatter, "{:?}", pub_id),
-            PublicId::Client(pub_id) => write!(formatter, "{:?}", pub_id),
-            PublicId::App(pub_id) => write!(formatter, "{:?}", pub_id),
+            Self::Node(pub_id) => write!(formatter, "{:?}", pub_id),
+            Self::Client(pub_id) => write!(formatter, "{:?}", pub_id),
+            Self::App(pub_id) => write!(formatter, "{:?}", pub_id),
         }
     }
 }
@@ -68,18 +100,6 @@ impl Display for PublicId {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         Debug::fmt(self, formatter)
     }
-}
-
-#[derive(Serialize, Deserialize)]
-struct BlsKeypair {
-    pub secret: SerdeSecret<BlsSecretKey>,
-    pub public: BlsPublicKey,
-}
-
-#[derive(Serialize, Deserialize)]
-struct BlsKeypairShare {
-    pub secret: SerdeSecret<BlsSecretKeyShare>,
-    pub public: BlsPublicKeyShare,
 }
 
 #[cfg(test)]
