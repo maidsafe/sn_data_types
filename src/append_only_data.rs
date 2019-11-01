@@ -57,6 +57,10 @@
 //! index while appending. For unsequenced AppendOnlyData the client does not have to pass the
 //! index.
 
+// TODO: Remove this once the false-positive has been fixed:
+// https://github.com/rust-lang/rust-clippy/issues/4326.
+#![allow(clippy::type_repetition_in_bounds)]
+
 use crate::{utils, Error, PublicKey, Result, XorName};
 use multibase::Decodable;
 use serde::{Deserialize, Serialize};

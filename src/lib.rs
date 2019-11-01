@@ -33,8 +33,8 @@ mod coins;
 mod errors;
 mod identity;
 mod immutable_data;
+mod keys;
 mod mutable_data;
-mod public_key;
 mod request;
 mod response;
 mod transaction;
@@ -62,6 +62,7 @@ pub use immutable_data::{
     Address as IDataAddress, Data as IData, Kind as IDataKind, PubImmutableData,
     UnpubImmutableData, MAX_IMMUTABLE_DATA_SIZE_IN_BYTES,
 };
+pub use keys::{BlsKeypair, BlsKeypairShare, Keypair, PublicKey, SecretKey, Signature};
 pub use mutable_data::{
     Action as MDataAction, Address as MDataAddress, Data as MData, Entries as MDataEntries,
     EntryActions as MDataEntryActions, Kind as MDataKind, PermissionSet as MDataPermissionSet,
@@ -71,7 +72,6 @@ pub use mutable_data::{
     UnseqEntryActions as MDataUnseqEntryActions, UnseqMutableData, Value as MDataValue,
     Values as MDataValues,
 };
-pub use public_key::{PublicKey, Signature};
 pub use request::{LoginPacket, Request, RequestType, MAX_LOGIN_PACKET_BYTES};
 pub use response::{Response, TryFromError};
 pub use sha3::Sha3_512 as Ed25519Digest;
@@ -292,7 +292,7 @@ pub enum Challenge {
 pub struct Notification(pub Transaction);
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::XorName;
     use unwrap::unwrap;
 
