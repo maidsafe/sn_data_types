@@ -112,7 +112,10 @@ use rand::{
     Rng,
 };
 use serde::{Deserialize, Serialize};
-use std::fmt::{self, Debug, Display, Formatter};
+use std::{
+    fmt::{self, Debug, Display, Formatter},
+    net::SocketAddr,
+};
 
 /// Object storing a data variant.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
@@ -217,10 +220,19 @@ impl Distribution<XorName> for Standard {
     }
 }
 
+/// Connection information for a node in a section.
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
+pub struct ConnectionInfo {
+    /// Endpoint of the node
+    pub peer_addr: SocketAddr,
+    /// Certificate of the node
+    pub peer_cert_der: Vec<u8>,
+}
+
 /// Wrapper message that contains a message ID and the requester ID along the request or response.
 /// It should also contain a valid signature if it's sent by the owner(s).
 #[allow(clippy::large_enum_variant)]
-#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
+#[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum Message {
     /// Request with the message ID.
     Request {
@@ -243,6 +255,12 @@ pub enum Message {
         /// Notification.
         notification: Notification,
     },
+    /// Section info, containing the elders IDs and connection information.
+    /// Sent from vaults to clients.
+    SectionInfo {
+        /// Connection info and IDs for elders in a section.
+        elders: Vec<(XorName, ConnectionInfo)>,
+    },
 }
 
 impl Message {
@@ -252,6 +270,7 @@ impl Message {
             Message::Request { message_id, .. } => Some(*message_id),
             Message::Response { message_id, .. } => Some(*message_id),
             Message::Notification { .. } => None,
+            Message::SectionInfo { .. } => None,
         }
     }
 }
@@ -285,7 +304,14 @@ pub enum Challenge {
     Request(PublicId, Vec<u8>),
     /// Response from clients to Vaults, containing their public ID and the challenge signature
     /// created using their corresponding secret key.
-    Response(PublicId, Signature),
+    Response {
+        /// Client ID.
+        client_id: PublicId,
+        /// Client's signature of the challenge.
+        signature: Signature,
+        /// Should the Vault send the elders connection info in `Message::SectionInfo`?
+        request_section_info: bool,
+    },
 }
 
 /// Notification of a transaction.
