@@ -67,11 +67,11 @@ impl PublicId {
     }
 
     /// Returns the entity's public key, if applicable.
-    pub fn public_key(&self) -> Option<PublicKey> {
+    pub fn public_key(&self) -> PublicKey {
         match self {
-            Self::Node(pub_id) => pub_id.bls_public_key().map(|key| key.into()),
-            Self::Client(pub_id) => Some(*pub_id.public_key()),
-            Self::App(pub_id) => Some(*pub_id.public_key()),
+            Self::Node(pub_id) => (*pub_id.ed25519_public_key()).into(),
+            Self::Client(pub_id) => *pub_id.public_key(),
+            Self::App(pub_id) => *pub_id.public_key(),
         }
     }
 

@@ -18,7 +18,7 @@ use ed25519_dalek;
 use hex_fmt::HexFmt;
 use multibase::Decodable;
 use rand::{CryptoRng, Rng};
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use std::{
     cmp::Ordering,
     fmt::{self, Debug, Display, Formatter},
@@ -39,10 +39,28 @@ pub enum PublicKey {
 }
 
 impl PublicKey {
+    /// Returns the ed25519 key, if applicable.
+    pub fn ed25519(&self) -> Option<ed25519_dalek::PublicKey> {
+        if let Self::Ed25519(key) = self {
+            Some(*key)
+        } else {
+            None
+        }
+    }
+
     /// Returns the BLS key, if applicable.
     pub fn bls(&self) -> Option<threshold_crypto::PublicKey> {
-        if let Self::Bls(bls) = self {
-            Some(*bls)
+        if let Self::Bls(key) = self {
+            Some(*key)
+        } else {
+            None
+        }
+    }
+
+    /// Returns the BLS key share, if applicable.
+    pub fn bls_share(&self) -> Option<threshold_crypto::PublicKeyShare> {
+        if let Self::BlsShare(key) = self {
+            Some(*key)
         } else {
             None
         }
@@ -96,12 +114,6 @@ impl PartialOrd for PublicKey {
     }
 }
 
-impl From<&SecretKey> for PublicKey {
-    fn from(sec_key: &SecretKey) -> PublicKey {
-        sec_key.public_key()
-    }
-}
-
 impl From<PublicKey> for XorName {
     fn from(public_key: PublicKey) -> Self {
         let bytes = match public_key {
@@ -135,6 +147,12 @@ impl From<threshold_crypto::PublicKeyShare> for PublicKey {
     }
 }
 
+impl From<&Keypair> for PublicKey {
+    fn from(keypair: &Keypair) -> Self {
+        keypair.public_key()
+    }
+}
+
 impl Debug for PublicKey {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PublicKey::")?;
@@ -161,136 +179,6 @@ impl Display for PublicKey {
         Debug::fmt(self, formatter)
     }
 }
-
-// TODO: Remove SecretKey?
-
-/// Wrapper type for different secret key types.
-#[derive(Deserialize)]
-pub enum SecretKey {
-    /// Ed25519 secret key.
-    Ed25519(ed25519_dalek::SecretKey),
-    /// BLS secret key.
-    Bls(threshold_crypto::SecretKey),
-    /// BLS secret key share.
-    BlsShare(threshold_crypto::SecretKeyShare),
-}
-
-// Need to manually implement this due to a missing impl in `Ed25519::SecretKey`.
-impl Clone for SecretKey {
-    fn clone(&self) -> Self {
-        match self {
-            Self::Ed25519(sec_key) => Self::Ed25519(unwrap!(ed25519_dalek::SecretKey::from_bytes(
-                &sec_key.to_bytes()
-            ))),
-            Self::Bls(sec_key) => Self::Bls(sec_key.clone()),
-            Self::BlsShare(sec_key) => Self::BlsShare(sec_key.clone()),
-        }
-    }
-}
-
-// Need to manually implement this due to a missing impl in `Ed25519::SecretKey`.
-impl PartialEq for SecretKey {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Ed25519(sec_key), Self::Ed25519(other_sec_key)) => {
-                sec_key.to_bytes() == other_sec_key.to_bytes()
-            }
-            (Self::Bls(sec_key), Self::Bls(other_sec_key)) => sec_key == other_sec_key,
-            (Self::BlsShare(sec_key), Self::BlsShare(other_sec_key)) => sec_key == other_sec_key,
-            _ => false,
-        }
-    }
-}
-
-// Need to manually implement this due to a missing impl in `Ed25519::SecretKey`.
-impl Eq for SecretKey {}
-
-// Need to manually implement this due to a missing impl in `threshold_crypto::SecretKey`.
-impl Serialize for SecretKey {
-    fn serialize<S>(&self, serializer: S) -> ::std::result::Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match self {
-            Self::Ed25519(sec_key) => {
-                serializer.serialize_newtype_variant("SecretKey", 0, "Ed25519", &sec_key)
-            }
-            Self::Bls(sec_key) => {
-                serializer.serialize_newtype_variant("SecretKey", 1, "Bls", &SerdeSecret(&sec_key))
-            }
-            Self::BlsShare(sec_key) => serializer.serialize_newtype_variant(
-                "SecretKey",
-                2,
-                "BlsShare",
-                &SerdeSecret(&sec_key),
-            ),
-        }
-    }
-}
-
-impl SecretKey {
-    /// Generates a random BLS key.
-    pub fn new_bls<T: CryptoRng + Rng>(rng: &mut T) -> Self {
-        Self::Bls(rng.gen::<threshold_crypto::SecretKey>())
-    }
-
-    // TODO: constructors for the other variants.
-
-    /// Returns the corresponding public key.
-    ///
-    /// Equivalent to calling `PublicKey::from(&self)`.
-    pub fn public_key(&self) -> PublicKey {
-        match self {
-            Self::Ed25519(ref sec_key) => {
-                // TODO: Use `PublicKey::from` instead once ed25519 v0.10.0 is released.
-                PublicKey::Ed25519(ed25519_dalek::PublicKey::from_secret::<Ed25519Digest>(
-                    sec_key,
-                ))
-            }
-            Self::Bls(sec_key) => PublicKey::Bls(sec_key.public_key()),
-            Self::BlsShare(sec_key) => PublicKey::BlsShare(sec_key.public_key_share()),
-        }
-    }
-
-    // TODO: implement zbase32 encoding and decoding
-}
-
-impl From<ed25519_dalek::SecretKey> for SecretKey {
-    fn from(secret_key: ed25519_dalek::SecretKey) -> Self {
-        Self::Ed25519(secret_key)
-    }
-}
-
-impl From<threshold_crypto::SecretKey> for SecretKey {
-    fn from(secret_key: threshold_crypto::SecretKey) -> Self {
-        Self::Bls(secret_key)
-    }
-}
-
-impl From<threshold_crypto::SecretKeyShare> for SecretKey {
-    fn from(secret_key: threshold_crypto::SecretKeyShare) -> Self {
-        Self::BlsShare(secret_key)
-    }
-}
-
-impl Debug for SecretKey {
-    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "SecretKey::")?;
-        match self {
-            Self::Ed25519(_) => write!(formatter, "Ed25519(..)"),
-            Self::Bls(_) => write!(formatter, "Bls(..)"),
-            Self::BlsShare(_) => write!(formatter, "BlsShare(..)"),
-        }
-    }
-}
-
-impl Display for SecretKey {
-    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        Debug::fmt(self, formatter)
-    }
-}
-
-// TODO: implement Hash, Ord, PartialOrd for SecretKey?
 
 /// Wrapper for different signature types.
 #[derive(Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -467,46 +355,59 @@ mod tests {
     use crate::utils;
     use bincode::deserialize as deserialise;
     use rand;
+    use threshold_crypto::{self, IntoFr};
 
-    fn random_bls_secret_key() -> SecretKey {
+    fn gen_keypairs() -> Vec<Keypair> {
         let mut rng = rand::thread_rng();
-        SecretKey::new_bls(&mut rng)
+
+        vec![
+            Keypair::new_ed25519(&mut rng),
+            Keypair::new_bls(&mut rng),
+            Keypair::new_bls_share(threshold_crypto::SecretKeyShare::from_mut(&mut 0.into_fr())),
+        ]
     }
 
-    fn random_bls_public_key() -> PublicKey {
-        PublicKey::from(&random_bls_secret_key())
+    fn gen_keys() -> Vec<PublicKey> {
+        gen_keypairs().iter().map(PublicKey::from).collect()
     }
 
     #[test]
     fn zbase32_encode_decode_public_key() {
         use unwrap::unwrap;
 
-        let key = random_bls_public_key();
-        assert_eq!(
-            key,
-            unwrap!(PublicKey::decode_from_zbase32(&key.encode_to_zbase32()))
-        );
+        let keys = gen_keys();
+
+        for key in keys {
+            assert_eq!(
+                key,
+                unwrap!(PublicKey::decode_from_zbase32(&key.encode_to_zbase32()))
+            );
+        }
     }
 
     // Test serialising and deserialising public keys.
     #[test]
     fn serialisation_public_key() {
-        let key = random_bls_public_key();
-        let encoded = utils::serialise(&key);
-        let decoded: PublicKey = unwrap!(deserialise(&encoded));
+        let keys = gen_keys();
 
-        assert_eq!(decoded, key);
+        for key in keys {
+            let encoded = utils::serialise(&key);
+            let decoded: PublicKey = unwrap!(deserialise(&encoded));
+
+            assert_eq!(decoded, key);
+        }
     }
 
-    // Test serialising and deserialising secret keys.
+    // Test serialising and deserialising key pairs.
     #[test]
-    fn serialisation_secret_key() {
-        let key = random_bls_secret_key();
-        let encoded = utils::serialise(&key);
-        let decoded: SecretKey = unwrap!(deserialise(&encoded));
+    fn serialisation_key_pair() {
+        let keypairs = gen_keypairs();
 
-        assert_eq!(decoded, key);
+        for keypair in keypairs {
+            let encoded = utils::serialise(&keypair);
+            let decoded: Keypair = unwrap!(deserialise(&encoded));
 
-        // TODO: test Ed25519 and BlsShare variants.
+            assert_eq!(decoded, keypair);
+        }
     }
 }
