@@ -7,7 +7,6 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use super::app;
 use crate::{utils, Ed25519Digest, Error, Keypair, PublicKey, Signature, XorName};
 use multibase::Decodable;
 use rand::{CryptoRng, Rng};
@@ -68,26 +67,6 @@ impl FullId {
     /// Returns the public ID.
     pub fn public_id(&self) -> &PublicId {
         &self.public_id
-    }
-
-    /// Creates an `AppFullId` given an owner.
-    pub fn into_app_full_id(self, owner: PublicKey) -> app::FullId {
-        let FullId { keypair, public_id } = self;
-        let public_id = app::PublicId { public_key: owner, owner: public_id };
-
-        app::FullId {
-            keypair,
-            public_id
-        }
-    }
-}
-
-impl From<app::FullId> for FullId {
-    fn from(full_id: app::FullId) -> Self {
-        let app::FullId { keypair, public_id } = full_id;
-        let public_id = public_id.owner;
-
-        Self { keypair, public_id }
     }
 }
 

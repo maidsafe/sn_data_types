@@ -62,7 +62,7 @@ pub use immutable_data::{
     Address as IDataAddress, Data as IData, Kind as IDataKind, PubImmutableData,
     UnpubImmutableData, MAX_IMMUTABLE_DATA_SIZE_IN_BYTES,
 };
-pub use keys::{BlsKeypair, BlsKeypairShare, Keypair, PublicKey, SecretKey, Signature};
+pub use keys::{BlsKeypair, BlsKeypairShare, Keypair, PublicKey, Signature};
 pub use mutable_data::{
     Action as MDataAction, Address as MDataAddress, Data as MData, Entries as MDataEntries,
     EntryActions as MDataEntryActions, Kind as MDataKind, PermissionSet as MDataPermissionSet,
