@@ -596,7 +596,7 @@ macro_rules! impl_appendable_data {
                 self.inner.permissions.get(index)
             }
 
-            /// Returns the owner's public key and the indices at the time it was added. // <--- confusing docs
+            /// Returns the owner's public key and the indices at the time it was added.
             fn owner(&self, owners_index: impl Into<Index>) -> Option<&Owner> {
                 let index = to_absolute_index(owners_index.into(), self.inner.owners.len())?;
                 self.inner.owners.get(index)
