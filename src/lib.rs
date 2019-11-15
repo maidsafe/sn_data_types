@@ -70,7 +70,7 @@ mod utils;
 pub use append_only_data::{
     Action as ADataAction, Address as ADataAddress, AppendOnlyData,
     AppendOperation as ADataAppendOperation, Data as AData, Entries as ADataEntries,
-    Entry as ADataEntry, Index as ADataIndex, Indices as ADataIndices, Kind as ADataKind,
+    Entry as ADataEntry, Index as ADataIndex, ExpectedIndices as ADataIndices, Kind as ADataKind,
     Owner as ADataOwner, Permissions as ADataPermissions,
     PubPermissionSet as ADataPubPermissionSet, PubPermissions as ADataPubPermissions,
     PubSeqAppendOnlyData, PubUnseqAppendOnlyData, SeqAppendOnly,

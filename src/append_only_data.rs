@@ -56,6 +56,15 @@
 //! sequenced and unsequenced. For sequenced AppendOnlyData the client must specify the next data
 //! index while appending. For unsequenced AppendOnlyData the client does not have to pass the
 //! index.
+//! 
+//! ## Index naming convention
+//! 
+//! - Current -> the index where the last item in the collection is. Can be None when empty. 
+//! |--> Current item resides at current index.
+//! - Expected -> the index that is expected to be current when adding an item, the index where additions are expected. 
+//! |--> A new item to be appended, will then reside at what is now the expected index. After it is appended, it is the current item at the current index.
+//! From any index we refer to preceding and subsequent index as Previous and Next respectively.
+//! From index 0, Previous is None. From Current index, Next is None.
 
 use crate::{utils, Error, PublicKey, Result, XorName};
 use multibase::Decodable;
@@ -113,37 +122,37 @@ impl From<u64> for Index {
     }
 }
 
-/// Set of data, owners, permissions indices.
+/// Set of data, owners, permissions indices, where any new items will be expected (so, expected == 0 if empty).
 #[derive(Copy, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct Indices {
-    entries_index: u64,
-    owners_index: u64,
-    permissions_index: u64,
+pub struct ExpectedIndices {
+    expected_entries_index: u64,
+    expected_owners_index: u64,
+    expected_permissions_index: u64,
 }
 
-impl Indices {
-    /// Constructs a new `Indices`.
-    pub fn new(entries_index: u64, owners_index: u64, permissions_index: u64) -> Self {
-        Indices {
-            entries_index,
-            owners_index,
-            permissions_index,
+impl ExpectedIndices {
+    /// Constructs a new `ExpectedIndices`.
+    pub fn new(expected_entries_index: u64, expected_owners_index: u64, expected_permissions_index: u64) -> Self {
+        ExpectedIndices {
+            expected_entries_index,
+            expected_owners_index,
+            expected_permissions_index,
         }
     }
 
-    /// Returns the last entry index.
-    pub fn entries_index(&self) -> u64 {
-        self.entries_index
+    /// Returns the expected entry index.
+    pub fn expected_entries_index(&self) -> u64 {
+        self.expected_entries_index
     }
 
-    /// Returns the last owners index.
-    pub fn owners_index(&self) -> u64 {
-        self.owners_index
+    /// Returns the expected owners index.
+    pub fn expected_owners_index(&self) -> u64 {
+        self.expected_owners_index
     }
 
-    /// Returns the last permissions index.
-    pub fn permissions_index(&self) -> u64 {
-        self.permissions_index
+    /// Returns the expected permissions index.
+    pub fn expected_permissions_index(&self) -> u64 {
+        self.expected_permissions_index
     }
 }
 
@@ -231,10 +240,10 @@ impl PubPermissionSet {
 pub trait Perm {
     /// Returns true if `action` is allowed for the provided user.
     fn is_action_allowed(&self, requester: PublicKey, action: Action) -> Result<()>;
-    /// Gets the last entry index.
-    fn entries_index(&self) -> u64;
-    /// Gets the last owner index.
-    fn owners_index(&self) -> u64;
+    /// Gets the expected entry index.
+    fn expected_entries_index(&self) -> u64;
+    /// Gets the expected owner index.
+    fn expected_owners_index(&self) -> u64;
 }
 
 /// Unpublished permissions.
@@ -242,10 +251,10 @@ pub trait Perm {
 pub struct UnpubPermissions {
     /// Map of users to their unpublished permission set.
     pub permissions: BTreeMap<PublicKey, UnpubPermissionSet>,
-    /// The current index of the data when this permission change happened.
-    pub entries_index: u64,
-    /// The current index of the owners when this permission change happened.
-    pub owners_index: u64,
+    /// The expected index of the data at the time this permission change is to become valid.
+    pub expected_entries_index: u64,
+    /// The expected index of the owners at the time this permission change is to become valid.
+    pub expected_owners_index: u64,
 }
 
 impl UnpubPermissions {
@@ -271,14 +280,14 @@ impl Perm for UnpubPermissions {
         }
     }
 
-    /// Returns the last entry index.
-    fn entries_index(&self) -> u64 {
-        self.entries_index
+    /// Returns the expected entry index at the time this permission change is to become valid.
+    fn expected_entries_index(&self) -> u64 {
+        self.expected_entries_index
     }
 
-    /// Returns the last owners index.
-    fn owners_index(&self) -> u64 {
-        self.owners_index
+    /// Returns the expected owners index at the time this permission change is to become valid.
+    fn expected_owners_index(&self) -> u64 {
+        self.expected_owners_index
     }
 }
 
@@ -287,10 +296,10 @@ impl Perm for UnpubPermissions {
 pub struct PubPermissions {
     /// Map of users to their published permission set.
     pub permissions: BTreeMap<User, PubPermissionSet>,
-    /// The current index of the data when this permission change happened.
-    pub entries_index: u64,
-    /// The current index of the owners when this permission change happened.
-    pub owners_index: u64,
+    /// The expected index of the data at the time this permission change is to become valid.
+    pub expected_entries_index: u64,
+    /// The expected owners index at the time this permission change is to become valid.
+    pub expected_owners_index: u64,
 }
 
 impl PubPermissions {
@@ -322,14 +331,14 @@ impl Perm for PubPermissions {
         }
     }
 
-    /// Returns the last entry index.
-    fn entries_index(&self) -> u64 {
-        self.entries_index
+    /// Returns the expected entry index at the time this permission change is to become valid.
+    fn expected_entries_index(&self) -> u64 {
+        self.expected_entries_index
     }
 
-    /// Returns the last owners index.
-    fn owners_index(&self) -> u64 {
-        self.owners_index
+    /// Returns the expected owners index at the time this permission change is to become valid.
+    fn expected_owners_index(&self) -> u64 {
+        self.expected_owners_index
     }
 }
 
@@ -360,10 +369,10 @@ impl From<PubPermissions> for Permissions {
 pub struct Owner {
     /// Public key.
     pub public_key: PublicKey,
-    /// The current index of the data when this ownership change happened
-    pub entries_index: u64,
-    /// The current index of the permissions when this ownership change happened
-    pub permissions_index: u64,
+    /// The expected index of the data at the time this ownership change is to become valid
+    pub expected_entries_index: u64,
+    /// The expected index of the permissions at the time this ownership change is to become valid
+    pub expected_permissions_index: u64,
 }
 
 /// A key-value entry in AppendOnlyData.
@@ -397,8 +406,8 @@ pub trait AppendOnlyData<P> {
     /// Returns a value for the given key, if present.
     fn get(&self, key: &[u8]) -> Option<&Vec<u8>>;
 
-    /// Returns the last entry, if present.
-    fn last_entry(&self) -> Option<&Entry>;
+    /// Returns the current entry, if present.
+    fn current_entry(&self) -> Option<&Entry>;
 
     /// Gets a list of keys and values with the given indices.
     fn in_range(&self, start: Index, end: Index) -> Option<Entries>;
@@ -415,25 +424,25 @@ pub trait AppendOnlyData<P> {
     /// Returns the type tag.
     fn tag(&self) -> u64;
 
-    /// Returns the last entry index.
-    fn entries_index(&self) -> u64;
+    /// Returns the expected entry index.
+    fn expected_entries_index(&self) -> u64;
 
-    /// Returns the last owners index.
-    fn owners_index(&self) -> u64;
+    /// Returns the expected owners index.
+    fn expected_owners_index(&self) -> u64;
 
-    /// Returns the last permissions index.
-    fn permissions_index(&self) -> u64;
+    /// Returns the expected permissions index.
+    fn expected_permissions_index(&self) -> u64;
 
-    /// Gets a complete list of permissions from the entry in the permissions list at the specified
-    /// indices.
+    /// Gets a complete list of permissions from the entry 
+    /// in the permissions list at the specified indices.
     fn permissions_range(&self, start: Index, end: Index) -> Option<&[P]>;
 
     /// Adds a new permissions entry.
     /// The `Perm` struct should contain valid indices.
     ///
-    /// If the specified `permissions_index` does not match the last recorded permissions index + 1,
-    /// an error will be returned.
-    fn append_permissions(&mut self, permissions: P, permissions_index: u64) -> Result<()>;
+    /// If the specified `expected_index` does not equal 
+    /// the count of permissions, an error will be returned.
+    fn append_permissions(&mut self, permissions: P, expected_index: u64) -> Result<()>;
 
     /// Fetches permissions at index.
     fn permissions(&self, perm_index: impl Into<Index>) -> Option<&P>;
@@ -447,9 +456,9 @@ pub trait AppendOnlyData<P> {
 
     /// Adds a new owner entry.
     ///
-    /// If the specified `owners_index` does not match the last recorded owners index + 1, an error
-    /// will be returned.
-    fn append_owner(&mut self, owner: Owner, owners_index: u64) -> Result<()>;
+    /// If the specified `expected_index` does not equal 
+    /// the count of owners, an error will be returned.
+    fn append_owner(&mut self, owner: Owner, expected_index: u64) -> Result<()>;
 
     /// Checks if the requester is the last owner.
     ///
@@ -473,9 +482,9 @@ pub trait SeqAppendOnly {
     /// Appends new entries.
     ///
     /// Returns an error if duplicate entries are present.
-    /// If the specified `last_entries_index` does not match the last recorded entries index, an
-    /// error will be returned.
-    fn append(&mut self, entries: Entries, last_entries_index: u64) -> Result<()>;
+    /// If the specified `expected_index` does not equal 
+    /// the count of entries, an error will be returned.
+    fn append(&mut self, entries: Entries, expected_index: u64) -> Result<()>;
 }
 
 macro_rules! impl_appendable_data {
@@ -493,16 +502,16 @@ macro_rules! impl_appendable_data {
             P: Perm + Hash + Clone,
         {
             /// Returns the shell of the data.
-            pub fn shell(&self, entries_index: impl Into<Index>) -> Result<Self> {
-                let entries_index =
-                    to_absolute_index(entries_index.into(), self.entries_index() as usize)
+            pub fn shell(&self, expected_entries_index: impl Into<Index>) -> Result<Self> {
+                let expected_entries_index =
+                    to_absolute_index(expected_entries_index.into(), self.expected_entries_index() as usize)
                         .ok_or(Error::NoSuchEntry)? as u64;
 
                 let permissions = self
                     .inner
                     .permissions
                     .iter()
-                    .filter(|perm| perm.entries_index() <= entries_index)
+                    .filter(|perm| perm.expected_entries_index() <= expected_entries_index)
                     .cloned()
                     .collect();
 
@@ -510,7 +519,7 @@ macro_rules! impl_appendable_data {
                     .inner
                     .owners
                     .iter()
-                    .filter(|owner| owner.entries_index <= entries_index)
+                    .filter(|owner| owner.expected_entries_index <= expected_entries_index)
                     .cloned()
                     .collect();
 
@@ -544,18 +553,18 @@ macro_rules! impl_appendable_data {
                 self.inner.address.tag()
             }
 
-            /// Returns the last entries index.
-            fn entries_index(&self) -> u64 {
+            /// Returns the expected entries index.
+            fn expected_entries_index(&self) -> u64 {
                 self.inner.data.len() as u64
             }
 
-            /// Returns the last owners index.
-            fn owners_index(&self) -> u64 {
+            /// Returns the expected owners index.
+            fn expected_owners_index(&self) -> u64 {
                 self.inner.owners.len() as u64
             }
 
-            /// Returns the last permissions index.
-            fn permissions_index(&self) -> u64 {
+            /// Returns the expected permissions index.
+            fn expected_permissions_index(&self) -> u64 {
                 self.inner.permissions.len() as u64
             }
 
@@ -570,8 +579,8 @@ macro_rules! impl_appendable_data {
                 })
             }
 
-            /// Gets the last entry.
-            fn last_entry(&self) -> Option<&Entry> {
+            /// Gets the current entry, if present. (NB: Current entry resides on current index, as would be expected.)
+            fn current_entry(&self) -> Option<&Entry> {
                 self.inner.data.last()
             }
 
@@ -581,7 +590,7 @@ macro_rules! impl_appendable_data {
                 self.inner.permissions.get(index)
             }
 
-            /// Returns the owner's public key and the indices at the time it was added.
+            /// Returns the owner's public key and the indices at the time it was added. // <--- confusing docs
             fn owner(&self, owners_index: impl Into<Index>) -> Option<&Owner> {
                 let index = to_absolute_index(owners_index.into(), self.inner.owners.len())?;
                 self.inner.owners.get(index)
@@ -610,17 +619,17 @@ macro_rules! impl_appendable_data {
             /// Adds a new permissions entry.
             /// The `Perm` struct should contain valid indices.
             ///
-            /// If the specified `permissions_index` does not match the last recorded permissions
-            /// index + 1, an error will be returned.
-            fn append_permissions(&mut self, permissions: P, permissions_index: u64) -> Result<()> {
-                if permissions.entries_index() != self.entries_index() {
-                    return Err(Error::InvalidSuccessor(self.entries_index()));
+            /// If the specified `expected_index` does not equal
+            /// the count of permissions, an error will be returned.
+            fn append_permissions(&mut self, permissions: P, expected_index: u64) -> Result<()> {
+                if permissions.expected_entries_index() != self.expected_entries_index() {
+                    return Err(Error::InvalidSuccessor(self.expected_entries_index()));
                 }
-                if permissions.owners_index() != self.owners_index() {
-                    return Err(Error::InvalidOwnersSuccessor(self.owners_index()));
+                if permissions.expected_owners_index() != self.expected_owners_index() {
+                    return Err(Error::InvalidOwnersSuccessor(self.expected_owners_index()));
                 }
-                if self.permissions_index() != permissions_index {
-                    return Err(Error::InvalidSuccessor(self.permissions_index()));
+                if self.expected_permissions_index() != expected_index {
+                    return Err(Error::InvalidSuccessor(self.expected_permissions_index()));
                 }
                 self.inner.permissions.push(permissions);
                 Ok(())
@@ -628,17 +637,17 @@ macro_rules! impl_appendable_data {
 
             /// Adds a new owner entry.
             ///
-            /// If the specified `owners_index` does not match the last recorded owners index + 1,
-            /// an error will be returned.
-            fn append_owner(&mut self, owner: Owner, owners_index: u64) -> Result<()> {
-                if owner.entries_index != self.entries_index() {
-                    return Err(Error::InvalidSuccessor(self.entries_index()));
+            /// If the specified `expected_index` does not equal
+            /// the count of owners index, an error will be returned.
+            fn append_owner(&mut self, owner: Owner, expected_index: u64) -> Result<()> {
+                if owner.expected_entries_index != self.expected_entries_index() {
+                    return Err(Error::InvalidSuccessor(self.expected_entries_index()));
                 }
-                if owner.permissions_index != self.permissions_index() {
-                    return Err(Error::InvalidPermissionsSuccessor(self.permissions_index()));
+                if owner.expected_permissions_index != self.expected_permissions_index() {
+                    return Err(Error::InvalidPermissionsSuccessor(self.expected_permissions_index()));
                 }
-                if self.owners_index() != owners_index {
-                    return Err(Error::InvalidSuccessor(self.owners_index()));
+                if self.expected_owners_index() != expected_index {
+                    return Err(Error::InvalidSuccessor(self.expected_owners_index()));
                 }
                 self.inner.owners.push(owner);
                 Ok(())
@@ -770,10 +779,10 @@ impl<P> SeqAppendOnly for SeqAppendOnlyData<P>
 where
     P: Perm + Hash + Clone,
 {
-    fn append(&mut self, mut entries: Entries, last_entries_index: u64) -> Result<()> {
+    fn append(&mut self, mut entries: Entries, expected_index: u64) -> Result<()> {
         check_dup(&self.inner.data, entries.as_mut())?;
 
-        if last_entries_index != self.inner.data.len() as u64 {
+        if expected_index != self.inner.data.len() as u64 {
             return Err(Error::InvalidSuccessor(self.inner.data.len() as u64));
         }
 
@@ -814,10 +823,10 @@ macro_rules! check_perm {
 
 macro_rules! indices {
     ($data: ident) => {
-        Ok(Indices::new(
-            $data.entries_index(),
-            $data.owners_index(),
-            $data.permissions_index(),
+        Ok(ExpectedIndices::new(
+            $data.expected_entries_index(),
+            $data.expected_owners_index(),
+            $data.expected_permissions_index(),
         ))
     };
 }
@@ -1056,33 +1065,33 @@ impl Data {
         }
     }
 
-    /// Returns the last entry index.
-    pub fn entries_index(&self) -> u64 {
+    /// Returns the expected entry index.
+    pub fn expected_entries_index(&self) -> u64 {
         match self {
-            Data::PubSeq(data) => data.entries_index(),
-            Data::PubUnseq(data) => data.entries_index(),
-            Data::UnpubSeq(data) => data.entries_index(),
-            Data::UnpubUnseq(data) => data.entries_index(),
+            Data::PubSeq(data) => data.expected_entries_index(),
+            Data::PubUnseq(data) => data.expected_entries_index(),
+            Data::UnpubSeq(data) => data.expected_entries_index(),
+            Data::UnpubUnseq(data) => data.expected_entries_index(),
         }
     }
 
-    /// Returns the last permissions index.
-    pub fn permissions_index(&self) -> u64 {
+    /// Returns the expected permissions index.
+    pub fn expected_permissions_index(&self) -> u64 {
         match self {
-            Data::PubSeq(data) => data.permissions_index(),
-            Data::PubUnseq(data) => data.permissions_index(),
-            Data::UnpubSeq(data) => data.permissions_index(),
-            Data::UnpubUnseq(data) => data.permissions_index(),
+            Data::PubSeq(data) => data.expected_permissions_index(),
+            Data::PubUnseq(data) => data.expected_permissions_index(),
+            Data::UnpubSeq(data) => data.expected_permissions_index(),
+            Data::UnpubUnseq(data) => data.expected_permissions_index(),
         }
     }
 
-    /// Returns the last owners index.
-    pub fn owners_index(&self) -> u64 {
+    /// Returns the expected owners index.
+    pub fn expected_owners_index(&self) -> u64 {
         match self {
-            Data::PubSeq(data) => data.owners_index(),
-            Data::PubUnseq(data) => data.owners_index(),
-            Data::UnpubSeq(data) => data.owners_index(),
-            Data::UnpubUnseq(data) => data.owners_index(),
+            Data::PubSeq(data) => data.expected_owners_index(),
+            Data::PubUnseq(data) => data.expected_owners_index(),
+            Data::UnpubSeq(data) => data.expected_owners_index(),
+            Data::UnpubUnseq(data) => data.expected_owners_index(),
         }
     }
 
@@ -1106,11 +1115,11 @@ impl Data {
         }
     }
 
-    /// Returns a tuple containing the last entries index, last owners index, and last permissions
-    /// indices.
+    /// Returns a tuple containing the expected indices of
+    /// entries, owners, permissions.
     ///
-    /// Always returns `Ok(Indices)`.
-    pub fn indices(&self) -> Result<Indices> {
+    /// Always returns `Ok(ExpectedIndices)`.
+    pub fn indices(&self) -> Result<ExpectedIndices> {
         match self {
             Data::PubSeq(data) => indices!(data),
             Data::PubUnseq(data) => indices!(data),
@@ -1119,13 +1128,13 @@ impl Data {
         }
     }
 
-    /// Returns the last entry, if present.
-    pub fn last_entry(&self) -> Option<&Entry> {
+    /// Returns the current entry, if present.
+    pub fn current_entry(&self) -> Option<&Entry> {
         match self {
-            Data::PubSeq(data) => data.last_entry(),
-            Data::PubUnseq(data) => data.last_entry(),
-            Data::UnpubSeq(data) => data.last_entry(),
-            Data::UnpubUnseq(data) => data.last_entry(),
+            Data::PubSeq(data) => data.current_entry(),
+            Data::PubUnseq(data) => data.current_entry(),
+            Data::UnpubSeq(data) => data.current_entry(),
+            Data::UnpubUnseq(data) => data.current_entry(),
         }
     }
 
@@ -1153,10 +1162,10 @@ impl Data {
     /// Appends new entries.
     ///
     /// Returns an error if duplicate entries are present or the data is not sequenced.
-    pub fn append_seq(&mut self, entries: Entries, last_entries_index: u64) -> Result<()> {
+    pub fn append_seq(&mut self, entries: Entries, expected_index: u64) -> Result<()> {
         match self {
-            Data::PubSeq(data) => data.append(entries, last_entries_index),
-            Data::UnpubSeq(data) => data.append(entries, last_entries_index),
+            Data::PubSeq(data) => data.append(entries, expected_index),
+            Data::UnpubSeq(data) => data.append(entries, expected_index),
             _ => Err(Error::InvalidOperation),
         }
     }
@@ -1175,16 +1184,16 @@ impl Data {
     /// Adds a new published permissions entry for published data.
     /// The `Perm` struct should contain valid indices.
     ///
-    /// If the specified `permissions_index` does not match the last recorded permissions index + 1
-    /// or if this data is not published, an error will be returned.
+    /// If the specified `expected_index` does not equal the count of 
+    /// permissions or if this data is not published, an error will be returned.
     pub fn append_pub_permissions(
         &mut self,
         permissions: PubPermissions,
-        permissions_index: u64,
+        expected_index: u64,
     ) -> Result<()> {
         match self {
-            Data::PubSeq(data) => data.append_permissions(permissions, permissions_index),
-            Data::PubUnseq(data) => data.append_permissions(permissions, permissions_index),
+            Data::PubSeq(data) => data.append_permissions(permissions, expected_index),
+            Data::PubUnseq(data) => data.append_permissions(permissions, expected_index),
             _ => Err(Error::InvalidOperation),
         }
     }
@@ -1192,30 +1201,30 @@ impl Data {
     /// Adds a new unpublished permissions entry for unpublished data.
     /// The `Perm` struct should contain valid indices.
     ///
-    /// If the specified `permissions_index` does not match the last recorded permissions index + 1
-    /// or if this data is not unpublished, an error will be returned.
+    /// If the specified `expected_index` does not equal the count of 
+    /// permissions or if this data is not unpublished, an error will be returned.
     pub fn append_unpub_permissions(
         &mut self,
         permissions: UnpubPermissions,
-        permissions_index: u64,
+        expected_index: u64,
     ) -> Result<()> {
         match self {
-            Data::UnpubSeq(data) => data.append_permissions(permissions, permissions_index),
-            Data::UnpubUnseq(data) => data.append_permissions(permissions, permissions_index),
+            Data::UnpubSeq(data) => data.append_permissions(permissions, expected_index),
+            Data::UnpubUnseq(data) => data.append_permissions(permissions, expected_index),
             _ => Err(Error::InvalidOperation),
         }
     }
 
     /// Adds a new owner entry.
     ///
-    /// If the specified `owners_index` does not match the last recorded owners index + 1, an error
-    /// will be returned.
-    pub fn append_owner(&mut self, owner: Owner, owners_index: u64) -> Result<()> {
+    /// If the specified `expected_index` does not equal
+    /// the count of owners, an error will be returned.
+    pub fn append_owner(&mut self, owner: Owner, expected_index: u64) -> Result<()> {
         match self {
-            Data::PubSeq(data) => data.append_owner(owner, owners_index),
-            Data::PubUnseq(data) => data.append_owner(owner, owners_index),
-            Data::UnpubSeq(data) => data.append_owner(owner, owners_index),
-            Data::UnpubUnseq(data) => data.append_owner(owner, owners_index),
+            Data::PubSeq(data) => data.append_owner(owner, expected_index),
+            Data::PubUnseq(data) => data.append_owner(owner, expected_index),
+            Data::UnpubSeq(data) => data.append_owner(owner, expected_index),
+            Data::UnpubUnseq(data) => data.append_owner(owner, expected_index),
         }
     }
 
@@ -1357,8 +1366,8 @@ mod tests {
         let res = data.append_permissions(
             UnpubPermissions {
                 permissions: BTreeMap::new(),
-                entries_index: 0,
-                owners_index: 0,
+                expected_entries_index: 0,
+                expected_owners_index: 0,
             },
             0,
         );
@@ -1378,8 +1387,8 @@ mod tests {
         let res = data.append_permissions(
             UnpubPermissions {
                 permissions: BTreeMap::new(),
-                entries_index: 64,
-                owners_index: 0,
+                expected_entries_index: 64,
+                expected_owners_index: 0,
             },
             1,
         );
@@ -1406,8 +1415,8 @@ mod tests {
         let res = data.append_owner(
             Owner {
                 public_key: owner_pk,
-                entries_index: 0,
-                permissions_index: 0,
+                expected_entries_index: 0,
+                expected_permissions_index: 0,
             },
             0,
         );
@@ -1427,8 +1436,8 @@ mod tests {
         let res = data.append_owner(
             Owner {
                 public_key: owner_pk,
-                entries_index: 64,
-                permissions_index: 0,
+                expected_entries_index: 64,
+                expected_permissions_index: 0,
             },
             1,
         );
@@ -1461,8 +1470,8 @@ mod tests {
         let _ = data.append_owner(
             Owner {
                 public_key: owner_pk,
-                entries_index: 0,
-                permissions_index: 0,
+                expected_entries_index: 0,
+                expected_permissions_index: 0,
             },
             0,
         );
@@ -1470,13 +1479,13 @@ mod tests {
         let _ = data.append_owner(
             Owner {
                 public_key: owner_pk1,
-                entries_index: 0,
-                permissions_index: 0,
+                expected_entries_index: 0,
+                expected_permissions_index: 0,
             },
             1,
         );
 
-        assert_eq!(data.owners_index(), unwrap!(data.shell(0)).owners_index());
+        assert_eq!(data.expected_owners_index(), unwrap!(data.shell(0)).expected_owners_index());
     }
 
     #[test]
@@ -1621,8 +1630,8 @@ mod tests {
 
         let mut pub_perms = PubPermissions {
             permissions: BTreeMap::new(),
-            entries_index: 0,
-            owners_index: 0,
+            expected_entries_index: 0,
+            expected_owners_index: 0,
         };
         let _ = pub_perms
             .permissions
@@ -1630,8 +1639,8 @@ mod tests {
 
         let mut unpub_perms = UnpubPermissions {
             permissions: BTreeMap::new(),
-            entries_index: 0,
-            owners_index: 0,
+            expected_entries_index: 0,
+            expected_owners_index: 0,
         };
         let _ = unpub_perms
             .permissions
@@ -1746,8 +1755,8 @@ mod tests {
         unwrap!(inner.append_owner(
             Owner {
                 public_key: public_key_0,
-                entries_index: 0,
-                permissions_index: 0,
+                expected_entries_index: 0,
+                expected_permissions_index: 0,
             },
             0,
         ));
@@ -1765,8 +1774,8 @@ mod tests {
         // with permissions
         let mut permissions = PubPermissions {
             permissions: BTreeMap::new(),
-            entries_index: 0,
-            owners_index: 1,
+            expected_entries_index: 0,
+            expected_owners_index: 1,
         };
         let _ = permissions
             .permissions
@@ -1814,8 +1823,8 @@ mod tests {
         unwrap!(inner.append_owner(
             Owner {
                 public_key: public_key_0,
-                entries_index: 0,
-                permissions_index: 0,
+                expected_entries_index: 0,
+                expected_permissions_index: 0,
             },
             0,
         ));
@@ -1830,8 +1839,8 @@ mod tests {
         // with permissions
         let mut permissions = UnpubPermissions {
             permissions: BTreeMap::new(),
-            entries_index: 0,
-            owners_index: 1,
+            expected_entries_index: 0,
+            expected_owners_index: 1,
         };
         let _ = permissions
             .permissions
