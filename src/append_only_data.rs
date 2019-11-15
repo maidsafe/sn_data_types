@@ -56,12 +56,12 @@
 //! sequenced and unsequenced. For sequenced AppendOnlyData the client must specify the next data
 //! index while appending. For unsequenced AppendOnlyData the client does not have to pass the
 //! index.
-//! 
+//!
 //! ## Index naming convention
-//! 
-//! - Current -> the index where the last item in the collection is. Can be None when empty. 
+//!
+//! - Current -> the index where the last item in the collection is. Can be None when empty.
 //! |--> Current item resides at current index.
-//! - Expected -> the index that is expected to be current when adding an item, the index where additions are expected. 
+//! - Expected -> the index that is expected to be current when adding an item, the index where additions are expected.
 //! |--> A new item to be appended, will then reside at what is now the expected index. After it is appended, it is the current item at the current index.
 //! From any index we refer to preceding and subsequent index as Previous and Next respectively.
 //! From index 0, Previous is None. From Current index, Next is None.
@@ -132,7 +132,11 @@ pub struct ExpectedIndices {
 
 impl ExpectedIndices {
     /// Constructs a new `ExpectedIndices`.
-    pub fn new(expected_entries_index: u64, expected_owners_index: u64, expected_permissions_index: u64) -> Self {
+    pub fn new(
+        expected_entries_index: u64,
+        expected_owners_index: u64,
+        expected_permissions_index: u64,
+    ) -> Self {
         ExpectedIndices {
             expected_entries_index,
             expected_owners_index,
@@ -433,14 +437,14 @@ pub trait AppendOnlyData<P> {
     /// Returns the expected permissions index.
     fn expected_permissions_index(&self) -> u64;
 
-    /// Gets a complete list of permissions from the entry 
+    /// Gets a complete list of permissions from the entry
     /// in the permissions list at the specified indices.
     fn permissions_range(&self, start: Index, end: Index) -> Option<&[P]>;
 
     /// Adds a new permissions entry.
     /// The `Perm` struct should contain valid indices.
     ///
-    /// If the specified `expected_index` does not equal 
+    /// If the specified `expected_index` does not equal
     /// the count of permissions, an error will be returned.
     fn append_permissions(&mut self, permissions: P, expected_index: u64) -> Result<()>;
 
@@ -456,7 +460,7 @@ pub trait AppendOnlyData<P> {
 
     /// Adds a new owner entry.
     ///
-    /// If the specified `expected_index` does not equal 
+    /// If the specified `expected_index` does not equal
     /// the count of owners, an error will be returned.
     fn append_owner(&mut self, owner: Owner, expected_index: u64) -> Result<()>;
 
@@ -482,7 +486,7 @@ pub trait SeqAppendOnly {
     /// Appends new entries.
     ///
     /// Returns an error if duplicate entries are present.
-    /// If the specified `expected_index` does not equal 
+    /// If the specified `expected_index` does not equal
     /// the count of entries, an error will be returned.
     fn append(&mut self, entries: Entries, expected_index: u64) -> Result<()>;
 }
@@ -503,9 +507,11 @@ macro_rules! impl_appendable_data {
         {
             /// Returns the shell of the data.
             pub fn shell(&self, expected_entries_index: impl Into<Index>) -> Result<Self> {
-                let expected_entries_index =
-                    to_absolute_index(expected_entries_index.into(), self.expected_entries_index() as usize)
-                        .ok_or(Error::NoSuchEntry)? as u64;
+                let expected_entries_index = to_absolute_index(
+                    expected_entries_index.into(),
+                    self.expected_entries_index() as usize,
+                )
+                .ok_or(Error::NoSuchEntry)? as u64;
 
                 let permissions = self
                     .inner
@@ -644,7 +650,9 @@ macro_rules! impl_appendable_data {
                     return Err(Error::InvalidSuccessor(self.expected_entries_index()));
                 }
                 if owner.expected_permissions_index != self.expected_permissions_index() {
-                    return Err(Error::InvalidPermissionsSuccessor(self.expected_permissions_index()));
+                    return Err(Error::InvalidPermissionsSuccessor(
+                        self.expected_permissions_index(),
+                    ));
                 }
                 if self.expected_owners_index() != expected_index {
                     return Err(Error::InvalidSuccessor(self.expected_owners_index()));
@@ -1184,7 +1192,7 @@ impl Data {
     /// Adds a new published permissions entry for published data.
     /// The `Perm` struct should contain valid indices.
     ///
-    /// If the specified `expected_index` does not equal the count of 
+    /// If the specified `expected_index` does not equal the count of
     /// permissions or if this data is not published, an error will be returned.
     pub fn append_pub_permissions(
         &mut self,
@@ -1201,7 +1209,7 @@ impl Data {
     /// Adds a new unpublished permissions entry for unpublished data.
     /// The `Perm` struct should contain valid indices.
     ///
-    /// If the specified `expected_index` does not equal the count of 
+    /// If the specified `expected_index` does not equal the count of
     /// permissions or if this data is not unpublished, an error will be returned.
     pub fn append_unpub_permissions(
         &mut self,
@@ -1485,7 +1493,10 @@ mod tests {
             1,
         );
 
-        assert_eq!(data.expected_owners_index(), unwrap!(data.shell(0)).expected_owners_index());
+        assert_eq!(
+            data.expected_owners_index(),
+            unwrap!(data.shell(0)).expected_owners_index()
+        );
     }
 
     #[test]
