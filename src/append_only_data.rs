@@ -644,7 +644,7 @@ macro_rules! impl_appendable_data {
             /// Adds a new owner entry.
             ///
             /// If the specified `expected_index` does not equal
-            /// the count of owners index, an error will be returned.
+            /// the count of owners, an error will be returned.
             fn append_owner(&mut self, owner: Owner, expected_index: u64) -> Result<()> {
                 if owner.expected_entries_index != self.expected_entries_index() {
                     return Err(Error::InvalidSuccessor(self.expected_entries_index()));
