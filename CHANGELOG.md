@@ -1,5 +1,11 @@
 # safe-nd - Change Log
 
+## [0.5.0]
+
+- Expand `Challenge::Response` with an option to request section information from any node.
+- Added a new message type, `Message::SectionInfo`, which can be used by Vaults to send the elders connection information to clients.
+- Added `ConnectionInfo`.
+
 ## [0.4.0]
 
 - Changed `AppPermissions` to include permissions for allowing mutations and getting a user's balance.
