@@ -1,12 +1,12 @@
 # safe-nd
 Safe Network Data Types
 
-|Crate|Documentation|Linux/macOS|Windows|
-|:---:|:-----------:|:--------:|:-----:|
-|[![](http://meritbadge.herokuapp.com/safe-nd)](https://crates.io/crates/safe-nd)|[![Documentation](https://docs.rs/safe-nd/badge.svg)](https://docs.rs/safe-nd)| | |
+|Crate|Documentation|CI|
+|:-:|:-:|:-:|
+|[![](http://meritbadge.herokuapp.com/safe-nd)](https://crates.io/crates/safe-nd)|[![Documentation](https://docs.rs/safe-nd/badge.svg)](https://docs.rs/safe-nd)|![](https://github.com/maidsafe/safe-nd/workflows/Master/badge.svg)|
 
 | [MaidSafe website](https://maidsafe.net) | [SAFE Dev Forum](https://forum.safedev.org) | [SAFE Network Forum](https://safenetforum.org) |
-|:----------------------------------------:|:-------------------------------------------:|:----------------------------------------------:|
+|:-:|:-:|:-:|
 
 ## License
 
