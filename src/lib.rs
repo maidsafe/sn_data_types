@@ -55,7 +55,6 @@
 // FIXME - write docs
 #![allow(missing_docs)]
 
-mod append_only_data;
 mod coins;
 mod errors;
 mod identity;
@@ -64,15 +63,11 @@ mod mutable_data;
 mod public_key;
 mod request;
 mod response;
+mod sequence;
 mod shared_data;
 mod transaction;
 mod utils;
 
-pub use append_only_data::{
-    AppendOperation as ADataAppend, Data as AData, Entries as ADataEntries, Entry as ADataEntry,
-    PrivateSentriedSequence, PrivateSequence, PublicSentriedSequence, PublicSequence, Sequence,
-    SequencePermissions as ADataPermissions,
-};
 pub use coins::{Coins, MAX_COINS_VALUE};
 pub use errors::{EntryError, Error, Result};
 pub use identity::{
@@ -97,6 +92,11 @@ pub use mutable_data::{
 pub use public_key::{PublicKey, Signature};
 pub use request::{LoginPacket, Request, MAX_LOGIN_PACKET_BYTES};
 pub use response::Response;
+pub use sequence::{
+    AppendOperation as ADataAppend, Data as AData, Entries as ADataEntries, Entry as ADataEntry,
+    PrivateSentriedSequence, PrivateSequence, PublicSentriedSequence, PublicSequence, Sequence,
+    SequencePermissions as ADataPermissions,
+};
 pub use sha3::Sha3_512 as Ed25519Digest;
 pub use shared_data::{
     Action as ADataAction, Address, ExpectedIndices, Index, Kind, Owner, PrivatePermissionSet,
