@@ -14,7 +14,7 @@
 //! secret key.
 
 use crate::{utils, Ed25519Digest, Error, Result, XorName, XOR_NAME_LEN};
-use ed25519_dalek;
+use ed25519_dalek::{self, Signature as Ed25519Signature};
 use hex_fmt::HexFmt;
 use multibase::Decodable;
 use rand::{CryptoRng, Rng};
@@ -24,7 +24,10 @@ use std::{
     fmt::{self, Debug, Display, Formatter},
     hash::{Hash, Hasher},
 };
-use threshold_crypto::{self, serde_impl::SerdeSecret};
+use threshold_crypto::{
+    self, serde_impl::SerdeSecret, Signature as BlsSignature, SignatureShare as BlsSignatureShare,
+    SIG_SIZE as BLS_SIG_SIZE,
+};
 use unwrap::unwrap;
 
 /// Wrapper for different public key types.
@@ -192,6 +195,47 @@ pub enum Signature {
     BlsShare(threshold_crypto::SignatureShare),
 }
 
+impl Signature {
+    /// Returns the byte representation of the signatures.
+    // This returns a vector since the signatures are of different lengths.
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let (mut bytes, variant) = match self {
+            Self::Bls(key) => (key.to_bytes().to_vec(), [0u8]),
+            Self::BlsShare(key) => (key.to_bytes().to_vec(), [1u8]),
+            Self::Ed25519(key) => (key.to_bytes().to_vec(), [2u8]),
+        };
+        bytes.extend_from_slice(&variant);
+        bytes
+    }
+
+    /// Returns the Signature from it's byte represenation
+    pub fn from_bytes(mut bytes: Vec<u8>) -> Result<Self> {
+        let variant = bytes.pop().ok_or(Error::InvalidSignature)?;
+        let signature = match variant {
+            0u8 => Self::Bls(
+                BlsSignature::from_bytes(bls_array_from_slice(&bytes))
+                    .map_err(|_| Error::InvalidSignature)?,
+            ),
+            1u8 => Self::BlsShare(
+                BlsSignatureShare::from_bytes(bls_array_from_slice(&bytes))
+                    .map_err(|_| Error::InvalidSignature)?,
+            ),
+            2u8 => Self::Ed25519(
+                Ed25519Signature::from_bytes(&bytes).map_err(|_| Error::InvalidSignature)?,
+            ),
+            _ => return Err(Error::InvalidSignature),
+        };
+        Ok(signature)
+    }
+}
+
+fn bls_array_from_slice(bytes: &[u8]) -> [u8; BLS_SIG_SIZE] {
+    let mut array = [0; BLS_SIG_SIZE];
+    let bytes = &bytes[..array.len()];
+    array.copy_from_slice(bytes);
+    array
+}
+
 impl From<threshold_crypto::Signature> for Signature {
     fn from(sig: threshold_crypto::Signature) -> Self {
         Self::Bls(sig)
@@ -352,6 +396,7 @@ pub struct BlsKeypairShare {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::identity::client::FullId;
     use crate::utils;
     use bincode::deserialize as deserialise;
     use rand;
@@ -369,6 +414,16 @@ mod tests {
 
     fn gen_keys() -> Vec<PublicKey> {
         gen_keypairs().iter().map(PublicKey::from).collect()
+    }
+
+    fn gen_full_ids() -> Vec<FullId> {
+        let mut rng = rand::thread_rng();
+
+        vec![
+            FullId::new_bls(&mut rng),
+            FullId::new_bls_share(threshold_crypto::SecretKeyShare::from_mut(&mut 0.into_fr())),
+            FullId::new_ed25519(&mut rng),
+        ]
     }
 
     #[test]
@@ -408,6 +463,24 @@ mod tests {
             let decoded: Keypair = unwrap!(deserialise(&encoded));
 
             assert_eq!(decoded, keypair);
+        }
+    }
+
+    #[test]
+    fn serialisation_signature() {
+        let full_ids = gen_full_ids();
+        let data = vec![1, 2, 3];
+
+        for full_id in full_ids {
+            let signature = full_id.sign(&data);
+            let bytes = signature.to_bytes();
+            let signature2 = unwrap!(Signature::from_bytes(bytes));
+            assert_eq!(signature, signature2);
+            assert!(full_id
+                .public_id()
+                .public_key()
+                .verify(&signature, &data)
+                .is_ok());
         }
     }
 }
