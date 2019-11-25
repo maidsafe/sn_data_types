@@ -34,7 +34,7 @@ pub struct NonSentried;
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
 pub enum User {
     Anyone,
-    Key(PublicKey),
+    Specific(PublicKey),
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -157,7 +157,7 @@ impl PublicPermissionSet {
 }
 
 pub trait Permissions: Clone + Eq + Ord + Hash + Serialize + DeserializeOwned {
-    fn is_action_allowed(&self, requester: PublicKey, action: Action) -> Result<()>;
+    fn is_action_allowed(&self, user: PublicKey, action: Action) -> Result<()>;
     fn expected_entries_index(&self) -> u64;
     fn expected_owners_index(&self) -> u64;
 }
@@ -178,8 +178,8 @@ impl PrivatePermissions {
 }
 
 impl Permissions for PrivatePermissions {
-    fn is_action_allowed(&self, requester: PublicKey, action: Action) -> Result<()> {
-        match self.permissions.get(&requester) {
+    fn is_action_allowed(&self, user: PublicKey, action: Action) -> Result<()> {
+        match self.permissions.get(&user) {
             Some(permissions) => {
                 if permissions.is_allowed(action) {
                     Ok(())
@@ -222,9 +222,9 @@ impl PublicPermissions {
 }
 
 impl Permissions for PublicPermissions {
-    fn is_action_allowed(&self, requester: PublicKey, action: Action) -> Result<()> {
+    fn is_action_allowed(&self, user: PublicKey, action: Action) -> Result<()> {
         match self
-            .is_action_allowed_by_user(&User::Key(requester), action)
+            .is_action_allowed_by_user(&User::Specific(user), action)
             .or_else(|| self.is_action_allowed_by_user(&User::Anyone, action))
         {
             Some(true) => Ok(()),
@@ -244,7 +244,7 @@ impl Permissions for PublicPermissions {
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub enum SequencePermissions {
-    Pub(PublicPermissions),
+    Public(PublicPermissions),
     Private(PrivatePermissions),
 }
 
@@ -256,7 +256,7 @@ impl From<PrivatePermissions> for SequencePermissions {
 
 impl From<PublicPermissions> for SequencePermissions {
     fn from(permissions: PublicPermissions) -> Self {
-        SequencePermissions::Pub(permissions)
+        SequencePermissions::Public(permissions)
     }
 }
 
@@ -415,18 +415,18 @@ where
         self.permissions.get(index)
     }
 
-    pub fn check_permission(&self, requester: PublicKey, action: Action) -> Result<()> {
+    pub fn check_permission(&self, user: PublicKey, action: Action) -> Result<()> {
         if self
             .owner(Index::FromEnd(1))
             .ok_or(Error::InvalidOwners)?
             .public_key
-            == requester
+            == user
         {
             Ok(())
         } else {
             self.permissions(Index::FromEnd(1))
                 .ok_or(Error::InvalidPermissions)?
-                .is_action_allowed(requester, action)
+                .is_action_allowed(user, action)
         }
     }
 
@@ -458,13 +458,13 @@ where
         Ok(())
     }
 
-    /// Check if the requester is the last owner.
-    pub fn check_is_current_owner(&self, requester: PublicKey) -> Result<()> {
+    /// Check if the user is the current owner.
+    pub fn check_is_current_owner(&self, user: PublicKey) -> Result<()> {
         if self
             .owner(Index::FromEnd(1))
             .ok_or_else(|| Error::InvalidOwners)?
             .public_key
-            == requester
+            == user
         {
             Ok(())
         } else {
@@ -705,7 +705,7 @@ pub enum Data {
 }
 
 impl Data {
-    pub fn check_permission(&self, action: Action, requester: PublicKey) -> Result<()> {
+    pub fn check_permission(&self, action: Action, user: PublicKey) -> Result<()> {
         match (self, action) {
             (Data::PublicSentried(_), Action::Read) | (Data::Public(_), Action::Read) => {
                 return Ok(())
@@ -714,10 +714,10 @@ impl Data {
         }
 
         match self {
-            Data::PublicSentried(data) => data.check_permission(requester, action),
-            Data::Public(data) => data.check_permission(requester, action),
-            Data::PrivateSentried(data) => data.check_permission(requester, action),
-            Data::Private(data) => data.check_permission(requester, action),
+            Data::PublicSentried(data) => data.check_permission(user, action),
+            Data::Public(data) => data.check_permission(user, action),
+            Data::PrivateSentried(data) => data.check_permission(user, action),
+            Data::Private(data) => data.check_permission(user, action),
         }
     }
 
@@ -826,12 +826,12 @@ impl Data {
         }
     }
 
-    pub fn check_is_current_owner(&self, requester: PublicKey) -> Result<()> {
+    pub fn check_is_current_owner(&self, user: PublicKey) -> Result<()> {
         match self {
-            Data::PublicSentried(data) => data.check_is_current_owner(requester),
-            Data::Public(data) => data.check_is_current_owner(requester),
-            Data::PrivateSentried(data) => data.check_is_current_owner(requester),
-            Data::Private(data) => data.check_is_current_owner(requester),
+            Data::PublicSentried(data) => data.check_is_current_owner(user),
+            Data::Public(data) => data.check_is_current_owner(user),
+            Data::PrivateSentried(data) => data.check_is_current_owner(user),
+            Data::Private(data) => data.check_is_current_owner(user),
         }
     }
 
@@ -1223,7 +1223,7 @@ mod tests {
             expected_owners_index: 0,
         };
         let _ = pub_permissions.permissions.insert(
-            User::Key(public_key),
+            User::Specific(public_key),
             PublicPermissionSet::new(false, false),
         );
 
@@ -1245,7 +1245,7 @@ mod tests {
         assert_eq!(data.private_permissions(0), Err(Error::NoSuchData));
 
         assert_eq!(
-            data.public_user_permissions(User::Key(public_key), 0),
+            data.public_user_permissions(User::Specific(public_key), 0),
             Ok(PublicPermissionSet::new(false, false))
         );
         assert_eq!(
@@ -1253,7 +1253,7 @@ mod tests {
             Err(Error::NoSuchData)
         );
         assert_eq!(
-            data.public_user_permissions(User::Key(invalid_public_key), 0),
+            data.public_user_permissions(User::Specific(invalid_public_key), 0),
             Err(Error::NoSuchEntry)
         );
 
@@ -1266,7 +1266,7 @@ mod tests {
         assert_eq!(data.private_permissions(0), Err(Error::NoSuchData));
 
         assert_eq!(
-            data.public_user_permissions(User::Key(public_key), 0),
+            data.public_user_permissions(User::Specific(public_key), 0),
             Ok(PublicPermissionSet::new(false, false))
         );
         assert_eq!(
@@ -1274,7 +1274,7 @@ mod tests {
             Err(Error::NoSuchData)
         );
         assert_eq!(
-            data.public_user_permissions(User::Key(invalid_public_key), 0),
+            data.public_user_permissions(User::Specific(invalid_public_key), 0),
             Err(Error::NoSuchEntry)
         );
 
@@ -1291,7 +1291,7 @@ mod tests {
             Ok(PrivatePermissionSet::new(false, false, false))
         );
         assert_eq!(
-            data.public_user_permissions(User::Key(public_key), 0),
+            data.public_user_permissions(User::Specific(public_key), 0),
             Err(Error::NoSuchData)
         );
         assert_eq!(
@@ -1312,7 +1312,7 @@ mod tests {
             Ok(PrivatePermissionSet::new(false, false, false))
         );
         assert_eq!(
-            data.public_user_permissions(User::Key(public_key), 0),
+            data.public_user_permissions(User::Specific(public_key), 0),
             Err(Error::NoSuchData)
         );
         assert_eq!(
@@ -1371,7 +1371,7 @@ mod tests {
             .permissions
             .insert(User::Anyone, PublicPermissionSet::new(true, false));
         let _ = permissions.permissions.insert(
-            User::Key(public_key_1),
+            User::Specific(public_key_1),
             PublicPermissionSet::new(None, true),
         );
         unwrap!(inner.append_permissions(permissions, 0));
