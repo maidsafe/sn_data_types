@@ -58,31 +58,35 @@ impl From<u64> for Index {
 
 // Set of data, owners, permissions Indices.
 #[derive(Copy, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct Indices {
-    entries_index: u64,
-    owners_index: u64,
-    permissions_index: u64,
+pub struct ExpectedIndices {
+    expected_entries_index: u64,
+    expected_owners_index: u64,
+    expected_permissions_index: u64,
 }
 
-impl Indices {
-    pub fn new(entries_index: u64, owners_index: u64, permissions_index: u64) -> Self {
-        Indices {
-            entries_index,
-            owners_index,
-            permissions_index,
+impl ExpectedIndices {
+    pub fn new(
+        expected_entries_index: u64,
+        expected_owners_index: u64,
+        expected_permissions_index: u64,
+    ) -> Self {
+        ExpectedIndices {
+            expected_entries_index,
+            expected_owners_index,
+            expected_permissions_index,
         }
     }
 
-    pub fn entries_index(&self) -> u64 {
-        self.entries_index
+    pub fn expected_entries_index(&self) -> u64 {
+        self.expected_entries_index
     }
 
-    pub fn owners_index(&self) -> u64 {
-        self.owners_index
+    pub fn expected_owners_index(&self) -> u64 {
+        self.expected_owners_index
     }
 
-    pub fn permissions_index(&self) -> u64 {
-        self.permissions_index
+    pub fn expected_permissions_index(&self) -> u64 {
+        self.expected_permissions_index
     }
 }
 
@@ -154,17 +158,17 @@ impl PublicPermissionSet {
 
 pub trait Permissions: Clone + Eq + Ord + Hash + Serialize + DeserializeOwned {
     fn is_action_allowed(&self, requester: PublicKey, action: Action) -> Result<()>;
-    fn entries_index(&self) -> u64;
-    fn owners_index(&self) -> u64;
+    fn expected_entries_index(&self) -> u64;
+    fn expected_owners_index(&self) -> u64;
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub struct PrivatePermissions {
     pub permissions: BTreeMap<PublicKey, PrivatePermissionSet>,
-    /// The current index of the data when this permission change happened
-    pub entries_index: u64,
-    /// The current index of the owners when this permission change happened
-    pub owners_index: u64,
+    /// The expected index of the data at the time this permission change is to become valid.
+    pub expected_entries_index: u64,
+    /// The expected index of the owners at the time this permission change is to become valid.
+    pub expected_owners_index: u64,
 }
 
 impl PrivatePermissions {
@@ -187,22 +191,22 @@ impl Permissions for PrivatePermissions {
         }
     }
 
-    fn entries_index(&self) -> u64 {
-        self.entries_index
+    fn expected_entries_index(&self) -> u64 {
+        self.expected_entries_index
     }
 
-    fn owners_index(&self) -> u64 {
-        self.owners_index
+    fn expected_owners_index(&self) -> u64 {
+        self.expected_owners_index
     }
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub struct PublicPermissions {
     pub permissions: BTreeMap<User, PublicPermissionSet>,
-    /// The current index of the data when this permission change happened
-    pub entries_index: u64,
-    /// The current index of the owners when this permission change happened
-    pub owners_index: u64,
+    /// The expected index of the data at the time this permission change is to become valid.
+    pub expected_entries_index: u64,
+    /// The expected index of the owners at the time this permission change is to become valid.
+    pub expected_owners_index: u64,
 }
 
 impl PublicPermissions {
@@ -229,12 +233,12 @@ impl Permissions for PublicPermissions {
         }
     }
 
-    fn entries_index(&self) -> u64 {
-        self.entries_index
+    fn expected_entries_index(&self) -> u64 {
+        self.expected_entries_index
     }
 
-    fn owners_index(&self) -> u64 {
-        self.owners_index
+    fn expected_owners_index(&self) -> u64 {
+        self.expected_owners_index
     }
 }
 
@@ -259,10 +263,10 @@ impl From<PublicPermissions> for SequencePermissions {
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
 pub struct Owner {
     pub public_key: PublicKey,
-    /// The current index of the data when this ownership change happened
-    pub entries_index: u64,
-    /// The current index of the permissions when this ownership change happened
-    pub permissions_index: u64,
+    /// The expected index of the data at the time this ownership change is to become valid.
+    pub expected_entries_index: u64,
+    /// The expected index of the permissions at the time this ownership change is to become valid.
+    pub expected_permissions_index: u64,
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default, Debug)]
@@ -295,21 +299,24 @@ where
     S: Copy,
 {
     /// Returns the data shell - that is - everything except the entries themselves.
-    pub fn shell(&self, entries_index: impl Into<Index>) -> Result<Self> {
-        let entries_index = to_absolute_index(entries_index.into(), self.entries_index() as usize)
-            .ok_or(Error::NoSuchEntry)? as u64;
+    pub fn shell(&self, expected_entries_index: impl Into<Index>) -> Result<Self> {
+        let expected_entries_index = to_absolute_index(
+            expected_entries_index.into(),
+            self.expected_entries_index() as usize,
+        )
+        .ok_or(Error::NoSuchEntry)? as u64;
 
         let permissions = self
             .permissions
             .iter()
-            .filter(|perm| perm.entries_index() <= entries_index)
+            .filter(|perm| perm.expected_entries_index() <= expected_entries_index)
             .cloned()
             .collect();
 
         let owners = self
             .owners
             .iter()
-            .filter(|owner| owner.entries_index <= entries_index)
+            .filter(|owner| owner.expected_entries_index <= expected_entries_index)
             .cloned()
             .collect();
 
@@ -333,8 +340,8 @@ where
         })
     }
 
-    /// Return the last entry in the Data (if it is present).
-    pub fn last_entry(&self) -> Option<&Entry> {
+    /// Return the current entry in the Data (if it is present).
+    pub fn current_entry(&self) -> Option<&Entry> {
         self.data.last()
     }
 
@@ -364,18 +371,18 @@ where
         self.address.tag()
     }
 
-    /// Return the last entry index.
-    pub fn entries_index(&self) -> u64 {
+    /// Return the expected entry index.
+    pub fn expected_entries_index(&self) -> u64 {
         self.data.len() as u64
     }
 
-    /// Return the last owners index.
-    pub fn owners_index(&self) -> u64 {
+    /// Return the expected owners index.
+    pub fn expected_owners_index(&self) -> u64 {
         self.owners.len() as u64
     }
 
-    /// Return the last permissions index.
-    pub fn permissions_index(&self) -> u64 {
+    /// Return the expected permissions index.
+    pub fn expected_permissions_index(&self) -> u64 {
         self.permissions.len() as u64
     }
 
@@ -388,15 +395,15 @@ where
 
     /// Add a new permissions entry.
     /// The `Perm` struct should contain valid indices.
-    pub fn append_permissions(&mut self, permissions: P, permissions_idx: u64) -> Result<()> {
-        if permissions.entries_index() != self.entries_index() {
-            return Err(Error::InvalidSuccessor(self.entries_index()));
+    pub fn append_permissions(&mut self, permissions: P, index: u64) -> Result<()> {
+        if permissions.expected_entries_index() != self.expected_entries_index() {
+            return Err(Error::InvalidSuccessor(self.expected_entries_index()));
         }
-        if permissions.owners_index() != self.owners_index() {
-            return Err(Error::InvalidOwnersSuccessor(self.owners_index()));
+        if permissions.expected_owners_index() != self.expected_owners_index() {
+            return Err(Error::InvalidOwnersSuccessor(self.expected_owners_index()));
         }
-        if self.permissions_index() != permissions_idx {
-            return Err(Error::InvalidSuccessor(self.permissions_index()));
+        if self.expected_permissions_index() != index {
+            return Err(Error::InvalidSuccessor(self.expected_permissions_index()));
         }
         self.permissions.push(permissions);
         Ok(())
@@ -436,21 +443,23 @@ where
     }
     /// Add a new owner entry.
     pub fn append_owner(&mut self, owner: Owner, index: u64) -> Result<()> {
-        if owner.entries_index != self.entries_index() {
-            return Err(Error::InvalidSuccessor(self.entries_index()));
+        if owner.expected_entries_index != self.expected_entries_index() {
+            return Err(Error::InvalidSuccessor(self.expected_entries_index()));
         }
-        if owner.permissions_index != self.permissions_index() {
-            return Err(Error::InvalidPermissionsSuccessor(self.permissions_index()));
+        if owner.expected_permissions_index != self.expected_permissions_index() {
+            return Err(Error::InvalidPermissionsSuccessor(
+                self.expected_permissions_index(),
+            ));
         }
-        if self.owners_index() != index {
-            return Err(Error::InvalidSuccessor(self.owners_index()));
+        if self.expected_owners_index() != index {
+            return Err(Error::InvalidSuccessor(self.expected_owners_index()));
         }
         self.owners.push(owner);
         Ok(())
     }
 
     /// Check if the requester is the last owner.
-    pub fn check_is_last_owner(&self, requester: PublicKey) -> Result<()> {
+    pub fn check_is_current_owner(&self, requester: PublicKey) -> Result<()> {
         if self
             .owner(Index::FromEnd(1))
             .ok_or_else(|| Error::InvalidOwners)?
@@ -463,11 +472,11 @@ where
         }
     }
 
-    pub fn indices(&self) -> Indices {
-        Indices::new(
-            self.entries_index(),
-            self.owners_index(),
-            self.permissions_index(),
+    pub fn indices(&self) -> ExpectedIndices {
+        ExpectedIndices::new(
+            self.expected_entries_index(),
+            self.expected_owners_index(),
+            self.expected_permissions_index(),
         )
     }
 }
@@ -487,12 +496,12 @@ impl<P: Permissions> Sequence<P, NonSentried> {
 impl<P: Permissions> Sequence<P, Sentried> {
     /// Append new entries.
     ///
-    /// If the specified `last_entries_index` does not match the last recorded entries index, an
+    /// If the specified `expected_index` does not equal the entries count in data, an
     /// error will be returned.
-    pub fn append(&mut self, mut entries: Entries, last_entries_index: u64) -> Result<()> {
+    pub fn append(&mut self, mut entries: Entries, expected_index: u64) -> Result<()> {
         check_dup(&self.data, entries.as_mut())?;
 
-        if last_entries_index != self.data.len() as u64 {
+        if expected_index != self.data.len() as u64 {
             return Err(Error::InvalidSuccessor(self.data.len() as u64));
         }
 
@@ -686,7 +695,7 @@ impl Address {
     }
 }
 
-/// Object storing an appendonly data variant.
+/// Object storing a Sequence variant.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Data {
     PublicSentried(PublicSentriedSequence),
@@ -745,30 +754,30 @@ impl Data {
         self.kind().is_sentried()
     }
 
-    pub fn entries_index(&self) -> u64 {
+    pub fn expected_entries_index(&self) -> u64 {
         match self {
-            Data::PublicSentried(data) => data.entries_index(),
-            Data::Public(data) => data.entries_index(),
-            Data::PrivateSentried(data) => data.entries_index(),
-            Data::Private(data) => data.entries_index(),
+            Data::PublicSentried(data) => data.expected_entries_index(),
+            Data::Public(data) => data.expected_entries_index(),
+            Data::PrivateSentried(data) => data.expected_entries_index(),
+            Data::Private(data) => data.expected_entries_index(),
         }
     }
 
-    pub fn permissions_index(&self) -> u64 {
+    pub fn expected_permissions_index(&self) -> u64 {
         match self {
-            Data::PublicSentried(data) => data.permissions_index(),
-            Data::Public(data) => data.permissions_index(),
-            Data::PrivateSentried(data) => data.permissions_index(),
-            Data::Private(data) => data.permissions_index(),
+            Data::PublicSentried(data) => data.expected_permissions_index(),
+            Data::Public(data) => data.expected_permissions_index(),
+            Data::PrivateSentried(data) => data.expected_permissions_index(),
+            Data::Private(data) => data.expected_permissions_index(),
         }
     }
 
-    pub fn owners_index(&self) -> u64 {
+    pub fn expected_owners_index(&self) -> u64 {
         match self {
-            Data::PublicSentried(data) => data.owners_index(),
-            Data::Public(data) => data.owners_index(),
-            Data::PrivateSentried(data) => data.owners_index(),
-            Data::Private(data) => data.owners_index(),
+            Data::PublicSentried(data) => data.expected_owners_index(),
+            Data::Public(data) => data.expected_owners_index(),
+            Data::PrivateSentried(data) => data.expected_owners_index(),
+            Data::Private(data) => data.expected_owners_index(),
         }
     }
 
@@ -790,7 +799,7 @@ impl Data {
         }
     }
 
-    pub fn indices(&self) -> Indices {
+    pub fn indices(&self) -> ExpectedIndices {
         match self {
             Data::PublicSentried(data) => data.indices(),
             Data::Public(data) => data.indices(),
@@ -799,30 +808,30 @@ impl Data {
         }
     }
 
-    pub fn last_entry(&self) -> Option<&Entry> {
+    pub fn current_entry(&self) -> Option<&Entry> {
         match self {
-            Data::PublicSentried(data) => data.last_entry(),
-            Data::Public(data) => data.last_entry(),
-            Data::PrivateSentried(data) => data.last_entry(),
-            Data::Private(data) => data.last_entry(),
+            Data::PublicSentried(data) => data.current_entry(),
+            Data::Public(data) => data.current_entry(),
+            Data::PrivateSentried(data) => data.current_entry(),
+            Data::Private(data) => data.current_entry(),
         }
     }
 
-    pub fn owner(&self, owners_index: impl Into<Index>) -> Option<&Owner> {
+    pub fn owner(&self, index: impl Into<Index>) -> Option<&Owner> {
         match self {
-            Data::PublicSentried(data) => data.owner(owners_index),
-            Data::Public(data) => data.owner(owners_index),
-            Data::PrivateSentried(data) => data.owner(owners_index),
-            Data::Private(data) => data.owner(owners_index),
+            Data::PublicSentried(data) => data.owner(index),
+            Data::Public(data) => data.owner(index),
+            Data::PrivateSentried(data) => data.owner(index),
+            Data::Private(data) => data.owner(index),
         }
     }
 
-    pub fn check_is_last_owner(&self, requester: PublicKey) -> Result<()> {
+    pub fn check_is_current_owner(&self, requester: PublicKey) -> Result<()> {
         match self {
-            Data::PublicSentried(data) => data.check_is_last_owner(requester),
-            Data::Public(data) => data.check_is_last_owner(requester),
-            Data::PrivateSentried(data) => data.check_is_last_owner(requester),
-            Data::Private(data) => data.check_is_last_owner(requester),
+            Data::PublicSentried(data) => data.check_is_current_owner(requester),
+            Data::Public(data) => data.check_is_current_owner(requester),
+            Data::PrivateSentried(data) => data.check_is_current_owner(requester),
+            Data::Private(data) => data.check_is_current_owner(requester),
         }
     }
 
@@ -939,12 +948,12 @@ mod tests {
     fn append_permissions() {
         let mut data = PrivateSentriedSequence::new(XorName([1; 32]), 10000);
 
-        // Append the first permission set with correct indices - should pass.
+        // Append the first permission set with correct ExpectedIndices - should pass.
         let res = data.append_permissions(
             PrivatePermissions {
                 permissions: BTreeMap::new(),
-                entries_index: 0,
-                owners_index: 0,
+                expected_entries_index: 0,
+                expected_owners_index: 0,
             },
             0,
         );
@@ -960,12 +969,12 @@ mod tests {
             1
         );
 
-        // Append another permissions entry with incorrect indices - should fail.
+        // Append another permissions entry with incorrect ExpectedIndices - should fail.
         let res = data.append_permissions(
             PrivatePermissions {
                 permissions: BTreeMap::new(),
-                entries_index: 64,
-                owners_index: 0,
+                expected_entries_index: 64,
+                expected_owners_index: 0,
             },
             1,
         );
@@ -988,12 +997,12 @@ mod tests {
 
         let mut data = PrivateSentriedSequence::new(XorName([1; 32]), 10000);
 
-        // Append the first owner with correct indices - should pass.
+        // Append the first owner with correct ExpectedIndices - should pass.
         let res = data.append_owner(
             Owner {
                 public_key: owner_pk,
-                entries_index: 0,
-                permissions_index: 0,
+                expected_entries_index: 0,
+                expected_permissions_index: 0,
             },
             0,
         );
@@ -1009,12 +1018,12 @@ mod tests {
             1
         );
 
-        // Append another owners entry with incorrect indices - should fail.
+        // Append another owners entry with incorrect ExpectedIndices - should fail.
         let res = data.append_owner(
             Owner {
                 public_key: owner_pk,
-                entries_index: 64,
-                permissions_index: 0,
+                expected_entries_index: 64,
+                expected_permissions_index: 0,
             },
             1,
         );
@@ -1047,8 +1056,8 @@ mod tests {
         let _ = data.append_owner(
             Owner {
                 public_key: owner_pk,
-                entries_index: 0,
-                permissions_index: 0,
+                expected_entries_index: 0,
+                expected_permissions_index: 0,
             },
             0,
         );
@@ -1056,13 +1065,16 @@ mod tests {
         let _ = data.append_owner(
             Owner {
                 public_key: owner_pk1,
-                entries_index: 0,
-                permissions_index: 0,
+                expected_entries_index: 0,
+                expected_permissions_index: 0,
             },
             1,
         );
 
-        assert_eq!(data.owners_index(), unwrap!(data.shell(0)).owners_index());
+        assert_eq!(
+            data.expected_owners_index(),
+            unwrap!(data.shell(0)).expected_owners_index()
+        );
     }
 
     #[test]
@@ -1207,8 +1219,8 @@ mod tests {
 
         let mut pub_permissions = PublicPermissions {
             permissions: BTreeMap::new(),
-            entries_index: 0,
-            owners_index: 0,
+            expected_entries_index: 0,
+            expected_owners_index: 0,
         };
         let _ = pub_permissions.permissions.insert(
             User::Key(public_key),
@@ -1217,8 +1229,8 @@ mod tests {
 
         let mut private_permissions = PrivatePermissions {
             permissions: BTreeMap::new(),
-            entries_index: 0,
-            owners_index: 0,
+            expected_entries_index: 0,
+            expected_owners_index: 0,
         };
         let _ = private_permissions
             .permissions
@@ -1333,8 +1345,8 @@ mod tests {
         unwrap!(inner.append_owner(
             Owner {
                 public_key: public_key_0,
-                entries_index: 0,
-                permissions_index: 0,
+                expected_entries_index: 0,
+                expected_permissions_index: 0,
             },
             0,
         ));
@@ -1352,8 +1364,8 @@ mod tests {
         // with permissions
         let mut permissions = PublicPermissions {
             permissions: BTreeMap::new(),
-            entries_index: 0,
-            owners_index: 1,
+            expected_entries_index: 0,
+            expected_owners_index: 1,
         };
         let _ = permissions
             .permissions
@@ -1402,8 +1414,8 @@ mod tests {
         unwrap!(inner.append_owner(
             Owner {
                 public_key: public_key_0,
-                entries_index: 0,
-                permissions_index: 0,
+                expected_entries_index: 0,
+                expected_permissions_index: 0,
             },
             0,
         ));
@@ -1418,8 +1430,8 @@ mod tests {
         // with permissions
         let mut permissions = PrivatePermissions {
             permissions: BTreeMap::new(),
-            entries_index: 0,
-            owners_index: 1,
+            expected_entries_index: 0,
+            expected_owners_index: 1,
         };
         let _ = permissions
             .permissions
