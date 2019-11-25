@@ -8,10 +8,10 @@
 // Software.
 
 use crate::{
-    errors::ErrorDebug, AData, ADataEntries, ADataEntry, ADataIndices, ADataOwner,
-    ADataPermissions, ADataPubPermissionSet, ADataUnpubPermissionSet, AppPermissions, Coins, Error,
-    IData, MData, MDataEntries, MDataPermissionSet, MDataValue, MDataValues, PublicKey, Result,
-    Signature, Transaction,
+    errors::ErrorDebug, AData, ADataEntries, ADataEntry, ADataPermissions, AppPermissions, Coins,
+    Error, ExpectedIndices, IData, MData, MDataEntries, MDataPermissionSet, MDataValue,
+    MDataValues, Owner, PrivatePermissionSet, PublicKey, PublicPermissionSet, Result, Signature,
+    Transaction,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -45,14 +45,14 @@ pub enum Response {
     //
     GetAData(Result<AData>),
     GetADataShell(Result<AData>),
-    GetADataOwners(Result<ADataOwner>),
+    GetOwners(Result<Owner>),
     GetADataRange(Result<ADataEntries>),
     GetADataValue(Result<Vec<u8>>),
-    GetADataIndices(Result<ADataIndices>),
+    GetExpectedIndices(Result<ExpectedIndices>),
     GetADataLastEntry(Result<ADataEntry>),
     GetADataPermissions(Result<ADataPermissions>),
-    GetPubADataUserPermissions(Result<ADataPubPermissionSet>),
-    GetUnpubADataUserPermissions(Result<ADataUnpubPermissionSet>),
+    GetPubADataUserPermissions(Result<PublicPermissionSet>),
+    GetUnpubADataUserPermissions(Result<PrivatePermissionSet>),
     //
     // ===== Coins =====
     //
@@ -109,13 +109,13 @@ try_from!(BTreeMap<PublicKey, MDataPermissionSet>, ListMDataPermissions);
 try_from!(MDataValue, GetMDataValue);
 try_from!(Vec<u8>, GetADataValue);
 try_from!(AData, GetAData, GetADataShell);
-try_from!(ADataOwner, GetADataOwners);
+try_from!(Owner, GetOwners);
 try_from!(ADataEntries, GetADataRange);
-try_from!(ADataIndices, GetADataIndices);
+try_from!(ExpectedIndices, GetExpectedIndices);
 try_from!(ADataEntry, GetADataLastEntry);
 try_from!(ADataPermissions, GetADataPermissions);
-try_from!(ADataPubPermissionSet, GetPubADataUserPermissions);
-try_from!(ADataUnpubPermissionSet, GetUnpubADataUserPermissions);
+try_from!(PublicPermissionSet, GetPubADataUserPermissions);
+try_from!(PrivatePermissionSet, GetUnpubADataUserPermissions);
 try_from!(Coins, GetBalance);
 try_from!(Transaction, Transaction);
 try_from!(
@@ -151,7 +151,9 @@ impl fmt::Debug for Response {
             GetAData(res) => write!(f, "Response::GetAData({:?})", ErrorDebug(res)),
             GetADataValue(res) => write!(f, "Response::GetADataValue({:?})", ErrorDebug(res)),
             GetADataRange(res) => write!(f, "Response::GetADataRange({:?})", ErrorDebug(res)),
-            GetADataIndices(res) => write!(f, "Response::GetADataIndices({:?})", ErrorDebug(res)),
+            GetExpectedIndices(res) => {
+                write!(f, "Response::GetExpectedIndices({:?})", ErrorDebug(res))
+            }
             GetADataLastEntry(res) => {
                 write!(f, "Response::GetADataLastEntry({:?})", ErrorDebug(res))
             }
@@ -169,7 +171,7 @@ impl fmt::Debug for Response {
                 ErrorDebug(res)
             ),
             GetADataShell(res) => write!(f, "Response::GetADataShell({:?})", ErrorDebug(res)),
-            GetADataOwners(res) => write!(f, "Response::GetADataOwners({:?})", ErrorDebug(res)),
+            GetOwners(res) => write!(f, "Response::GetOwners({:?})", ErrorDebug(res)),
             // Coins
             GetBalance(res) => write!(f, "Response::GetBalance({:?})", ErrorDebug(res)),
             Transaction(res) => write!(f, "Response::Transaction({:?})", ErrorDebug(res)),

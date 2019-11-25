@@ -11,10 +11,9 @@ mod login_packet;
 
 pub use self::login_packet::{LoginPacket, MAX_LOGIN_PACKET_BYTES};
 use crate::{
-    AData, ADataAddress, ADataAppend, ADataIndex, ADataOwner, ADataPubPermissions,
-    ADataUnpubPermissions, ADataUser, AppPermissions, Coins, Error, IData, IDataAddress, MData,
-    MDataAddress, MDataEntryActions, MDataPermissionSet, PublicKey, Response, TransactionId,
-    XorName,
+    AData, ADataAppend, Address, AppPermissions, Coins, Error, IData, IDataAddress, Index, MData,
+    MDataAddress, MDataEntryActions, MDataPermissionSet, Owner, PrivatePermissions, PublicKey,
+    PublicPermissions, Response, TransactionId, User, XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -70,21 +69,21 @@ pub enum Request {
     /// Put a new AppendOnlyData onto the network.
     PutAData(AData),
     /// Get AppendOnlyData from the network.
-    GetAData(ADataAddress),
+    GetAData(Address),
     /// Get `AppendOnlyData` shell at a certain point in history (`data_index` refers to the list
     /// of data).
     GetADataShell {
-        address: ADataAddress,
-        data_index: ADataIndex,
+        address: Address,
+        data_index: Index,
     },
     /// Delete an unpublished unsequenced `AppendOnlyData`.
     ///
     /// This operation MUST return an error if applied to published AppendOnlyData. Only the current
     /// owner(s) can perform this action.
-    DeleteAData(ADataAddress),
+    DeleteAData(Address),
     /// Get a range of entries from an AppendOnlyData object on the network.
     GetADataRange {
-        address: ADataAddress,
+        address: Address,
         // Range of entries to fetch.
         //
         // For example, get 10 last entries:
@@ -95,54 +94,54 @@ pub enum Request {
         //
         // Get first 5 entries:
         // range: (Index::FromStart(0), Index::FromStart(5))
-        range: (ADataIndex, ADataIndex),
+        range: (Index, Index),
     },
     GetADataValue {
-        address: ADataAddress,
+        address: Address,
         key: Vec<u8>,
     },
     /// Get current indices: data, owners, permissions.
-    GetADataIndices(ADataAddress),
+    GetADataIndices(Address),
     /// Get an entry with the current index.
-    GetADataLastEntry(ADataAddress),
+    GetADataLastEntry(Address),
     /// Get permissions at the provided index.
     GetADataPermissions {
-        address: ADataAddress,
-        permissions_index: ADataIndex,
+        address: Address,
+        permissions_index: Index,
     },
     /// Get permissions for a specified user(s).
-    GetPubADataUserPermissions {
-        address: ADataAddress,
-        permissions_index: ADataIndex,
-        user: ADataUser,
+    GetPubUserPermissions {
+        address: Address,
+        permissions_index: Index,
+        user: User,
     },
     /// Get permissions for a specified public key.
-    GetUnpubADataUserPermissions {
-        address: ADataAddress,
-        permissions_index: ADataIndex,
+    GetUnpubUserPermissions {
+        address: Address,
+        permissions_index: Index,
         public_key: PublicKey,
     },
     /// Get owners at the provided index.
-    GetADataOwners {
-        address: ADataAddress,
-        owners_index: ADataIndex,
+    GetOwners {
+        address: Address,
+        owners_index: Index,
     },
     /// Add a new `permissions` entry.
     AddPubADataPermissions {
-        address: ADataAddress,
-        permissions: ADataPubPermissions,
+        address: Address,
+        permissions: PublicPermissions,
         permissions_idx: u64,
     },
     /// Add a new `permissions` entry.
     AddUnpubADataPermissions {
-        address: ADataAddress,
-        permissions: ADataUnpubPermissions,
+        address: Address,
+        permissions: PrivatePermissions,
         permissions_idx: u64,
     },
     /// Add a new `owners` entry. Only the current owner(s) can perform this action.
-    SetADataOwner {
-        address: ADataAddress,
-        owner: ADataOwner,
+    SetOwner {
+        address: Address,
+        owner: Owner,
         owners_idx: u64,
     },
     AppendSeq {
@@ -226,14 +225,14 @@ impl Request {
             GetADataShell { .. } => Response::GetADataShell(Err(error)),
             GetADataValue { .. } => Response::GetADataValue(Err(error)),
             GetADataRange { .. } => Response::GetADataRange(Err(error)),
-            GetADataIndices(_) => Response::GetADataIndices(Err(error)),
+            GetADataIndices(_) => Response::GetExpectedIndices(Err(error)),
             GetADataLastEntry(_) => Response::GetADataLastEntry(Err(error)),
             GetADataPermissions { .. } => Response::GetADataPermissions(Err(error)),
-            GetPubADataUserPermissions { .. } => Response::GetPubADataUserPermissions(Err(error)),
-            GetUnpubADataUserPermissions { .. } => {
+            GetPubUserPermissions { .. } => Response::GetPubADataUserPermissions(Err(error)),
+            GetUnpubUserPermissions { .. } => {
                 Response::GetUnpubADataUserPermissions(Err(error))
             }
-            GetADataOwners { .. } => Response::GetADataOwners(Err(error)),
+            GetOwners { .. } => Response::GetOwners(Err(error)),
             // Coins
             TransferCoins { .. } => Response::Transaction(Err(error)),
             GetBalance => Response::GetBalance(Err(error)),
@@ -259,7 +258,7 @@ impl Request {
             DeleteAData(_) |
             AddPubADataPermissions { .. } |
             AddUnpubADataPermissions { .. } |
-            SetADataOwner { .. } |
+            SetOwner { .. } |
             AppendSeq { .. } |
             AppendUnseq(_) |
             // Login Packet
@@ -311,12 +310,12 @@ impl fmt::Debug for Request {
                 GetADataIndices(_) => "Request::GetADataIndices",
                 GetADataLastEntry(_) => "Request::GetADataLastEntry",
                 GetADataPermissions { .. } => "Request::GetADataPermissions",
-                GetPubADataUserPermissions { .. } => "Request::GetPubADataUserPermissions",
-                GetUnpubADataUserPermissions { .. } => "Request::GetUnpubADataUserPermissions",
-                GetADataOwners { .. } => "Request::GetADataOwners",
+                GetPubUserPermissions { .. } => "Request::GetPubUserPermissions",
+                GetUnpubUserPermissions { .. } => "Request::GetUnpubUserPermissions",
+                GetOwners { .. } => "Request::GetOwners",
                 AddPubADataPermissions { .. } => "Request::AddPubADataPermissions",
                 AddUnpubADataPermissions { .. } => "Request::AddUnpubADataPermissions",
-                SetADataOwner { .. } => "Request::SetADataOwner",
+                SetOwner { .. } => "Request::SetOwner",
                 AppendSeq { .. } => "Request::AppendSeq",
                 AppendUnseq(_) => "Request::AppendUnseq",
                 // Coins
