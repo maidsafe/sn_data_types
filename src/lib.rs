@@ -68,13 +68,13 @@ mod transaction;
 mod utils;
 
 pub use append_only_data::{
-    Action as ADataAction, Address as ADataAddress, AppendOnlyData, AppendOperation as ADataAppend,
-    Data as AData, Entries as ADataEntries, Entry as ADataEntry, Index as ADataIndex,
-    Indices as ADataIndices, Kind as ADataKind, Owner as ADataOwner,
-    Permissions as ADataPermissions, PubPermissionSet as ADataPubPermissionSet,
-    PubPermissions as ADataPubPermissions, PubSeqAppendOnlyData, PubUnseqAppendOnlyData,
-    UnpubPermissionSet as ADataUnpubPermissionSet, UnpubPermissions as ADataUnpubPermissions,
-    UnpubSeqAppendOnlyData, UnpubUnseqAppendOnlyData, User as ADataUser,
+    Action as ADataAction, Address as ADataAddress, AppendOperation as ADataAppend, Data as AData,
+    Entries as ADataEntries, Entry as ADataEntry, Index as ADataIndex, Indices as ADataIndices,
+    Kind as ADataKind, Owner as ADataOwner, PrivatePermissionSet as ADataUnpubPermissionSet,
+    PrivatePermissions as ADataUnpubPermissions, PrivateSentriedSequence, PrivateSequence,
+    PublicPermissionSet as ADataPubPermissionSet, PublicPermissions as ADataPubPermissions,
+    PublicSentriedSequence, PublicSequence, Sequence, SequencePermissions as ADataPermissions,
+    User as ADataUser,
 };
 pub use coins::{Coins, MAX_COINS_VALUE};
 pub use errors::{EntryError, Error, Result};
@@ -121,16 +121,16 @@ pub enum Data {
 }
 
 impl Data {
-    pub fn is_pub(&self) -> bool {
+    pub fn is_public(&self) -> bool {
         match *self {
             Data::Immutable(ref idata) => idata.is_pub(),
             Data::Mutable(_) => false,
-            Data::AppendOnly(ref adata) => adata.is_pub(),
+            Data::AppendOnly(ref adata) => adata.is_public(),
         }
     }
 
     pub fn is_unpub(&self) -> bool {
-        !self.is_pub()
+        !self.is_public()
     }
 }
 
@@ -192,9 +192,8 @@ impl Debug for XorName {
 }
 
 impl Display for XorName {
-    #[allow(trivial_casts)]
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        (self as &Debug).fmt(formatter)
+        Debug::fmt(self, formatter)
     }
 }
 

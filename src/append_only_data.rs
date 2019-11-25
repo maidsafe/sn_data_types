@@ -17,19 +17,19 @@ use std::{
     ops::Range,
 };
 
-pub type PubSeqAppendOnlyData = AppendOnlyData<PubPermissions, Seq>;
-pub type PubUnseqAppendOnlyData = AppendOnlyData<PubPermissions, Unseq>;
-pub type UnpubSeqAppendOnlyData = AppendOnlyData<UnpubPermissions, Seq>;
-pub type UnpubUnseqAppendOnlyData = AppendOnlyData<UnpubPermissions, Unseq>;
+pub type PublicSentriedSequence = Sequence<PublicPermissions, Sentried>;
+pub type PublicSequence = Sequence<PublicPermissions, NonSentried>;
+pub type PrivateSentriedSequence = Sequence<PrivatePermissions, Sentried>;
+pub type PrivateSequence = Sequence<PrivatePermissions, NonSentried>;
 pub type Entries = Vec<Entry>;
 
-/// Marker for sequential data.
+/// Marker for sentried data.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
-pub struct Seq;
+pub struct Sentried;
 
-/// Marker for unsequential data.
+/// Marker for non-sentried data.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
-pub struct Unseq;
+pub struct NonSentried;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
 pub enum User {
@@ -87,25 +87,25 @@ impl Indices {
 }
 
 #[derive(Copy, Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
-pub struct UnpubPermissionSet {
+pub struct PrivatePermissionSet {
     read: bool,
     append: bool,
     manage_permissions: bool,
 }
 
-impl UnpubPermissionSet {
-    pub fn new(read: bool, append: bool, manage_perms: bool) -> Self {
-        UnpubPermissionSet {
+impl PrivatePermissionSet {
+    pub fn new(read: bool, append: bool, manage_permissions: bool) -> Self {
+        PrivatePermissionSet {
             read,
             append,
-            manage_permissions: manage_perms,
+            manage_permissions: manage_permissions,
         }
     }
 
-    pub fn set_perms(&mut self, read: bool, append: bool, manage_perms: bool) {
+    pub fn set_permissions(&mut self, read: bool, append: bool, manage_permissions: bool) {
         self.read = read;
         self.append = append;
-        self.manage_permissions = manage_perms;
+        self.manage_permissions = manage_permissions;
     }
 
     pub fn is_allowed(self, action: Action) -> bool {
@@ -118,63 +118,66 @@ impl UnpubPermissionSet {
 }
 
 #[derive(Copy, Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
-pub struct PubPermissionSet {
+pub struct PublicPermissionSet {
     append: Option<bool>,
     manage_permissions: Option<bool>,
 }
 
-impl PubPermissionSet {
-    pub fn new(append: impl Into<Option<bool>>, manage_perms: impl Into<Option<bool>>) -> Self {
-        PubPermissionSet {
+impl PublicPermissionSet {
+    pub fn new(
+        append: impl Into<Option<bool>>,
+        manage_permissions: impl Into<Option<bool>>,
+    ) -> Self {
+        PublicPermissionSet {
             append: append.into(),
-            manage_permissions: manage_perms.into(),
+            manage_permissions: manage_permissions.into(),
         }
     }
 
-    pub fn set_perms(
+    pub fn set_permissions(
         &mut self,
         append: impl Into<Option<bool>>,
-        manage_perms: impl Into<Option<bool>>,
+        manage_permissions: impl Into<Option<bool>>,
     ) {
         self.append = append.into();
-        self.manage_permissions = manage_perms.into();
+        self.manage_permissions = manage_permissions.into();
     }
 
     pub fn is_allowed(self, action: Action) -> Option<bool> {
         match action {
-            Action::Read => Some(true), // It's published data, so it's always allowed to read it.
+            Action::Read => Some(true), // It's Public data, so it's always allowed to read it.
             Action::Append => self.append,
             Action::ManagePermissions => self.manage_permissions,
         }
     }
 }
 
-pub trait Perm: Clone + Eq + Ord + Hash + Serialize + DeserializeOwned {
+pub trait Permissions: Clone + Eq + Ord + Hash + Serialize + DeserializeOwned {
     fn is_action_allowed(&self, requester: PublicKey, action: Action) -> Result<()>;
     fn entries_index(&self) -> u64;
     fn owners_index(&self) -> u64;
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
-pub struct UnpubPermissions {
-    pub permissions: BTreeMap<PublicKey, UnpubPermissionSet>,
+pub struct PrivatePermissions {
+    pub permissions: BTreeMap<PublicKey, PrivatePermissionSet>,
     /// The current index of the data when this permission change happened
     pub entries_index: u64,
     /// The current index of the owners when this permission change happened
     pub owners_index: u64,
 }
 
-impl UnpubPermissions {
-    pub fn permissions(&self) -> &BTreeMap<PublicKey, UnpubPermissionSet> {
+impl PrivatePermissions {
+    pub fn permissions(&self) -> &BTreeMap<PublicKey, PrivatePermissionSet> {
         &self.permissions
     }
 }
 
-impl Perm for UnpubPermissions {
+impl Permissions for PrivatePermissions {
     fn is_action_allowed(&self, requester: PublicKey, action: Action) -> Result<()> {
         match self.permissions.get(&requester) {
-            Some(perms) => {
-                if perms.is_allowed(action) {
+            Some(permissions) => {
+                if permissions.is_allowed(action) {
                     Ok(())
                 } else {
                     Err(Error::AccessDenied)
@@ -194,27 +197,27 @@ impl Perm for UnpubPermissions {
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
-pub struct PubPermissions {
-    pub permissions: BTreeMap<User, PubPermissionSet>,
+pub struct PublicPermissions {
+    pub permissions: BTreeMap<User, PublicPermissionSet>,
     /// The current index of the data when this permission change happened
     pub entries_index: u64,
     /// The current index of the owners when this permission change happened
     pub owners_index: u64,
 }
 
-impl PubPermissions {
+impl PublicPermissions {
     fn is_action_allowed_by_user(&self, user: &User, action: Action) -> Option<bool> {
         self.permissions
             .get(user)
-            .and_then(|perms| perms.is_allowed(action))
+            .and_then(|permissions| permissions.is_allowed(action))
     }
 
-    pub fn permissions(&self) -> &BTreeMap<User, PubPermissionSet> {
+    pub fn permissions(&self) -> &BTreeMap<User, PublicPermissionSet> {
         &self.permissions
     }
 }
 
-impl Perm for PubPermissions {
+impl Permissions for PublicPermissions {
     fn is_action_allowed(&self, requester: PublicKey, action: Action) -> Result<()> {
         match self
             .is_action_allowed_by_user(&User::Key(requester), action)
@@ -236,20 +239,20 @@ impl Perm for PubPermissions {
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
-pub enum Permissions {
-    Pub(PubPermissions),
-    Unpub(UnpubPermissions),
+pub enum SequencePermissions {
+    Pub(PublicPermissions),
+    Private(PrivatePermissions),
 }
 
-impl From<UnpubPermissions> for Permissions {
-    fn from(permissions: UnpubPermissions) -> Self {
-        Permissions::Unpub(permissions)
+impl From<PrivatePermissions> for SequencePermissions {
+    fn from(permissions: PrivatePermissions) -> Self {
+        SequencePermissions::Private(permissions)
     }
 }
 
-impl From<PubPermissions> for Permissions {
-    fn from(permissions: PubPermissions) -> Self {
-        Permissions::Pub(permissions)
+impl From<PublicPermissions> for SequencePermissions {
+    fn from(permissions: PublicPermissions) -> Self {
+        SequencePermissions::Pub(permissions)
     }
 }
 
@@ -275,7 +278,7 @@ impl Entry {
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
-pub struct AppendOnlyData<P, S> {
+pub struct Sequence<P, S> {
     address: Address,
     data: Entries,
     permissions: Vec<P>,
@@ -285,10 +288,10 @@ pub struct AppendOnlyData<P, S> {
     _flavour: S,
 }
 
-/// Common methods for all `AppendOnlyData` flavours.
-impl<P, S> AppendOnlyData<P, S>
+/// Common methods for all `Sequence` flavours.
+impl<P, S> Sequence<P, S>
 where
-    P: Perm,
+    P: Permissions,
     S: Copy,
 {
     /// Returns the data shell - that is - everything except the entries themselves.
@@ -346,17 +349,17 @@ where
         &self.data
     }
 
-    /// Return the address of this AppendOnlyData.
+    /// Return the address of this Sequence.
     pub fn address(&self) -> &Address {
         &self.address
     }
 
-    /// Return the name of this AppendOnlyData.
+    /// Return the name of this Sequence.
     pub fn name(&self) -> &XorName {
         self.address.name()
     }
 
-    /// Return the type tag of this AppendOnlyData.
+    /// Return the type tag of this Sequence.
     pub fn tag(&self) -> u64 {
         self.address.tag()
     }
@@ -399,7 +402,7 @@ where
         Ok(())
     }
 
-    /// Fetch perms at index.
+    /// Fetch permissions at index.
     pub fn permissions(&self, index: impl Into<Index>) -> Option<&P> {
         let index = to_absolute_index(index.into(), self.permissions.len())?;
         self.permissions.get(index)
@@ -469,8 +472,8 @@ where
     }
 }
 
-/// Common methods for unsequential flavours.
-impl<P: Perm> AppendOnlyData<P, Unseq> {
+/// Common methods for NonSentried flavours.
+impl<P: Permissions> Sequence<P, NonSentried> {
     /// Append new entries.
     pub fn append(&mut self, mut entries: Entries) -> Result<()> {
         check_dup(&self.data, entries.as_mut())?;
@@ -480,8 +483,8 @@ impl<P: Perm> AppendOnlyData<P, Unseq> {
     }
 }
 
-/// Common methods for sequential flavours.
-impl<P: Perm> AppendOnlyData<P, Seq> {
+/// Common methods for Sentried flavours.
+impl<P: Permissions> Sequence<P, Sentried> {
     /// Append new entries.
     ///
     /// If the specified `last_entries_index` does not match the last recorded entries index, an
@@ -498,79 +501,79 @@ impl<P: Perm> AppendOnlyData<P, Seq> {
     }
 }
 
-/// Published + Sequential
-impl AppendOnlyData<PubPermissions, Seq> {
+/// Public + Sentried
+impl Sequence<PublicPermissions, Sentried> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
-            address: Address::PubSeq { name, tag },
+            address: Address::PublicSentried { name, tag },
             data: Vec::new(),
             permissions: Vec::new(),
             owners: Vec::new(),
-            _flavour: Seq,
+            _flavour: Sentried,
         }
     }
 }
 
-impl Debug for AppendOnlyData<PubPermissions, Seq> {
+impl Debug for Sequence<PublicPermissions, Sentried> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "PubSeqAppendOnlyData {:?}", self.name())
+        write!(formatter, "PublicSentriedSequence {:?}", self.name())
     }
 }
 
-/// Published + Unsequential
-impl AppendOnlyData<PubPermissions, Unseq> {
+/// Public + NonSentried
+impl Sequence<PublicPermissions, NonSentried> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
-            address: Address::PubUnseq { name, tag },
+            address: Address::Public { name, tag },
             data: Vec::new(),
             permissions: Vec::new(),
             owners: Vec::new(),
-            _flavour: Unseq,
+            _flavour: NonSentried,
         }
     }
 }
 
-impl Debug for AppendOnlyData<PubPermissions, Unseq> {
+impl Debug for Sequence<PublicPermissions, NonSentried> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "PubUnseqAppendOnlyData {:?}", self.name())
+        write!(formatter, "PublicSequence {:?}", self.name())
     }
 }
 
-/// Unpublished + Sequential
-impl AppendOnlyData<UnpubPermissions, Seq> {
+/// Private + Sentried
+impl Sequence<PrivatePermissions, Sentried> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
-            address: Address::UnpubSeq { name, tag },
+            address: Address::PrivateSentried { name, tag },
             data: Vec::new(),
             permissions: Vec::new(),
             owners: Vec::new(),
-            _flavour: Seq,
+            _flavour: Sentried,
         }
     }
 }
 
-impl Debug for AppendOnlyData<UnpubPermissions, Seq> {
+impl Debug for Sequence<PrivatePermissions, Sentried> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "UnpubSeqAppendOnlyData {:?}", self.name())
+        write!(formatter, "PrivateSentriedSequence {:?}", self.name())
     }
 }
 
-/// Unpublished + Unsequential
-impl AppendOnlyData<UnpubPermissions, Unseq> {
+/// Private + NonSentried
+impl Sequence<PrivatePermissions, NonSentried> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
-            address: Address::UnpubUnseq { name, tag },
+            address: Address::Private { name, tag },
             data: Vec::new(),
             permissions: Vec::new(),
             owners: Vec::new(),
-            _flavour: Unseq,
+            _flavour: NonSentried,
         }
     }
 }
 
-impl Debug for AppendOnlyData<UnpubPermissions, Unseq> {
+impl Debug for Sequence<PrivatePermissions, NonSentried> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "UnpubUnseqAppendOnlyData {:?}", self.name())
+        write!(formatter, "PrivateSequence {:?}", self.name())
     }
 }
 
@@ -595,89 +598,81 @@ fn check_dup(data: &[Entry], entries: &mut Entries) -> Result<()> {
 
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Kind {
-    PubSeq,
-    PubUnseq,
-    UnpubSeq,
-    UnpubUnseq,
+    PublicSentried,
+    Public,
+    PrivateSentried,
+    Private,
 }
 
 impl Kind {
-    pub fn is_pub(self) -> bool {
-        self == Kind::PubSeq || self == Kind::PubUnseq
+    pub fn is_public(self) -> bool {
+        self == Kind::PublicSentried || self == Kind::Public
     }
 
-    pub fn is_unpub(self) -> bool {
-        !self.is_pub()
+    pub fn is_private(self) -> bool {
+        !self.is_public()
     }
 
-    pub fn is_seq(self) -> bool {
-        self == Kind::PubSeq || self == Kind::UnpubSeq
-    }
-
-    pub fn is_unseq(self) -> bool {
-        !self.is_seq()
+    pub fn is_sentried(self) -> bool {
+        self == Kind::PublicSentried || self == Kind::PrivateSentried
     }
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Address {
-    PubSeq { name: XorName, tag: u64 },
-    PubUnseq { name: XorName, tag: u64 },
-    UnpubSeq { name: XorName, tag: u64 },
-    UnpubUnseq { name: XorName, tag: u64 },
+    PublicSentried { name: XorName, tag: u64 },
+    Public { name: XorName, tag: u64 },
+    PrivateSentried { name: XorName, tag: u64 },
+    Private { name: XorName, tag: u64 },
 }
 
 impl Address {
     pub fn from_kind(kind: Kind, name: XorName, tag: u64) -> Self {
         match kind {
-            Kind::PubSeq => Address::PubSeq { name, tag },
-            Kind::PubUnseq => Address::PubUnseq { name, tag },
-            Kind::UnpubSeq => Address::UnpubSeq { name, tag },
-            Kind::UnpubUnseq => Address::UnpubUnseq { name, tag },
+            Kind::PublicSentried => Address::PublicSentried { name, tag },
+            Kind::Public => Address::Public { name, tag },
+            Kind::PrivateSentried => Address::PrivateSentried { name, tag },
+            Kind::Private => Address::Private { name, tag },
         }
     }
 
     pub fn kind(&self) -> Kind {
         match self {
-            Address::PubSeq { .. } => Kind::PubSeq,
-            Address::PubUnseq { .. } => Kind::PubUnseq,
-            Address::UnpubSeq { .. } => Kind::UnpubSeq,
-            Address::UnpubUnseq { .. } => Kind::UnpubUnseq,
+            Address::PublicSentried { .. } => Kind::PublicSentried,
+            Address::Public { .. } => Kind::Public,
+            Address::PrivateSentried { .. } => Kind::PrivateSentried,
+            Address::Private { .. } => Kind::Private,
         }
     }
 
     pub fn name(&self) -> &XorName {
         match self {
-            Address::PubSeq { ref name, .. }
-            | Address::PubUnseq { ref name, .. }
-            | Address::UnpubSeq { ref name, .. }
-            | Address::UnpubUnseq { ref name, .. } => name,
+            Address::PublicSentried { ref name, .. }
+            | Address::Public { ref name, .. }
+            | Address::PrivateSentried { ref name, .. }
+            | Address::Private { ref name, .. } => name,
         }
     }
 
     pub fn tag(&self) -> u64 {
         match self {
-            Address::PubSeq { tag, .. }
-            | Address::PubUnseq { tag, .. }
-            | Address::UnpubSeq { tag, .. }
-            | Address::UnpubUnseq { tag, .. } => *tag,
+            Address::PublicSentried { tag, .. }
+            | Address::Public { tag, .. }
+            | Address::PrivateSentried { tag, .. }
+            | Address::Private { tag, .. } => *tag,
         }
     }
 
-    pub fn is_pub(&self) -> bool {
-        self.kind().is_pub()
+    pub fn is_public(&self) -> bool {
+        self.kind().is_public()
     }
 
-    pub fn is_unpub(&self) -> bool {
-        self.kind().is_unpub()
+    pub fn is_private(&self) -> bool {
+        self.kind().is_private()
     }
 
-    pub fn is_seq(&self) -> bool {
-        self.kind().is_seq()
-    }
-
-    pub fn is_unseq(&self) -> bool {
-        self.kind().is_unseq()
+    pub fn is_sentried(&self) -> bool {
+        self.kind().is_sentried()
     }
 
     /// Returns the Address serialised and encoded in z-base-32.
@@ -694,33 +689,35 @@ impl Address {
 /// Object storing an appendonly data variant.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Data {
-    PubSeq(PubSeqAppendOnlyData),
-    PubUnseq(PubUnseqAppendOnlyData),
-    UnpubSeq(UnpubSeqAppendOnlyData),
-    UnpubUnseq(UnpubUnseqAppendOnlyData),
+    PublicSentried(PublicSentriedSequence),
+    Public(PublicSequence),
+    PrivateSentried(PrivateSentriedSequence),
+    Private(PrivateSequence),
 }
 
 impl Data {
     pub fn check_permission(&self, action: Action, requester: PublicKey) -> Result<()> {
         match (self, action) {
-            (Data::PubSeq(_), Action::Read) | (Data::PubUnseq(_), Action::Read) => return Ok(()),
+            (Data::PublicSentried(_), Action::Read) | (Data::Public(_), Action::Read) => {
+                return Ok(())
+            }
             _ => (),
         }
 
         match self {
-            Data::PubSeq(data) => data.check_permission(requester, action),
-            Data::PubUnseq(data) => data.check_permission(requester, action),
-            Data::UnpubSeq(data) => data.check_permission(requester, action),
-            Data::UnpubUnseq(data) => data.check_permission(requester, action),
+            Data::PublicSentried(data) => data.check_permission(requester, action),
+            Data::Public(data) => data.check_permission(requester, action),
+            Data::PrivateSentried(data) => data.check_permission(requester, action),
+            Data::Private(data) => data.check_permission(requester, action),
         }
     }
 
     pub fn address(&self) -> &Address {
         match self {
-            Data::PubSeq(data) => data.address(),
-            Data::PubUnseq(data) => data.address(),
-            Data::UnpubSeq(data) => data.address(),
-            Data::UnpubUnseq(data) => data.address(),
+            Data::PublicSentried(data) => data.address(),
+            Data::Public(data) => data.address(),
+            Data::PrivateSentried(data) => data.address(),
+            Data::Private(data) => data.address(),
         }
     }
 
@@ -736,182 +733,178 @@ impl Data {
         self.address().tag()
     }
 
-    pub fn is_pub(&self) -> bool {
-        self.kind().is_pub()
+    pub fn is_public(&self) -> bool {
+        self.kind().is_public()
     }
 
-    pub fn is_unpub(&self) -> bool {
-        self.kind().is_unpub()
+    pub fn is_private(&self) -> bool {
+        self.kind().is_private()
     }
 
-    pub fn is_seq(&self) -> bool {
-        self.kind().is_seq()
-    }
-
-    pub fn is_unseq(&self) -> bool {
-        self.kind().is_unseq()
+    pub fn is_sentried(&self) -> bool {
+        self.kind().is_sentried()
     }
 
     pub fn entries_index(&self) -> u64 {
         match self {
-            Data::PubSeq(data) => data.entries_index(),
-            Data::PubUnseq(data) => data.entries_index(),
-            Data::UnpubSeq(data) => data.entries_index(),
-            Data::UnpubUnseq(data) => data.entries_index(),
+            Data::PublicSentried(data) => data.entries_index(),
+            Data::Public(data) => data.entries_index(),
+            Data::PrivateSentried(data) => data.entries_index(),
+            Data::Private(data) => data.entries_index(),
         }
     }
 
     pub fn permissions_index(&self) -> u64 {
         match self {
-            Data::PubSeq(data) => data.permissions_index(),
-            Data::PubUnseq(data) => data.permissions_index(),
-            Data::UnpubSeq(data) => data.permissions_index(),
-            Data::UnpubUnseq(data) => data.permissions_index(),
+            Data::PublicSentried(data) => data.permissions_index(),
+            Data::Public(data) => data.permissions_index(),
+            Data::PrivateSentried(data) => data.permissions_index(),
+            Data::Private(data) => data.permissions_index(),
         }
     }
 
     pub fn owners_index(&self) -> u64 {
         match self {
-            Data::PubSeq(data) => data.owners_index(),
-            Data::PubUnseq(data) => data.owners_index(),
-            Data::UnpubSeq(data) => data.owners_index(),
-            Data::UnpubUnseq(data) => data.owners_index(),
+            Data::PublicSentried(data) => data.owners_index(),
+            Data::Public(data) => data.owners_index(),
+            Data::PrivateSentried(data) => data.owners_index(),
+            Data::Private(data) => data.owners_index(),
         }
     }
 
     pub fn in_range(&self, start: Index, end: Index) -> Option<Entries> {
         match self {
-            Data::PubSeq(data) => data.in_range(start, end),
-            Data::PubUnseq(data) => data.in_range(start, end),
-            Data::UnpubSeq(data) => data.in_range(start, end),
-            Data::UnpubUnseq(data) => data.in_range(start, end),
+            Data::PublicSentried(data) => data.in_range(start, end),
+            Data::Public(data) => data.in_range(start, end),
+            Data::PrivateSentried(data) => data.in_range(start, end),
+            Data::Private(data) => data.in_range(start, end),
         }
     }
 
     pub fn get(&self, key: &[u8]) -> Option<&Vec<u8>> {
         match self {
-            Data::PubSeq(data) => data.get(key),
-            Data::PubUnseq(data) => data.get(key),
-            Data::UnpubSeq(data) => data.get(key),
-            Data::UnpubUnseq(data) => data.get(key),
+            Data::PublicSentried(data) => data.get(key),
+            Data::Public(data) => data.get(key),
+            Data::PrivateSentried(data) => data.get(key),
+            Data::Private(data) => data.get(key),
         }
     }
 
     pub fn indices(&self) -> Indices {
         match self {
-            Data::PubSeq(data) => data.indices(),
-            Data::PubUnseq(data) => data.indices(),
-            Data::UnpubSeq(data) => data.indices(),
-            Data::UnpubUnseq(data) => data.indices(),
+            Data::PublicSentried(data) => data.indices(),
+            Data::Public(data) => data.indices(),
+            Data::PrivateSentried(data) => data.indices(),
+            Data::Private(data) => data.indices(),
         }
     }
 
     pub fn last_entry(&self) -> Option<&Entry> {
         match self {
-            Data::PubSeq(data) => data.last_entry(),
-            Data::PubUnseq(data) => data.last_entry(),
-            Data::UnpubSeq(data) => data.last_entry(),
-            Data::UnpubUnseq(data) => data.last_entry(),
+            Data::PublicSentried(data) => data.last_entry(),
+            Data::Public(data) => data.last_entry(),
+            Data::PrivateSentried(data) => data.last_entry(),
+            Data::Private(data) => data.last_entry(),
         }
     }
 
     pub fn owner(&self, owners_index: impl Into<Index>) -> Option<&Owner> {
         match self {
-            Data::PubSeq(data) => data.owner(owners_index),
-            Data::PubUnseq(data) => data.owner(owners_index),
-            Data::UnpubSeq(data) => data.owner(owners_index),
-            Data::UnpubUnseq(data) => data.owner(owners_index),
+            Data::PublicSentried(data) => data.owner(owners_index),
+            Data::Public(data) => data.owner(owners_index),
+            Data::PrivateSentried(data) => data.owner(owners_index),
+            Data::Private(data) => data.owner(owners_index),
         }
     }
 
     pub fn check_is_last_owner(&self, requester: PublicKey) -> Result<()> {
         match self {
-            Data::PubSeq(data) => data.check_is_last_owner(requester),
-            Data::PubUnseq(data) => data.check_is_last_owner(requester),
-            Data::UnpubSeq(data) => data.check_is_last_owner(requester),
-            Data::UnpubUnseq(data) => data.check_is_last_owner(requester),
+            Data::PublicSentried(data) => data.check_is_last_owner(requester),
+            Data::Public(data) => data.check_is_last_owner(requester),
+            Data::PrivateSentried(data) => data.check_is_last_owner(requester),
+            Data::Private(data) => data.check_is_last_owner(requester),
         }
     }
 
-    pub fn pub_user_permissions(
+    pub fn public_user_permissions(
         &self,
         user: User,
         index: impl Into<Index>,
-    ) -> Result<PubPermissionSet> {
-        self.pub_permissions(index)?
+    ) -> Result<PublicPermissionSet> {
+        self.public_permissions(index)?
             .permissions()
             .get(&user)
             .cloned()
             .ok_or(Error::NoSuchEntry)
     }
 
-    pub fn unpub_user_permissions(
+    pub fn private_user_permissions(
         &self,
         user: PublicKey,
         index: impl Into<Index>,
-    ) -> Result<UnpubPermissionSet> {
-        self.unpub_permissions(index)?
+    ) -> Result<PrivatePermissionSet> {
+        self.private_permissions(index)?
             .permissions()
             .get(&user)
             .cloned()
             .ok_or(Error::NoSuchEntry)
     }
 
-    pub fn pub_permissions(&self, index: impl Into<Index>) -> Result<&PubPermissions> {
-        let perms = match self {
-            Data::PubSeq(data) => data.permissions(index),
-            Data::PubUnseq(data) => data.permissions(index),
+    pub fn public_permissions(&self, index: impl Into<Index>) -> Result<&PublicPermissions> {
+        let permissions = match self {
+            Data::PublicSentried(data) => data.permissions(index),
+            Data::Public(data) => data.permissions(index),
             _ => return Err(Error::NoSuchData),
         };
-        perms.ok_or(Error::NoSuchEntry)
+        permissions.ok_or(Error::NoSuchEntry)
     }
 
-    pub fn unpub_permissions(&self, index: impl Into<Index>) -> Result<&UnpubPermissions> {
-        let perms = match self {
-            Data::UnpubSeq(data) => data.permissions(index),
-            Data::UnpubUnseq(data) => data.permissions(index),
+    pub fn private_permissions(&self, index: impl Into<Index>) -> Result<&PrivatePermissions> {
+        let permissions = match self {
+            Data::PrivateSentried(data) => data.permissions(index),
+            Data::Private(data) => data.permissions(index),
             _ => return Err(Error::NoSuchData),
         };
-        perms.ok_or(Error::NoSuchEntry)
+        permissions.ok_or(Error::NoSuchEntry)
     }
 
     pub fn shell(&self, index: impl Into<Index>) -> Result<Self> {
         match self {
-            Data::PubSeq(adata) => adata.shell(index).map(Data::PubSeq),
-            Data::PubUnseq(adata) => adata.shell(index).map(Data::PubUnseq),
-            Data::UnpubSeq(adata) => adata.shell(index).map(Data::UnpubSeq),
-            Data::UnpubUnseq(adata) => adata.shell(index).map(Data::UnpubUnseq),
+            Data::PublicSentried(adata) => adata.shell(index).map(Data::PublicSentried),
+            Data::Public(adata) => adata.shell(index).map(Data::Public),
+            Data::PrivateSentried(adata) => adata.shell(index).map(Data::PrivateSentried),
+            Data::Private(adata) => adata.shell(index).map(Data::Private),
         }
     }
 }
 
-impl From<PubSeqAppendOnlyData> for Data {
-    fn from(data: PubSeqAppendOnlyData) -> Self {
-        Data::PubSeq(data)
+impl From<PublicSentriedSequence> for Data {
+    fn from(data: PublicSentriedSequence) -> Self {
+        Data::PublicSentried(data)
     }
 }
 
-impl From<PubUnseqAppendOnlyData> for Data {
-    fn from(data: PubUnseqAppendOnlyData) -> Self {
-        Data::PubUnseq(data)
+impl From<PublicSequence> for Data {
+    fn from(data: PublicSequence) -> Self {
+        Data::Public(data)
     }
 }
 
-impl From<UnpubSeqAppendOnlyData> for Data {
-    fn from(data: UnpubSeqAppendOnlyData) -> Self {
-        Data::UnpubSeq(data)
+impl From<PrivateSentriedSequence> for Data {
+    fn from(data: PrivateSentriedSequence) -> Self {
+        Data::PrivateSentried(data)
     }
 }
 
-impl From<UnpubUnseqAppendOnlyData> for Data {
-    fn from(data: UnpubUnseqAppendOnlyData) -> Self {
-        Data::UnpubUnseq(data)
+impl From<PrivateSequence> for Data {
+    fn from(data: PrivateSequence) -> Self {
+        Data::Private(data)
     }
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
 pub struct AppendOperation {
-    // Address of an AppendOnlyData object on the network.
+    // Address of an Sequence object on the network.
     pub address: Address,
     // A list of entries to append.
     pub values: Entries,
@@ -944,11 +937,11 @@ mod tests {
 
     #[test]
     fn append_permissions() {
-        let mut data = UnpubSeqAppendOnlyData::new(XorName([1; 32]), 10000);
+        let mut data = PrivateSentriedSequence::new(XorName([1; 32]), 10000);
 
         // Append the first permission set with correct indices - should pass.
         let res = data.append_permissions(
-            UnpubPermissions {
+            PrivatePermissions {
                 permissions: BTreeMap::new(),
                 entries_index: 0,
                 owners_index: 0,
@@ -969,7 +962,7 @@ mod tests {
 
         // Append another permissions entry with incorrect indices - should fail.
         let res = data.append_permissions(
-            UnpubPermissions {
+            PrivatePermissions {
                 permissions: BTreeMap::new(),
                 entries_index: 64,
                 owners_index: 0,
@@ -993,7 +986,7 @@ mod tests {
     fn append_owners() {
         let owner_pk = gen_public_key();
 
-        let mut data = UnpubSeqAppendOnlyData::new(XorName([1; 32]), 10000);
+        let mut data = PrivateSentriedSequence::new(XorName([1; 32]), 10000);
 
         // Append the first owner with correct indices - should pass.
         let res = data.append_owner(
@@ -1040,7 +1033,7 @@ mod tests {
 
     #[test]
     fn seq_append_entries() {
-        let mut data = PubSeqAppendOnlyData::new(XorName([1; 32]), 10000);
+        let mut data = PublicSentriedSequence::new(XorName([1; 32]), 10000);
         unwrap!(data.append(vec![Entry::new(b"hello".to_vec(), b"world".to_vec())], 0));
     }
 
@@ -1049,7 +1042,7 @@ mod tests {
         let owner_pk = gen_public_key();
         let owner_pk1 = gen_public_key();
 
-        let mut data = UnpubSeqAppendOnlyData::new(XorName([1; 32]), 10000);
+        let mut data = PrivateSentriedSequence::new(XorName([1; 32]), 10000);
 
         let _ = data.append_owner(
             Owner {
@@ -1075,7 +1068,7 @@ mod tests {
     #[test]
     fn zbase32_encode_decode_adata_address() {
         let name = XorName(rand::random());
-        let address = Address::UnpubSeq { name, tag: 15000 };
+        let address = Address::PrivateSentried { name, tag: 15000 };
         let encoded = address.encode_to_zbase32();
         let decoded = unwrap!(self::Address::decode_from_zbase32(&encoded));
         assert_eq!(address, decoded);
@@ -1083,7 +1076,7 @@ mod tests {
 
     #[test]
     fn append_unseq_data_test() {
-        let mut data = UnpubUnseqAppendOnlyData::new(XorName(rand::random()), 10);
+        let mut data = PrivateSequence::new(XorName(rand::random()), 10);
 
         // Assert that the entries are not appended because of duplicate keys.
         let entries = vec![
@@ -1115,7 +1108,7 @@ mod tests {
 
     #[test]
     fn append_seq_data_test() {
-        let mut data = UnpubSeqAppendOnlyData::new(XorName(rand::random()), 10);
+        let mut data = PrivateSentriedSequence::new(XorName(rand::random()), 10);
 
         // Assert that the entries are not appended because of duplicate keys.
         let entries = vec![
@@ -1149,7 +1142,7 @@ mod tests {
 
     #[test]
     fn in_range() {
-        let mut data = PubSeqAppendOnlyData::new(rand::random(), 10);
+        let mut data = PublicSentriedSequence::new(rand::random(), 10);
         let entries = vec![
             Entry::new(b"key0".to_vec(), b"value0".to_vec()),
             Entry::new(b"key1".to_vec(), b"value1".to_vec()),
@@ -1212,105 +1205,106 @@ mod tests {
         let public_key = gen_public_key();
         let invalid_public_key = gen_public_key();
 
-        let mut pub_perms = PubPermissions {
+        let mut pub_permissions = PublicPermissions {
             permissions: BTreeMap::new(),
             entries_index: 0,
             owners_index: 0,
         };
-        let _ = pub_perms
-            .permissions
-            .insert(User::Key(public_key), PubPermissionSet::new(false, false));
+        let _ = pub_permissions.permissions.insert(
+            User::Key(public_key),
+            PublicPermissionSet::new(false, false),
+        );
 
-        let mut unpub_perms = UnpubPermissions {
+        let mut private_permissions = PrivatePermissions {
             permissions: BTreeMap::new(),
             entries_index: 0,
             owners_index: 0,
         };
-        let _ = unpub_perms
+        let _ = private_permissions
             .permissions
-            .insert(public_key, UnpubPermissionSet::new(false, false, false));
+            .insert(public_key, PrivatePermissionSet::new(false, false, false));
 
         // pub, unseq
-        let mut data = PubUnseqAppendOnlyData::new(rand::random(), 20);
-        unwrap!(data.append_permissions(pub_perms.clone(), 0));
+        let mut data = PublicSequence::new(rand::random(), 20);
+        unwrap!(data.append_permissions(pub_permissions.clone(), 0));
         let data = Data::from(data);
 
-        assert_eq!(data.pub_permissions(0), Ok(&pub_perms));
-        assert_eq!(data.unpub_permissions(0), Err(Error::NoSuchData));
+        assert_eq!(data.public_permissions(0), Ok(&pub_permissions));
+        assert_eq!(data.private_permissions(0), Err(Error::NoSuchData));
 
         assert_eq!(
-            data.pub_user_permissions(User::Key(public_key), 0),
-            Ok(PubPermissionSet::new(false, false))
+            data.public_user_permissions(User::Key(public_key), 0),
+            Ok(PublicPermissionSet::new(false, false))
         );
         assert_eq!(
-            data.unpub_user_permissions(public_key, 0),
+            data.private_user_permissions(public_key, 0),
             Err(Error::NoSuchData)
         );
         assert_eq!(
-            data.pub_user_permissions(User::Key(invalid_public_key), 0),
+            data.public_user_permissions(User::Key(invalid_public_key), 0),
             Err(Error::NoSuchEntry)
         );
 
         // pub, seq
-        let mut data = PubSeqAppendOnlyData::new(rand::random(), 20);
-        unwrap!(data.append_permissions(pub_perms.clone(), 0));
+        let mut data = PublicSentriedSequence::new(rand::random(), 20);
+        unwrap!(data.append_permissions(pub_permissions.clone(), 0));
         let data = Data::from(data);
 
-        assert_eq!(data.pub_permissions(0), Ok(&pub_perms));
-        assert_eq!(data.unpub_permissions(0), Err(Error::NoSuchData));
+        assert_eq!(data.public_permissions(0), Ok(&pub_permissions));
+        assert_eq!(data.private_permissions(0), Err(Error::NoSuchData));
 
         assert_eq!(
-            data.pub_user_permissions(User::Key(public_key), 0),
-            Ok(PubPermissionSet::new(false, false))
+            data.public_user_permissions(User::Key(public_key), 0),
+            Ok(PublicPermissionSet::new(false, false))
         );
         assert_eq!(
-            data.unpub_user_permissions(public_key, 0),
+            data.private_user_permissions(public_key, 0),
             Err(Error::NoSuchData)
         );
         assert_eq!(
-            data.pub_user_permissions(User::Key(invalid_public_key), 0),
+            data.public_user_permissions(User::Key(invalid_public_key), 0),
             Err(Error::NoSuchEntry)
         );
 
-        // unpub, unseq
-        let mut data = UnpubUnseqAppendOnlyData::new(rand::random(), 20);
-        unwrap!(data.append_permissions(unpub_perms.clone(), 0));
+        // Private, unseq
+        let mut data = PrivateSequence::new(rand::random(), 20);
+        unwrap!(data.append_permissions(private_permissions.clone(), 0));
         let data = Data::from(data);
 
-        assert_eq!(data.unpub_permissions(0), Ok(&unpub_perms));
-        assert_eq!(data.pub_permissions(0), Err(Error::NoSuchData));
+        assert_eq!(data.private_permissions(0), Ok(&private_permissions));
+        assert_eq!(data.public_permissions(0), Err(Error::NoSuchData));
 
         assert_eq!(
-            data.unpub_user_permissions(public_key, 0),
-            Ok(UnpubPermissionSet::new(false, false, false))
+            data.private_user_permissions(public_key, 0),
+            Ok(PrivatePermissionSet::new(false, false, false))
         );
         assert_eq!(
-            data.pub_user_permissions(User::Key(public_key), 0),
+            data.public_user_permissions(User::Key(public_key), 0),
             Err(Error::NoSuchData)
         );
         assert_eq!(
-            data.unpub_user_permissions(invalid_public_key, 0),
+            data.private_user_permissions(invalid_public_key, 0),
             Err(Error::NoSuchEntry)
         );
 
-        // unpub, seq
-        let mut data = UnpubSeqAppendOnlyData::new(rand::random(), 20);
-        unwrap!(data.append_permissions(unpub_perms.clone(), 0));
+        // Private, seq
+        let mut data = PrivateSentriedSequence::new(rand::random(), 20);
+        unwrap!(data.append_permissions(private_permissions.clone(), 0));
         let data = Data::from(data);
 
-        assert_eq!(data.unpub_permissions(0), Ok(&unpub_perms));
-        assert_eq!(data.pub_permissions(0), Err(Error::NoSuchData));
+        assert_eq!(data.private_permissions(0), Ok(&private_permissions));
+        assert_eq!(data.public_permissions(0), Err(Error::NoSuchData));
 
         assert_eq!(
-            data.unpub_user_permissions(public_key, 0),
-            Ok(UnpubPermissionSet::new(false, false, false))
+            data.private_user_permissions(public_key, 0),
+            Ok(PrivatePermissionSet::new(false, false, false))
         );
         assert_eq!(
-            data.pub_user_permissions(User::Key(public_key), 0),
+            data.public_user_permissions(User::Key(public_key), 0),
             Err(Error::NoSuchData)
         );
         assert_eq!(
-            data.unpub_user_permissions(invalid_public_key, 0),
+            data.private_user_permissions(invalid_public_key, 0),
             Err(Error::NoSuchEntry)
         );
     }
@@ -1324,7 +1318,7 @@ mod tests {
         let public_key_0 = gen_public_key();
         let public_key_1 = gen_public_key();
         let public_key_2 = gen_public_key();
-        let mut inner = PubSeqAppendOnlyData::new(XorName([1; 32]), 100);
+        let mut inner = PublicSentriedSequence::new(XorName([1; 32]), 100);
 
         // no owner
         let data = Data::from(inner.clone());
@@ -1332,7 +1326,7 @@ mod tests {
             data.check_permission(Action::Append, public_key_0),
             Err(Error::InvalidOwners)
         );
-        // data is published - read always allowed
+        // data is Public - read always allowed
         assert_eq!(data.check_permission(Action::Read, public_key_0), Ok(()));
 
         // no permissions
@@ -1351,22 +1345,23 @@ mod tests {
             data.check_permission(Action::Append, public_key_1),
             Err(Error::InvalidPermissions)
         );
-        // data is published - read always allowed
+        // data is Public - read always allowed
         assert_eq!(data.check_permission(Action::Read, public_key_0), Ok(()));
         assert_eq!(data.check_permission(Action::Read, public_key_1), Ok(()));
 
         // with permissions
-        let mut permissions = PubPermissions {
+        let mut permissions = PublicPermissions {
             permissions: BTreeMap::new(),
             entries_index: 0,
             owners_index: 1,
         };
         let _ = permissions
             .permissions
-            .insert(User::Anyone, PubPermissionSet::new(true, false));
-        let _ = permissions
-            .permissions
-            .insert(User::Key(public_key_1), PubPermissionSet::new(None, true));
+            .insert(User::Anyone, PublicPermissionSet::new(true, false));
+        let _ = permissions.permissions.insert(
+            User::Key(public_key_1),
+            PublicPermissionSet::new(None, true),
+        );
         unwrap!(inner.append_permissions(permissions, 0));
         let data = Data::from(inner);
 
@@ -1383,18 +1378,18 @@ mod tests {
             data.check_permission(Action::ManagePermissions, public_key_2),
             Err(Error::AccessDenied)
         );
-        // data is published - read always allowed
+        // data is Public - read always allowed
         assert_eq!(data.check_permission(Action::Read, public_key_0), Ok(()));
         assert_eq!(data.check_permission(Action::Read, public_key_1), Ok(()));
         assert_eq!(data.check_permission(Action::Read, public_key_2), Ok(()));
     }
 
     #[test]
-    fn check_unpub_permission() {
+    fn check_private_permission() {
         let public_key_0 = gen_public_key();
         let public_key_1 = gen_public_key();
         let public_key_2 = gen_public_key();
-        let mut inner = UnpubSeqAppendOnlyData::new(XorName([1; 32]), 100);
+        let mut inner = PrivateSentriedSequence::new(XorName([1; 32]), 100);
 
         // no owner
         let data = Data::from(inner.clone());
@@ -1421,14 +1416,14 @@ mod tests {
         );
 
         // with permissions
-        let mut permissions = UnpubPermissions {
+        let mut permissions = PrivatePermissions {
             permissions: BTreeMap::new(),
             entries_index: 0,
             owners_index: 1,
         };
         let _ = permissions
             .permissions
-            .insert(public_key_1, UnpubPermissionSet::new(true, true, false));
+            .insert(public_key_1, PrivatePermissionSet::new(true, true, false));
         unwrap!(inner.append_permissions(permissions, 0));
         let data = Data::from(inner);
 
