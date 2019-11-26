@@ -7,26 +7,15 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use super::{BlsKeypair, BlsKeypairShare};
-use crate::{utils, Ed25519Digest, Error, PublicKey, Signature, XorName};
-use ed25519_dalek::Keypair as Ed25519Keypair;
+use crate::{utils, Ed25519Digest, Error, Keypair, PublicKey, Signature, XorName};
 use multibase::Decodable;
 use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{self, Debug, Display, Formatter};
-use threshold_crypto::{
-    serde_impl::SerdeSecret, SecretKey as BlsSecretKey, SecretKeyShare as BlsSecretKeyShare,
-};
-
-#[derive(Serialize, Deserialize)]
-pub(super) enum Keypair {
-    Ed25519(Ed25519Keypair),
-    Bls(BlsKeypair),
-    BlsShare(BlsKeypairShare),
-}
+use threshold_crypto::SecretKeyShare as BlsSecretKeyShare;
 
 /// A struct holding a keypair variant and the corresponding public ID for a network Client.
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct FullId {
     pub(super) keypair: Keypair,
     public_id: PublicId,
@@ -35,53 +24,35 @@ pub struct FullId {
 impl FullId {
     /// Constructs a `FullId` with a random Ed25519 keypair.
     pub fn new_ed25519<T: CryptoRng + Rng>(rng: &mut T) -> Self {
-        let ed25519_keypair = Ed25519Keypair::generate::<Ed25519Digest, _>(rng);
-        let public_key = PublicKey::Ed25519(ed25519_keypair.public);
+        let keypair = Keypair::new_ed25519(rng);
+        let public_key = keypair.public_key();
         let public_id = PublicId {
             name: public_key.into(),
             public_key,
         };
-        Self {
-            keypair: Keypair::Ed25519(ed25519_keypair),
-            public_id,
-        }
+        Self { keypair, public_id }
     }
 
     /// Constructs a `FullId` with a random BLS keypair.
     pub fn new_bls<T: CryptoRng + Rng>(rng: &mut T) -> Self {
-        let bls_secret_key = rng.gen::<BlsSecretKey>();
-        let bls_public_key = bls_secret_key.public_key();
-        let bls_keypair = BlsKeypair {
-            secret: SerdeSecret(bls_secret_key),
-            public: bls_public_key,
-        };
-        let public_key = PublicKey::Bls(bls_public_key);
+        let keypair = Keypair::new_bls(rng);
+        let public_key = keypair.public_key();
         let public_id = PublicId {
             name: public_key.into(),
             public_key,
         };
-        Self {
-            keypair: Keypair::Bls(bls_keypair),
-            public_id,
-        }
+        Self { keypair, public_id }
     }
 
     /// Constructs a `FullId` from a BLS secret key share.
     pub fn new_bls_share(bls_secret_key_share: BlsSecretKeyShare) -> Self {
-        let bls_public_key_share = bls_secret_key_share.public_key_share();
-        let bls_keypair_share = BlsKeypairShare {
-            secret: SerdeSecret(bls_secret_key_share),
-            public: bls_public_key_share,
-        };
-        let public_key = PublicKey::BlsShare(bls_public_key_share);
+        let keypair = Keypair::new_bls_share(bls_secret_key_share);
+        let public_key = keypair.public_key();
         let public_id = PublicId {
             name: public_key.into(),
             public_key,
         };
-        Self {
-            keypair: Keypair::BlsShare(bls_keypair_share),
-            public_id,
-        }
+        Self { keypair, public_id }
     }
 
     /// Creates a detached signature of `data`.
@@ -96,27 +67,6 @@ impl FullId {
     /// Returns the public ID.
     pub fn public_id(&self) -> &PublicId {
         &self.public_id
-    }
-
-    // TODO: Remove this once the authenticator is updated
-    // to create random FullIds instead of AppKeys / ClientKeys
-    /// Constructs a `FullId` with a particular BLS secret key.
-    #[doc(hidden)]
-    pub fn with_bls_key(bls_sk: BlsSecretKey) -> Self {
-        let bls_pk = bls_sk.public_key();
-        let bls_keypair = BlsKeypair {
-            secret: SerdeSecret(bls_sk),
-            public: bls_pk,
-        };
-        let public_key = PublicKey::Bls(bls_pk);
-        let public_id = PublicId {
-            name: public_key.into(),
-            public_key,
-        };
-        Self {
-            keypair: Keypair::Bls(bls_keypair),
-            public_id,
-        }
     }
 }
 
@@ -139,13 +89,6 @@ impl PublicId {
     /// Returns the Client's public signing key.
     pub fn public_key(&self) -> &PublicKey {
         &self.public_key
-    }
-
-    // TODO: Remove this once the authenticator is updated
-    // to create random FullIds instead of AppKeys / ClientKeys
-    #[doc(hidden)]
-    pub fn new(name: XorName, public_key: PublicKey) -> Self {
-        Self { name, public_key }
     }
 
     /// Returns the PublicId serialised and encoded in z-base-32.

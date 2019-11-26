@@ -7,7 +7,7 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use super::BlsKeypairShare;
+use crate::keys::BlsKeypairShare;
 use crate::{utils, Ed25519Digest, Error, PublicKey, Signature, XorName};
 use ed25519_dalek::{Keypair as Ed25519Keypair, PublicKey as Ed25519PublicKey};
 use hex_fmt::HexFmt;

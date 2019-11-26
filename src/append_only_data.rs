@@ -66,6 +66,10 @@
 //! From any index we refer to preceding and subsequent index as Previous and Next respectively.
 //! From index 0, Previous is None. From Current index, Next is None.
 
+// TODO: Remove this once the false-positive has been fixed:
+// https://github.com/rust-lang/rust-clippy/issues/4326.
+#![allow(clippy::type_repetition_in_bounds)]
+
 use crate::{utils, Error, PublicKey, Result, XorName};
 use multibase::Decodable;
 use serde::{Deserialize, Serialize};

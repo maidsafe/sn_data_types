@@ -14,33 +14,12 @@
     html_favicon_url = "https://maidsafe.net/img/favicon.ico",
     test(attr(forbid(warnings)))
 )]
-#![forbid(
-    exceeding_bitshifts,
-    mutable_transmutes,
-    no_mangle_const_items,
-    unknown_crate_types,
-    warnings
-)]
-#![deny(
-    bad_style,
-    deprecated,
-    improper_ctypes,
-    missing_docs,
-    non_shorthand_field_patterns,
-    overflowing_literals,
-    plugin_as_library,
-    stable_features,
-    unconditional_recursion,
-    unknown_lints,
-    unsafe_code,
-    unused_allocation,
-    unused_attributes,
-    unused_comparisons,
-    unused_features,
-    unused_parens,
-    while_true
-)]
+// For explanation of lint checks, run `rustc -W help`.
+#![forbid(unsafe_code)]
 #![warn(
+    // TODO: add missing debug implementations for structs?
+    // missing_debug_implementations,
+    missing_docs,
     trivial_casts,
     trivial_numeric_casts,
     unused_extern_crates,
@@ -48,20 +27,14 @@
     unused_qualifications,
     unused_results
 )]
-#![allow(
-    box_pointers,
-    missing_copy_implementations,
-    missing_debug_implementations,
-    variant_size_differences
-)]
 
 mod append_only_data;
 mod coins;
 mod errors;
 mod identity;
 mod immutable_data;
+mod keys;
 mod mutable_data;
-mod public_key;
 mod request;
 mod response;
 mod transaction;
@@ -89,6 +62,7 @@ pub use immutable_data::{
     Address as IDataAddress, Data as IData, Kind as IDataKind, PubImmutableData,
     UnpubImmutableData, MAX_IMMUTABLE_DATA_SIZE_IN_BYTES,
 };
+pub use keys::{BlsKeypair, BlsKeypairShare, Keypair, PublicKey, Signature};
 pub use mutable_data::{
     Action as MDataAction, Address as MDataAddress, Data as MData, Entries as MDataEntries,
     EntryActions as MDataEntryActions, Kind as MDataKind, PermissionSet as MDataPermissionSet,
@@ -98,7 +72,6 @@ pub use mutable_data::{
     UnseqEntryActions as MDataUnseqEntryActions, UnseqMutableData, Value as MDataValue,
     Values as MDataValues,
 };
-pub use public_key::{PublicKey, Signature};
 pub use request::{LoginPacket, Request, RequestType, MAX_LOGIN_PACKET_BYTES};
 pub use response::{Response, TryFromError};
 pub use sha3::Sha3_512 as Ed25519Digest;
@@ -112,7 +85,10 @@ use rand::{
     Rng,
 };
 use serde::{Deserialize, Serialize};
-use std::fmt::{self, Debug, Display, Formatter};
+use std::{
+    fmt::{self, Debug, Display, Formatter},
+    net::SocketAddr,
+};
 
 /// Object storing a data variant.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
@@ -217,10 +193,19 @@ impl Distribution<XorName> for Standard {
     }
 }
 
+/// Connection information for a node in a section.
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
+pub struct ConnectionInfo {
+    /// Endpoint of the node
+    pub peer_addr: SocketAddr,
+    /// Certificate of the node
+    pub peer_cert_der: Vec<u8>,
+}
+
 /// Wrapper message that contains a message ID and the requester ID along the request or response.
 /// It should also contain a valid signature if it's sent by the owner(s).
 #[allow(clippy::large_enum_variant)]
-#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
+#[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum Message {
     /// Request with the message ID.
     Request {
@@ -243,6 +228,12 @@ pub enum Message {
         /// Notification.
         notification: Notification,
     },
+    /// Section info, containing the elders IDs and connection information.
+    /// Sent from vaults to clients.
+    SectionInfo {
+        /// Connection info and IDs for elders in a section.
+        elders: Vec<(XorName, ConnectionInfo)>,
+    },
 }
 
 impl Message {
@@ -252,6 +243,7 @@ impl Message {
             Message::Request { message_id, .. } => Some(*message_id),
             Message::Response { message_id, .. } => Some(*message_id),
             Message::Notification { .. } => None,
+            Message::SectionInfo { .. } => None,
         }
     }
 }
@@ -285,7 +277,14 @@ pub enum Challenge {
     Request(PublicId, Vec<u8>),
     /// Response from clients to Vaults, containing their public ID and the challenge signature
     /// created using their corresponding secret key.
-    Response(PublicId, Signature),
+    Response {
+        /// Client ID.
+        client_id: PublicId,
+        /// Client's signature of the challenge.
+        signature: Signature,
+        /// Should the Vault send the elders connection info in `Message::SectionInfo`?
+        request_section_info: bool,
+    },
 }
 
 /// Notification of a transaction.
@@ -293,7 +292,7 @@ pub enum Challenge {
 pub struct Notification(pub Transaction);
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::XorName;
     use unwrap::unwrap;
 

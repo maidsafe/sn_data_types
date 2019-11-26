@@ -1143,7 +1143,7 @@ impl From<UnseqEntries> for Entries {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::{Address, XorName};
     use unwrap::unwrap;
 

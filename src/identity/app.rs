@@ -7,21 +7,21 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use super::client::Keypair;
 use crate::{
-    utils, ClientFullId, ClientPublicId, Ed25519Digest, Error, PublicKey, Signature, XorName,
+    utils, ClientFullId, ClientPublicId, Ed25519Digest, Error, Keypair, PublicKey, Signature,
+    XorName,
 };
 use multibase::Decodable;
 use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Debug, Display, Formatter};
-use threshold_crypto::{SecretKey as BlsSecretKey, SecretKeyShare as BlsSecretKeyShare};
+use threshold_crypto::SecretKeyShare as BlsSecretKeyShare;
 
 /// A struct holding a keypair variant and the corresponding public ID for a network App.
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct FullId {
-    keypair: Keypair,
-    public_id: PublicId,
+    pub(crate) keypair: Keypair,
+    pub(crate) public_id: PublicId,
 }
 
 impl FullId {
@@ -64,17 +64,6 @@ impl FullId {
     pub fn public_id(&self) -> &PublicId {
         &self.public_id
     }
-
-    // TODO: Remove this once the authenticator is updated
-    // to create random FullIds instead of AppKeys / ClientKeys
-    /// Constructs a `FullId` for a given BLS secret key.
-    #[doc(hidden)]
-    pub fn with_keys(bls_sk: BlsSecretKey, owner: PublicKey) -> Self {
-        Self::new(
-            ClientFullId::with_bls_key(bls_sk),
-            ClientPublicId::new(XorName::from(owner), owner),
-        )
-    }
 }
 
 /// A struct representing the public identity of a network App.
@@ -83,8 +72,8 @@ impl FullId {
 /// defines the App's network address.
 #[derive(Clone, Eq, PartialEq, Serialize, Deserialize, PartialOrd, Ord, Hash)]
 pub struct PublicId {
-    public_key: PublicKey,
-    owner: ClientPublicId,
+    pub(crate) public_key: PublicKey,
+    pub(crate) owner: ClientPublicId,
 }
 
 impl PublicId {
