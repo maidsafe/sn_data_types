@@ -228,12 +228,6 @@ pub enum Message {
         /// Notification.
         notification: Notification,
     },
-    /// Section info, containing the elders IDs and connection information.
-    /// Sent from vaults to clients.
-    SectionInfo {
-        /// Connection info and IDs for elders in a section.
-        elders: Vec<(XorName, ConnectionInfo)>,
-    },
 }
 
 impl Message {
@@ -243,7 +237,6 @@ impl Message {
             Message::Request { message_id, .. } => Some(*message_id),
             Message::Response { message_id, .. } => Some(*message_id),
             Message::Notification { .. } => None,
-            Message::SectionInfo { .. } => None,
         }
     }
 }
@@ -269,22 +262,31 @@ impl Default for MessageId {
     }
 }
 
-/// Challenge request/response used to establish new connections and verify the key.
+/// Handshake requests sent from clients to vaults to establish new connections and verify a client's
+/// key (to prevent replay attacks).
+#[derive(Serialize, Deserialize)]
+pub enum HandshakeRequest {
+    /// Sent by clients as an initial bootstrap request, and then for subsequent bootstrap attempts.
+    Bootstrap(PublicId),
+    /// Sent to destination nodes as a response to `HandshakeResponse::Join`.
+    Join(PublicId),
+    /// Response to `HandshakeResponse::Challenge` sent by a vault.
+    ChallengeResult(Signature),
+}
+
+/// Handshake responses sent from vaults to clients.
 #[allow(clippy::large_enum_variant)]
 #[derive(Serialize, Deserialize)]
-pub enum Challenge {
-    /// Request from the Vault to clients containing the challenge.
-    Request(PublicId, Vec<u8>),
-    /// Response from clients to Vaults, containing their public ID and the challenge signature
-    /// created using their corresponding secret key.
-    Response {
-        /// Client ID.
-        client_id: PublicId,
-        /// Client's signature of the challenge.
-        signature: Signature,
-        /// Should the Vault send the elders connection info in `Message::SectionInfo`?
-        request_section_info: bool,
-    },
+pub enum HandshakeResponse {
+    /// Sent by nodes when a client should attempt to connect to the section that's closest to
+    /// its destination (section managing the client's account).
+    Rebootstrap(Vec<(XorName, ConnectionInfo)>),
+    /// Sent by nodes when a client reaches its destination section.
+    Join(Vec<(XorName, ConnectionInfo)>),
+    /// Sent by nodes as a response to a valid `HandshakeRequest::Join`.
+    Challenge(PublicId, Vec<u8>),
+    /// Sent by nodes as a response to an invalid `HandshakeRequest::Join` (when a client attempts to join a wrong section).
+    InvalidSection,
 }
 
 /// Notification of a transaction.
