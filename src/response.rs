@@ -8,9 +8,23 @@
 // Software.
 
 use crate::{
-    errors::ErrorDebug, AData, ADataEntries, ADataEntry, ADataPermissions, AppPermissions, Coins,
-    Error, ExpectedIndices, IData, MData, MDataEntries, MDataPermissionSet, MDataValue,
-    MDataValues, Owner, PrivatePermissionSet, PublicKey, PublicPermissionSet, Result, Signature,
+    errors::ErrorDebug,
+    AData,
+    ADataEntries,
+    ADataEntry,
+    ADataPermissions,
+    AppPermissions,
+    Coins,
+    Error,
+    ExpectedIndices,
+    IData,
+    MData, // MDataEntries, MDataPermissionSet, MDataValue, MDataValues,
+    Owner,
+    PrivatePermissionSet,
+    PublicKey,
+    PublicPermissionSet,
+    Result,
+    Signature,
     Transaction,
 };
 use serde::{Deserialize, Serialize};
@@ -34,12 +48,12 @@ pub enum Response {
     GetMData(Result<MData>),
     GetMDataShell(Result<MData>),
     GetMDataVersion(Result<u64>),
-    ListMDataEntries(Result<MDataEntries>),
+    //ListMDataEntries(Result<MDataEntries>),
     ListMDataKeys(Result<BTreeSet<Vec<u8>>>),
-    ListMDataValues(Result<MDataValues>),
-    ListMDataUserPermissions(Result<MDataPermissionSet>),
-    ListMDataPermissions(Result<BTreeMap<PublicKey, MDataPermissionSet>>),
-    GetMDataValue(Result<MDataValue>),
+    //ListMDataValues(Result<MDataValues>),
+    //ListMDataUserPermissions(Result<MDataPermissionSet>),
+    //ListMDataPermissions(Result<BTreeMap<PublicKey, MDataPermissionSet>>),
+    //GetMDataValue(Result<MDataValue>),
     //
     // ===== Append Only Data =====
     //
@@ -101,12 +115,12 @@ macro_rules! try_from {
 try_from!(IData, GetIData);
 try_from!(MData, GetMData, GetMDataShell);
 try_from!(u64, GetMDataVersion);
-try_from!(MDataEntries, ListMDataEntries);
+//try_from!(MDataEntries, ListMDataEntries);
 try_from!(BTreeSet<Vec<u8>>, ListMDataKeys);
-try_from!(MDataValues, ListMDataValues);
-try_from!(MDataPermissionSet, ListMDataUserPermissions);
-try_from!(BTreeMap<PublicKey, MDataPermissionSet>, ListMDataPermissions);
-try_from!(MDataValue, GetMDataValue);
+//try_from!(MDataValues, ListMDataValues);
+//try_from!(MDataPermissionSet, ListMDataUserPermissions);
+//try_from!(BTreeMap<PublicKey, MDataPermissionSet>, ListMDataPermissions);
+//try_from!(MDataValue, GetMDataValue);
 try_from!(Vec<u8>, GetADataValue);
 try_from!(AData, GetAData, GetADataShell);
 try_from!(Owner, GetOwners);
@@ -135,18 +149,18 @@ impl fmt::Debug for Response {
             GetMData(res) => write!(f, "Response::GetMData({:?})", ErrorDebug(res)),
             GetMDataShell(res) => write!(f, "Response::GetMDataShell({:?})", ErrorDebug(res)),
             GetMDataVersion(res) => write!(f, "Response::GetMDataVersion({:?})", ErrorDebug(res)),
-            ListMDataEntries(res) => write!(f, "Response::ListMDataEntries({:?})", ErrorDebug(res)),
+            //ListMDataEntries(res) => write!(f, "Response::ListMDataEntries({:?})", ErrorDebug(res)),
             ListMDataKeys(res) => write!(f, "Response::ListMDataKeys({:?})", ErrorDebug(res)),
-            ListMDataValues(res) => write!(f, "Response::ListMDataValues({:?})", ErrorDebug(res)),
-            ListMDataPermissions(res) => {
-                write!(f, "Response::ListMDataPermissions({:?})", ErrorDebug(res))
-            }
-            ListMDataUserPermissions(res) => write!(
-                f,
-                "Response::ListMDataUserPermissions({:?})",
-                ErrorDebug(res)
-            ),
-            GetMDataValue(res) => write!(f, "Response::GetMDataValue({:?})", ErrorDebug(res)),
+            //ListMDataValues(res) => write!(f, "Response::ListMDataValues({:?})", ErrorDebug(res)),
+            // ListMDataPermissions(res) => {
+            //     write!(f, "Response::ListMDataPermissions({:?})", ErrorDebug(res))
+            // }
+            // ListMDataUserPermissions(res) => write!(
+            //     f,
+            //     "Response::ListMDataUserPermissions({:?})",
+            //     ErrorDebug(res)
+            // ),
+            // GetMDataValue(res) => write!(f, "Response::GetMDataValue({:?})", ErrorDebug(res)),
             // AData
             GetAData(res) => write!(f, "Response::GetAData({:?})", ErrorDebug(res)),
             GetADataValue(res) => write!(f, "Response::GetADataValue({:?})", ErrorDebug(res)),
@@ -187,59 +201,59 @@ impl fmt::Debug for Response {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::{PubImmutableData, UnseqMutableData};
-    use std::convert::{TryFrom, TryInto};
-    use unwrap::{unwrap, unwrap_err};
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use crate::{PubImmutableData, UnseqMutableData};
+//     use std::convert::{TryFrom, TryInto};
+//     use unwrap::{unwrap, unwrap_err};
 
-    #[test]
-    fn debug_format() {
-        let response = Response::Mutation(Ok(()));
-        assert_eq!(format!("{:?}", response), "Response::Mutation(Success)");
-        use crate::Error;
-        let errored_response = Response::GetADataShell(Err(Error::AccessDenied));
-        assert_eq!(
-            format!("{:?}", errored_response),
-            "Response::GetADataShell(AccessDenied)"
-        );
-    }
+//     #[test]
+//     fn debug_format() {
+//         let response = Response::Mutation(Ok(()));
+//         assert_eq!(format!("{:?}", response), "Response::Mutation(Success)");
+//         use crate::Error;
+//         let errored_response = Response::GetADataShell(Err(Error::AccessDenied));
+//         assert_eq!(
+//             format!("{:?}", errored_response),
+//             "Response::GetADataShell(AccessDenied)"
+//         );
+//     }
 
-    #[test]
-    fn try_from() {
-        use Response::*;
+//     #[test]
+//     fn try_from() {
+//         use Response::*;
 
-        let i_data = IData::Pub(PubImmutableData::new(vec![1, 3, 1, 4]));
-        let e = Error::AccessDenied;
-        assert_eq!(i_data, unwrap!(GetIData(Ok(i_data.clone())).try_into()));
-        assert_eq!(
-            TryFromError::Response(e.clone()),
-            unwrap_err!(IData::try_from(GetIData(Err(e.clone()))))
-        );
-        assert_eq!(
-            TryFromError::WrongType,
-            unwrap_err!(IData::try_from(Mutation(Ok(()))))
-        );
+//         let i_data = IData::Pub(PubImmutableData::new(vec![1, 3, 1, 4]));
+//         let e = Error::AccessDenied;
+//         assert_eq!(i_data, unwrap!(GetIData(Ok(i_data.clone())).try_into()));
+//         assert_eq!(
+//             TryFromError::Response(e.clone()),
+//             unwrap_err!(IData::try_from(GetIData(Err(e.clone()))))
+//         );
+//         assert_eq!(
+//             TryFromError::WrongType,
+//             unwrap_err!(IData::try_from(Mutation(Ok(()))))
+//         );
 
-        let mut data = BTreeMap::new();
-        let _ = data.insert(vec![1], vec![10]);
-        let owners = PublicKey::Bls(threshold_crypto::SecretKey::random().public_key());
-        let m_data = MData::Unseq(UnseqMutableData::new_with_data(
-            *i_data.name(),
-            1,
-            data.clone(),
-            BTreeMap::new(),
-            owners,
-        ));
-        assert_eq!(m_data, unwrap!(GetMData(Ok(m_data.clone())).try_into()));
-        assert_eq!(
-            TryFromError::Response(e.clone()),
-            unwrap_err!(MData::try_from(GetMData(Err(e))))
-        );
-        assert_eq!(
-            TryFromError::WrongType,
-            unwrap_err!(MData::try_from(Mutation(Ok(()))))
-        );
-    }
-}
+//         let mut data = BTreeMap::new();
+//         let _ = data.insert(vec![1], vec![10]);
+//         let owners = PublicKey::Bls(threshold_crypto::SecretKey::random().public_key());
+//         let m_data = MData::Unseq(UnseqMutableData::new_with_data(
+//             *i_data.name(),
+//             1,
+//             data.clone(),
+//             BTreeMap::new(),
+//             owners,
+//         ));
+//         assert_eq!(m_data, unwrap!(GetMData(Ok(m_data.clone())).try_into()));
+//         assert_eq!(
+//             TryFromError::Response(e.clone()),
+//             unwrap_err!(MData::try_from(GetMData(Err(e))))
+//         );
+//         assert_eq!(
+//             TryFromError::WrongType,
+//             unwrap_err!(MData::try_from(Mutation(Ok(()))))
+//         );
+//     }
+// }

@@ -11,9 +11,25 @@ mod login_packet;
 
 pub use self::login_packet::{LoginPacket, MAX_LOGIN_PACKET_BYTES};
 use crate::{
-    AData, ADataAppend, Address, AppPermissions, Coins, Error, IData, IDataAddress, Index, MData,
-    MDataAddress, MDataEntryActions, MDataPermissionSet, Owner, PrivatePermissions, PublicKey,
-    PublicPermissions, Response, TransactionId, User, XorName,
+    AData,
+    ADataAppend,
+    Address,
+    AppPermissions,
+    Coins,
+    Error,
+    IData,
+    IDataAddress,
+    Index,
+    MData,
+    //MDataAddress, MDataEntryActions, MDataPermissionSet,
+    Owner,
+    PrivatePermissions,
+    PublicKey,
+    PublicPermissions,
+    Response,
+    TransactionId,
+    User,
+    XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -32,37 +48,37 @@ pub enum Request {
     // ===== Mutable Data =====
     //
     PutMData(MData),
-    GetMData(MDataAddress),
-    GetMDataValue {
-        address: MDataAddress,
-        key: Vec<u8>,
-    },
-    DeleteMData(MDataAddress),
-    GetMDataShell(MDataAddress),
-    GetMDataVersion(MDataAddress),
-    ListMDataEntries(MDataAddress),
-    ListMDataKeys(MDataAddress),
-    ListMDataValues(MDataAddress),
-    SetMDataUserPermissions {
-        address: MDataAddress,
-        user: PublicKey,
-        permissions: MDataPermissionSet,
-        version: u64,
-    },
-    DelMDataUserPermissions {
-        address: MDataAddress,
-        user: PublicKey,
-        version: u64,
-    },
-    ListMDataPermissions(MDataAddress),
-    ListMDataUserPermissions {
-        address: MDataAddress,
-        user: PublicKey,
-    },
-    MutateMDataEntries {
-        address: MDataAddress,
-        actions: MDataEntryActions,
-    },
+    //GetMData(MDataAddress),
+    // GetMDataValue {
+    //     address: MDataAddress,
+    //     key: Vec<u8>,
+    // },
+    // DeleteMData(MDataAddress),
+    // GetMDataShell(MDataAddress),
+    // GetMDataVersion(MDataAddress),
+    // ListMDataEntries(MDataAddress),
+    // ListMDataKeys(MDataAddress),
+    // ListMDataValues(MDataAddress),
+    // SetMDataUserPermissions {
+    //     address: MDataAddress,
+    //     user: PublicKey,
+    //     permissions: MDataPermissionSet,
+    //     version: u64,
+    // },
+    // DelMDataUserPermissions {
+    //     address: MDataAddress,
+    //     user: PublicKey,
+    //     version: u64,
+    // },
+    // ListMDataPermissions(MDataAddress),
+    // ListMDataUserPermissions {
+    //     address: MDataAddress,
+    //     user: PublicKey,
+    // },
+    // MutateMDataEntries {
+    //     address: MDataAddress,
+    //     actions: MDataEntryActions,
+    // },
     //
     // ===== Append Only Data =====
     //
@@ -211,15 +227,15 @@ impl Request {
             // IData
             GetIData(_) => Response::GetIData(Err(error)),
             // MData
-            GetMData(_) => Response::GetMData(Err(error)),
-            GetMDataValue { .. } => Response::GetMDataValue(Err(error)),
-            GetMDataShell(_) => Response::GetMDataShell(Err(error)),
-            GetMDataVersion(_) => Response::GetMDataVersion(Err(error)),
-            ListMDataEntries(_) => Response::ListMDataEntries(Err(error)),
-            ListMDataKeys(_) => Response::ListMDataKeys(Err(error)),
-            ListMDataValues(_) => Response::ListMDataValues(Err(error)),
-            ListMDataPermissions(_) => Response::ListMDataPermissions(Err(error)),
-            ListMDataUserPermissions { .. } => Response::ListMDataUserPermissions(Err(error)),
+            //GetMData(_) => Response::GetMData(Err(error)),
+            //GetMDataValue { .. } => Response::GetMDataValue(Err(error)),
+            //GetMDataShell(_) => Response::GetMDataShell(Err(error)),
+            //GetMDataVersion(_) => Response::GetMDataVersion(Err(error)),
+            //ListMDataEntries(_) => Response::ListMDataEntries(Err(error)),
+            //ListMDataKeys(_) => Response::ListMDataKeys(Err(error)),
+            //ListMDataValues(_) => Response::ListMDataValues(Err(error)),
+            //ListMDataPermissions(_) => Response::ListMDataPermissions(Err(error)),
+            //ListMDataUserPermissions { .. } => Response::ListMDataUserPermissions(Err(error)),
             // AData
             GetAData(_) => Response::GetAData(Err(error)),
             GetADataShell { .. } => Response::GetADataShell(Err(error)),
@@ -249,10 +265,10 @@ impl Request {
             DeleteUnpubIData(_) |
             // MData
             PutMData(_) |
-            DeleteMData(_) |
-            SetMDataUserPermissions { .. } |
-            DelMDataUserPermissions { .. } |
-            MutateMDataEntries { .. } |
+            //DeleteMData(_) |
+            //SetMDataUserPermissions { .. } |
+            //DelMDataUserPermissions { .. } |
+            //MutateMDataEntries { .. } |
             // AData
             PutAData(_) |
             DeleteAData(_) |
@@ -287,19 +303,19 @@ impl fmt::Debug for Request {
                 DeleteUnpubIData(_) => "Request::DeleteUnpubIData",
                 // MData
                 PutMData(_) => "Request::PutMData",
-                GetMData(_) => "Request::GetMData",
-                GetMDataValue { .. } => "Request::GetMDataValue",
-                DeleteMData(_) => "Request::DeleteMData",
-                GetMDataShell(_) => "Request::GetMDataShell",
-                GetMDataVersion(_) => "Request::GetMDataVersion",
-                ListMDataEntries(_) => "Request::ListMDataEntries",
-                ListMDataKeys(_) => "Request::ListMDataKeys",
-                ListMDataValues(_) => "Request::ListMDataValues",
-                SetMDataUserPermissions { .. } => "Request::SetMDataUserPermissions",
-                DelMDataUserPermissions { .. } => "Request::DelMDataUserPermissions",
-                ListMDataPermissions(_) => "Request::ListMDataPermissions",
-                ListMDataUserPermissions { .. } => "Request::ListMDataUserPermissions",
-                MutateMDataEntries { .. } => "Request::MutateMDataEntries",
+                // GetMData(_) => "Request::GetMData",
+                // GetMDataValue { .. } => "Request::GetMDataValue",
+                // DeleteMData(_) => "Request::DeleteMData",
+                // GetMDataShell(_) => "Request::GetMDataShell",
+                // GetMDataVersion(_) => "Request::GetMDataVersion",
+                // ListMDataEntries(_) => "Request::ListMDataEntries",
+                // ListMDataKeys(_) => "Request::ListMDataKeys",
+                // ListMDataValues(_) => "Request::ListMDataValues",
+                // SetMDataUserPermissions { .. } => "Request::SetMDataUserPermissions",
+                // DelMDataUserPermissions { .. } => "Request::DelMDataUserPermissions",
+                // ListMDataPermissions(_) => "Request::ListMDataPermissions",
+                // ListMDataUserPermissions { .. } => "Request::ListMDataUserPermissions",
+                // MutateMDataEntries { .. } => "Request::MutateMDataEntries",
                 // AData
                 PutAData(_) => "Request::PutAData",
                 GetAData(_) => "Request::GetAData",

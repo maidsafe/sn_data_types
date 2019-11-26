@@ -454,7 +454,8 @@ impl Map<PublicPermissions, Sentried> {
 
     fn apply(&mut self, tx: PublicSentriedOperations) -> Result<()> {
         let (insert, update, delete, _) = tx;
-        if insert.is_empty() && update.is_empty() && delete.is_empty() {
+        let op_count = insert.len() + update.len() + delete.len();
+        if op_count == 0 {
             return Err(Error::InvalidOperation);
         }
         let mut new_data = self.data.clone();
@@ -496,10 +497,10 @@ impl Map<PublicPermissions, Sentried> {
                 DataEntry::Occupied(mut entry) => {
                     match entry.get().last() {
                         Some(StoredValue::Value(_)) => {
-                            let seq = entry.get_mut();
-                            let expected_version = seq.len() as u64;
+                            let history = entry.get_mut();
+                            let expected_version = history.len() as u64;
                             if version == expected_version {
-                                let _ = seq.push(StoredValue::Value(val));
+                                let _ = history.push(StoredValue::Value(val));
                             } else {
                                 let _ = errors.insert(
                                     entry.key().clone(),
@@ -522,12 +523,12 @@ impl Map<PublicPermissions, Sentried> {
         for (key, version) in delete {
             match new_data.entry(key.clone()) {
                 DataEntry::Occupied(mut entry) => {
-                    let current_value = entry.get().last();
-                    match current_value {
+                    let history = entry.get_mut();
+                    match history.last() {
                         Some(StoredValue::Value(_)) => {
-                            let expected_version = entry.get().len() as u64;
+                            let expected_version = history.len() as u64;
                             if version == expected_version {
-                                let _ = entry.get_mut().push(StoredValue::Tombstone());
+                                let _ = history.push(StoredValue::Tombstone());
                             } else {
                                 let _ = errors.insert(
                                     entry.key().clone(),
@@ -745,7 +746,8 @@ impl Map<PrivatePermissions, Sentried> {
 
     fn apply(&mut self, operations: PrivateSentriedOperations) -> Result<()> {
         let (insert, update, delete, _) = operations;
-        if insert.is_empty() && update.is_empty() && delete.is_empty() {
+        let op_count = insert.len() + update.len() + delete.len();
+        if op_count == 0 {
             return Err(Error::InvalidOperation);
         }
         let mut new_data = self.data.clone();
@@ -1222,6 +1224,142 @@ mod tests {
     use unwrap::unwrap;
 
     #[test]
+    fn insert() {
+        let mut data = PublicSentriedMap::new(XorName([1; 32]), 10000);
+        let insert_0 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
+        let insert_1 = SentriedCmd::Insert(((vec![1], vec![0]), 0));
+        let insert_2 = SentriedCmd::Insert(((vec![2], vec![0]), 0));
+        let tx = vec![insert_0, insert_1, insert_2];
+        unwrap!(data.commit(tx));
+
+        let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
+        let insert_0 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
+        let insert_1 = SentriedCmd::Insert(((vec![1], vec![0]), 0));
+        let insert_2 = SentriedCmd::Insert(((vec![2], vec![0]), 0));
+        let tx = vec![insert_0, insert_1, insert_2];
+        unwrap!(data.commit(tx));
+
+        let mut data = PublicMap::new(XorName([1; 32]), 10000);
+        let insert_0 = Cmd::Insert((vec![0], vec![0]));
+        let insert_1 = Cmd::Insert((vec![1], vec![0]));
+        let insert_2 = Cmd::Insert((vec![2], vec![0]));
+        let tx = vec![insert_0, insert_1, insert_2];
+        unwrap!(data.commit(tx));
+
+        let mut data = PrivateMap::new(XorName([1; 32]), 10000);
+        let insert_0 = Cmd::Insert((vec![0], vec![0]));
+        let insert_1 = Cmd::Insert((vec![1], vec![0]));
+        let insert_2 = Cmd::Insert((vec![2], vec![0]));
+        let tx = vec![insert_0, insert_1, insert_2];
+        unwrap!(data.commit(tx))
+    }
+
+    #[test]
+    fn update() {
+        let mut data = PublicSentriedMap::new(XorName([1; 32]), 10000);
+        let insert_0 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
+        let update_1 = SentriedCmd::Update(((vec![0], vec![0]), 1));
+        let update_2 = SentriedCmd::Update(((vec![0], vec![0]), 2));
+        let tx = vec![insert_0, update_1, update_2];
+        unwrap!(data.commit(tx));
+
+        let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
+        let insert_0 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
+        let update_1 = SentriedCmd::Update(((vec![0], vec![0]), 1));
+        let update_2 = SentriedCmd::Update(((vec![0], vec![0]), 2));
+        let tx = vec![insert_0, update_1, update_2];
+        unwrap!(data.commit(tx));
+
+        let mut data = PublicMap::new(XorName([1; 32]), 10000);
+        let insert_0 = Cmd::Insert((vec![0], vec![0]));
+        let update_1 = Cmd::Update((vec![0], vec![0]));
+        let update_2 = Cmd::Update((vec![0], vec![0]));
+        let tx = vec![insert_0, update_1, update_2];
+        unwrap!(data.commit(tx));
+
+        let mut data = PrivateMap::new(XorName([1; 32]), 10000);
+        let insert_0 = Cmd::Insert((vec![0], vec![0]));
+        let update_1 = Cmd::Update((vec![0], vec![0]));
+        let update_2 = Cmd::Update((vec![0], vec![0]));
+        let tx = vec![insert_0, update_1, update_2];
+        unwrap!(data.commit(tx))
+    }
+
+    #[test]
+    fn delete() {
+        let mut data = PublicSentriedMap::new(XorName([1; 32]), 10000);
+        let insert_0 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
+        let update_1 = SentriedCmd::Update(((vec![0], vec![0]), 1));
+        let delete_2 = SentriedCmd::Delete((vec![0], 2));
+        let tx = vec![insert_0, update_1, delete_2];
+        unwrap!(data.commit(tx));
+
+        let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
+        let insert_0 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
+        let update_1 = SentriedCmd::Update(((vec![0], vec![0]), 1));
+        let delete_2 = SentriedCmd::Delete((vec![0], 2));
+        let tx = vec![insert_0, update_1, delete_2];
+        unwrap!(data.commit(tx));
+
+        let mut data = PublicMap::new(XorName([1; 32]), 10000);
+        let insert_0 = Cmd::Insert((vec![0], vec![0]));
+        let update_1 = Cmd::Update((vec![0], vec![0]));
+        let delete_2 = Cmd::Delete(vec![0]);
+        let tx = vec![insert_0, update_1, delete_2];
+        unwrap!(data.commit(tx));
+
+        let mut data = PrivateMap::new(XorName([1; 32]), 10000);
+        let insert_0 = Cmd::Insert((vec![0], vec![0]));
+        let update_1 = Cmd::Update((vec![0], vec![0]));
+        let delete_2 = Cmd::Delete(vec![0]);
+        let tx = vec![insert_0, update_1, delete_2];
+        unwrap!(data.commit(tx))
+    }
+
+    #[test]
+    fn re_insert() {
+        let mut data = PublicSentriedMap::new(XorName([1; 32]), 10000);
+        let insert_0 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
+        let update_1 = SentriedCmd::Update(((vec![0], vec![0]), 1));
+        let delete_2 = SentriedCmd::Delete((vec![0], 2));
+        let tx_0 = vec![insert_0, update_1, delete_2];
+        unwrap!(data.commit(tx_0));
+        let insert_3 = SentriedCmd::Insert(((vec![0], vec![0]), 3));
+        let tx_1 = vec![insert_3];
+        unwrap!(data.commit(tx_1));
+
+        let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
+        let insert_0 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
+        let update_1 = SentriedCmd::Update(((vec![0], vec![0]), 1));
+        let delete_2 = SentriedCmd::Delete((vec![0], 2));
+        let tx_0 = vec![insert_0, update_1, delete_2];
+        unwrap!(data.commit(tx_0));
+        let insert_3 = SentriedCmd::Insert(((vec![0], vec![0]), 3));
+        let tx_1 = vec![insert_3];
+        unwrap!(data.commit(tx_1));
+
+        let mut data = PublicMap::new(XorName([1; 32]), 10000);
+        let insert_0 = Cmd::Insert((vec![0], vec![0]));
+        let update_1 = Cmd::Update((vec![0], vec![0]));
+        let delete_2 = Cmd::Delete(vec![0]);
+        let tx_0 = vec![insert_0, update_1, delete_2];
+        unwrap!(data.commit(tx_0));
+        let insert_3 = Cmd::Insert((vec![0], vec![0]));
+        let tx_1 = vec![insert_3];
+        unwrap!(data.commit(tx_1));
+
+        let mut data = PrivateMap::new(XorName([1; 32]), 10000);
+        let insert_0 = Cmd::Insert((vec![0], vec![0]));
+        let update_1 = Cmd::Update((vec![0], vec![0]));
+        let delete_2 = Cmd::Delete(vec![0]);
+        let tx_0 = vec![insert_0, update_1, delete_2];
+        unwrap!(data.commit(tx_0));
+        let insert_3 = Cmd::Insert((vec![0], vec![0]));
+        let tx_1 = vec![insert_3];
+        unwrap!(data.commit(tx_1));
+    }
+
+    #[test]
     fn append_permissions() {
         let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
 
@@ -1315,16 +1453,6 @@ mod tests {
             unwrap!(data.owners_range(Index::FromStart(0), Index::FromEnd(0),)).len(),
             1
         );
-    }
-
-    #[test]
-    fn insert_entries() {
-        let mut data = PublicSentriedMap::new(XorName([1; 32]), 10000);
-        let insert_0 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
-        let insert_1 = SentriedCmd::Insert(((vec![1], vec![0]), 1));
-        let insert_2 = SentriedCmd::Insert(((vec![2], vec![0]), 2));
-        let tx = vec![insert_0, insert_1, insert_2];
-        unwrap!(data.commit(tx))
     }
 
     #[test]

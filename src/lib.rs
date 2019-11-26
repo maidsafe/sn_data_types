@@ -81,15 +81,16 @@ pub use immutable_data::{
     Address as IDataAddress, Data as IData, Kind as IDataKind, PubImmutableData,
     UnpubImmutableData, MAX_IMMUTABLE_DATA_SIZE_IN_BYTES,
 };
-pub use mutable_data::{
-    Action as MDataAction, Address as MDataAddress, Data as MData, Entries as MDataEntries,
-    EntryActions as MDataEntryActions, Kind as MDataKind, PermissionSet as MDataPermissionSet,
-    SeqEntries as MDataSeqEntries, SeqEntryAction as MDataSeqEntryAction,
-    SeqEntryActions as MDataSeqEntryActions, SeqMutableData, SeqValue as MDataSeqValue,
-    UnseqEntries as MDataUnseqEntries, UnseqEntryAction as MDataUnseqEntryAction,
-    UnseqEntryActions as MDataUnseqEntryActions, UnseqMutableData, UnseqValue as MDataUnseqValue,
-    Value as MDataValue, Values as MDataValues,
-};
+pub use map::Data as MData;
+// pub use mutable_data::{
+//     Action as MDataAction, Address as MDataAddress, Entries as MDataEntries,
+//     EntryActions as MDataEntryActions, Kind as MDataKind, PermissionSet as MDataPermissionSet,
+//     SeqEntries as MDataSeqEntries, SeqEntryAction as MDataSeqEntryAction,
+//     SeqEntryActions as MDataSeqEntryActions, SeqMutableData, SeqValue as MDataSeqValue,
+//     UnseqEntries as MDataUnseqEntries, UnseqEntryAction as MDataUnseqEntryAction,
+//     UnseqEntryActions as MDataUnseqEntryActions, UnseqMutableData, UnseqValue as MDataUnseqValue,
+//     Value as MDataValue, Values as MDataValues,
+// };
 pub use public_key::{PublicKey, Signature};
 pub use request::{LoginPacket, Request, MAX_LOGIN_PACKET_BYTES};
 pub use response::Response;
@@ -117,17 +118,17 @@ use std::fmt::{self, Debug, Display, Formatter};
 
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Data {
-    Immutable(IData),
-    Mutable(MData),
-    AppendOnly(AData),
+    Blob(IData),
+    Map(MData),
+    Sequence(AData),
 }
 
 impl Data {
     pub fn is_public(&self) -> bool {
         match *self {
-            Data::Immutable(ref idata) => idata.is_pub(),
-            Data::Mutable(_) => false,
-            Data::AppendOnly(ref adata) => adata.is_public(),
+            Data::Blob(ref idata) => idata.is_pub(),
+            Data::Map(ref data) => data.is_public(),
+            Data::Sequence(ref data) => data.is_public(),
         }
     }
 
@@ -138,19 +139,19 @@ impl Data {
 
 impl From<IData> for Data {
     fn from(data: IData) -> Self {
-        Data::Immutable(data)
+        Data::Blob(data)
     }
 }
 
 impl From<MData> for Data {
     fn from(data: MData) -> Self {
-        Data::Mutable(data)
+        Data::Map(data)
     }
 }
 
 impl From<AData> for Data {
     fn from(data: AData) -> Self {
-        Data::AppendOnly(data)
+        Data::Sequence(data)
     }
 }
 
