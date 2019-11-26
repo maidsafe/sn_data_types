@@ -14,16 +14,13 @@ use crate::shared_data::{
 };
 use crate::{Error, PublicKey, Result, XorName};
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::BTreeSet,
-    fmt::{self, Debug, Formatter},
-};
+use std::fmt::{self, Debug, Formatter};
 
 pub type PublicSentriedSequence = Sequence<PublicPermissions, Sentried>;
 pub type PublicSequence = Sequence<PublicPermissions, NonSentried>;
 pub type PrivateSentriedSequence = Sequence<PrivatePermissions, Sentried>;
 pub type PrivateSequence = Sequence<PrivatePermissions, NonSentried>;
-pub type Entries = Vec<Entry>;
+pub type Values = Vec<Value>;
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub enum SequencePermissions {
@@ -43,22 +40,23 @@ impl From<PublicPermissions> for SequencePermissions {
     }
 }
 
+pub type Value = Vec<u8>;
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default, Debug)]
 pub struct Entry {
-    pub key: Vec<u8>,
+    pub index: u64,
     pub value: Vec<u8>,
 }
 
 impl Entry {
-    pub fn new(key: Vec<u8>, value: Vec<u8>) -> Self {
-        Self { key, value }
+    pub fn new(index: u64, value: Vec<u8>) -> Self {
+        Self { index, value }
     }
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
 pub struct Sequence<P, S> {
     address: Address,
-    data: Entries,
+    data: Values,
     permissions: Vec<P>,
     // This is the history of owners, with each entry representing an owner.  Each single owner
     // could represent an individual user, or a group of users, depending on the `PublicKey` type.
@@ -72,25 +70,25 @@ where
     P: Permissions,
     S: Copy,
 {
-    /// Returns the data shell - that is - everything except the entries themselves.
-    pub fn shell(&self, expected_entries_index: impl Into<Index>) -> Result<Self> {
-        let expected_entries_index = to_absolute_index(
-            expected_entries_index.into(),
-            self.expected_entries_index() as usize,
+    /// Returns the data shell - that is - everything except the Values themselves.
+    pub fn shell(&self, expected_data_index: impl Into<Index>) -> Result<Self> {
+        let expected_data_index = to_absolute_index(
+            expected_data_index.into(),
+            self.expected_data_index() as usize,
         )
         .ok_or(Error::NoSuchEntry)? as u64;
 
         let permissions = self
             .permissions
             .iter()
-            .filter(|perm| perm.expected_entries_index() <= expected_entries_index)
+            .filter(|perm| perm.expected_data_index() <= expected_data_index)
             .cloned()
             .collect();
 
         let owners = self
             .owners
             .iter()
-            .filter(|owner| owner.expected_entries_index <= expected_entries_index)
+            .filter(|owner| owner.expected_data_index <= expected_data_index)
             .cloned()
             .collect();
 
@@ -104,29 +102,26 @@ where
     }
 
     /// Return a value for the given key (if it is present).
-    pub fn get(&self, key: &[u8]) -> Option<&Vec<u8>> {
-        self.data.iter().find_map(|entry| {
-            if entry.key.as_slice() == key {
-                Some(&entry.value)
-            } else {
-                None
-            }
-        })
+    pub fn get(&self, index: u64) -> Option<&Value> {
+        self.data.get(index as usize)
     }
 
     /// Return the current entry in the Data (if it is present).
-    pub fn current_entry(&self) -> Option<&Entry> {
-        self.data.last()
+    pub fn current_entry(&self) -> Option<Entry> {
+        match self.data.last() {
+            Some(value) => Some(Entry::new(self.data.len() as u64, value.to_vec())),
+            None => None,
+        }
     }
 
-    /// Get a list of keys and values with the given indices.
-    pub fn in_range(&self, start: Index, end: Index) -> Option<Entries> {
+    /// Get a range of values within the given indices.
+    pub fn in_range(&self, start: Index, end: Index) -> Option<Values> {
         let range = to_absolute_range(start, end, self.data.len())?;
         Some(self.data[range].to_vec())
     }
 
-    /// Return all entries.
-    pub fn entries(&self) -> &Entries {
+    /// Return all Values.
+    pub fn values(&self) -> &Values {
         &self.data
     }
 
@@ -146,7 +141,7 @@ where
     }
 
     /// Return the expected entry index.
-    pub fn expected_entries_index(&self) -> u64 {
+    pub fn expected_data_index(&self) -> u64 {
         self.data.len() as u64
     }
 
@@ -170,8 +165,8 @@ where
     /// Add a new permissions entry.
     /// The `Perm` struct should contain valid indices.
     pub fn append_permissions(&mut self, permissions: P, index: u64) -> Result<()> {
-        if permissions.expected_entries_index() != self.expected_entries_index() {
-            return Err(Error::InvalidSuccessor(self.expected_entries_index()));
+        if permissions.expected_data_index() != self.expected_data_index() {
+            return Err(Error::InvalidSuccessor(self.expected_data_index()));
         }
         if permissions.expected_owners_index() != self.expected_owners_index() {
             return Err(Error::InvalidOwnersSuccessor(self.expected_owners_index()));
@@ -217,8 +212,8 @@ where
     }
     /// Add a new owner entry.
     pub fn append_owner(&mut self, owner: Owner, index: u64) -> Result<()> {
-        if owner.expected_entries_index != self.expected_entries_index() {
-            return Err(Error::InvalidSuccessor(self.expected_entries_index()));
+        if owner.expected_data_index != self.expected_data_index() {
+            return Err(Error::InvalidSuccessor(self.expected_data_index()));
         }
         if owner.expected_permissions_index != self.expected_permissions_index() {
             return Err(Error::InvalidPermissionsSuccessor(
@@ -248,7 +243,7 @@ where
 
     pub fn indices(&self) -> ExpectedIndices {
         ExpectedIndices::new(
-            self.expected_entries_index(),
+            self.expected_data_index(),
             self.expected_owners_index(),
             self.expected_permissions_index(),
         )
@@ -257,29 +252,25 @@ where
 
 /// Common methods for NonSentried flavours.
 impl<P: Permissions> Sequence<P, NonSentried> {
-    /// Append new entries.
-    pub fn append(&mut self, mut entries: Entries) -> Result<()> {
-        check_dup(&self.data, entries.as_mut())?;
-
-        self.data.extend(entries);
+    /// Append new Values.
+    pub fn append(&mut self, values: Values) -> Result<()> {
+        self.data.extend(values);
         Ok(())
     }
 }
 
 /// Common methods for Sentried flavours.
 impl<P: Permissions> Sequence<P, Sentried> {
-    /// Append new entries.
+    /// Append new Values.
     ///
-    /// If the specified `expected_index` does not equal the entries count in data, an
+    /// If the specified `expected_index` does not equal the Values count in data, an
     /// error will be returned.
-    pub fn append(&mut self, mut entries: Entries, expected_index: u64) -> Result<()> {
-        check_dup(&self.data, entries.as_mut())?;
-
+    pub fn append(&mut self, values: Values, expected_index: u64) -> Result<()> {
         if expected_index != self.data.len() as u64 {
             return Err(Error::InvalidSuccessor(self.data.len() as u64));
         }
 
-        self.data.extend(entries);
+        self.data.extend(values);
         Ok(())
     }
 }
@@ -360,25 +351,6 @@ impl Debug for Sequence<PrivatePermissions, NonSentried> {
     }
 }
 
-fn check_dup(data: &[Entry], entries: &mut Entries) -> Result<()> {
-    let new: BTreeSet<&Vec<u8>> = entries.iter().map(|entry| &entry.key).collect();
-
-    // If duplicate entries are present in the push.
-    if new.len() < entries.len() {
-        return Err(Error::DuplicateEntryKeys);
-    }
-
-    let existing: BTreeSet<&Vec<u8>> = data.iter().map(|entry| &entry.key).collect();
-    if !existing.is_disjoint(&new) {
-        let dup: Entries = entries
-            .drain(..)
-            .filter(|entry| existing.contains(&entry.key))
-            .collect();
-        return Err(Error::KeysExist(dup));
-    }
-    Ok(())
-}
-
 /// Object storing a Sequence variant.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Data {
@@ -438,12 +410,12 @@ impl Data {
         self.kind().is_sentried()
     }
 
-    pub fn expected_entries_index(&self) -> u64 {
+    pub fn expected_data_index(&self) -> u64 {
         match self {
-            Data::PublicSentried(data) => data.expected_entries_index(),
-            Data::Public(data) => data.expected_entries_index(),
-            Data::PrivateSentried(data) => data.expected_entries_index(),
-            Data::Private(data) => data.expected_entries_index(),
+            Data::PublicSentried(data) => data.expected_data_index(),
+            Data::Public(data) => data.expected_data_index(),
+            Data::PrivateSentried(data) => data.expected_data_index(),
+            Data::Private(data) => data.expected_data_index(),
         }
     }
 
@@ -465,7 +437,7 @@ impl Data {
         }
     }
 
-    pub fn in_range(&self, start: Index, end: Index) -> Option<Entries> {
+    pub fn in_range(&self, start: Index, end: Index) -> Option<Values> {
         match self {
             Data::PublicSentried(data) => data.in_range(start, end),
             Data::Public(data) => data.in_range(start, end),
@@ -474,12 +446,12 @@ impl Data {
         }
     }
 
-    pub fn get(&self, key: &[u8]) -> Option<&Vec<u8>> {
+    pub fn get(&self, index: u64) -> Option<&Value> {
         match self {
-            Data::PublicSentried(data) => data.get(key),
-            Data::Public(data) => data.get(key),
-            Data::PrivateSentried(data) => data.get(key),
-            Data::Private(data) => data.get(key),
+            Data::PublicSentried(data) => data.get(index),
+            Data::Public(data) => data.get(index),
+            Data::PrivateSentried(data) => data.get(index),
+            Data::Private(data) => data.get(index),
         }
     }
 
@@ -492,7 +464,7 @@ impl Data {
         }
     }
 
-    pub fn current_entry(&self) -> Option<&Entry> {
+    pub fn current_entry(&self) -> Option<Entry> {
         match self {
             Data::PublicSentried(data) => data.current_entry(),
             Data::Public(data) => data.current_entry(),
@@ -599,8 +571,8 @@ impl From<PrivateSequence> for Data {
 pub struct AppendOperation {
     // Address of an Sequence object on the network.
     pub address: Address,
-    // A list of entries to append.
-    pub values: Entries,
+    // A list of Values to append.
+    pub values: Values,
 }
 
 #[cfg(test)]
@@ -608,7 +580,8 @@ mod tests {
     use super::*;
     use std::collections::BTreeMap;
     use threshold_crypto::SecretKey;
-    use unwrap::{unwrap, unwrap_err};
+    //use unwrap::{unwrap, unwrap_err};
+    use unwrap::unwrap;
 
     #[test]
     fn append_permissions() {
@@ -618,7 +591,7 @@ mod tests {
         let res = data.append_permissions(
             PrivatePermissions {
                 permissions: BTreeMap::new(),
-                expected_entries_index: 0,
+                expected_data_index: 0,
                 expected_owners_index: 0,
             },
             0,
@@ -639,7 +612,7 @@ mod tests {
         let res = data.append_permissions(
             PrivatePermissions {
                 permissions: BTreeMap::new(),
-                expected_entries_index: 64,
+                expected_data_index: 64,
                 expected_owners_index: 0,
             },
             1,
@@ -667,7 +640,7 @@ mod tests {
         let res = data.append_owner(
             Owner {
                 public_key: owner_pk,
-                expected_entries_index: 0,
+                expected_data_index: 0,
                 expected_permissions_index: 0,
             },
             0,
@@ -688,7 +661,7 @@ mod tests {
         let res = data.append_owner(
             Owner {
                 public_key: owner_pk,
-                expected_entries_index: 64,
+                expected_data_index: 64,
                 expected_permissions_index: 0,
             },
             1,
@@ -707,9 +680,9 @@ mod tests {
     }
 
     #[test]
-    fn seq_append_entries() {
+    fn append_sentried_data() {
         let mut data = PublicSentriedSequence::new(XorName([1; 32]), 10000);
-        unwrap!(data.append(vec![Entry::new(b"hello".to_vec(), b"world".to_vec())], 0));
+        unwrap!(data.append(vec![b"hello".to_vec(), b"world".to_vec()], 0));
     }
 
     #[test]
@@ -722,7 +695,7 @@ mod tests {
         let _ = data.append_owner(
             Owner {
                 public_key: owner_pk,
-                expected_entries_index: 0,
+                expected_data_index: 0,
                 expected_permissions_index: 0,
             },
             0,
@@ -731,7 +704,7 @@ mod tests {
         let _ = data.append_owner(
             Owner {
                 public_key: owner_pk1,
-                expected_entries_index: 0,
+                expected_data_index: 0,
                 expected_permissions_index: 0,
             },
             1,
@@ -753,113 +726,84 @@ mod tests {
     }
 
     #[test]
-    fn append_unseq_data_test() {
+    fn append_private_data() {
         let mut data = PrivateSequence::new(XorName(rand::random()), 10);
 
-        // Assert that the entries are not appended because of duplicate keys.
-        let entries = vec![
-            Entry::new(b"KEY1".to_vec(), b"VALUE1".to_vec()),
-            Entry::new(b"KEY2".to_vec(), b"VALUE2".to_vec()),
-            Entry::new(b"KEY1".to_vec(), b"VALUE1".to_vec()),
-        ];
-        assert_eq!(Error::DuplicateEntryKeys, unwrap_err!(data.append(entries)));
-
-        // Assert that the entries are appended because there are no duplicate keys.
-        let entries1 = vec![
-            Entry::new(b"KEY1".to_vec(), b"VALUE1".to_vec()),
-            Entry::new(b"KEY2".to_vec(), b"VALUE2".to_vec()),
+        // Assert that the Values are appended.
+        let values1 = vec![
+            b"KEY1".to_vec(),
+            b"VALUE1".to_vec(),
+            b"KEY2".to_vec(),
+            b"VALUE2".to_vec(),
         ];
 
-        unwrap!(data.append(entries1));
-
-        // Assert that entries are not appended because they duplicate some keys appended previously.
-        let entries2 = vec![Entry::new(b"KEY2".to_vec(), b"VALUE2".to_vec())];
-        assert_eq!(
-            Error::KeysExist(entries2.clone()),
-            unwrap_err!(data.append(entries2))
-        );
-
-        // Assert that no duplicate keys are present and the append operation is successful.
-        let entries3 = vec![Entry::new(b"KEY3".to_vec(), b"VALUE3".to_vec())];
-        unwrap!(data.append(entries3));
+        unwrap!(data.append(values1));
     }
 
     #[test]
-    fn append_seq_data_test() {
+    fn append_private_sentried_data() {
         let mut data = PrivateSentriedSequence::new(XorName(rand::random()), 10);
 
-        // Assert that the entries are not appended because of duplicate keys.
-        let entries = vec![
-            Entry::new(b"KEY1".to_vec(), b"VALUE1".to_vec()),
-            Entry::new(b"KEY2".to_vec(), b"VALUE2".to_vec()),
-            Entry::new(b"KEY1".to_vec(), b"VALUE1".to_vec()),
+        // Assert that the values are appended.
+        let values1 = vec![
+            b"KEY1".to_vec(),
+            b"VALUE1".to_vec(),
+            b"KEY2".to_vec(),
+            b"VALUE2".to_vec(),
         ];
-        assert_eq!(
-            Error::DuplicateEntryKeys,
-            unwrap_err!(data.append(entries, 0))
-        );
-
-        // Assert that the entries are appended because there are no duplicate keys.
-        let entries1 = vec![
-            Entry::new(b"KEY1".to_vec(), b"VALUE1".to_vec()),
-            Entry::new(b"KEY2".to_vec(), b"VALUE2".to_vec()),
-        ];
-        unwrap!(data.append(entries1, 0));
-
-        // Assert that entries are not appended because they duplicate some keys appended previously.
-        let entries2 = vec![Entry::new(b"KEY2".to_vec(), b"VALUE2".to_vec())];
-        assert_eq!(
-            Error::KeysExist(entries2.clone()),
-            unwrap_err!(data.append(entries2, 2))
-        );
-
-        // Assert that no duplicate keys are present and the append operation is successful.
-        let entries3 = vec![Entry::new(b"KEY3".to_vec(), b"VALUE3".to_vec())];
-        unwrap!(data.append(entries3, 2));
+        unwrap!(data.append(values1, 0));
     }
 
     #[test]
     fn in_range() {
         let mut data = PublicSentriedSequence::new(rand::random(), 10);
-        let entries = vec![
-            Entry::new(b"key0".to_vec(), b"value0".to_vec()),
-            Entry::new(b"key1".to_vec(), b"value1".to_vec()),
+        let values = vec![
+            b"key0".to_vec(),
+            b"value0".to_vec(),
+            b"key1".to_vec(),
+            b"value1".to_vec(),
         ];
-        unwrap!(data.append(entries, 0));
+        unwrap!(data.append(values, 0));
 
         assert_eq!(
             data.in_range(Index::FromStart(0), Index::FromStart(0)),
             Some(vec![])
         );
         assert_eq!(
-            data.in_range(Index::FromStart(0), Index::FromStart(1)),
-            Some(vec![Entry::new(b"key0".to_vec(), b"value0".to_vec())])
+            data.in_range(Index::FromStart(0), Index::FromStart(2)),
+            Some(vec![b"key0".to_vec(), b"value0".to_vec()])
         );
         assert_eq!(
-            data.in_range(Index::FromStart(0), Index::FromStart(2)),
+            data.in_range(Index::FromStart(0), Index::FromStart(4)),
             Some(vec![
-                Entry::new(b"key0".to_vec(), b"value0".to_vec()),
-                Entry::new(b"key1".to_vec(), b"value1".to_vec())
+                b"key0".to_vec(),
+                b"value0".to_vec(),
+                b"key1".to_vec(),
+                b"value1".to_vec(),
             ])
         );
 
         assert_eq!(
-            data.in_range(Index::FromEnd(2), Index::FromEnd(1)),
-            Some(vec![Entry::new(b"key0".to_vec(), b"value0".to_vec()),])
+            data.in_range(Index::FromEnd(4), Index::FromEnd(2)),
+            Some(vec![b"key0".to_vec(), b"value0".to_vec(),])
         );
         assert_eq!(
-            data.in_range(Index::FromEnd(2), Index::FromEnd(0)),
+            data.in_range(Index::FromEnd(4), Index::FromEnd(0)),
             Some(vec![
-                Entry::new(b"key0".to_vec(), b"value0".to_vec()),
-                Entry::new(b"key1".to_vec(), b"value1".to_vec())
+                b"key0".to_vec(),
+                b"value0".to_vec(),
+                b"key1".to_vec(),
+                b"value1".to_vec(),
             ])
         );
 
         assert_eq!(
             data.in_range(Index::FromStart(0), Index::FromEnd(0)),
             Some(vec![
-                Entry::new(b"key0".to_vec(), b"value0".to_vec()),
-                Entry::new(b"key1".to_vec(), b"value1".to_vec())
+                b"key0".to_vec(),
+                b"value0".to_vec(),
+                b"key1".to_vec(),
+                b"value1".to_vec(),
             ])
         );
 
@@ -872,10 +816,10 @@ mod tests {
 
         // overflow
         assert_eq!(
-            data.in_range(Index::FromStart(0), Index::FromStart(3)),
+            data.in_range(Index::FromStart(0), Index::FromStart(5)),
             None
         );
-        assert_eq!(data.in_range(Index::FromEnd(3), Index::FromEnd(0)), None);
+        assert_eq!(data.in_range(Index::FromEnd(5), Index::FromEnd(0)), None);
     }
 
     #[test]
@@ -885,7 +829,7 @@ mod tests {
 
         let mut pub_permissions = PublicPermissions {
             permissions: BTreeMap::new(),
-            expected_entries_index: 0,
+            expected_data_index: 0,
             expected_owners_index: 0,
         };
         let _ = pub_permissions.permissions.insert(
@@ -895,7 +839,7 @@ mod tests {
 
         let mut private_permissions = PrivatePermissions {
             permissions: BTreeMap::new(),
-            expected_entries_index: 0,
+            expected_data_index: 0,
             expected_owners_index: 0,
         };
         let _ = private_permissions
@@ -1011,7 +955,7 @@ mod tests {
         unwrap!(inner.append_owner(
             Owner {
                 public_key: public_key_0,
-                expected_entries_index: 0,
+                expected_data_index: 0,
                 expected_permissions_index: 0,
             },
             0,
@@ -1030,7 +974,7 @@ mod tests {
         // with permissions
         let mut permissions = PublicPermissions {
             permissions: BTreeMap::new(),
-            expected_entries_index: 0,
+            expected_data_index: 0,
             expected_owners_index: 1,
         };
         let _ = permissions
@@ -1080,7 +1024,7 @@ mod tests {
         unwrap!(inner.append_owner(
             Owner {
                 public_key: public_key_0,
-                expected_entries_index: 0,
+                expected_data_index: 0,
                 expected_permissions_index: 0,
             },
             0,
@@ -1096,7 +1040,7 @@ mod tests {
         // with permissions
         let mut permissions = PrivatePermissions {
             permissions: BTreeMap::new(),
-            expected_entries_index: 0,
+            expected_data_index: 0,
             expected_owners_index: 1,
         };
         let _ = permissions

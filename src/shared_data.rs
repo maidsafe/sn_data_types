@@ -39,26 +39,26 @@ impl From<u64> for Index {
 // Set of data, owners, permissions Indices.
 #[derive(Copy, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ExpectedIndices {
-    expected_entries_index: u64,
+    expected_data_index: u64,
     expected_owners_index: u64,
     expected_permissions_index: u64,
 }
 
 impl ExpectedIndices {
     pub fn new(
-        expected_entries_index: u64,
+        expected_data_index: u64,
         expected_owners_index: u64,
         expected_permissions_index: u64,
     ) -> Self {
         ExpectedIndices {
-            expected_entries_index,
+            expected_data_index,
             expected_owners_index,
             expected_permissions_index,
         }
     }
 
-    pub fn expected_entries_index(&self) -> u64 {
-        self.expected_entries_index
+    pub fn expected_data_index(&self) -> u64 {
+        self.expected_data_index
     }
 
     pub fn expected_owners_index(&self) -> u64 {
@@ -74,7 +74,7 @@ impl ExpectedIndices {
 pub struct Owner {
     pub public_key: PublicKey,
     /// The expected index of the data at the time this ownership change is to become valid.
-    pub expected_entries_index: u64,
+    pub expected_data_index: u64,
     /// The expected index of the permissions at the time this ownership change is to become valid.
     pub expected_permissions_index: u64,
 }
@@ -147,7 +147,7 @@ impl PublicPermissionSet {
 
 pub trait Permissions: Clone + Eq + Ord + Hash + Serialize + DeserializeOwned {
     fn is_action_allowed(&self, user: PublicKey, action: Action) -> Result<()>;
-    fn expected_entries_index(&self) -> u64;
+    fn expected_data_index(&self) -> u64;
     fn expected_owners_index(&self) -> u64;
 }
 
@@ -155,7 +155,7 @@ pub trait Permissions: Clone + Eq + Ord + Hash + Serialize + DeserializeOwned {
 pub struct PrivatePermissions {
     pub permissions: BTreeMap<PublicKey, PrivatePermissionSet>,
     /// The expected index of the data at the time this permission change is to become valid.
-    pub expected_entries_index: u64,
+    pub expected_data_index: u64,
     /// The expected index of the owners at the time this permission change is to become valid.
     pub expected_owners_index: u64,
 }
@@ -180,8 +180,8 @@ impl Permissions for PrivatePermissions {
         }
     }
 
-    fn expected_entries_index(&self) -> u64 {
-        self.expected_entries_index
+    fn expected_data_index(&self) -> u64 {
+        self.expected_data_index
     }
 
     fn expected_owners_index(&self) -> u64 {
@@ -193,7 +193,7 @@ impl Permissions for PrivatePermissions {
 pub struct PublicPermissions {
     pub permissions: BTreeMap<User, PublicPermissionSet>,
     /// The expected index of the data at the time this permission change is to become valid.
-    pub expected_entries_index: u64,
+    pub expected_data_index: u64,
     /// The expected index of the owners at the time this permission change is to become valid.
     pub expected_owners_index: u64,
 }
@@ -222,8 +222,8 @@ impl Permissions for PublicPermissions {
         }
     }
 
-    fn expected_entries_index(&self) -> u64 {
-        self.expected_entries_index
+    fn expected_data_index(&self) -> u64 {
+        self.expected_data_index
     }
 
     fn expected_owners_index(&self) -> u64 {

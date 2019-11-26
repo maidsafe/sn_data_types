@@ -81,9 +81,9 @@ where
     S: Copy,
 {
     /// Returns the data shell - that is - everything except the entries themselves.
-    pub fn shell(&self, expected_entries_index: impl Into<Index>) -> Result<Self> {
-        let expected_entries_index = to_absolute_index(
-            expected_entries_index.into(),
+    pub fn shell(&self, expected_data_index: impl Into<Index>) -> Result<Self> {
+        let expected_data_index = to_absolute_index(
+            expected_data_index.into(),
             self.expected_data_version().unwrap_or_default() as usize,
         )
         .ok_or(Error::NoSuchEntry)? as u64;
@@ -91,14 +91,14 @@ where
         let permissions = self
             .permissions
             .iter()
-            .filter(|perm| perm.expected_entries_index() <= expected_entries_index)
+            .filter(|perm| perm.expected_data_index() <= expected_data_index)
             .cloned()
             .collect();
 
         let owners = self
             .owners
             .iter()
-            .filter(|owner| owner.expected_entries_index <= expected_entries_index)
+            .filter(|owner| owner.expected_data_index <= expected_data_index)
             .cloned()
             .collect();
 
@@ -182,8 +182,7 @@ where
     /// Add a new permissions entry.
     /// The `Perm` struct should contain valid indices.
     pub fn append_permissions(&mut self, permissions: P, index: u64) -> Result<()> {
-        if permissions.expected_entries_index() != self.expected_data_version().unwrap_or_default()
-        {
+        if permissions.expected_data_index() != self.expected_data_version().unwrap_or_default() {
             return Err(Error::InvalidSuccessor(
                 self.expected_data_version().unwrap_or_default(),
             ));
@@ -233,7 +232,7 @@ where
 
     /// Add a new owner entry.
     pub fn append_owner(&mut self, owner: Owner, index: u64) -> Result<()> {
-        if owner.expected_entries_index != self.expected_data_version().unwrap_or_default() {
+        if owner.expected_data_index != self.expected_data_version().unwrap_or_default() {
             return Err(Error::InvalidSuccessor(
                 self.expected_data_version().unwrap_or_default(),
             ));
@@ -1048,7 +1047,7 @@ impl Data {
         self.kind().is_sentried()
     }
 
-    pub fn expected_entries_index(&self) -> u64 {
+    pub fn expected_data_index(&self) -> u64 {
         match self {
             Data::PublicSentried(data) => data.expected_data_version().unwrap_or_default(),
             Data::Public(data) => data.expected_data_version().unwrap_or_default(),
@@ -1230,7 +1229,6 @@ mod tests {
     use std::collections::BTreeMap;
     use threshold_crypto::SecretKey;
     use unwrap::{unwrap, unwrap_err};
-    //use unwrap::unwrap;
 
     #[test]
     fn insert() {
@@ -1731,7 +1729,7 @@ mod tests {
         let res = data.append_permissions(
             PrivatePermissions {
                 permissions: BTreeMap::new(),
-                expected_entries_index: 0,
+                expected_data_index: 0,
                 expected_owners_index: 0,
             },
             0,
@@ -1752,7 +1750,7 @@ mod tests {
         let res = data.append_permissions(
             PrivatePermissions {
                 permissions: BTreeMap::new(),
-                expected_entries_index: 64,
+                expected_data_index: 64,
                 expected_owners_index: 0,
             },
             1,
@@ -1780,7 +1778,7 @@ mod tests {
         let res = data.append_owner(
             Owner {
                 public_key: owner_pk,
-                expected_entries_index: 0,
+                expected_data_index: 0,
                 expected_permissions_index: 0,
             },
             0,
@@ -1801,7 +1799,7 @@ mod tests {
         let res = data.append_owner(
             Owner {
                 public_key: owner_pk,
-                expected_entries_index: 64,
+                expected_data_index: 64,
                 expected_permissions_index: 0,
             },
             1,
@@ -1829,7 +1827,7 @@ mod tests {
         let _ = data.append_owner(
             Owner {
                 public_key: owner_pk,
-                expected_entries_index: 0,
+                expected_data_index: 0,
                 expected_permissions_index: 0,
             },
             0,
@@ -1838,7 +1836,7 @@ mod tests {
         let _ = data.append_owner(
             Owner {
                 public_key: owner_pk1,
-                expected_entries_index: 0,
+                expected_data_index: 0,
                 expected_permissions_index: 0,
             },
             1,
@@ -1926,7 +1924,7 @@ mod tests {
 
         let mut pub_permissions = PublicPermissions {
             permissions: BTreeMap::new(),
-            expected_entries_index: 0,
+            expected_data_index: 0,
             expected_owners_index: 0,
         };
         let _ = pub_permissions.permissions.insert(
@@ -1936,7 +1934,7 @@ mod tests {
 
         let mut private_permissions = PrivatePermissions {
             permissions: BTreeMap::new(),
-            expected_entries_index: 0,
+            expected_data_index: 0,
             expected_owners_index: 0,
         };
         let _ = private_permissions
@@ -2052,7 +2050,7 @@ mod tests {
         unwrap!(inner.append_owner(
             Owner {
                 public_key: public_key_0,
-                expected_entries_index: 0,
+                expected_data_index: 0,
                 expected_permissions_index: 0,
             },
             0,
@@ -2071,7 +2069,7 @@ mod tests {
         // with permissions
         let mut permissions = PublicPermissions {
             permissions: BTreeMap::new(),
-            expected_entries_index: 0,
+            expected_data_index: 0,
             expected_owners_index: 1,
         };
         let _ = permissions
@@ -2121,7 +2119,7 @@ mod tests {
         unwrap!(inner.append_owner(
             Owner {
                 public_key: public_key_0,
-                expected_entries_index: 0,
+                expected_data_index: 0,
                 expected_permissions_index: 0,
             },
             0,
@@ -2137,7 +2135,7 @@ mod tests {
         // with permissions
         let mut permissions = PrivatePermissions {
             permissions: BTreeMap::new(),
-            expected_entries_index: 0,
+            expected_data_index: 0,
             expected_owners_index: 1,
         };
         let _ = permissions

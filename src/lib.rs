@@ -95,7 +95,7 @@ pub use public_key::{PublicKey, Signature};
 pub use request::{LoginPacket, Request, MAX_LOGIN_PACKET_BYTES};
 pub use response::Response;
 pub use sequence::{
-    AppendOperation as ADataAppend, Data as AData, Entries as ADataEntries, Entry as ADataEntry,
+    AppendOperation as ADataAppend, Data as AData, Values as ADataEntries, Entry as ADataEntry,
     PrivateSentriedSequence, PrivateSequence, PublicSentriedSequence, PublicSequence, Sequence,
     SequencePermissions as ADataPermissions,
 };
