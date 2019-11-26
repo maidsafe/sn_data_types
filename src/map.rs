@@ -7,22 +7,27 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
+#![allow(dead_code)]
+
 use crate::shared_data::{
     to_absolute_index, to_absolute_range, Action, Address, ExpectedIndices, Index, Kind,
     NonSentried, Owner, Permissions, PrivatePermissionSet, PrivatePermissions, PublicPermissionSet,
     PublicPermissions, Sentried, User,
 };
-use crate::{Error, PublicKey, Result, XorName};
+use crate::{EntryError, Error, PublicKey, Result, XorName};
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::BTreeSet,
+    collections::{btree_map::Entry as DataEntry, BTreeMap, BTreeSet},
     fmt::{self, Debug, Formatter},
+    marker::PhantomData,
+    mem,
 };
 
 pub type PublicSentriedMap = Map<PublicPermissions, Sentried>;
 pub type PublicMap = Map<PublicPermissions, NonSentried>;
 pub type PrivateSentriedMap = Map<PrivatePermissions, Sentried>;
 pub type PrivateMap = Map<PrivatePermissions, NonSentried>;
+pub type EntryHistories = BTreeMap<Key, Vec<StoredValue>>;
 pub type Entries = Vec<Entry>;
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
@@ -58,14 +63,14 @@ impl Entry {
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
 pub struct Map<P, S> {
     address: Address,
-    data: Entries,
+    data: EntryHistories,
     permissions: Vec<P>,
     // This is the history of owners, with each entry representing an owner.  Each single owner
     // could represent an individual user, or a group of users, depending on the `PublicKey` type.
     owners: Vec<Owner>,
-    /// Version should be increased for any changes to Map data entries, 
+    /// Version should be increased for any changes to Map data entries,
     /// but not for permissions and owner changes.
-    version: u64,
+    version: Option<u64>,
     _flavour: S,
 }
 
@@ -79,7 +84,7 @@ where
     pub fn shell(&self, expected_entries_index: impl Into<Index>) -> Result<Self> {
         let expected_entries_index = to_absolute_index(
             expected_entries_index.into(),
-            self.expected_entries_index() as usize,
+            self.expected_data_version().unwrap_or_default() as usize,
         )
         .ok_or(Error::NoSuchEntry)? as u64;
 
@@ -99,38 +104,42 @@ where
 
         Ok(Self {
             address: self.address,
-            data: Vec::new(),
+            data: BTreeMap::new(),
             permissions,
             owners,
+            version: self.version,
             _flavour: self._flavour,
         })
     }
 
     /// Return a value for the given key (if it is present).
-    pub fn get(&self, key: &[u8]) -> Option<&Vec<u8>> {
-        self.data.iter().find_map(|entry| {
-            if entry.key.as_slice() == key {
-                Some(&entry.value)
-            } else {
-                None
+    pub fn get(&self, key: &Key) -> Option<&Value> {
+        match self.data.get(key) {
+            Some(history) => {
+                match history.last() {
+                    Some(StoredValue::Value(value)) => Some(value),
+                    Some(StoredValue::Tombstone()) => None,
+                    None => panic!(
+                        "This is a bug! We are not supposed to have stored None under a key."
+                    ), // should we panic here? Would like to return Error::NetworkOther(String)
+                }
             }
-        })
-    }
-
-    /// Return the current entry in the Data (if it is present).
-    pub fn current_entry(&self) -> Option<&Entry> {
-        self.data.last()
-    }
-
-    /// Get a list of keys and values with the given indices.
-    pub fn in_range(&self, start: Index, end: Index) -> Option<Entries> {
-        let range = to_absolute_range(start, end, self.data.len())?;
-        Some(self.data[range].to_vec())
+            None => None,
+        }
     }
 
     /// Return all entries.
-    pub fn entries(&self) -> &Entries {
-        &self.data
+    pub fn entries(&self) -> Vec<Entry> {
+        self.data
+            .iter()
+            .filter_map(move |(key, values)| match values.last() {
+                Some(StoredValue::Value(val)) => Some(Entry {
+                    key: key.clone(),
+                    value: val.to_vec(),
+                }),
+                _ => None,
+            })
+            .collect()
     }
 
     /// Return the address of this Map.
@@ -148,9 +157,9 @@ where
         self.address.tag()
     }
 
-    /// Return the expected entry index.
-    pub fn expected_entries_index(&self) -> u64 {
-        self.data.len() as u64
+    /// Return the expected data version.
+    pub fn expected_data_version(&self) -> Option<u64> {
+        self.version
     }
 
     /// Return the expected owners index.
@@ -173,8 +182,11 @@ where
     /// Add a new permissions entry.
     /// The `Perm` struct should contain valid indices.
     pub fn append_permissions(&mut self, permissions: P, index: u64) -> Result<()> {
-        if permissions.expected_entries_index() != self.expected_entries_index() {
-            return Err(Error::InvalidSuccessor(self.expected_entries_index()));
+        if permissions.expected_entries_index() != self.expected_data_version().unwrap_or_default()
+        {
+            return Err(Error::InvalidSuccessor(
+                self.expected_data_version().unwrap_or_default(),
+            ));
         }
         if permissions.expected_owners_index() != self.expected_owners_index() {
             return Err(Error::InvalidOwnersSuccessor(self.expected_owners_index()));
@@ -218,10 +230,13 @@ where
         let range = to_absolute_range(start, end, self.owners.len())?;
         Some(&self.owners[range])
     }
+
     /// Add a new owner entry.
     pub fn append_owner(&mut self, owner: Owner, index: u64) -> Result<()> {
-        if owner.expected_entries_index != self.expected_entries_index() {
-            return Err(Error::InvalidSuccessor(self.expected_entries_index()));
+        if owner.expected_entries_index != self.expected_data_version().unwrap_or_default() {
+            return Err(Error::InvalidSuccessor(
+                self.expected_data_version().unwrap_or_default(),
+            ));
         }
         if owner.expected_permissions_index != self.expected_permissions_index() {
             return Err(Error::InvalidPermissionsSuccessor(
@@ -251,40 +266,145 @@ where
 
     pub fn indices(&self) -> ExpectedIndices {
         ExpectedIndices::new(
-            self.expected_entries_index(),
+            self.expected_data_version().unwrap_or_default(),
             self.expected_owners_index(),
             self.expected_permissions_index(),
         )
     }
 }
 
-/// Common methods for NonSentried flavours.
-impl<P: Permissions> Map<P, NonSentried> {
-    /// Append new entries.
-    pub fn append(&mut self, mut entries: Entries) -> Result<()> {
-        check_dup(&self.data, entries.as_mut())?;
-
-        self.data.extend(entries);
-        Ok(())
-    }
+#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
+pub enum Cmd {
+    /// Inserts a new entry
+    Insert(KvPair),
+    /// Updates an entry with a new value
+    Update(KvPair),
+    /// Deletes an entry
+    Delete(Key),
 }
 
-/// Common methods for Sentried flavours.
-impl<P: Permissions> Map<P, Sentried> {
-    /// Append new entries.
-    ///
-    /// If the specified `expected_index` does not equal the entries count in data, an
-    /// error will be returned.
-    pub fn append(&mut self, mut entries: Entries, expected_index: u64) -> Result<()> {
-        check_dup(&self.data, entries.as_mut())?;
+#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
+pub enum SentriedCmd {
+    /// Inserts a new entry
+    Insert(SentriedKvPair),
+    /// Updates an entry with a new value
+    Update(SentriedKvPair),
+    /// Deletes an entry
+    Delete(SentriedKey),
+}
 
-        if expected_index != self.data.len() as u64 {
-            return Err(Error::InvalidSuccessor(self.data.len() as u64));
-        }
+#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
+pub enum MapTransaction {
+    AnyVersion(Transaction),
+    ExpectVersion(SentriedTransaction),
+}
 
-        self.data.extend(entries);
-        Ok(())
-    }
+pub type Key = Vec<u8>;
+pub type Value = Vec<u8>;
+pub type KvPair = (Key, Value);
+pub type Transaction = Vec<Cmd>;
+
+pub type ExpectedVersion = u64;
+pub type SentriedKey = (Key, ExpectedVersion);
+pub type SentriedKvPair = (KvPair, ExpectedVersion);
+pub type SentriedTransaction = Vec<SentriedCmd>;
+
+// /// Common methods for NonSentried flavours.
+// impl<P: Permissions> Map<P, NonSentried> {
+//     fn commit(&mut self, tx: Transaction) -> Result<()> {
+//         let operations: Operations<P> = tx.into_iter().fold(
+//             (
+//                 BTreeSet::<KvPair>::new(),
+//                 BTreeSet::<KvPair>::new(),
+//                 BTreeSet::<Key>::new(),
+//                 PhantomData::<P>,
+//             ),
+//             |(mut insert, mut update, mut delete, phantom), cmd| {
+//                 match cmd {
+//                     Cmd::Insert(kv_pair) => {
+//                         let _ = insert.insert(kv_pair);
+//                     }
+//                     Cmd::Update(kv_pair) => {
+//                         let _ = update.insert(kv_pair);
+//                     }
+//                     Cmd::Delete(key) => {
+//                         let _ = delete.insert(key);
+//                     }
+//                 };
+//                 (insert, update, delete, phantom)
+//             },
+//         );
+
+//         self.apply(operations)
+//     }
+// }
+
+// /// Common methods for Sentried flavours.
+// impl<P: Permissions> Map<P, Sentried> {
+//     /// Commit transaction.
+//     ///
+//     /// If the specified `expected_index` does not equal the entries count in data, an
+//     /// error will be returned.
+//     pub fn commit_sentried(&mut self, tx: SentriedTransaction) -> Result<()> {
+//         // Deconstruct actions into inserts, updates, and deletes
+//         let operations: SentriedOperations<P> = tx.into_iter().fold(
+//             (BTreeSet::new(), BTreeSet::new(), BTreeSet::new(), PhantomData::<P>),
+//             |(mut insert, mut update, mut delete, phantom), cmd| {
+//                 match cmd {
+//                     SentriedCmd::Insert(sentried_kvpair) => {
+//                         let _ = insert.insert(sentried_kvpair);
+//                     }
+//                     SentriedCmd::Update(sentried_kvpair) => {
+//                         let _ = update.insert(sentried_kvpair);
+//                     }
+//                     SentriedCmd::Delete(sentried_key) => {
+//                         let _ = delete.insert(sentried_key);
+//                     }
+//                 };
+//                 (insert, update, delete, phantom)
+//             },
+//         );
+
+//         self.apply(operations)
+//     }
+// }
+
+type PrivateOperations = (
+    BTreeSet<KvPair>,
+    BTreeSet<KvPair>,
+    BTreeSet<Key>,
+    PhantomData<PrivatePermissions>,
+);
+type PublicOperations = (
+    BTreeSet<KvPair>,
+    BTreeSet<KvPair>,
+    BTreeSet<Key>,
+    PhantomData<PublicPermissions>,
+);
+type PrivateSentriedOperations = (
+    BTreeSet<SentriedKvPair>,
+    BTreeSet<SentriedKvPair>,
+    BTreeSet<SentriedKey>,
+    PhantomData<PrivatePermissions>,
+);
+type PublicSentriedOperations = (
+    BTreeSet<SentriedKvPair>,
+    BTreeSet<SentriedKvPair>,
+    BTreeSet<SentriedKey>,
+    PhantomData<PublicPermissions>,
+);
+
+enum OperationSet {
+    Private(PrivateOperations),
+    Public(PublicOperations),
+    PrivateSentried(PrivateSentriedOperations),
+    PublicSentried(PublicSentriedOperations),
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum StoredValue {
+    Value(Value),
+    Tombstone(),
 }
 
 /// Public + Sentried
@@ -292,11 +412,148 @@ impl Map<PublicPermissions, Sentried> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::PublicSentried { name, tag },
-            data: Vec::new(),
+            data: BTreeMap::new(),
             permissions: Vec::new(),
             owners: Vec::new(),
+            version: Some(0),
             _flavour: Sentried,
         }
+    }
+
+    /// Commit transaction.
+    ///
+    /// If the specified `expected_index` does not equal the entries count in data, an
+    /// error will be returned.
+    pub fn commit(&mut self, tx: SentriedTransaction) -> Result<()> {
+        // Deconstruct tx into inserts, updates, and deletes
+        let operations: PublicSentriedOperations = tx.into_iter().fold(
+            (
+                BTreeSet::new(),
+                BTreeSet::new(),
+                BTreeSet::new(),
+                PhantomData::<PublicPermissions>,
+            ),
+            |(mut insert, mut update, mut delete, phantom), cmd| {
+                match cmd {
+                    SentriedCmd::Insert(sentried_kvpair) => {
+                        let _ = insert.insert(sentried_kvpair);
+                    }
+                    SentriedCmd::Update(sentried_kvpair) => {
+                        let _ = update.insert(sentried_kvpair);
+                    }
+                    SentriedCmd::Delete(sentried_key) => {
+                        let _ = delete.insert(sentried_key);
+                    }
+                };
+                (insert, update, delete, phantom)
+            },
+        );
+
+        self.apply(operations)
+    }
+
+    fn apply(&mut self, tx: PublicSentriedOperations) -> Result<()> {
+        let (insert, update, delete, _) = tx;
+        if insert.is_empty() && update.is_empty() && delete.is_empty() {
+            return Err(Error::InvalidOperation);
+        }
+        let mut new_data = self.data.clone();
+        let mut errors = BTreeMap::new();
+
+        for ((key, val), version) in insert {
+            match new_data.entry(key) {
+                DataEntry::Occupied(mut entry) => match entry.get().last() {
+                    Some(value) => match value {
+                        StoredValue::Tombstone() => {
+                            let expected_version = entry.get().len() as u64;
+                            if version == expected_version {
+                                let _ = &mut entry.get_mut().push(StoredValue::Value(val));
+                            } else {
+                                let _ = errors.insert(
+                                    entry.key().clone(),
+                                    EntryError::InvalidSuccessor(expected_version as u8),
+                                );
+                            }
+                        }
+                        StoredValue::Value(_) => {
+                            let _ = errors.insert(entry.key().clone(), EntryError::EntryExists(0));
+                        }
+                    },
+                    None => panic!("This is a bug! We are not supposed to have stored None."), // should we panic here? Would like to return Error::NetworkOther(String)
+                },
+                DataEntry::Vacant(entry) => {
+                    if version == 0 {
+                        let _ = entry.insert(vec![StoredValue::Value(val)]);
+                    } else {
+                        let _ = errors.insert(entry.key().clone(), EntryError::InvalidSuccessor(0));
+                    }
+                }
+            }
+        }
+
+        for ((key, val), version) in update {
+            match new_data.entry(key) {
+                DataEntry::Occupied(mut entry) => {
+                    match entry.get().last() {
+                        Some(StoredValue::Value(_)) => {
+                            let seq = entry.get_mut();
+                            let expected_version = seq.len() as u64;
+                            if version == expected_version {
+                                let _ = seq.push(StoredValue::Value(val));
+                            } else {
+                                let _ = errors.insert(
+                                    entry.key().clone(),
+                                    EntryError::InvalidSuccessor(expected_version as u8),
+                                );
+                            }
+                        }
+                        Some(StoredValue::Tombstone()) => {
+                            let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
+                        }
+                        None => panic!("This is a bug! We are not supposed to have stored None."), // should we panic here? Would like to return Error::NetworkOther(String)
+                    }
+                }
+                DataEntry::Vacant(entry) => {
+                    let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
+                }
+            }
+        }
+
+        for (key, version) in delete {
+            match new_data.entry(key.clone()) {
+                DataEntry::Occupied(mut entry) => {
+                    let current_value = entry.get().last();
+                    match current_value {
+                        Some(StoredValue::Value(_)) => {
+                            let expected_version = entry.get().len() as u64;
+                            if version == expected_version {
+                                let _ = entry.get_mut().push(StoredValue::Tombstone());
+                            } else {
+                                let _ = errors.insert(
+                                    entry.key().clone(),
+                                    EntryError::InvalidSuccessor(expected_version as u8),
+                                );
+                            }
+                        }
+                        Some(StoredValue::Tombstone()) => {
+                            let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
+                        }
+                        None => panic!("This is a bug! We are not supposed to have stored None."), // should we panic here? Would like to return Error::NetworkOther(String)
+                    }
+                }
+                DataEntry::Vacant(entry) => {
+                    let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
+                }
+            }
+        }
+
+        if !errors.is_empty() {
+            return Err(Error::InvalidEntryActions(errors));
+        }
+
+        self.version = Some(self.version.unwrap() + 1);
+        let _old_data = mem::replace(&mut self.data, new_data);
+        Ok(())
     }
 }
 
@@ -311,11 +568,127 @@ impl Map<PublicPermissions, NonSentried> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::Public { name, tag },
-            data: Vec::new(),
+            data: BTreeMap::new(),
             permissions: Vec::new(),
             owners: Vec::new(),
+            version: None,
             _flavour: NonSentried,
         }
+    }
+
+    /// Commit transaction.
+    ///
+    /// If the specified `expected_index` does not equal the entries count in data, an
+    /// error will be returned.
+    pub fn commit(&mut self, tx: Transaction) -> Result<()> {
+        // Deconstruct tx into inserts, updates, and deletes
+        let operations: PublicOperations = tx.into_iter().fold(
+            (
+                BTreeSet::<KvPair>::new(),
+                BTreeSet::<KvPair>::new(),
+                BTreeSet::<Key>::new(),
+                PhantomData::<PublicPermissions>,
+            ),
+            |(mut insert, mut update, mut delete, phantom), cmd| {
+                match cmd {
+                    Cmd::Insert(kv_pair) => {
+                        let _ = insert.insert(kv_pair);
+                    }
+                    Cmd::Update(kv_pair) => {
+                        let _ = update.insert(kv_pair);
+                    }
+                    Cmd::Delete(key) => {
+                        let _ = delete.insert(key);
+                    }
+                };
+                (insert, update, delete, phantom)
+            },
+        );
+
+        self.apply(operations)
+    }
+
+    fn apply(&mut self, tx: PublicOperations) -> Result<()> {
+        let (insert, update, delete, _) = tx;
+        if insert.is_empty() && update.is_empty() && delete.is_empty() {
+            return Err(Error::InvalidOperation);
+        }
+        let mut new_data = self.data.clone();
+        let mut errors = BTreeMap::new();
+
+        for (key, val) in insert {
+            match new_data.entry(key) {
+                DataEntry::Occupied(mut entry) => {
+                    let history = entry.get_mut();
+                    match history.last() {
+                        Some(StoredValue::Value(_)) => {
+                            let _ = errors.insert(entry.key().clone(), EntryError::EntryExists(0));
+                        }
+                        Some(StoredValue::Tombstone()) => {
+                            let _ = history.push(StoredValue::Value(val));
+                            // todo: fix From impl
+                        }
+                        None => {
+                            let _ = history.push(StoredValue::Value(val));
+                            // todo: fix From impl
+                        }
+                    }
+                }
+                DataEntry::Vacant(entry) => {
+                    let _ = entry.insert(vec![StoredValue::Value(val)]); // todo: fix From impl
+                }
+            }
+        }
+
+        // maintains history
+        for (key, val) in update {
+            match new_data.entry(key) {
+                DataEntry::Occupied(mut entry) => {
+                    let history = entry.get_mut();
+                    match history.last() {
+                        Some(StoredValue::Value(_)) => {
+                            let _ = history.push(StoredValue::Value(val));
+                            // todo: fix From impl
+                        }
+                        Some(StoredValue::Tombstone()) => {
+                            let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
+                        }
+                        None => panic!("This is a bug! We are not supposed to have stored None."), // should we panic here? Would like to return Error::NetworkOther(String)
+                    }
+                }
+                DataEntry::Vacant(entry) => {
+                    let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
+                }
+            }
+        }
+
+        // maintains history
+        for key in delete {
+            match new_data.entry(key.clone()) {
+                DataEntry::Occupied(mut entry) => {
+                    let history = entry.get_mut();
+                    match history.last() {
+                        Some(StoredValue::Value(_)) => {
+                            let _ = history.push(StoredValue::Tombstone());
+                        }
+                        Some(StoredValue::Tombstone()) => {
+                            let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
+                        }
+                        None => panic!("This is a bug! We are not supposed to have stored None."), // should we panic here? Would like to return Error::NetworkOther(String)
+                    }
+                }
+                DataEntry::Vacant(entry) => {
+                    let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
+                }
+            }
+        }
+
+        if !errors.is_empty() {
+            return Err(Error::InvalidEntryActions(errors));
+        }
+
+        let _old_data = mem::replace(&mut self.data, new_data);
+        Ok(())
     }
 }
 
@@ -330,11 +703,171 @@ impl Map<PrivatePermissions, Sentried> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::PrivateSentried { name, tag },
-            data: Vec::new(),
+            data: BTreeMap::new(),
             permissions: Vec::new(),
             owners: Vec::new(),
+            version: Some(0),
             _flavour: Sentried,
         }
+    }
+
+    /// Commit transaction.
+    ///
+    /// If the specified `expected_index` does not equal the entries count in data, an
+    /// error will be returned.
+    pub fn commit(&mut self, tx: SentriedTransaction) -> Result<()> {
+        // Deconstruct tx into inserts, updates, and deletes
+        let operations: PrivateSentriedOperations = tx.into_iter().fold(
+            (
+                BTreeSet::new(),
+                BTreeSet::new(),
+                BTreeSet::new(),
+                PhantomData::<PrivatePermissions>,
+            ),
+            |(mut insert, mut update, mut delete, phantom), cmd| {
+                match cmd {
+                    SentriedCmd::Insert(sentried_kvpair) => {
+                        let _ = insert.insert(sentried_kvpair);
+                    }
+                    SentriedCmd::Update(sentried_kvpair) => {
+                        let _ = update.insert(sentried_kvpair);
+                    }
+                    SentriedCmd::Delete(sentried_key) => {
+                        let _ = delete.insert(sentried_key);
+                    }
+                };
+                (insert, update, delete, phantom)
+            },
+        );
+
+        self.apply(operations)
+    }
+
+    fn apply(&mut self, operations: PrivateSentriedOperations) -> Result<()> {
+        let (insert, update, delete, _) = operations;
+        if insert.is_empty() && update.is_empty() && delete.is_empty() {
+            return Err(Error::InvalidOperation);
+        }
+        let mut new_data = self.data.clone();
+        let mut errors = BTreeMap::new();
+
+        for ((key, val), version) in insert {
+            match new_data.entry(key.clone()) {
+                DataEntry::Occupied(mut entry) => {
+                    let history = entry.get_mut();
+                    match history.last() {
+                        Some(StoredValue::Value(_)) => {
+                            let _ = errors.insert(
+                                entry.key().clone(),
+                                EntryError::EntryExists(entry.get().len() as u8),
+                            );
+                        }
+                        Some(StoredValue::Tombstone()) => {
+                            if version == history.len() as u64 {
+                                let _ = history.push(StoredValue::Value(val));
+                            } else {
+                                let _ = errors.insert(
+                                    key,
+                                    EntryError::InvalidSuccessor(0), // I assume we are here letting caller know what successor is expected
+                                );
+                            }
+                        }
+                        None => {
+                            panic!("This would be a bug! We are not supposed to store empty vecs!")
+                        }
+                    }
+                }
+                DataEntry::Vacant(entry) => {
+                    if version == 0 {
+                        // still make sure the val.version == 0
+                        let _ = entry.insert(vec![StoredValue::Value(val)]);
+                    } else {
+                        let _ = errors.insert(
+                            key,
+                            EntryError::InvalidSuccessor(0), // I assume we are here letting caller know what successor is expected
+                        );
+                    }
+                }
+            }
+        }
+
+        // overwrites old data, while also incrementing version
+        for ((key, val), version) in update {
+            match new_data.entry(key) {
+                DataEntry::Occupied(mut entry) => {
+                    let history = entry.get_mut();
+                    match history.last() {
+                        Some(StoredValue::Value(_)) => {
+                            let expected_version = history.len() as u64;
+                            if version == expected_version {
+                                let _old_value = mem::replace(
+                                    &mut history.last(),
+                                    Some(&StoredValue::Tombstone()),
+                                ); // remove old value, as to properly owerwrite on update, but keep the index, as to increment history length (i.e. version)
+                                let _ = history.push(StoredValue::Value(val));
+                            } else {
+                                let _ = errors.insert(
+                                    entry.key().clone(),
+                                    EntryError::InvalidSuccessor(version as u8), // I assume we are here letting caller know what successor is expected
+                                );
+                            }
+                        }
+                        Some(StoredValue::Tombstone()) => {
+                            let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
+                        }
+                        None => {
+                            panic!("This would be a bug! We are not supposed to store empty vecs!")
+                        }
+                    }
+                }
+                DataEntry::Vacant(entry) => {
+                    let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
+                }
+            }
+        }
+
+        // removes old data, while also incrementing version
+        for (key, version) in delete {
+            match new_data.entry(key.clone()) {
+                DataEntry::Occupied(mut entry) => {
+                    let history = entry.get_mut();
+                    match history.last() {
+                        Some(StoredValue::Value(_)) => {
+                            let expected_version = history.len() as u64;
+                            if version == expected_version {
+                                let _old_value = mem::replace(
+                                    &mut history.last(),
+                                    Some(&StoredValue::Tombstone()),
+                                ); // remove old value, as to properly delete, but keep the index, as to increment history length (i.e. version)
+                                let _ = history.push(StoredValue::Tombstone());
+                            } else {
+                                let _ = errors.insert(
+                                    entry.key().clone(),
+                                    EntryError::InvalidSuccessor(version as u8), // I assume we are here letting caller know what successor is expected
+                                );
+                            }
+                        }
+                        Some(StoredValue::Tombstone()) => {
+                            let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
+                        }
+                        None => {
+                            panic!("This would be a bug! We are not supposed to store empty vecs!")
+                        }
+                    }
+                }
+                DataEntry::Vacant(entry) => {
+                    let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
+                }
+            }
+        }
+
+        if !errors.is_empty() {
+            return Err(Error::InvalidEntryActions(errors));
+        }
+
+        self.version = Some(self.version.unwrap() + 1);
+        let _old_data = mem::replace(&mut self.data, new_data);
+        Ok(())
     }
 }
 
@@ -349,11 +882,93 @@ impl Map<PrivatePermissions, NonSentried> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::Private { name, tag },
-            data: Vec::new(),
+            data: BTreeMap::new(),
             permissions: Vec::new(),
             owners: Vec::new(),
+            version: None,
             _flavour: NonSentried,
         }
+    }
+
+    /// Commit transaction.
+    ///
+    /// If the specified `expected_index` does not equal the entries count in data, an
+    /// error will be returned.
+    pub fn commit(&mut self, tx: Transaction) -> Result<()> {
+        // Deconstruct tx into inserts, updates, and deletes
+        let operations: PrivateOperations = tx.into_iter().fold(
+            (
+                BTreeSet::<KvPair>::new(),
+                BTreeSet::<KvPair>::new(),
+                BTreeSet::<Key>::new(),
+                PhantomData::<PrivatePermissions>,
+            ),
+            |(mut insert, mut update, mut delete, phantom), cmd| {
+                match cmd {
+                    Cmd::Insert(kv_pair) => {
+                        let _ = insert.insert(kv_pair);
+                    }
+                    Cmd::Update(kv_pair) => {
+                        let _ = update.insert(kv_pair);
+                    }
+                    Cmd::Delete(key) => {
+                        let _ = delete.insert(key);
+                    }
+                };
+                (insert, update, delete, phantom)
+            },
+        );
+
+        self.apply(operations)
+    }
+
+    fn apply(&mut self, operations: PrivateOperations) -> Result<()> {
+        let (insert, update, delete, _) = operations;
+        if insert.is_empty() && update.is_empty() && delete.is_empty() {
+            return Err(Error::InvalidOperation);
+        }
+        let mut new_data = self.data.clone();
+        let mut errors = BTreeMap::new();
+
+        for (key, val) in insert {
+            match new_data.entry(key) {
+                DataEntry::Occupied(entry) => {
+                    let _ = errors.insert(entry.key().clone(), EntryError::EntryExists(0));
+                }
+                DataEntry::Vacant(entry) => {
+                    let _ = entry.insert(vec![StoredValue::Value(val)]);
+                }
+            }
+        }
+
+        for (key, val) in update {
+            match new_data.entry(key) {
+                DataEntry::Occupied(mut entry) => {
+                    let _ = entry.insert(vec![StoredValue::Value(val)]); // replace the vec, which always has 1 single value if it exists
+                }
+                DataEntry::Vacant(entry) => {
+                    let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
+                }
+            }
+        }
+
+        for key in delete {
+            match new_data.entry(key.clone()) {
+                DataEntry::Occupied(_) => {
+                    let _ = new_data.remove(&key);
+                }
+                DataEntry::Vacant(entry) => {
+                    let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
+                }
+            }
+        }
+
+        if !errors.is_empty() {
+            return Err(Error::InvalidEntryActions(errors));
+        }
+
+        let _old_data = mem::replace(&mut self.data, new_data);
+        Ok(())
     }
 }
 
@@ -361,25 +976,6 @@ impl Debug for Map<PrivatePermissions, NonSentried> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PrivateMap {:?}", self.name())
     }
-}
-
-fn check_dup(data: &[Entry], entries: &mut Entries) -> Result<()> {
-    let new: BTreeSet<&Vec<u8>> = entries.iter().map(|entry| &entry.key).collect();
-
-    // If duplicate entries are present in the push.
-    if new.len() < entries.len() {
-        return Err(Error::DuplicateEntryKeys);
-    }
-
-    let existing: BTreeSet<&Vec<u8>> = data.iter().map(|entry| &entry.key).collect();
-    if !existing.is_disjoint(&new) {
-        let dup: Entries = entries
-            .drain(..)
-            .filter(|entry| existing.contains(&entry.key))
-            .collect();
-        return Err(Error::KeysExist(dup));
-    }
-    Ok(())
 }
 
 /// Object storing a Map variant.
@@ -443,10 +1039,10 @@ impl Data {
 
     pub fn expected_entries_index(&self) -> u64 {
         match self {
-            Data::PublicSentried(data) => data.expected_entries_index(),
-            Data::Public(data) => data.expected_entries_index(),
-            Data::PrivateSentried(data) => data.expected_entries_index(),
-            Data::Private(data) => data.expected_entries_index(),
+            Data::PublicSentried(data) => data.expected_data_version().unwrap_or_default(),
+            Data::Public(data) => data.expected_data_version().unwrap_or_default(),
+            Data::PrivateSentried(data) => data.expected_data_version().unwrap_or_default(),
+            Data::Private(data) => data.expected_data_version().unwrap_or_default(),
         }
     }
 
@@ -468,16 +1064,16 @@ impl Data {
         }
     }
 
-    pub fn in_range(&self, start: Index, end: Index) -> Option<Entries> {
-        match self {
-            Data::PublicSentried(data) => data.in_range(start, end),
-            Data::Public(data) => data.in_range(start, end),
-            Data::PrivateSentried(data) => data.in_range(start, end),
-            Data::Private(data) => data.in_range(start, end),
-        }
-    }
+    // pub fn in_range(&self, start: Index, end: Index) -> Option<Entries> {
+    //     match self {
+    //         Data::PublicSentried(data) => data.in_range(start, end),
+    //         Data::Public(data) => data.in_range(start, end),
+    //         Data::PrivateSentried(data) => data.in_range(start, end),
+    //         Data::Private(data) => data.in_range(start, end),
+    //     }
+    // }
 
-    pub fn get(&self, key: &[u8]) -> Option<&Vec<u8>> {
+    pub fn get(&self, key: &Key) -> Option<&Value> {
         match self {
             Data::PublicSentried(data) => data.get(key),
             Data::Public(data) => data.get(key),
@@ -492,15 +1088,6 @@ impl Data {
             Data::Public(data) => data.indices(),
             Data::PrivateSentried(data) => data.indices(),
             Data::Private(data) => data.indices(),
-        }
-    }
-
-    pub fn current_entry(&self) -> Option<&Entry> {
-        match self {
-            Data::PublicSentried(data) => data.current_entry(),
-            Data::Public(data) => data.current_entry(),
-            Data::PrivateSentried(data) => data.current_entry(),
-            Data::Private(data) => data.current_entry(),
         }
     }
 
@@ -566,11 +1153,39 @@ impl Data {
 
     pub fn shell(&self, index: impl Into<Index>) -> Result<Self> {
         match self {
-            Data::PublicSentried(adata) => adata.shell(index).map(Data::PublicSentried),
-            Data::Public(adata) => adata.shell(index).map(Data::Public),
-            Data::PrivateSentried(adata) => adata.shell(index).map(Data::PrivateSentried),
-            Data::Private(adata) => adata.shell(index).map(Data::Private),
+            Data::PublicSentried(map) => map.shell(index).map(Data::PublicSentried),
+            Data::Public(map) => map.shell(index).map(Data::Public),
+            Data::PrivateSentried(map) => map.shell(index).map(Data::PrivateSentried),
+            Data::Private(map) => map.shell(index).map(Data::Private),
         }
+    }
+
+    /// Commits transaction.
+    pub fn commit(&mut self, tx: MapTransaction) -> Result<()> {
+        match self {
+            Data::PrivateSentried(map) => {
+                if let MapTransaction::ExpectVersion(stx) = tx {
+                    return map.commit(stx);
+                }
+            }
+            Data::Private(map) => {
+                if let MapTransaction::AnyVersion(atx) = tx {
+                    return map.commit(atx);
+                }
+            }
+            Data::PublicSentried(map) => {
+                if let MapTransaction::ExpectVersion(stx) = tx {
+                    return map.commit(stx);
+                }
+            }
+            Data::Public(map) => {
+                if let MapTransaction::AnyVersion(atx) = tx {
+                    return map.commit(atx);
+                }
+            }
+        }
+
+        Err(Error::InvalidOperation)
     }
 }
 
@@ -598,20 +1213,13 @@ impl From<PrivateMap> for Data {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
-pub struct AppendOperation {
-    // Address of an Map object on the network.
-    pub address: Address,
-    // A list of entries to append.
-    pub values: Entries,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::collections::BTreeMap;
     use threshold_crypto::SecretKey;
-    use unwrap::{unwrap, unwrap_err};
+    //use unwrap::{unwrap, unwrap_err};
+    use unwrap::unwrap;
 
     #[test]
     fn append_permissions() {
@@ -710,9 +1318,13 @@ mod tests {
     }
 
     #[test]
-    fn seq_append_entries() {
+    fn insert_entries() {
         let mut data = PublicSentriedMap::new(XorName([1; 32]), 10000);
-        unwrap!(data.append(vec![Entry::new(b"hello".to_vec(), b"world".to_vec())], 0));
+        let insert_0 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
+        let insert_1 = SentriedCmd::Insert(((vec![1], vec![0]), 1));
+        let insert_2 = SentriedCmd::Insert(((vec![2], vec![0]), 2));
+        let tx = vec![insert_0, insert_1, insert_2];
+        unwrap!(data.commit(tx))
     }
 
     #[test]
@@ -755,131 +1367,131 @@ mod tests {
         assert_eq!(address, decoded);
     }
 
-    #[test]
-    fn append_unseq_data_test() {
-        let mut data = PrivateMap::new(XorName(rand::random()), 10);
+    // #[test]
+    // fn append_unseq_data_test() {
+    //     let mut data = PrivateMap::new(XorName(rand::random()), 10);
 
-        // Assert that the entries are not appended because of duplicate keys.
-        let entries = vec![
-            Entry::new(b"KEY1".to_vec(), b"VALUE1".to_vec()),
-            Entry::new(b"KEY2".to_vec(), b"VALUE2".to_vec()),
-            Entry::new(b"KEY1".to_vec(), b"VALUE1".to_vec()),
-        ];
-        assert_eq!(Error::DuplicateEntryKeys, unwrap_err!(data.append(entries)));
+    //     // Assert that the entries are not appended because of duplicate keys.
+    //     let entries = vec![
+    //         Entry::new(b"KEY1".to_vec(), b"VALUE1".to_vec()),
+    //         Entry::new(b"KEY2".to_vec(), b"VALUE2".to_vec()),
+    //         Entry::new(b"KEY1".to_vec(), b"VALUE1".to_vec()),
+    //     ];
+    //     assert_eq!(Error::DuplicateEntryKeys, unwrap_err!(data.append(entries)));
 
-        // Assert that the entries are appended because there are no duplicate keys.
-        let entries1 = vec![
-            Entry::new(b"KEY1".to_vec(), b"VALUE1".to_vec()),
-            Entry::new(b"KEY2".to_vec(), b"VALUE2".to_vec()),
-        ];
+    //     // Assert that the entries are appended because there are no duplicate keys.
+    //     let entries1 = vec![
+    //         Entry::new(b"KEY1".to_vec(), b"VALUE1".to_vec()),
+    //         Entry::new(b"KEY2".to_vec(), b"VALUE2".to_vec()),
+    //     ];
 
-        unwrap!(data.append(entries1));
+    //     unwrap!(data.append(entries1));
 
-        // Assert that entries are not appended because they duplicate some keys appended previously.
-        let entries2 = vec![Entry::new(b"KEY2".to_vec(), b"VALUE2".to_vec())];
-        assert_eq!(
-            Error::KeysExist(entries2.clone()),
-            unwrap_err!(data.append(entries2))
-        );
+    //     // Assert that entries are not appended because they duplicate some keys appended previously.
+    //     let entries2 = vec![Entry::new(b"KEY2".to_vec(), b"VALUE2".to_vec())];
+    //     assert_eq!(
+    //         Error::KeysExist(entries2.clone()),
+    //         unwrap_err!(data.append(entries2))
+    //     );
 
-        // Assert that no duplicate keys are present and the append operation is successful.
-        let entries3 = vec![Entry::new(b"KEY3".to_vec(), b"VALUE3".to_vec())];
-        unwrap!(data.append(entries3));
-    }
+    //     // Assert that no duplicate keys are present and the append operation is successful.
+    //     let entries3 = vec![Entry::new(b"KEY3".to_vec(), b"VALUE3".to_vec())];
+    //     unwrap!(data.append(entries3));
+    // }
 
-    #[test]
-    fn append_seq_data_test() {
-        let mut data = PrivateSentriedMap::new(XorName(rand::random()), 10);
+    // #[test]
+    // fn append_seq_data_test() {
+    //     let mut data = PrivateSentriedMap::new(XorName(rand::random()), 10);
 
-        // Assert that the entries are not appended because of duplicate keys.
-        let entries = vec![
-            Entry::new(b"KEY1".to_vec(), b"VALUE1".to_vec()),
-            Entry::new(b"KEY2".to_vec(), b"VALUE2".to_vec()),
-            Entry::new(b"KEY1".to_vec(), b"VALUE1".to_vec()),
-        ];
-        assert_eq!(
-            Error::DuplicateEntryKeys,
-            unwrap_err!(data.append(entries, 0))
-        );
+    //     // Assert that the entries are not appended because of duplicate keys.
+    //     let entries = vec![
+    //         Entry::new(b"KEY1".to_vec(), b"VALUE1".to_vec()),
+    //         Entry::new(b"KEY2".to_vec(), b"VALUE2".to_vec()),
+    //         Entry::new(b"KEY1".to_vec(), b"VALUE1".to_vec()),
+    //     ];
+    //     assert_eq!(
+    //         Error::DuplicateEntryKeys,
+    //         unwrap_err!(data.append(entries, 0))
+    //     );
 
-        // Assert that the entries are appended because there are no duplicate keys.
-        let entries1 = vec![
-            Entry::new(b"KEY1".to_vec(), b"VALUE1".to_vec()),
-            Entry::new(b"KEY2".to_vec(), b"VALUE2".to_vec()),
-        ];
-        unwrap!(data.append(entries1, 0));
+    //     // Assert that the entries are appended because there are no duplicate keys.
+    //     let entries1 = vec![
+    //         Entry::new(b"KEY1".to_vec(), b"VALUE1".to_vec()),
+    //         Entry::new(b"KEY2".to_vec(), b"VALUE2".to_vec()),
+    //     ];
+    //     unwrap!(data.append(entries1, 0));
 
-        // Assert that entries are not appended because they duplicate some keys appended previously.
-        let entries2 = vec![Entry::new(b"KEY2".to_vec(), b"VALUE2".to_vec())];
-        assert_eq!(
-            Error::KeysExist(entries2.clone()),
-            unwrap_err!(data.append(entries2, 2))
-        );
+    //     // Assert that entries are not appended because they duplicate some keys appended previously.
+    //     let entries2 = vec![Entry::new(b"KEY2".to_vec(), b"VALUE2".to_vec())];
+    //     assert_eq!(
+    //         Error::KeysExist(entries2.clone()),
+    //         unwrap_err!(data.append(entries2, 2))
+    //     );
 
-        // Assert that no duplicate keys are present and the append operation is successful.
-        let entries3 = vec![Entry::new(b"KEY3".to_vec(), b"VALUE3".to_vec())];
-        unwrap!(data.append(entries3, 2));
-    }
+    //     // Assert that no duplicate keys are present and the append operation is successful.
+    //     let entries3 = vec![Entry::new(b"KEY3".to_vec(), b"VALUE3".to_vec())];
+    //     unwrap!(data.append(entries3, 2));
+    // }
 
-    #[test]
-    fn in_range() {
-        let mut data = PublicSentriedMap::new(rand::random(), 10);
-        let entries = vec![
-            Entry::new(b"key0".to_vec(), b"value0".to_vec()),
-            Entry::new(b"key1".to_vec(), b"value1".to_vec()),
-        ];
-        unwrap!(data.append(entries, 0));
+    // #[test]
+    // fn in_range() {
+    //     let mut data = PublicSentriedMap::new(rand::random(), 10);
+    //     let entries = vec![
+    //         Entry::new(b"key0".to_vec(), b"value0".to_vec()),
+    //         Entry::new(b"key1".to_vec(), b"value1".to_vec()),
+    //     ];
+    //     unwrap!(data.append(entries, 0));
 
-        assert_eq!(
-            data.in_range(Index::FromStart(0), Index::FromStart(0)),
-            Some(vec![])
-        );
-        assert_eq!(
-            data.in_range(Index::FromStart(0), Index::FromStart(1)),
-            Some(vec![Entry::new(b"key0".to_vec(), b"value0".to_vec())])
-        );
-        assert_eq!(
-            data.in_range(Index::FromStart(0), Index::FromStart(2)),
-            Some(vec![
-                Entry::new(b"key0".to_vec(), b"value0".to_vec()),
-                Entry::new(b"key1".to_vec(), b"value1".to_vec())
-            ])
-        );
+    //     assert_eq!(
+    //         data.in_range(Index::FromStart(0), Index::FromStart(0)),
+    //         Some(vec![])
+    //     );
+    //     assert_eq!(
+    //         data.in_range(Index::FromStart(0), Index::FromStart(1)),
+    //         Some(vec![Entry::new(b"key0".to_vec(), b"value0".to_vec())])
+    //     );
+    //     assert_eq!(
+    //         data.in_range(Index::FromStart(0), Index::FromStart(2)),
+    //         Some(vec![
+    //             Entry::new(b"key0".to_vec(), b"value0".to_vec()),
+    //             Entry::new(b"key1".to_vec(), b"value1".to_vec())
+    //         ])
+    //     );
 
-        assert_eq!(
-            data.in_range(Index::FromEnd(2), Index::FromEnd(1)),
-            Some(vec![Entry::new(b"key0".to_vec(), b"value0".to_vec()),])
-        );
-        assert_eq!(
-            data.in_range(Index::FromEnd(2), Index::FromEnd(0)),
-            Some(vec![
-                Entry::new(b"key0".to_vec(), b"value0".to_vec()),
-                Entry::new(b"key1".to_vec(), b"value1".to_vec())
-            ])
-        );
+    //     assert_eq!(
+    //         data.in_range(Index::FromEnd(2), Index::FromEnd(1)),
+    //         Some(vec![Entry::new(b"key0".to_vec(), b"value0".to_vec()),])
+    //     );
+    //     assert_eq!(
+    //         data.in_range(Index::FromEnd(2), Index::FromEnd(0)),
+    //         Some(vec![
+    //             Entry::new(b"key0".to_vec(), b"value0".to_vec()),
+    //             Entry::new(b"key1".to_vec(), b"value1".to_vec())
+    //         ])
+    //     );
 
-        assert_eq!(
-            data.in_range(Index::FromStart(0), Index::FromEnd(0)),
-            Some(vec![
-                Entry::new(b"key0".to_vec(), b"value0".to_vec()),
-                Entry::new(b"key1".to_vec(), b"value1".to_vec())
-            ])
-        );
+    //     assert_eq!(
+    //         data.in_range(Index::FromStart(0), Index::FromEnd(0)),
+    //         Some(vec![
+    //             Entry::new(b"key0".to_vec(), b"value0".to_vec()),
+    //             Entry::new(b"key1".to_vec(), b"value1".to_vec())
+    //         ])
+    //     );
 
-        // start > end
-        assert_eq!(
-            data.in_range(Index::FromStart(1), Index::FromStart(0)),
-            None
-        );
-        assert_eq!(data.in_range(Index::FromEnd(1), Index::FromEnd(2)), None);
+    //     // start > end
+    //     assert_eq!(
+    //         data.in_range(Index::FromStart(1), Index::FromStart(0)),
+    //         None
+    //     );
+    //     assert_eq!(data.in_range(Index::FromEnd(1), Index::FromEnd(2)), None);
 
-        // overflow
-        assert_eq!(
-            data.in_range(Index::FromStart(0), Index::FromStart(3)),
-            None
-        );
-        assert_eq!(data.in_range(Index::FromEnd(3), Index::FromEnd(0)), None);
-    }
+    //     // overflow
+    //     assert_eq!(
+    //         data.in_range(Index::FromStart(0), Index::FromStart(3)),
+    //         None
+    //     );
+    //     assert_eq!(data.in_range(Index::FromEnd(3), Index::FromEnd(0)), None);
+    // }
 
     #[test]
     fn get_permissions() {

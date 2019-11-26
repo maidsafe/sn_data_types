@@ -59,6 +59,7 @@ mod coins;
 mod errors;
 mod identity;
 mod immutable_data;
+mod map;
 mod mutable_data;
 mod public_key;
 mod request;
