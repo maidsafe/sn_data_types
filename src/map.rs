@@ -477,7 +477,10 @@ impl Map<PublicPermissions, Sentried> {
                             }
                         }
                         StoredValue::Value(_) => {
-                            let _ = errors.insert(entry.key().clone(), EntryError::EntryExists(0));
+                            let _ = errors.insert(
+                                entry.key().clone(),
+                                EntryError::EntryExists(entry.get().len() as u8),
+                            );
                         }
                     },
                     None => panic!("This is a bug! We are not supposed to have stored None."), // should we panic here? Would like to return Error::NetworkOther(String)
@@ -623,7 +626,10 @@ impl Map<PublicPermissions, NonSentried> {
                     let history = entry.get_mut();
                     match history.last() {
                         Some(StoredValue::Value(_)) => {
-                            let _ = errors.insert(entry.key().clone(), EntryError::EntryExists(0));
+                            let _ = errors.insert(
+                                entry.key().clone(),
+                                EntryError::EntryExists(entry.get().len() as u8),
+                            );
                         }
                         Some(StoredValue::Tombstone()) => {
                             let _ = history.push(StoredValue::Value(val));
@@ -770,7 +776,7 @@ impl Map<PrivatePermissions, Sentried> {
                             } else {
                                 let _ = errors.insert(
                                     key,
-                                    EntryError::InvalidSuccessor(0), // I assume we are here letting caller know what successor is expected
+                                    EntryError::InvalidSuccessor(entry.get().len() as u8), // I assume we are here letting caller know what successor is expected
                                 );
                             }
                         }
@@ -810,7 +816,7 @@ impl Map<PrivatePermissions, Sentried> {
                             } else {
                                 let _ = errors.insert(
                                     entry.key().clone(),
-                                    EntryError::InvalidSuccessor(version as u8), // I assume we are here letting caller know what successor is expected
+                                    EntryError::InvalidSuccessor(expected_version as u8), // I assume we are here letting caller know what successor is expected
                                 );
                             }
                         }
@@ -845,7 +851,7 @@ impl Map<PrivatePermissions, Sentried> {
                             } else {
                                 let _ = errors.insert(
                                     entry.key().clone(),
-                                    EntryError::InvalidSuccessor(version as u8), // I assume we are here letting caller know what successor is expected
+                                    EntryError::InvalidSuccessor(expected_version as u8), // I assume we are here letting caller know what successor is expected
                                 );
                             }
                         }
@@ -935,7 +941,10 @@ impl Map<PrivatePermissions, NonSentried> {
         for (key, val) in insert {
             match new_data.entry(key) {
                 DataEntry::Occupied(entry) => {
-                    let _ = errors.insert(entry.key().clone(), EntryError::EntryExists(0));
+                    let _ = errors.insert(
+                        entry.key().clone(),
+                        EntryError::EntryExists(entry.get().len() as u8),
+                    );
                 }
                 DataEntry::Vacant(entry) => {
                     let _ = entry.insert(vec![StoredValue::Value(val)]);
@@ -1220,8 +1229,8 @@ mod tests {
     use super::*;
     use std::collections::BTreeMap;
     use threshold_crypto::SecretKey;
-    //use unwrap::{unwrap, unwrap_err};
-    use unwrap::unwrap;
+    use unwrap::{unwrap, unwrap_err};
+    //use unwrap::unwrap;
 
     #[test]
     fn insert() {
@@ -1360,6 +1369,361 @@ mod tests {
     }
 
     #[test]
+    fn insert_when_exists_fails() {
+        let mut data = PublicSentriedMap::new(XorName([1; 32]), 10000);
+        let insert_0 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
+        let tx = vec![insert_0];
+        unwrap!(data.commit(tx));
+        let insert_1 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
+        let tx = vec![insert_1];
+        match unwrap_err!(data.commit(tx)) {
+            Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
+                Some(error) => assert_eq!(EntryError::EntryExists(1), *error),
+                _ => assert!(false),
+            },
+            _ => assert!(false),
+        }
+
+        let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
+        let insert_0 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
+        let tx = vec![insert_0];
+        unwrap!(data.commit(tx));
+        let insert_1 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
+        let tx = vec![insert_1];
+        match unwrap_err!(data.commit(tx)) {
+            Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
+                Some(error) => assert_eq!(EntryError::EntryExists(1), *error),
+                _ => assert!(false),
+            },
+            _ => assert!(false),
+        }
+
+        let mut data = PublicMap::new(XorName([1; 32]), 10000);
+        let insert_0 = Cmd::Insert((vec![0], vec![0]));
+        let tx = vec![insert_0];
+        unwrap!(data.commit(tx));
+        let insert_1 = Cmd::Insert((vec![0], vec![0]));
+        let tx = vec![insert_1];
+        match unwrap_err!(data.commit(tx)) {
+            Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
+                Some(error) => assert_eq!(EntryError::EntryExists(1), *error),
+                _ => assert!(false),
+            },
+            _ => assert!(false),
+        }
+
+        let mut data = PrivateMap::new(XorName([1; 32]), 10000);
+        let insert_0 = Cmd::Insert((vec![0], vec![0]));
+        let tx = vec![insert_0];
+        unwrap!(data.commit(tx));
+        let insert_1 = Cmd::Insert((vec![0], vec![0]));
+        let tx = vec![insert_1];
+        match unwrap_err!(data.commit(tx)) {
+            Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
+                Some(error) => assert_eq!(EntryError::EntryExists(1), *error),
+                _ => assert!(false),
+            },
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
+    fn update_with_wrong_version_fails() {
+        let mut data = PublicSentriedMap::new(XorName([1; 32]), 10000);
+        let insert_0 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
+        let update_1 = SentriedCmd::Update(((vec![0], vec![0]), 1));
+        let update_2 = SentriedCmd::Update(((vec![0], vec![0]), 3)); // <-- wrong version
+        let tx = vec![insert_0, update_1, update_2];
+        match unwrap_err!(data.commit(tx)) {
+            Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
+                Some(error) => assert_eq!(EntryError::InvalidSuccessor(2), *error),
+                _ => assert!(false),
+            },
+            _ => assert!(false),
+        }
+
+        let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
+        let insert_0 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
+        let update_1 = SentriedCmd::Update(((vec![0], vec![0]), 1));
+        let update_2 = SentriedCmd::Update(((vec![0], vec![0]), 3)); // <-- wrong version
+        let tx = vec![insert_0, update_1, update_2];
+        match unwrap_err!(data.commit(tx)) {
+            Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
+                Some(error) => assert_eq!(EntryError::InvalidSuccessor(2), *error),
+                _ => assert!(false),
+            },
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
+    fn delete_with_wrong_version_fails() {
+        let mut data = PublicSentriedMap::new(XorName([1; 32]), 10000);
+        let insert_0 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
+        let delete_1 = SentriedCmd::Delete((vec![0], 3)); // <-- wrong version
+        let tx = vec![insert_0, delete_1];
+        match unwrap_err!(data.commit(tx)) {
+            Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
+                Some(error) => assert_eq!(EntryError::InvalidSuccessor(1), *error),
+                _ => assert!(false),
+            },
+            _ => assert!(false),
+        }
+
+        let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
+        let insert_0 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
+        let delete_1 = SentriedCmd::Delete((vec![0], 3)); // <-- wrong version
+        let tx = vec![insert_0, delete_1];
+        match unwrap_err!(data.commit(tx)) {
+            Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
+                Some(error) => assert_eq!(EntryError::InvalidSuccessor(1), *error),
+                _ => assert!(false),
+            },
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
+    fn re_insert_with_wrong_version_fails() {
+        // PublicSentriedMap
+        let mut data = PublicSentriedMap::new(XorName([1; 32]), 10000);
+        let insert_0 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
+        let delete_1 = SentriedCmd::Delete((vec![0], 1));
+        let tx = vec![insert_0, delete_1];
+        unwrap!(data.commit(tx));
+        let insert_2 = SentriedCmd::Insert(((vec![0], vec![0]), 3)); // <-- wrong version
+        let tx = vec![insert_2];
+        match unwrap_err!(data.commit(tx)) {
+            Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
+                Some(error) => assert_eq!(EntryError::InvalidSuccessor(2), *error),
+                _ => assert!(false),
+            },
+            _ => assert!(false),
+        }
+
+        // PrivateSentriedMap
+        let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
+        let insert_0 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
+        let delete_1 = SentriedCmd::Delete((vec![0], 1));
+        let tx = vec![insert_0, delete_1];
+        unwrap!(data.commit(tx));
+        let insert_2 = SentriedCmd::Insert(((vec![0], vec![0]), 3)); // <-- wrong version
+        let tx = vec![insert_2];
+        match unwrap_err!(data.commit(tx)) {
+            Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
+                Some(error) => assert_eq!(EntryError::InvalidSuccessor(2), *error),
+                _ => assert!(false),
+            },
+            _ => assert!(false),
+        }
+    }
+    #[test]
+    fn delete_or_update_nonexisting_fails() {
+        // PublicSentriedMap
+        let mut data = PublicSentriedMap::new(XorName([1; 32]), 10000);
+        // Delete
+        let delete_2 = SentriedCmd::Delete((vec![0], 2));
+        let tx = vec![delete_2];
+        match unwrap_err!(data.commit(tx)) {
+            Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
+                Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
+                _ => assert!(false),
+            },
+            _ => assert!(false),
+        }
+        // Update
+        let update_3 = SentriedCmd::Update(((vec![0], vec![0]), 3));
+        let tx = vec![update_3];
+        match unwrap_err!(data.commit(tx)) {
+            Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
+                Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
+                _ => assert!(false),
+            },
+            _ => assert!(false),
+        }
+
+        // PrivateSentriedMap
+        let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
+        // Delete
+        let delete_2 = SentriedCmd::Delete((vec![0], 2));
+        let tx = vec![delete_2];
+        match unwrap_err!(data.commit(tx)) {
+            Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
+                Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
+                _ => assert!(false),
+            },
+            _ => assert!(false),
+        }
+        // Update
+        let update_3 = SentriedCmd::Update(((vec![0], vec![0]), 3));
+        let tx = vec![update_3];
+        match unwrap_err!(data.commit(tx)) {
+            Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
+                Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
+                _ => assert!(false),
+            },
+            _ => assert!(false),
+        }
+
+        // PublicMap
+        let mut data = PublicMap::new(XorName([1; 32]), 10000);
+        // Delete
+        let delete_2 = Cmd::Delete(vec![0]);
+        let tx = vec![delete_2];
+        match unwrap_err!(data.commit(tx)) {
+            Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
+                Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
+                _ => assert!(false),
+            },
+            _ => assert!(false),
+        }
+        // Update
+        let update_3 = Cmd::Update((vec![0], vec![0]));
+        let tx = vec![update_3];
+        match unwrap_err!(data.commit(tx)) {
+            Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
+                Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
+                _ => assert!(false),
+            },
+            _ => assert!(false),
+        }
+
+        // PrivateMap
+        let mut data = PrivateMap::new(XorName([1; 32]), 10000);
+        // Delete
+        let delete_2 = Cmd::Delete(vec![0]);
+        let tx = vec![delete_2];
+        match unwrap_err!(data.commit(tx)) {
+            Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
+                Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
+                _ => assert!(false),
+            },
+            _ => assert!(false),
+        }
+        // Update
+        let update_3 = Cmd::Update((vec![0], vec![0]));
+        let tx = vec![update_3];
+        match unwrap_err!(data.commit(tx)) {
+            Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
+                Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
+                _ => assert!(false),
+            },
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
+    fn delete_or_update_deleted_fails() {
+        // PublicSentriedMap
+        let mut data = PublicSentriedMap::new(XorName([1; 32]), 10000);
+        let insert_0 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
+        let delete_1 = SentriedCmd::Delete((vec![0], 1));
+        let tx = vec![insert_0, delete_1];
+        unwrap!(data.commit(tx));
+        // Delete
+        let delete_2 = SentriedCmd::Delete((vec![0], 2));
+        let tx = vec![delete_2];
+        match unwrap_err!(data.commit(tx)) {
+            Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
+                Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
+                _ => assert!(false),
+            },
+            _ => assert!(false),
+        }
+        // Update
+        let update_3 = SentriedCmd::Update(((vec![0], vec![0]), 3));
+        let tx = vec![update_3];
+        match unwrap_err!(data.commit(tx)) {
+            Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
+                Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
+                _ => assert!(false),
+            },
+            _ => assert!(false),
+        }
+
+        // PrivateSentriedMap
+        let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
+        let insert_0 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
+        let delete_1 = SentriedCmd::Delete((vec![0], 1));
+        let tx = vec![insert_0, delete_1];
+        unwrap!(data.commit(tx));
+        // Delete
+        let delete_2 = SentriedCmd::Delete((vec![0], 2));
+        let tx = vec![delete_2];
+        match unwrap_err!(data.commit(tx)) {
+            Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
+                Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
+                _ => assert!(false),
+            },
+            _ => assert!(false),
+        }
+        // Update
+        let update_3 = SentriedCmd::Update(((vec![0], vec![0]), 3));
+        let tx = vec![update_3];
+        match unwrap_err!(data.commit(tx)) {
+            Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
+                Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
+                _ => assert!(false),
+            },
+            _ => assert!(false),
+        }
+
+        // PublicMap
+        let mut data = PublicMap::new(XorName([1; 32]), 10000);
+        let insert_0 = Cmd::Insert((vec![0], vec![0]));
+        let delete_1 = Cmd::Delete(vec![0]);
+        let tx = vec![insert_0, delete_1];
+        unwrap!(data.commit(tx));
+        // Delete
+        let delete_2 = Cmd::Delete(vec![0]);
+        let tx = vec![delete_2];
+        match unwrap_err!(data.commit(tx)) {
+            Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
+                Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
+                _ => assert!(false),
+            },
+            _ => assert!(false),
+        }
+        // Update
+        let update_3 = Cmd::Update((vec![0], vec![0]));
+        let tx = vec![update_3];
+        match unwrap_err!(data.commit(tx)) {
+            Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
+                Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
+                _ => assert!(false),
+            },
+            _ => assert!(false),
+        }
+
+        // PrivateMap
+        let mut data = PrivateMap::new(XorName([1; 32]), 10000);
+        let insert_0 = Cmd::Insert((vec![0], vec![0]));
+        let delete_1 = Cmd::Delete(vec![0]);
+        let tx = vec![insert_0, delete_1];
+        unwrap!(data.commit(tx));
+        // Delete
+        let delete_2 = Cmd::Delete(vec![0]);
+        let tx = vec![delete_2];
+        match unwrap_err!(data.commit(tx)) {
+            Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
+                Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
+                _ => assert!(false),
+            },
+            _ => assert!(false),
+        }
+        // Update
+        let update_3 = Cmd::Update((vec![0], vec![0]));
+        let tx = vec![update_3];
+        match unwrap_err!(data.commit(tx)) {
+            Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
+                Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
+                _ => assert!(false),
+            },
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
     fn append_permissions() {
         let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
 
@@ -1494,72 +1858,6 @@ mod tests {
         let decoded = unwrap!(self::Address::decode_from_zbase32(&encoded));
         assert_eq!(address, decoded);
     }
-
-    // #[test]
-    // fn append_unseq_data_test() {
-    //     let mut data = PrivateMap::new(XorName(rand::random()), 10);
-
-    //     // Assert that the entries are not appended because of duplicate keys.
-    //     let entries = vec![
-    //         Entry::new(b"KEY1".to_vec(), b"VALUE1".to_vec()),
-    //         Entry::new(b"KEY2".to_vec(), b"VALUE2".to_vec()),
-    //         Entry::new(b"KEY1".to_vec(), b"VALUE1".to_vec()),
-    //     ];
-    //     assert_eq!(Error::DuplicateEntryKeys, unwrap_err!(data.append(entries)));
-
-    //     // Assert that the entries are appended because there are no duplicate keys.
-    //     let entries1 = vec![
-    //         Entry::new(b"KEY1".to_vec(), b"VALUE1".to_vec()),
-    //         Entry::new(b"KEY2".to_vec(), b"VALUE2".to_vec()),
-    //     ];
-
-    //     unwrap!(data.append(entries1));
-
-    //     // Assert that entries are not appended because they duplicate some keys appended previously.
-    //     let entries2 = vec![Entry::new(b"KEY2".to_vec(), b"VALUE2".to_vec())];
-    //     assert_eq!(
-    //         Error::KeysExist(entries2.clone()),
-    //         unwrap_err!(data.append(entries2))
-    //     );
-
-    //     // Assert that no duplicate keys are present and the append operation is successful.
-    //     let entries3 = vec![Entry::new(b"KEY3".to_vec(), b"VALUE3".to_vec())];
-    //     unwrap!(data.append(entries3));
-    // }
-
-    // #[test]
-    // fn append_seq_data_test() {
-    //     let mut data = PrivateSentriedMap::new(XorName(rand::random()), 10);
-
-    //     // Assert that the entries are not appended because of duplicate keys.
-    //     let entries = vec![
-    //         Entry::new(b"KEY1".to_vec(), b"VALUE1".to_vec()),
-    //         Entry::new(b"KEY2".to_vec(), b"VALUE2".to_vec()),
-    //         Entry::new(b"KEY1".to_vec(), b"VALUE1".to_vec()),
-    //     ];
-    //     assert_eq!(
-    //         Error::DuplicateEntryKeys,
-    //         unwrap_err!(data.append(entries, 0))
-    //     );
-
-    //     // Assert that the entries are appended because there are no duplicate keys.
-    //     let entries1 = vec![
-    //         Entry::new(b"KEY1".to_vec(), b"VALUE1".to_vec()),
-    //         Entry::new(b"KEY2".to_vec(), b"VALUE2".to_vec()),
-    //     ];
-    //     unwrap!(data.append(entries1, 0));
-
-    //     // Assert that entries are not appended because they duplicate some keys appended previously.
-    //     let entries2 = vec![Entry::new(b"KEY2".to_vec(), b"VALUE2".to_vec())];
-    //     assert_eq!(
-    //         Error::KeysExist(entries2.clone()),
-    //         unwrap_err!(data.append(entries2, 2))
-    //     );
-
-    //     // Assert that no duplicate keys are present and the append operation is successful.
-    //     let entries3 = vec![Entry::new(b"KEY3".to_vec(), b"VALUE3".to_vec())];
-    //     unwrap!(data.append(entries3, 2));
-    // }
 
     // #[test]
     // fn in_range() {
