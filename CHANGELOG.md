@@ -1,5 +1,11 @@
 # safe-nd - Change Log
 
+## [0.6.0]
+
+- Change CI to GitHub Actions.
+- Clean up explicitly-listed non-warn lints.
+- Add `Keypair` and remove BLS methods for full IDs.
+
 ## [0.5.0]
 
 - Expand `Challenge::Response` with an option to request section information from any node.
