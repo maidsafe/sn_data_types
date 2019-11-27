@@ -17,7 +17,7 @@ use crate::shared_data::{
 use crate::{EntryError, Error, PublicKey, Result, XorName};
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{btree_map::Entry as DataEntry, BTreeMap, BTreeSet},
+    collections::{btree_map::Entry, BTreeMap, BTreeSet},
     fmt::{self, Debug, Formatter},
     marker::PhantomData,
     mem,
@@ -27,8 +27,8 @@ pub type PublicSentriedMap = Map<PublicPermissions, Sentried>;
 pub type PublicMap = Map<PublicPermissions, NonSentried>;
 pub type PrivateSentriedMap = Map<PrivatePermissions, Sentried>;
 pub type PrivateMap = Map<PrivatePermissions, NonSentried>;
-pub type EntryHistories = BTreeMap<Key, Vec<StoredValue>>;
-pub type Entries = Vec<Entry>;
+pub type DataHistories = BTreeMap<Key, Vec<StoredValue>>;
+pub type Entries = Vec<DataEntry>;
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub enum MapPermissions {
@@ -49,12 +49,12 @@ impl From<PublicPermissions> for MapPermissions {
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default, Debug)]
-pub struct Entry {
+pub struct DataEntry {
     pub key: Vec<u8>,
     pub value: Vec<u8>,
 }
 
-impl Entry {
+impl DataEntry {
     pub fn new(key: Vec<u8>, value: Vec<u8>) -> Self {
         Self { key, value }
     }
@@ -63,7 +63,7 @@ impl Entry {
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
 pub struct Map<P, S> {
     address: Address,
-    data: EntryHistories,
+    data: DataHistories,
     permissions: Vec<P>,
     // This is the history of owners, with each entry representing an owner.  Each single owner
     // could represent an individual user, or a group of users, depending on the `PublicKey` type.
@@ -128,12 +128,12 @@ where
         }
     }
 
-    /// Return all entries.
-    pub fn entries(&self) -> Vec<Entry> {
+    /// Return all data entries.
+    pub fn data_entries(&self) -> Vec<DataEntry> {
         self.data
             .iter()
             .filter_map(move |(key, values)| match values.last() {
-                Some(StoredValue::Value(val)) => Some(Entry {
+                Some(StoredValue::Value(val)) => Some(DataEntry {
                     key: key.clone(),
                     value: val.to_vec(),
                 }),
@@ -172,16 +172,15 @@ where
         self.permissions.len() as u64
     }
 
-    /// Get a complete list of permissions from the entry in the permissions list at the specified
-    /// index.
-    pub fn permissions_range(&self, start: Index, end: Index) -> Option<&[P]> {
+    /// Get history of permissions within the range of indices specified.
+    pub fn permission_history_range(&self, start: Index, end: Index) -> Option<&[P]> {
         let range = to_absolute_range(start, end, self.permissions.len())?;
         Some(&self.permissions[range])
     }
 
-    /// Add a new permissions entry.
-    /// The `Perm` struct should contain valid indices.
-    pub fn append_permissions(&mut self, permissions: P, index: u64) -> Result<()> {
+    /// Set permissions.
+    /// The `Permissions` struct needs to contain the correct expected indices.
+    pub fn set_permissions(&mut self, permissions: P, index: u64) -> Result<()> {
         if permissions.expected_data_index() != self.expected_data_version().unwrap_or_default() {
             return Err(Error::InvalidSuccessor(
                 self.expected_data_version().unwrap_or_default(),
@@ -197,41 +196,41 @@ where
         Ok(())
     }
 
-    /// Fetch permissions at index.
-    pub fn permissions(&self, index: impl Into<Index>) -> Option<&P> {
+    /// Get permissions at index.
+    pub fn permissions_at(&self, index: impl Into<Index>) -> Option<&P> {
         let index = to_absolute_index(index.into(), self.permissions.len())?;
         self.permissions.get(index)
     }
 
-    pub fn check_permission(&self, user: PublicKey, action: Action) -> Result<()> {
+    pub fn is_permitted(&self, user: PublicKey, action: Action) -> Result<()> {
         if self
-            .owner(Index::FromEnd(1))
+            .owner_at(Index::FromEnd(1))
             .ok_or(Error::InvalidOwners)?
             .public_key
             == user
         {
             Ok(())
         } else {
-            self.permissions(Index::FromEnd(1))
+            self.permissions_at(Index::FromEnd(1))
                 .ok_or(Error::InvalidPermissions)?
-                .is_action_allowed(user, action)
+                .is_permitted(user, action)
         }
     }
 
-    /// Fetch owner at index.
-    pub fn owner(&self, index: impl Into<Index>) -> Option<&Owner> {
+    /// Get owner at index.
+    pub fn owner_at(&self, index: impl Into<Index>) -> Option<&Owner> {
         let index = to_absolute_index(index.into(), self.owners.len())?;
         self.owners.get(index)
     }
 
-    /// Get a complete list of owners from the entry in the permissions list at the specified index.
-    pub fn owners_range(&self, start: Index, end: Index) -> Option<&[Owner]> {
+    /// Get history of owners within the range of indices specified.
+    pub fn owner_history_range(&self, start: Index, end: Index) -> Option<&[Owner]> {
         let range = to_absolute_range(start, end, self.owners.len())?;
         Some(&self.owners[range])
     }
 
-    /// Add a new owner entry.
-    pub fn append_owner(&mut self, owner: Owner, index: u64) -> Result<()> {
+    /// Set owner.
+    pub fn set_owner(&mut self, owner: Owner, index: u64) -> Result<()> {
         if owner.expected_data_index != self.expected_data_version().unwrap_or_default() {
             return Err(Error::InvalidSuccessor(
                 self.expected_data_version().unwrap_or_default(),
@@ -249,17 +248,11 @@ where
         Ok(())
     }
 
-    /// Check if the user is the current owner.
-    pub fn check_is_current_owner(&self, user: PublicKey) -> Result<()> {
-        if self
-            .owner(Index::FromEnd(1))
-            .ok_or_else(|| Error::InvalidOwners)?
-            .public_key
-            == user
-        {
-            Ok(())
-        } else {
-            Err(Error::AccessDenied)
+    /// Returns true if the user is the current owner, false if not.
+    pub fn is_owner(&self, user: PublicKey) -> bool {
+        match self.owner_at(Index::FromEnd(1)) {
+            Some(owner) => user == owner.public_key,
+            _ => false,
         }
     }
 
@@ -462,7 +455,7 @@ impl Map<PublicPermissions, Sentried> {
 
         for ((key, val), version) in insert {
             match new_data.entry(key) {
-                DataEntry::Occupied(mut entry) => match entry.get().last() {
+                Entry::Occupied(mut entry) => match entry.get().last() {
                     Some(value) => match value {
                         StoredValue::Tombstone() => {
                             let expected_version = entry.get().len() as u64;
@@ -484,7 +477,7 @@ impl Map<PublicPermissions, Sentried> {
                     },
                     None => panic!("This is a bug! We are not supposed to have stored None."), // should we panic here? Would like to return Error::NetworkOther(String)
                 },
-                DataEntry::Vacant(entry) => {
+                Entry::Vacant(entry) => {
                     if version == 0 {
                         let _ = entry.insert(vec![StoredValue::Value(val)]);
                     } else {
@@ -496,7 +489,7 @@ impl Map<PublicPermissions, Sentried> {
 
         for ((key, val), version) in update {
             match new_data.entry(key) {
-                DataEntry::Occupied(mut entry) => {
+                Entry::Occupied(mut entry) => {
                     match entry.get().last() {
                         Some(StoredValue::Value(_)) => {
                             let history = entry.get_mut();
@@ -516,7 +509,7 @@ impl Map<PublicPermissions, Sentried> {
                         None => panic!("This is a bug! We are not supposed to have stored None."), // should we panic here? Would like to return Error::NetworkOther(String)
                     }
                 }
-                DataEntry::Vacant(entry) => {
+                Entry::Vacant(entry) => {
                     let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
                 }
             }
@@ -524,7 +517,7 @@ impl Map<PublicPermissions, Sentried> {
 
         for (key, version) in delete {
             match new_data.entry(key.clone()) {
-                DataEntry::Occupied(mut entry) => {
+                Entry::Occupied(mut entry) => {
                     let history = entry.get_mut();
                     match history.last() {
                         Some(StoredValue::Value(_)) => {
@@ -544,7 +537,7 @@ impl Map<PublicPermissions, Sentried> {
                         None => panic!("This is a bug! We are not supposed to have stored None."), // should we panic here? Would like to return Error::NetworkOther(String)
                     }
                 }
-                DataEntry::Vacant(entry) => {
+                Entry::Vacant(entry) => {
                     let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
                 }
             }
@@ -621,7 +614,7 @@ impl Map<PublicPermissions, NonSentried> {
 
         for (key, val) in insert {
             match new_data.entry(key) {
-                DataEntry::Occupied(mut entry) => {
+                Entry::Occupied(mut entry) => {
                     let history = entry.get_mut();
                     match history.last() {
                         Some(StoredValue::Value(_)) => {
@@ -640,7 +633,7 @@ impl Map<PublicPermissions, NonSentried> {
                         }
                     }
                 }
-                DataEntry::Vacant(entry) => {
+                Entry::Vacant(entry) => {
                     let _ = entry.insert(vec![StoredValue::Value(val)]); // todo: fix From impl
                 }
             }
@@ -649,7 +642,7 @@ impl Map<PublicPermissions, NonSentried> {
         // maintains history
         for (key, val) in update {
             match new_data.entry(key) {
-                DataEntry::Occupied(mut entry) => {
+                Entry::Occupied(mut entry) => {
                     let history = entry.get_mut();
                     match history.last() {
                         Some(StoredValue::Value(_)) => {
@@ -662,7 +655,7 @@ impl Map<PublicPermissions, NonSentried> {
                         None => panic!("This is a bug! We are not supposed to have stored None."), // should we panic here? Would like to return Error::NetworkOther(String)
                     }
                 }
-                DataEntry::Vacant(entry) => {
+                Entry::Vacant(entry) => {
                     let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
                 }
             }
@@ -671,7 +664,7 @@ impl Map<PublicPermissions, NonSentried> {
         // maintains history
         for key in delete {
             match new_data.entry(key.clone()) {
-                DataEntry::Occupied(mut entry) => {
+                Entry::Occupied(mut entry) => {
                     let history = entry.get_mut();
                     match history.last() {
                         Some(StoredValue::Value(_)) => {
@@ -683,7 +676,7 @@ impl Map<PublicPermissions, NonSentried> {
                         None => panic!("This is a bug! We are not supposed to have stored None."), // should we panic here? Would like to return Error::NetworkOther(String)
                     }
                 }
-                DataEntry::Vacant(entry) => {
+                Entry::Vacant(entry) => {
                     let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
                 }
             }
@@ -760,7 +753,7 @@ impl Map<PrivatePermissions, Sentried> {
 
         for ((key, val), version) in insert {
             match new_data.entry(key.clone()) {
-                DataEntry::Occupied(mut entry) => {
+                Entry::Occupied(mut entry) => {
                     let history = entry.get_mut();
                     match history.last() {
                         Some(StoredValue::Value(_)) => {
@@ -784,7 +777,7 @@ impl Map<PrivatePermissions, Sentried> {
                         }
                     }
                 }
-                DataEntry::Vacant(entry) => {
+                Entry::Vacant(entry) => {
                     if version == 0 {
                         // still make sure the val.version == 0
                         let _ = entry.insert(vec![StoredValue::Value(val)]);
@@ -801,7 +794,7 @@ impl Map<PrivatePermissions, Sentried> {
         // overwrites old data, while also incrementing version
         for ((key, val), version) in update {
             match new_data.entry(key) {
-                DataEntry::Occupied(mut entry) => {
+                Entry::Occupied(mut entry) => {
                     let history = entry.get_mut();
                     match history.last() {
                         Some(StoredValue::Value(_)) => {
@@ -827,7 +820,7 @@ impl Map<PrivatePermissions, Sentried> {
                         }
                     }
                 }
-                DataEntry::Vacant(entry) => {
+                Entry::Vacant(entry) => {
                     let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
                 }
             }
@@ -836,7 +829,7 @@ impl Map<PrivatePermissions, Sentried> {
         // removes old data, while also incrementing version
         for (key, version) in delete {
             match new_data.entry(key.clone()) {
-                DataEntry::Occupied(mut entry) => {
+                Entry::Occupied(mut entry) => {
                     let history = entry.get_mut();
                     match history.last() {
                         Some(StoredValue::Value(_)) => {
@@ -862,7 +855,7 @@ impl Map<PrivatePermissions, Sentried> {
                         }
                     }
                 }
-                DataEntry::Vacant(entry) => {
+                Entry::Vacant(entry) => {
                     let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
                 }
             }
@@ -939,13 +932,13 @@ impl Map<PrivatePermissions, NonSentried> {
 
         for (key, val) in insert {
             match new_data.entry(key) {
-                DataEntry::Occupied(entry) => {
+                Entry::Occupied(entry) => {
                     let _ = errors.insert(
                         entry.key().clone(),
                         EntryError::EntryExists(entry.get().len() as u8),
                     );
                 }
-                DataEntry::Vacant(entry) => {
+                Entry::Vacant(entry) => {
                     let _ = entry.insert(vec![StoredValue::Value(val)]);
                 }
             }
@@ -953,10 +946,10 @@ impl Map<PrivatePermissions, NonSentried> {
 
         for (key, val) in update {
             match new_data.entry(key) {
-                DataEntry::Occupied(mut entry) => {
+                Entry::Occupied(mut entry) => {
                     let _ = entry.insert(vec![StoredValue::Value(val)]); // replace the vec, which always has 1 single value if it exists
                 }
-                DataEntry::Vacant(entry) => {
+                Entry::Vacant(entry) => {
                     let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
                 }
             }
@@ -964,10 +957,10 @@ impl Map<PrivatePermissions, NonSentried> {
 
         for key in delete {
             match new_data.entry(key.clone()) {
-                DataEntry::Occupied(_) => {
+                Entry::Occupied(_) => {
                     let _ = new_data.remove(&key);
                 }
-                DataEntry::Vacant(entry) => {
+                Entry::Vacant(entry) => {
                     let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
                 }
             }
@@ -998,7 +991,7 @@ pub enum Data {
 }
 
 impl Data {
-    pub fn check_permission(&self, action: Action, user: PublicKey) -> Result<()> {
+    pub fn is_permitted(&self, action: Action, user: PublicKey) -> Result<()> {
         match (self, action) {
             (Data::PublicSentried(_), Action::Read) | (Data::Public(_), Action::Read) => {
                 return Ok(())
@@ -1007,10 +1000,10 @@ impl Data {
         }
 
         match self {
-            Data::PublicSentried(data) => data.check_permission(user, action),
-            Data::Public(data) => data.check_permission(user, action),
-            Data::PrivateSentried(data) => data.check_permission(user, action),
-            Data::Private(data) => data.check_permission(user, action),
+            Data::PublicSentried(data) => data.is_permitted(user, action),
+            Data::Public(data) => data.is_permitted(user, action),
+            Data::PrivateSentried(data) => data.is_permitted(user, action),
+            Data::Private(data) => data.is_permitted(user, action),
         }
     }
 
@@ -1101,61 +1094,61 @@ impl Data {
         }
     }
 
-    pub fn owner(&self, index: impl Into<Index>) -> Option<&Owner> {
+    pub fn owner_at(&self, index: impl Into<Index>) -> Option<&Owner> {
         match self {
-            Data::PublicSentried(data) => data.owner(index),
-            Data::Public(data) => data.owner(index),
-            Data::PrivateSentried(data) => data.owner(index),
-            Data::Private(data) => data.owner(index),
+            Data::PublicSentried(data) => data.owner_at(index),
+            Data::Public(data) => data.owner_at(index),
+            Data::PrivateSentried(data) => data.owner_at(index),
+            Data::Private(data) => data.owner_at(index),
         }
     }
 
-    pub fn check_is_current_owner(&self, user: PublicKey) -> Result<()> {
+    pub fn is_owner(&self, user: PublicKey) -> bool {
         match self {
-            Data::PublicSentried(data) => data.check_is_current_owner(user),
-            Data::Public(data) => data.check_is_current_owner(user),
-            Data::PrivateSentried(data) => data.check_is_current_owner(user),
-            Data::Private(data) => data.check_is_current_owner(user),
+            Data::PublicSentried(data) => data.is_owner(user),
+            Data::Public(data) => data.is_owner(user),
+            Data::PrivateSentried(data) => data.is_owner(user),
+            Data::Private(data) => data.is_owner(user),
         }
     }
 
-    pub fn public_user_permissions(
+    pub fn public_user_permissions_at(
         &self,
         user: User,
         index: impl Into<Index>,
     ) -> Result<PublicPermissionSet> {
-        self.public_permissions(index)?
+        self.public_permissions_at(index)?
             .permissions()
             .get(&user)
             .cloned()
             .ok_or(Error::NoSuchEntry)
     }
 
-    pub fn private_user_permissions(
+    pub fn private_user_permissions_at(
         &self,
         user: PublicKey,
         index: impl Into<Index>,
     ) -> Result<PrivatePermissionSet> {
-        self.private_permissions(index)?
+        self.private_permissions_at(index)?
             .permissions()
             .get(&user)
             .cloned()
             .ok_or(Error::NoSuchEntry)
     }
 
-    pub fn public_permissions(&self, index: impl Into<Index>) -> Result<&PublicPermissions> {
+    pub fn public_permissions_at(&self, index: impl Into<Index>) -> Result<&PublicPermissions> {
         let permissions = match self {
-            Data::PublicSentried(data) => data.permissions(index),
-            Data::Public(data) => data.permissions(index),
+            Data::PublicSentried(data) => data.permissions_at(index),
+            Data::Public(data) => data.permissions_at(index),
             _ => return Err(Error::NoSuchData),
         };
         permissions.ok_or(Error::NoSuchEntry)
     }
 
-    pub fn private_permissions(&self, index: impl Into<Index>) -> Result<&PrivatePermissions> {
+    pub fn private_permissions_at(&self, index: impl Into<Index>) -> Result<&PrivatePermissions> {
         let permissions = match self {
-            Data::PrivateSentried(data) => data.permissions(index),
-            Data::Private(data) => data.permissions(index),
+            Data::PrivateSentried(data) => data.permissions_at(index),
+            Data::Private(data) => data.permissions_at(index),
             _ => return Err(Error::NoSuchData),
         };
         permissions.ok_or(Error::NoSuchEntry)
@@ -1722,11 +1715,11 @@ mod tests {
     }
 
     #[test]
-    fn append_permissions() {
+    fn set_permissions() {
         let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
 
-        // Append the first permission set with correct ExpectedIndices - should pass.
-        let res = data.append_permissions(
+        // Set the first permission set with correct ExpectedIndices - should pass.
+        let res = data.set_permissions(
             PrivatePermissions {
                 permissions: BTreeMap::new(),
                 expected_data_index: 0,
@@ -1740,14 +1733,14 @@ mod tests {
             Err(x) => panic!("Unexpected error: {:?}", x),
         }
 
-        // Verify that the permissions have been added.
+        // Verify that the permissions are part of the history.
         assert_eq!(
-            unwrap!(data.permissions_range(Index::FromStart(0), Index::FromEnd(0),)).len(),
+            unwrap!(data.permission_history_range(Index::FromStart(0), Index::FromEnd(0),)).len(),
             1
         );
 
-        // Append another permissions entry with incorrect ExpectedIndices - should fail.
-        let res = data.append_permissions(
+        // Set permissions with incorrect ExpectedIndices - should fail.
+        let res = data.set_permissions(
             PrivatePermissions {
                 permissions: BTreeMap::new(),
                 expected_data_index: 64,
@@ -1761,21 +1754,21 @@ mod tests {
             Ok(()) => panic!("Unexpected Ok(()) result"),
         }
 
-        // Verify that the number of permissions has not been changed.
+        // Verify that the history of permissions remains unchanged.
         assert_eq!(
-            unwrap!(data.permissions_range(Index::FromStart(0), Index::FromEnd(0),)).len(),
+            unwrap!(data.permission_history_range(Index::FromStart(0), Index::FromEnd(0),)).len(),
             1
         );
     }
 
     #[test]
-    fn append_owners() {
+    fn set_owner() {
         let owner_pk = gen_public_key();
 
         let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
 
-        // Append the first owner with correct ExpectedIndices - should pass.
-        let res = data.append_owner(
+        // Set the first owner with correct ExpectedIndices - should pass.
+        let res = data.set_owner(
             Owner {
                 public_key: owner_pk,
                 expected_data_index: 0,
@@ -1789,14 +1782,14 @@ mod tests {
             Err(x) => panic!("Unexpected error: {:?}", x),
         }
 
-        // Verify that the owner has been added.
+        // Verify that the owner is part of history.
         assert_eq!(
-            unwrap!(data.owners_range(Index::FromStart(0), Index::FromEnd(0),)).len(),
+            unwrap!(data.owner_history_range(Index::FromStart(0), Index::FromEnd(0),)).len(),
             1
         );
 
-        // Append another owners entry with incorrect ExpectedIndices - should fail.
-        let res = data.append_owner(
+        // Set new owner with incorrect ExpectedIndices - should fail.
+        let res = data.set_owner(
             Owner {
                 public_key: owner_pk,
                 expected_data_index: 64,
@@ -1810,9 +1803,9 @@ mod tests {
             Ok(()) => panic!("Unexpected Ok(()) result"),
         }
 
-        // Verify that the number of owners has not been changed.
+        // Verify that the history of owners remains unchanged.
         assert_eq!(
-            unwrap!(data.owners_range(Index::FromStart(0), Index::FromEnd(0),)).len(),
+            unwrap!(data.owner_history_range(Index::FromStart(0), Index::FromEnd(0),)).len(),
             1
         );
     }
@@ -1824,7 +1817,7 @@ mod tests {
 
         let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
 
-        let _ = data.append_owner(
+        let _ = data.set_owner(
             Owner {
                 public_key: owner_pk,
                 expected_data_index: 0,
@@ -1833,7 +1826,7 @@ mod tests {
             0,
         );
 
-        let _ = data.append_owner(
+        let _ = data.set_owner(
             Owner {
                 public_key: owner_pk1,
                 expected_data_index: 0,
@@ -1918,7 +1911,7 @@ mod tests {
     // }
 
     #[test]
-    fn get_permissions() {
+    fn can_retrieve_permissions() {
         let public_key = gen_public_key();
         let invalid_public_key = gen_public_key();
 
@@ -1943,85 +1936,85 @@ mod tests {
 
         // pub, unseq
         let mut data = PublicMap::new(rand::random(), 20);
-        unwrap!(data.append_permissions(pub_permissions.clone(), 0));
+        unwrap!(data.set_permissions(pub_permissions.clone(), 0));
         let data = Data::from(data);
 
-        assert_eq!(data.public_permissions(0), Ok(&pub_permissions));
-        assert_eq!(data.private_permissions(0), Err(Error::NoSuchData));
+        assert_eq!(data.public_permissions_at(0), Ok(&pub_permissions));
+        assert_eq!(data.private_permissions_at(0), Err(Error::NoSuchData));
 
         assert_eq!(
-            data.public_user_permissions(User::Specific(public_key), 0),
+            data.public_user_permissions_at(User::Specific(public_key), 0),
             Ok(PublicPermissionSet::new(false, false))
         );
         assert_eq!(
-            data.private_user_permissions(public_key, 0),
+            data.private_user_permissions_at(public_key, 0),
             Err(Error::NoSuchData)
         );
         assert_eq!(
-            data.public_user_permissions(User::Specific(invalid_public_key), 0),
+            data.public_user_permissions_at(User::Specific(invalid_public_key), 0),
             Err(Error::NoSuchEntry)
         );
 
         // pub, seq
         let mut data = PublicSentriedMap::new(rand::random(), 20);
-        unwrap!(data.append_permissions(pub_permissions.clone(), 0));
+        unwrap!(data.set_permissions(pub_permissions.clone(), 0));
         let data = Data::from(data);
 
-        assert_eq!(data.public_permissions(0), Ok(&pub_permissions));
-        assert_eq!(data.private_permissions(0), Err(Error::NoSuchData));
+        assert_eq!(data.public_permissions_at(0), Ok(&pub_permissions));
+        assert_eq!(data.private_permissions_at(0), Err(Error::NoSuchData));
 
         assert_eq!(
-            data.public_user_permissions(User::Specific(public_key), 0),
+            data.public_user_permissions_at(User::Specific(public_key), 0),
             Ok(PublicPermissionSet::new(false, false))
         );
         assert_eq!(
-            data.private_user_permissions(public_key, 0),
+            data.private_user_permissions_at(public_key, 0),
             Err(Error::NoSuchData)
         );
         assert_eq!(
-            data.public_user_permissions(User::Specific(invalid_public_key), 0),
+            data.public_user_permissions_at(User::Specific(invalid_public_key), 0),
             Err(Error::NoSuchEntry)
         );
 
         // Private, unseq
         let mut data = PrivateMap::new(rand::random(), 20);
-        unwrap!(data.append_permissions(private_permissions.clone(), 0));
+        unwrap!(data.set_permissions(private_permissions.clone(), 0));
         let data = Data::from(data);
 
-        assert_eq!(data.private_permissions(0), Ok(&private_permissions));
-        assert_eq!(data.public_permissions(0), Err(Error::NoSuchData));
+        assert_eq!(data.private_permissions_at(0), Ok(&private_permissions));
+        assert_eq!(data.public_permissions_at(0), Err(Error::NoSuchData));
 
         assert_eq!(
-            data.private_user_permissions(public_key, 0),
+            data.private_user_permissions_at(public_key, 0),
             Ok(PrivatePermissionSet::new(false, false, false))
         );
         assert_eq!(
-            data.public_user_permissions(User::Specific(public_key), 0),
+            data.public_user_permissions_at(User::Specific(public_key), 0),
             Err(Error::NoSuchData)
         );
         assert_eq!(
-            data.private_user_permissions(invalid_public_key, 0),
+            data.private_user_permissions_at(invalid_public_key, 0),
             Err(Error::NoSuchEntry)
         );
 
         // Private, seq
         let mut data = PrivateSentriedMap::new(rand::random(), 20);
-        unwrap!(data.append_permissions(private_permissions.clone(), 0));
+        unwrap!(data.set_permissions(private_permissions.clone(), 0));
         let data = Data::from(data);
 
-        assert_eq!(data.private_permissions(0), Ok(&private_permissions));
-        assert_eq!(data.public_permissions(0), Err(Error::NoSuchData));
+        assert_eq!(data.private_permissions_at(0), Ok(&private_permissions));
+        assert_eq!(data.public_permissions_at(0), Err(Error::NoSuchData));
 
         assert_eq!(
-            data.private_user_permissions(public_key, 0),
+            data.private_user_permissions_at(public_key, 0),
             Ok(PrivatePermissionSet::new(false, false, false))
         );
         assert_eq!(
-            data.public_user_permissions(User::Specific(public_key), 0),
+            data.public_user_permissions_at(User::Specific(public_key), 0),
             Err(Error::NoSuchData)
         );
         assert_eq!(
-            data.private_user_permissions(invalid_public_key, 0),
+            data.private_user_permissions_at(invalid_public_key, 0),
             Err(Error::NoSuchEntry)
         );
     }
@@ -2031,7 +2024,7 @@ mod tests {
     }
 
     #[test]
-    fn check_pub_permission() {
+    fn validates_public_permissions() {
         let public_key_0 = gen_public_key();
         let public_key_1 = gen_public_key();
         let public_key_2 = gen_public_key();
@@ -2040,14 +2033,14 @@ mod tests {
         // no owner
         let data = Data::from(inner.clone());
         assert_eq!(
-            data.check_permission(Action::Append, public_key_0),
+            data.is_permitted(Action::Append, public_key_0),
             Err(Error::InvalidOwners)
         );
         // data is Public - read always allowed
-        assert_eq!(data.check_permission(Action::Read, public_key_0), Ok(()));
+        assert_eq!(data.is_permitted(Action::Read, public_key_0), Ok(()));
 
         // no permissions
-        unwrap!(inner.append_owner(
+        unwrap!(inner.set_owner(
             Owner {
                 public_key: public_key_0,
                 expected_data_index: 0,
@@ -2057,14 +2050,14 @@ mod tests {
         ));
         let data = Data::from(inner.clone());
 
-        assert_eq!(data.check_permission(Action::Append, public_key_0), Ok(()));
+        assert_eq!(data.is_permitted(Action::Append, public_key_0), Ok(()));
         assert_eq!(
-            data.check_permission(Action::Append, public_key_1),
+            data.is_permitted(Action::Append, public_key_1),
             Err(Error::InvalidPermissions)
         );
         // data is Public - read always allowed
-        assert_eq!(data.check_permission(Action::Read, public_key_0), Ok(()));
-        assert_eq!(data.check_permission(Action::Read, public_key_1), Ok(()));
+        assert_eq!(data.is_permitted(Action::Read, public_key_0), Ok(()));
+        assert_eq!(data.is_permitted(Action::Read, public_key_1), Ok(()));
 
         // with permissions
         let mut permissions = PublicPermissions {
@@ -2079,30 +2072,30 @@ mod tests {
             User::Specific(public_key_1),
             PublicPermissionSet::new(None, true),
         );
-        unwrap!(inner.append_permissions(permissions, 0));
+        unwrap!(inner.set_permissions(permissions, 0));
         let data = Data::from(inner);
 
         // existing key fallback
-        assert_eq!(data.check_permission(Action::Append, public_key_1), Ok(()));
+        assert_eq!(data.is_permitted(Action::Append, public_key_1), Ok(()));
         // existing key override
         assert_eq!(
-            data.check_permission(Action::ManagePermissions, public_key_1),
+            data.is_permitted(Action::ManagePermissions, public_key_1),
             Ok(())
         );
         // non-existing keys are handled by `Anyone`
-        assert_eq!(data.check_permission(Action::Append, public_key_2), Ok(()));
+        assert_eq!(data.is_permitted(Action::Append, public_key_2), Ok(()));
         assert_eq!(
-            data.check_permission(Action::ManagePermissions, public_key_2),
+            data.is_permitted(Action::ManagePermissions, public_key_2),
             Err(Error::AccessDenied)
         );
         // data is Public - read always allowed
-        assert_eq!(data.check_permission(Action::Read, public_key_0), Ok(()));
-        assert_eq!(data.check_permission(Action::Read, public_key_1), Ok(()));
-        assert_eq!(data.check_permission(Action::Read, public_key_2), Ok(()));
+        assert_eq!(data.is_permitted(Action::Read, public_key_0), Ok(()));
+        assert_eq!(data.is_permitted(Action::Read, public_key_1), Ok(()));
+        assert_eq!(data.is_permitted(Action::Read, public_key_2), Ok(()));
     }
 
     #[test]
-    fn check_private_permission() {
+    fn validates_private_permissions() {
         let public_key_0 = gen_public_key();
         let public_key_1 = gen_public_key();
         let public_key_2 = gen_public_key();
@@ -2111,12 +2104,12 @@ mod tests {
         // no owner
         let data = Data::from(inner.clone());
         assert_eq!(
-            data.check_permission(Action::Read, public_key_0),
+            data.is_permitted(Action::Read, public_key_0),
             Err(Error::InvalidOwners)
         );
 
         // no permissions
-        unwrap!(inner.append_owner(
+        unwrap!(inner.set_owner(
             Owner {
                 public_key: public_key_0,
                 expected_data_index: 0,
@@ -2126,9 +2119,9 @@ mod tests {
         ));
         let data = Data::from(inner.clone());
 
-        assert_eq!(data.check_permission(Action::Read, public_key_0), Ok(()));
+        assert_eq!(data.is_permitted(Action::Read, public_key_0), Ok(()));
         assert_eq!(
-            data.check_permission(Action::Read, public_key_1),
+            data.is_permitted(Action::Read, public_key_1),
             Err(Error::InvalidPermissions)
         );
 
@@ -2141,28 +2134,28 @@ mod tests {
         let _ = permissions
             .permissions
             .insert(public_key_1, PrivatePermissionSet::new(true, true, false));
-        unwrap!(inner.append_permissions(permissions, 0));
+        unwrap!(inner.set_permissions(permissions, 0));
         let data = Data::from(inner);
 
         // existing key
-        assert_eq!(data.check_permission(Action::Read, public_key_1), Ok(()));
-        assert_eq!(data.check_permission(Action::Append, public_key_1), Ok(()));
+        assert_eq!(data.is_permitted(Action::Read, public_key_1), Ok(()));
+        assert_eq!(data.is_permitted(Action::Append, public_key_1), Ok(()));
         assert_eq!(
-            data.check_permission(Action::ManagePermissions, public_key_1),
+            data.is_permitted(Action::ManagePermissions, public_key_1),
             Err(Error::AccessDenied)
         );
 
         // non-existing key
         assert_eq!(
-            data.check_permission(Action::Read, public_key_2),
+            data.is_permitted(Action::Read, public_key_2),
             Err(Error::InvalidPermissions)
         );
         assert_eq!(
-            data.check_permission(Action::Append, public_key_2),
+            data.is_permitted(Action::Append, public_key_2),
             Err(Error::InvalidPermissions)
         );
         assert_eq!(
-            data.check_permission(Action::ManagePermissions, public_key_2),
+            data.is_permitted(Action::ManagePermissions, public_key_2),
             Err(Error::InvalidPermissions)
         );
     }

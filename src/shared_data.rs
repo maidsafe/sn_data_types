@@ -146,7 +146,7 @@ impl PublicPermissionSet {
 }
 
 pub trait Permissions: Clone + Eq + Ord + Hash + Serialize + DeserializeOwned {
-    fn is_action_allowed(&self, user: PublicKey, action: Action) -> Result<()>;
+    fn is_permitted(&self, user: PublicKey, action: Action) -> Result<()>;
     fn expected_data_index(&self) -> u64;
     fn expected_owners_index(&self) -> u64;
 }
@@ -167,7 +167,7 @@ impl PrivatePermissions {
 }
 
 impl Permissions for PrivatePermissions {
-    fn is_action_allowed(&self, user: PublicKey, action: Action) -> Result<()> {
+    fn is_permitted(&self, user: PublicKey, action: Action) -> Result<()> {
         match self.permissions.get(&user) {
             Some(permissions) => {
                 if permissions.is_allowed(action) {
@@ -199,7 +199,7 @@ pub struct PublicPermissions {
 }
 
 impl PublicPermissions {
-    fn is_action_allowed_by_user(&self, user: &User, action: Action) -> Option<bool> {
+    fn is_permitted_(&self, user: &User, action: Action) -> Option<bool> {
         self.permissions
             .get(user)
             .and_then(|permissions| permissions.is_allowed(action))
@@ -211,10 +211,10 @@ impl PublicPermissions {
 }
 
 impl Permissions for PublicPermissions {
-    fn is_action_allowed(&self, user: PublicKey, action: Action) -> Result<()> {
+    fn is_permitted(&self, user: PublicKey, action: Action) -> Result<()> {
         match self
-            .is_action_allowed_by_user(&User::Specific(user), action)
-            .or_else(|| self.is_action_allowed_by_user(&User::Anyone, action))
+            .is_permitted_(&User::Specific(user), action)
+            .or_else(|| self.is_permitted_(&User::Anyone, action))
         {
             Some(true) => Ok(()),
             Some(false) => Err(Error::AccessDenied),

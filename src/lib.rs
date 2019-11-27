@@ -95,9 +95,9 @@ pub use public_key::{PublicKey, Signature};
 pub use request::{LoginPacket, Request, MAX_LOGIN_PACKET_BYTES};
 pub use response::Response;
 pub use sequence::{
-    AppendOperation as ADataAppend, Data as AData, Values as ADataEntries, Entry as ADataEntry,
+    AppendOperation as ADataAppend, Data as AData, DataEntry as ADataEntry,
     PrivateSentriedSequence, PrivateSequence, PublicSentriedSequence, PublicSequence, Sequence,
-    SequencePermissions as ADataPermissions,
+    SequencePermissions as ADataPermissions, Values as ADataEntries,
 };
 pub use sha3::Sha3_512 as Ed25519Digest;
 pub use shared_data::{
