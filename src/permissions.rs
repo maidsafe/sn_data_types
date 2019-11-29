@@ -12,32 +12,29 @@
 use crate::shared_data::User;
 use crate::PublicKey;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    hash::Hash,
-};
+use std::{collections::BTreeMap, hash::Hash};
 
 /// A query or cmd on Map.
 //#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-#[derive(Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum Request {
     /// A cmd on a data type.
-    Cmd(Cmd),
+    Cmd(CmdType),
     /// A query a data type.
-    Query(Query),
+    Query(QueryType),
 }
 
 /// Set of Cmds that can be performed on a Map. Unless rejected, always mutates state.
 //#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-#[derive(Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub enum Cmd {
+#[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+pub enum CmdType {
     /// Map permissions.
     Map(MapCmd),
     /// Sequence permissions.
     Sequence(SequenceCmd),
 }
 
-#[derive(Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum SequenceCmd {
     /// Permission to append new values.
     Append,
@@ -48,7 +45,7 @@ pub enum SequenceCmd {
 }
 
 /// Set of Cmds that can be performed on a Map. Unless rejected, always mutates state.
-#[derive(Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum MapCmd {
     /// Permission to insert new values.
     Insert,
@@ -62,7 +59,7 @@ pub enum MapCmd {
     ModifyPermissions(ModifyableMapPermissions),
 }
 
-#[derive(Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum ModifyableMapPermissions {
     /// Read from the Map data.
     ReadData,
@@ -74,7 +71,7 @@ pub enum ModifyableMapPermissions {
     Write(MapWrite),
 }
 
-#[derive(Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum MapWrite {
     /// Permission to insert new values.
     Insert,
@@ -88,7 +85,7 @@ pub enum MapWrite {
     ModifyPermissions, // hmm.. inception...
 }
 
-#[derive(Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum ModifyableSequencePermissions {
     /// Read from the data.
     ReadData,
@@ -100,7 +97,7 @@ pub enum ModifyableSequencePermissions {
     Write(SequenceWrite),
 }
 
-#[derive(Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum SequenceWrite {
     /// Permission to append new values.
     Append,
@@ -110,7 +107,7 @@ pub enum SequenceWrite {
     ModifyPermissions, // hmm.. inception...
 }
 
-#[derive(Clone, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum HardErasureCmd {
     /// Permission to hard-update existing values.
     HardUpdate,
@@ -121,7 +118,7 @@ pub enum HardErasureCmd {
 /// A query on Map, can never mutate state.
 //#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub enum Query {
+pub enum QueryType {
     /// Query for Map types.
     Map(MapQuery),
     /// Query for Sequence types.
@@ -154,40 +151,49 @@ pub enum SequenceQuery {
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub struct PrivatePermissionSet {
-    permitted_requests: BTreeSet<Request>,
+    permissions: BTreeMap<Request, bool>,
 }
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub struct PublicPermissionSet {
-    permitted_requests: BTreeSet<Request>,
+    permissions: BTreeMap<Request, bool>,
 }
 
 impl PrivatePermissionSet {
-    pub fn new(permitted_requests: BTreeSet<Request>) -> Self {
-        PrivatePermissionSet { permitted_requests }
+    pub fn new(permissions: BTreeMap<Request, bool>) -> Self {
+        PrivatePermissionSet { permissions }
     }
 
-    pub fn set_permissions(&mut self, permitted_requests: BTreeSet<Request>) {
-        self.permitted_requests = permitted_requests;
+    pub fn set_permissions(&mut self, permissions: BTreeMap<Request, bool>) {
+        self.permissions = permissions;
     }
 
     pub fn is_permitted(self, request: &Request) -> bool {
-        self.permitted_requests.contains(request)
+        match self.permissions.get(request) {
+            Some(true) => true,
+            _ => false,
+        }
     }
 }
 
 impl PublicPermissionSet {
-    pub fn new(permitted_requests: BTreeSet<Request>) -> Self {
-        PublicPermissionSet { permitted_requests }
+    pub fn new(permissions: BTreeMap<Request, bool>) -> Self {
+        PublicPermissionSet { permissions }
     }
 
-    pub fn set_permissions(&mut self, permitted_requests: BTreeSet<Request>) {
-        self.permitted_requests = permitted_requests; // todo: filter out Queries
+    pub fn set_permissions(&mut self, permissions: BTreeMap<Request, bool>) {
+        self.permissions = permissions; // todo: filter out Queries
     }
 
-    pub fn is_permitted(self, request: &Request) -> bool {
+    /// Returns `Some(true)` if `request` is allowed and `Some(false)` if it's not permitted.
+    /// `None` means that `User::Anyone` permissions apply.
+    pub fn is_permitted(self, request: &Request) -> Option<bool> {
         match request {
-            Request::Query(_) => true, // It's Public data, so it's always allowed to read it.
-            _ => self.permitted_requests.contains(request),
+            Request::Query(_) => Some(true), // It's Public data, so it's always allowed to read it.
+            _ => match self.permissions.get(request) {
+                Some(true) => Some(true),
+                Some(false) => Some(false),
+                None => None,
+            },
         }
     }
 }
@@ -240,10 +246,14 @@ pub struct PublicPermissions {
 }
 
 impl PublicPermissions {
-    fn is_permitted_(&self, user: &User, request: &Request) -> bool {
+    fn is_permitted_(&self, user: &User, request: &Request) -> Option<bool> {
         match self.permissions.get(user) {
-            Some(permissions) => permissions.clone().is_permitted(request),
-            _ => false,
+            Some(permissions) => match permissions.clone().is_permitted(request) {
+                Some(true) => Some(true),
+                Some(false) => Some(false),
+                None => None,
+            },
+            _ => None,
         }
     }
 
@@ -255,8 +265,12 @@ impl PublicPermissions {
 impl Permissions for PublicPermissions {
     fn is_permitted(&self, user: &PublicKey, request: &Request) -> bool {
         match self.is_permitted_(&User::Specific(*user), request) {
-            true => true,
-            false => self.is_permitted_(&User::Anyone, request),
+            Some(true) => true,
+            Some(false) => false,
+            None => match self.is_permitted_(&User::Anyone, request) {
+                Some(true) => true,
+                _ => false,
+            },
         }
     }
 

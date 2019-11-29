@@ -61,7 +61,7 @@ mod identity;
 mod immutable_data;
 mod map;
 mod mutable_data;
-mod new_permissions;
+mod permissions;
 mod public_key;
 mod request;
 mod response;
@@ -92,6 +92,9 @@ pub use map::Data as MData;
 //     UnseqEntryActions as MDataUnseqEntryActions, UnseqMutableData, UnseqValue as MDataUnseqValue,
 //     Value as MDataValue, Values as MDataValues,
 // };
+pub use permissions::{
+    PrivatePermissionSet, PrivatePermissions, PublicPermissionSet, PublicPermissions,
+};
 pub use public_key::{PublicKey, Signature};
 pub use request::{LoginPacket, Request, MAX_LOGIN_PACKET_BYTES};
 pub use response::Response;
@@ -101,10 +104,7 @@ pub use sequence::{
     SequencePermissions as ADataPermissions, Values as ADataEntries,
 };
 pub use sha3::Sha3_512 as Ed25519Digest;
-pub use shared_data::{
-    Action as ADataAction, Address, ExpectedIndices, Index, Kind, Owner, PrivatePermissionSet,
-    PrivatePermissions, PublicPermissionSet, PublicPermissions, User,
-};
+pub use shared_data::{Address, ExpectedIndices, Index, Kind, Owner, User};
 pub use transaction::{Transaction, TransactionId};
 pub use utils::verify_signature;
 

@@ -7,10 +7,10 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::{utils, Error, PublicKey, Result, XorName};
+use crate::{utils, PublicKey, Result, XorName};
 use multibase::Decodable;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use std::{collections::BTreeMap, hash::Hash, ops::Range};
+use serde::{Deserialize, Serialize};
+use std::ops::Range;
 
 pub type Key = Vec<u8>;
 pub type Value = Vec<u8>;
@@ -29,13 +29,6 @@ pub struct NonSentried;
 pub enum User {
     Anyone,
     Specific(PublicKey),
-}
-
-#[derive(Clone, Copy, Eq, PartialEq)]
-pub enum Action {
-    Read,
-    Append,
-    ManagePermissions,
 }
 
 #[derive(Copy, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -91,158 +84,6 @@ pub struct Owner {
     pub expected_data_index: u64,
     /// The expected index of the permissions at the time this ownership change is to become valid.
     pub expected_permissions_index: u64,
-}
-
-#[derive(Copy, Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
-pub struct PrivatePermissionSet {
-    read: bool,
-    append: bool,
-    manage_permissions: bool,
-}
-
-impl PrivatePermissionSet {
-    pub fn new(read: bool, append: bool, manage_permissions: bool) -> Self {
-        PrivatePermissionSet {
-            read,
-            append,
-            manage_permissions: manage_permissions,
-        }
-    }
-
-    pub fn set_permissions(&mut self, read: bool, append: bool, manage_permissions: bool) {
-        self.read = read;
-        self.append = append;
-        self.manage_permissions = manage_permissions;
-    }
-
-    pub fn is_permitted(self, action: Action) -> bool {
-        match action {
-            Action::Read => self.read,
-            Action::Append => self.append,
-            Action::ManagePermissions => self.manage_permissions,
-        }
-    }
-}
-
-#[derive(Copy, Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
-pub struct PublicPermissionSet {
-    append: Option<bool>,
-    manage_permissions: Option<bool>,
-}
-
-impl PublicPermissionSet {
-    pub fn new(
-        append: impl Into<Option<bool>>,
-        manage_permissions: impl Into<Option<bool>>,
-    ) -> Self {
-        PublicPermissionSet {
-            append: append.into(),
-            manage_permissions: manage_permissions.into(),
-        }
-    }
-
-    pub fn set_permissions(
-        &mut self,
-        append: impl Into<Option<bool>>,
-        manage_permissions: impl Into<Option<bool>>,
-    ) {
-        self.append = append.into();
-        self.manage_permissions = manage_permissions.into();
-    }
-
-    pub fn is_permitted(self, action: Action) -> Option<bool> {
-        match action {
-            Action::Read => Some(true), // It's Public data, so it's always allowed to read it.
-            Action::Append => self.append,
-            Action::ManagePermissions => self.manage_permissions,
-        }
-    }
-}
-
-pub trait Permissions: Clone + Eq + Ord + Hash + Serialize + DeserializeOwned {
-    fn is_permitted(&self, user: PublicKey, action: Action) -> Result<()>;
-    fn expected_data_index(&self) -> u64;
-    fn expected_owners_index(&self) -> u64;
-}
-
-#[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
-pub struct PrivatePermissions {
-    pub permissions: BTreeMap<PublicKey, PrivatePermissionSet>,
-    /// The expected index of the data at the time this permission change is to become valid.
-    pub expected_data_index: u64,
-    /// The expected index of the owners at the time this permission change is to become valid.
-    pub expected_owners_index: u64,
-}
-
-impl PrivatePermissions {
-    pub fn permissions(&self) -> &BTreeMap<PublicKey, PrivatePermissionSet> {
-        &self.permissions
-    }
-}
-
-impl Permissions for PrivatePermissions {
-    fn is_permitted(&self, user: PublicKey, action: Action) -> Result<()> {
-        match self.permissions.get(&user) {
-            Some(permissions) => {
-                if permissions.is_permitted(action) {
-                    Ok(())
-                } else {
-                    Err(Error::AccessDenied)
-                }
-            }
-            None => Err(Error::InvalidPermissions),
-        }
-    }
-
-    fn expected_data_index(&self) -> u64 {
-        self.expected_data_index
-    }
-
-    fn expected_owners_index(&self) -> u64 {
-        self.expected_owners_index
-    }
-}
-
-#[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
-pub struct PublicPermissions {
-    pub permissions: BTreeMap<User, PublicPermissionSet>,
-    /// The expected index of the data at the time this permission change is to become valid.
-    pub expected_data_index: u64,
-    /// The expected index of the owners at the time this permission change is to become valid.
-    pub expected_owners_index: u64,
-}
-
-impl PublicPermissions {
-    fn is_permitted_(&self, user: &User, action: Action) -> Option<bool> {
-        self.permissions
-            .get(user)
-            .and_then(|permissions| permissions.is_permitted(action))
-    }
-
-    pub fn permissions(&self) -> &BTreeMap<User, PublicPermissionSet> {
-        &self.permissions
-    }
-}
-
-impl Permissions for PublicPermissions {
-    fn is_permitted(&self, user: PublicKey, action: Action) -> Result<()> {
-        match self
-            .is_permitted_(&User::Specific(user), action)
-            .or_else(|| self.is_permitted_(&User::Anyone, action))
-        {
-            Some(true) => Ok(()),
-            Some(false) => Err(Error::AccessDenied),
-            None => Err(Error::InvalidPermissions),
-        }
-    }
-
-    fn expected_data_index(&self) -> u64 {
-        self.expected_data_index
-    }
-
-    fn expected_owners_index(&self) -> u64 {
-        self.expected_owners_index
-    }
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]

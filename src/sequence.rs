@@ -7,10 +7,13 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
+use crate::permissions::{
+    Permissions, PrivatePermissionSet, PrivatePermissions, PublicPermissionSet, PublicPermissions,
+    Request,
+};
 use crate::shared_data::{
-    to_absolute_index, to_absolute_range, Action, Address, ExpectedIndices, Index, Kind,
-    NonSentried, Owner, Permissions, PrivatePermissionSet, PrivatePermissions, PublicPermissionSet,
-    PublicPermissions, Sentried, User, Value,
+    to_absolute_index, to_absolute_range, Address, ExpectedIndices, Index, Kind, NonSentried,
+    Owner, Sentried, User, Value,
 };
 use crate::{Error, PublicKey, Result, XorName};
 use serde::{Deserialize, Serialize};
@@ -182,18 +185,18 @@ where
         self.permissions.get(index)
     }
 
-    pub fn is_permitted(&self, user: PublicKey, action: Action) -> Result<()> {
-        if self
-            .owner_at(Index::FromEnd(1))
-            .ok_or(Error::InvalidOwners)?
-            .public_key
-            == user
-        {
-            Ok(())
-        } else {
-            self.permissions_at(Index::FromEnd(1))
-                .ok_or(Error::InvalidPermissions)?
-                .is_permitted(user, action)
+    pub fn is_permitted(&self, user: PublicKey, request: Request) -> bool {
+        match self.owner_at(Index::FromEnd(1)) {
+            Some(owner) => {
+                if owner.public_key == user {
+                    return true;
+                }
+            }
+            None => (),
+        }
+        match self.permissions_at(Index::FromEnd(1)) {
+            Some(permissions) => permissions.is_permitted(&user, &request),
+            None => false,
         }
     }
 
@@ -354,19 +357,18 @@ pub enum Data {
 }
 
 impl Data {
-    pub fn is_permitted(&self, action: Action, user: PublicKey) -> Result<()> {
-        match (self, action) {
-            (Data::PublicSentried(_), Action::Read) | (Data::Public(_), Action::Read) => {
-                return Ok(())
+    pub fn is_permitted(&self, request: Request, user: PublicKey) -> bool {
+        match (self, request) {
+            (Data::PublicSentried(_), Request::Query(_)) | (Data::Public(_), Request::Query(_)) => {
+                return true
             }
             _ => (),
         }
-
         match self {
-            Data::PublicSentried(data) => data.is_permitted(user, action),
-            Data::Public(data) => data.is_permitted(user, action),
-            Data::PrivateSentried(data) => data.is_permitted(user, action),
-            Data::Private(data) => data.is_permitted(user, action),
+            Data::PublicSentried(data) => data.is_permitted(user, request),
+            Data::Public(data) => data.is_permitted(user, request),
+            Data::PrivateSentried(data) => data.is_permitted(user, request),
+            Data::Private(data) => data.is_permitted(user, request),
         }
     }
 
@@ -574,7 +576,140 @@ mod tests {
     use std::collections::BTreeMap;
     use threshold_crypto::SecretKey;
     //use unwrap::{unwrap, unwrap_err};
+    use crate::permissions::{
+        CmdType, HardErasureCmd, ModifyableSequencePermissions, QueryType, SequenceCmd,
+        SequenceQuery, SequenceWrite,
+    };
     use unwrap::unwrap;
+
+    pub fn get_append_cmd() -> Request {
+        Request::Cmd(CmdType::Sequence(SequenceCmd::Append))
+    }
+
+    fn get_read_query(query: SequenceQuery) -> Request {
+        Request::Query(QueryType::Sequence(query))
+    }
+
+    fn get_full_read_permissions() -> Vec<Request> {
+        vec![
+            Request::Query(QueryType::Sequence(SequenceQuery::ReadData)),
+            Request::Query(QueryType::Sequence(SequenceQuery::ReadOwners)),
+            Request::Query(QueryType::Sequence(SequenceQuery::ReadPermissions)),
+        ]
+    }
+
+    fn get_modify_permissions(permission: ModifyableSequencePermissions) -> Request {
+        Request::Cmd(CmdType::Sequence(SequenceCmd::ModifyPermissions(
+            permission,
+        )))
+    }
+
+    fn get_full_modify_permissions() -> Vec<Request> {
+        vec![
+            Request::Cmd(CmdType::Sequence(SequenceCmd::ModifyPermissions(
+                ModifyableSequencePermissions::ReadData,
+            ))),
+            Request::Cmd(CmdType::Sequence(SequenceCmd::ModifyPermissions(
+                ModifyableSequencePermissions::ReadOwners,
+            ))),
+            Request::Cmd(CmdType::Sequence(SequenceCmd::ModifyPermissions(
+                ModifyableSequencePermissions::ReadPermissions,
+            ))),
+            Request::Cmd(CmdType::Sequence(SequenceCmd::ModifyPermissions(
+                ModifyableSequencePermissions::Write(SequenceWrite::Append),
+            ))),
+            Request::Cmd(CmdType::Sequence(SequenceCmd::ModifyPermissions(
+                ModifyableSequencePermissions::Write(SequenceWrite::ModifyPermissions),
+            ))),
+            Request::Cmd(CmdType::Sequence(SequenceCmd::ModifyPermissions(
+                ModifyableSequencePermissions::Write(SequenceWrite::HardErasure(
+                    HardErasureCmd::HardDelete,
+                )),
+            ))),
+            Request::Cmd(CmdType::Sequence(SequenceCmd::ModifyPermissions(
+                ModifyableSequencePermissions::Write(SequenceWrite::HardErasure(
+                    HardErasureCmd::HardUpdate,
+                )),
+            ))),
+        ]
+    }
+
+    pub fn assert_read_permitted(data: &Data, public_key: PublicKey, permitted: bool) {
+        assert_eq!(
+            data.is_permitted(get_read_query(SequenceQuery::ReadData), public_key),
+            permitted
+        );
+        assert_eq!(
+            data.is_permitted(get_read_query(SequenceQuery::ReadOwners), public_key),
+            permitted
+        );
+        assert_eq!(
+            data.is_permitted(get_read_query(SequenceQuery::ReadPermissions), public_key),
+            permitted
+        );
+    }
+
+    pub fn assert_modify_permissions_permitted(
+        data: &Data,
+        public_key: PublicKey,
+        permitted: bool,
+    ) {
+        assert_eq!(
+            data.is_permitted(
+                get_modify_permissions(ModifyableSequencePermissions::ReadData),
+                public_key
+            ),
+            permitted
+        );
+        assert_eq!(
+            data.is_permitted(
+                get_modify_permissions(ModifyableSequencePermissions::ReadOwners),
+                public_key
+            ),
+            permitted
+        );
+        assert_eq!(
+            data.is_permitted(
+                get_modify_permissions(ModifyableSequencePermissions::ReadPermissions),
+                public_key
+            ),
+            permitted
+        );
+        assert_eq!(
+            data.is_permitted(
+                get_modify_permissions(ModifyableSequencePermissions::Write(SequenceWrite::Append)),
+                public_key
+            ),
+            permitted
+        );
+        assert_eq!(
+            data.is_permitted(
+                get_modify_permissions(ModifyableSequencePermissions::Write(
+                    SequenceWrite::ModifyPermissions
+                )),
+                public_key
+            ),
+            permitted
+        );
+        assert_eq!(
+            data.is_permitted(
+                get_modify_permissions(ModifyableSequencePermissions::Write(
+                    SequenceWrite::HardErasure(HardErasureCmd::HardDelete)
+                )),
+                public_key
+            ),
+            permitted
+        );
+        assert_eq!(
+            data.is_permitted(
+                get_modify_permissions(ModifyableSequencePermissions::Write(
+                    SequenceWrite::HardErasure(HardErasureCmd::HardUpdate)
+                )),
+                public_key
+            ),
+            permitted
+        );
+    }
 
     #[test]
     fn set_permissions() {
@@ -827,7 +962,7 @@ mod tests {
         };
         let _ = pub_permissions.permissions.insert(
             User::Specific(public_key),
-            PublicPermissionSet::new(false, false),
+            PublicPermissionSet::new(BTreeMap::new()),
         );
 
         let mut private_permissions = PrivatePermissions {
@@ -837,7 +972,7 @@ mod tests {
         };
         let _ = private_permissions
             .permissions
-            .insert(public_key, PrivatePermissionSet::new(false, false, false));
+            .insert(public_key, PrivatePermissionSet::new(BTreeMap::new()));
 
         // pub, unseq
         let mut data = PublicSequence::new(rand::random(), 20);
@@ -849,7 +984,7 @@ mod tests {
 
         assert_eq!(
             data.public_user_permissions_at(User::Specific(public_key), 0),
-            Ok(PublicPermissionSet::new(false, false))
+            Ok(PublicPermissionSet::new(BTreeMap::new()))
         );
         assert_eq!(
             data.private_user_permissions_at(public_key, 0),
@@ -870,7 +1005,7 @@ mod tests {
 
         assert_eq!(
             data.public_user_permissions_at(User::Specific(public_key), 0),
-            Ok(PublicPermissionSet::new(false, false))
+            Ok(PublicPermissionSet::new(BTreeMap::new()))
         );
         assert_eq!(
             data.private_user_permissions_at(public_key, 0),
@@ -891,7 +1026,7 @@ mod tests {
 
         assert_eq!(
             data.private_user_permissions_at(public_key, 0),
-            Ok(PrivatePermissionSet::new(false, false, false))
+            Ok(PrivatePermissionSet::new(BTreeMap::new()))
         );
         assert_eq!(
             data.public_user_permissions_at(User::Specific(public_key), 0),
@@ -912,7 +1047,7 @@ mod tests {
 
         assert_eq!(
             data.private_user_permissions_at(public_key, 0),
-            Ok(PrivatePermissionSet::new(false, false, false))
+            Ok(PrivatePermissionSet::new(BTreeMap::new()))
         );
         assert_eq!(
             data.public_user_permissions_at(User::Specific(public_key), 0),
@@ -933,19 +1068,16 @@ mod tests {
         let public_key_0 = gen_public_key();
         let public_key_1 = gen_public_key();
         let public_key_2 = gen_public_key();
-        let mut inner = PublicSentriedSequence::new(XorName([1; 32]), 100);
+        let mut map = PublicSentriedSequence::new(XorName([1; 32]), 100);
 
         // no owner
-        let data = Data::from(inner.clone());
-        assert_eq!(
-            data.is_permitted(Action::Append, public_key_0),
-            Err(Error::InvalidOwners)
-        );
+        let data = Data::from(map.clone());
+        assert_eq!(data.is_permitted(get_append_cmd(), public_key_0), false);
         // data is Public - read always allowed
-        assert_eq!(data.is_permitted(Action::Read, public_key_0), Ok(()));
+        assert_read_permitted(&data, public_key_0, true);
 
         // no permissions
-        unwrap!(inner.set_owner(
+        unwrap!(map.set_owner(
             Owner {
                 public_key: public_key_0,
                 expected_data_index: 0,
@@ -953,16 +1085,13 @@ mod tests {
             },
             0,
         ));
-        let data = Data::from(inner.clone());
+        let data = Data::from(map.clone());
 
-        assert_eq!(data.is_permitted(Action::Append, public_key_0), Ok(()));
-        assert_eq!(
-            data.is_permitted(Action::Append, public_key_1),
-            Err(Error::InvalidPermissions)
-        );
+        assert_eq!(data.is_permitted(get_append_cmd(), public_key_0), true);
+        assert_eq!(data.is_permitted(get_append_cmd(), public_key_1), false);
         // data is Public - read always allowed
-        assert_eq!(data.is_permitted(Action::Read, public_key_0), Ok(()));
-        assert_eq!(data.is_permitted(Action::Read, public_key_1), Ok(()));
+        assert_read_permitted(&data, public_key_0, true);
+        assert_read_permitted(&data, public_key_1, true);
 
         // with permissions
         let mut permissions = PublicPermissions {
@@ -970,33 +1099,32 @@ mod tests {
             expected_data_index: 0,
             expected_owners_index: 1,
         };
+        let mut set = BTreeMap::new();
+        let _ = set.insert(get_append_cmd(), true);
         let _ = permissions
             .permissions
-            .insert(User::Anyone, PublicPermissionSet::new(true, false));
-        let _ = permissions.permissions.insert(
-            User::Specific(public_key_1),
-            PublicPermissionSet::new(None, true),
-        );
-        unwrap!(inner.set_permissions(permissions, 0));
-        let data = Data::from(inner);
+            .insert(User::Anyone, PublicPermissionSet::new(set));
+        let mut set = BTreeMap::new();
+        for cmd in get_full_modify_permissions() {
+            let _ = set.insert(cmd, true);
+        }
+        let _ = permissions
+            .permissions
+            .insert(User::Specific(public_key_1), PublicPermissionSet::new(set));
+        unwrap!(map.set_permissions(permissions, 0));
+        let data = Data::from(map);
 
         // existing key fallback
-        assert_eq!(data.is_permitted(Action::Append, public_key_1), Ok(()));
+        assert_eq!(data.is_permitted(get_append_cmd(), public_key_1), true);
         // existing key override
-        assert_eq!(
-            data.is_permitted(Action::ManagePermissions, public_key_1),
-            Ok(())
-        );
+        assert_modify_permissions_permitted(&data, public_key_1, true);
         // non-existing keys are handled by `Anyone`
-        assert_eq!(data.is_permitted(Action::Append, public_key_2), Ok(()));
-        assert_eq!(
-            data.is_permitted(Action::ManagePermissions, public_key_2),
-            Err(Error::AccessDenied)
-        );
+        assert_eq!(data.is_permitted(get_append_cmd(), public_key_2), true);
+        assert_modify_permissions_permitted(&data, public_key_2, false);
         // data is Public - read always allowed
-        assert_eq!(data.is_permitted(Action::Read, public_key_0), Ok(()));
-        assert_eq!(data.is_permitted(Action::Read, public_key_1), Ok(()));
-        assert_eq!(data.is_permitted(Action::Read, public_key_2), Ok(()));
+        assert_read_permitted(&data, public_key_0, true);
+        assert_read_permitted(&data, public_key_1, true);
+        assert_read_permitted(&data, public_key_2, true);
     }
 
     #[test]
@@ -1004,17 +1132,14 @@ mod tests {
         let public_key_0 = gen_public_key();
         let public_key_1 = gen_public_key();
         let public_key_2 = gen_public_key();
-        let mut inner = PrivateSentriedSequence::new(XorName([1; 32]), 100);
+        let mut map = PrivateSentriedSequence::new(XorName([1; 32]), 100);
 
         // no owner
-        let data = Data::from(inner.clone());
-        assert_eq!(
-            data.is_permitted(Action::Read, public_key_0),
-            Err(Error::InvalidOwners)
-        );
+        let data = Data::from(map.clone());
+        assert_read_permitted(&data, public_key_0, false);
 
         // no permissions
-        unwrap!(inner.set_owner(
+        unwrap!(map.set_owner(
             Owner {
                 public_key: public_key_0,
                 expected_data_index: 0,
@@ -1022,13 +1147,10 @@ mod tests {
             },
             0,
         ));
-        let data = Data::from(inner.clone());
+        let data = Data::from(map.clone());
 
-        assert_eq!(data.is_permitted(Action::Read, public_key_0), Ok(()));
-        assert_eq!(
-            data.is_permitted(Action::Read, public_key_1),
-            Err(Error::InvalidPermissions)
-        );
+        assert_read_permitted(&data, public_key_0, true);
+        assert_read_permitted(&data, public_key_1, false);
 
         // with permissions
         let mut permissions = PrivatePermissions {
@@ -1036,32 +1158,28 @@ mod tests {
             expected_data_index: 0,
             expected_owners_index: 1,
         };
+        let mut set = BTreeMap::new();
+        let _ = set.insert(get_append_cmd(), true);
+        for query in get_full_read_permissions() {
+            let _ = set.insert(query, true);
+        }
+        for cmd in get_full_modify_permissions() {
+            let _ = set.insert(cmd, false);
+        }
         let _ = permissions
             .permissions
-            .insert(public_key_1, PrivatePermissionSet::new(true, true, false));
-        unwrap!(inner.set_permissions(permissions, 0));
-        let data = Data::from(inner);
+            .insert(public_key_1, PrivatePermissionSet::new(set));
+        unwrap!(map.set_permissions(permissions, 0));
+        let data = Data::from(map);
 
         // existing key
-        assert_eq!(data.is_permitted(Action::Read, public_key_1), Ok(()));
-        assert_eq!(data.is_permitted(Action::Append, public_key_1), Ok(()));
-        assert_eq!(
-            data.is_permitted(Action::ManagePermissions, public_key_1),
-            Err(Error::AccessDenied)
-        );
+        assert_read_permitted(&data, public_key_1, true);
+        assert_eq!(data.is_permitted(get_append_cmd(), public_key_1), true);
+        assert_modify_permissions_permitted(&data, public_key_1, false);
 
         // non-existing key
-        assert_eq!(
-            data.is_permitted(Action::Read, public_key_2),
-            Err(Error::InvalidPermissions)
-        );
-        assert_eq!(
-            data.is_permitted(Action::Append, public_key_2),
-            Err(Error::InvalidPermissions)
-        );
-        assert_eq!(
-            data.is_permitted(Action::ManagePermissions, public_key_2),
-            Err(Error::InvalidPermissions)
-        );
+        assert_read_permitted(&data, public_key_2, false);
+        assert_eq!(data.is_permitted(get_append_cmd(), public_key_2), false);
+        assert_modify_permissions_permitted(&data, public_key_2, false);
     }
 }
