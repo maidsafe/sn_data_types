@@ -1,7 +1,21 @@
+// Copyright 2019 MaidSafe.net limited.
+//
+// This SAFE Network Software is licensed to you under the MIT license <LICENSE-MIT
+// https://opensource.org/licenses/MIT> or the Modified BSD license <LICENSE-BSD
+// https://opensource.org/licenses/BSD-3-Clause>, at your option. This file may not be copied,
+// modified, or distributed except according to those terms. Please review the Licences for the
+// specific language governing permissions and limitations relating to use of the SAFE Network
+// Software.
+
 use crate::{utils, Error, PublicKey, Result, XorName};
 use multibase::Decodable;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{collections::BTreeMap, hash::Hash, ops::Range};
+
+pub type Key = Vec<u8>;
+pub type Value = Vec<u8>;
+pub type KvPair = (Key, Value);
+// pub type IvPair = (Index, Value);
 
 /// Marker for sentried data.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
@@ -101,7 +115,7 @@ impl PrivatePermissionSet {
         self.manage_permissions = manage_permissions;
     }
 
-    pub fn is_allowed(self, action: Action) -> bool {
+    pub fn is_permitted(self, action: Action) -> bool {
         match action {
             Action::Read => self.read,
             Action::Append => self.append,
@@ -136,7 +150,7 @@ impl PublicPermissionSet {
         self.manage_permissions = manage_permissions.into();
     }
 
-    pub fn is_allowed(self, action: Action) -> Option<bool> {
+    pub fn is_permitted(self, action: Action) -> Option<bool> {
         match action {
             Action::Read => Some(true), // It's Public data, so it's always allowed to read it.
             Action::Append => self.append,
@@ -170,7 +184,7 @@ impl Permissions for PrivatePermissions {
     fn is_permitted(&self, user: PublicKey, action: Action) -> Result<()> {
         match self.permissions.get(&user) {
             Some(permissions) => {
-                if permissions.is_allowed(action) {
+                if permissions.is_permitted(action) {
                     Ok(())
                 } else {
                     Err(Error::AccessDenied)
@@ -202,7 +216,7 @@ impl PublicPermissions {
     fn is_permitted_(&self, user: &User, action: Action) -> Option<bool> {
         self.permissions
             .get(user)
-            .and_then(|permissions| permissions.is_allowed(action))
+            .and_then(|permissions| permissions.is_permitted(action))
     }
 
     pub fn permissions(&self) -> &BTreeMap<User, PublicPermissionSet> {

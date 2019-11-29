@@ -10,9 +10,9 @@
 #![allow(dead_code)]
 
 use crate::shared_data::{
-    to_absolute_index, to_absolute_range, Action, Address, ExpectedIndices, Index, Kind,
-    NonSentried, Owner, Permissions, PrivatePermissionSet, PrivatePermissions, PublicPermissionSet,
-    PublicPermissions, Sentried, User,
+    to_absolute_index, to_absolute_range, Action, Address, ExpectedIndices, Index, Key, Kind,
+    KvPair, NonSentried, Owner, Permissions, PrivatePermissionSet, PrivatePermissions,
+    PublicPermissionSet, PublicPermissions, Sentried, User, Value,
 };
 use crate::{EntryError, Error, PublicKey, Result, XorName};
 use serde::{Deserialize, Serialize};
@@ -295,9 +295,6 @@ pub enum SentryOption {
     ExpectVersion(SentriedTransaction),
 }
 
-pub type Key = Vec<u8>;
-pub type Value = Vec<u8>;
-pub type KvPair = (Key, Value);
 pub type Transaction = Vec<Cmd>;
 
 pub type ExpectedVersion = u64;
@@ -373,7 +370,6 @@ impl<P: Permissions> Map<P, NonSentried> {
             }
         }
 
-        // maintains history
         for (key, val) in update {
             match new_data.entry(key) {
                 Entry::Occupied(mut entry) => {
@@ -395,7 +391,6 @@ impl<P: Permissions> Map<P, NonSentried> {
             }
         }
 
-        // maintains history
         for key in delete {
             match new_data.entry(key.clone()) {
                 Entry::Occupied(mut entry) => {

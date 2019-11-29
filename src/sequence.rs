@@ -10,7 +10,7 @@
 use crate::shared_data::{
     to_absolute_index, to_absolute_range, Action, Address, ExpectedIndices, Index, Kind,
     NonSentried, Owner, Permissions, PrivatePermissionSet, PrivatePermissions, PublicPermissionSet,
-    PublicPermissions, Sentried, User,
+    PublicPermissions, Sentried, User, Value,
 };
 use crate::{Error, PublicKey, Result, XorName};
 use serde::{Deserialize, Serialize};
@@ -40,7 +40,6 @@ impl From<PublicPermissions> for SequencePermissions {
     }
 }
 
-pub type Value = Vec<u8>;
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default, Debug)]
 pub struct DataEntry {
     pub index: u64,

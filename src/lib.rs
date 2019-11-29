@@ -61,6 +61,7 @@ mod identity;
 mod immutable_data;
 mod map;
 mod mutable_data;
+mod new_permissions;
 mod public_key;
 mod request;
 mod response;
