@@ -109,6 +109,13 @@ impl Kind {
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
+pub enum DataAddress {
+    Map(Address),
+    Sequence(Address),
+    // Blob(Address),
+}
+
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Address {
     PublicSentried { name: XorName, tag: u64 },
     Public { name: XorName, tag: u64 },

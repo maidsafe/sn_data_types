@@ -82,7 +82,7 @@ pub use immutable_data::{
     Address as IDataAddress, Data as IData, Kind as IDataKind, PubImmutableData,
     UnpubImmutableData, MAX_IMMUTABLE_DATA_SIZE_IN_BYTES,
 };
-pub use map::Data as MData;
+pub use map::MapData as MData;
 // pub use mutable_data::{
 //     Action as MDataAction, Address as MDataAddress, Entries as MDataEntries,
 //     EntryActions as MDataEntryActions, Kind as MDataKind, PermissionSet as MDataPermissionSet,
@@ -99,8 +99,8 @@ pub use public_key::{PublicKey, Signature};
 pub use request::{LoginPacket, Request, MAX_LOGIN_PACKET_BYTES};
 pub use response::Response;
 pub use sequence::{
-    AppendOperation as ADataAppend, Data as AData, DataEntry as ADataEntry,
-    PrivateSentriedSequence, PrivateSequence, PublicSentriedSequence, PublicSequence, Sequence,
+    AppendOperation as ADataAppend, DataEntry as ADataEntry, PrivateSentriedSequence,
+    PrivateSequence, PublicSentriedSequence, PublicSequence, Sequence, SequenceData as AData,
     SequencePermissions as ADataPermissions, Values as ADataEntries,
 };
 pub use sha3::Sha3_512 as Ed25519Digest;
@@ -271,6 +271,7 @@ pub struct Notification(pub Transaction);
 
 #[cfg(test)]
 mod test {
+    use crate::Address;
     use crate::XorName;
     use unwrap::unwrap;
 
@@ -280,5 +281,14 @@ mod test {
         let encoded = name.encode_to_zbase32();
         let decoded = unwrap!(XorName::decode_from_zbase32(&encoded));
         assert_eq!(name, decoded);
+    }
+
+    #[test]
+    fn zbase32_encodes_and_decodes_data_address() {
+        let name = XorName(rand::random());
+        let address = Address::PrivateSentried { name, tag: 15000 };
+        let encoded = address.encode_to_zbase32();
+        let decoded = unwrap!(Address::decode_from_zbase32(&encoded));
+        assert_eq!(address, decoded);
     }
 }

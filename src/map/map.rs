@@ -941,35 +941,34 @@ impl Debug for Map<PrivatePermissions, NonSentried> {
 
 /// Object storing a Map variant.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
-pub enum Data {
+pub enum MapData {
     PublicSentried(PublicSentriedMap),
     Public(PublicMap),
     PrivateSentried(PrivateSentriedMap),
     Private(PrivateMap),
 }
 
-impl Data {
+impl MapData {
     pub fn is_permitted(&self, request: Request, user: PublicKey) -> bool {
         match (self, request) {
-            (Data::PublicSentried(_), Request::Query(_)) | (Data::Public(_), Request::Query(_)) => {
-                return true
-            }
+            (MapData::PublicSentried(_), Request::Query(_))
+            | (MapData::Public(_), Request::Query(_)) => return true,
             _ => (),
         }
         match self {
-            Data::PublicSentried(data) => data.is_permitted(user, request),
-            Data::Public(data) => data.is_permitted(user, request),
-            Data::PrivateSentried(data) => data.is_permitted(user, request),
-            Data::Private(data) => data.is_permitted(user, request),
+            MapData::PublicSentried(data) => data.is_permitted(user, request),
+            MapData::Public(data) => data.is_permitted(user, request),
+            MapData::PrivateSentried(data) => data.is_permitted(user, request),
+            MapData::Private(data) => data.is_permitted(user, request),
         }
     }
 
     pub fn address(&self) -> &Address {
         match self {
-            Data::PublicSentried(data) => data.address(),
-            Data::Public(data) => data.address(),
-            Data::PrivateSentried(data) => data.address(),
-            Data::Private(data) => data.address(),
+            MapData::PublicSentried(data) => data.address(),
+            MapData::Public(data) => data.address(),
+            MapData::PrivateSentried(data) => data.address(),
+            MapData::Private(data) => data.address(),
         }
     }
 
@@ -999,73 +998,73 @@ impl Data {
 
     pub fn expected_data_index(&self) -> u64 {
         match self {
-            Data::PublicSentried(data) => data.expected_data_version().unwrap_or_default(),
-            Data::Public(data) => data.expected_data_version().unwrap_or_default(),
-            Data::PrivateSentried(data) => data.expected_data_version().unwrap_or_default(),
-            Data::Private(data) => data.expected_data_version().unwrap_or_default(),
+            MapData::PublicSentried(data) => data.expected_data_version().unwrap_or_default(),
+            MapData::Public(data) => data.expected_data_version().unwrap_or_default(),
+            MapData::PrivateSentried(data) => data.expected_data_version().unwrap_or_default(),
+            MapData::Private(data) => data.expected_data_version().unwrap_or_default(),
         }
     }
 
     pub fn expected_permissions_index(&self) -> u64 {
         match self {
-            Data::PublicSentried(data) => data.expected_permissions_index(),
-            Data::Public(data) => data.expected_permissions_index(),
-            Data::PrivateSentried(data) => data.expected_permissions_index(),
-            Data::Private(data) => data.expected_permissions_index(),
+            MapData::PublicSentried(data) => data.expected_permissions_index(),
+            MapData::Public(data) => data.expected_permissions_index(),
+            MapData::PrivateSentried(data) => data.expected_permissions_index(),
+            MapData::Private(data) => data.expected_permissions_index(),
         }
     }
 
     pub fn expected_owners_index(&self) -> u64 {
         match self {
-            Data::PublicSentried(data) => data.expected_owners_index(),
-            Data::Public(data) => data.expected_owners_index(),
-            Data::PrivateSentried(data) => data.expected_owners_index(),
-            Data::Private(data) => data.expected_owners_index(),
+            MapData::PublicSentried(data) => data.expected_owners_index(),
+            MapData::Public(data) => data.expected_owners_index(),
+            MapData::PrivateSentried(data) => data.expected_owners_index(),
+            MapData::Private(data) => data.expected_owners_index(),
         }
     }
 
     // pub fn in_range(&self, start: Index, end: Index) -> Option<Entries> {
     //     match self {
-    //         Data::PublicSentried(data) => data.in_range(start, end),
-    //         Data::Public(data) => data.in_range(start, end),
-    //         Data::PrivateSentried(data) => data.in_range(start, end),
-    //         Data::Private(data) => data.in_range(start, end),
+    //         MapData::PublicSentried(data) => data.in_range(start, end),
+    //         MapData::Public(data) => data.in_range(start, end),
+    //         MapData::PrivateSentried(data) => data.in_range(start, end),
+    //         MapData::Private(data) => data.in_range(start, end),
     //     }
     // }
 
     pub fn get(&self, key: &Key) -> Option<&Value> {
         match self {
-            Data::PublicSentried(data) => data.get(key),
-            Data::Public(data) => data.get(key),
-            Data::PrivateSentried(data) => data.get(key),
-            Data::Private(data) => data.get(key),
+            MapData::PublicSentried(data) => data.get(key),
+            MapData::Public(data) => data.get(key),
+            MapData::PrivateSentried(data) => data.get(key),
+            MapData::Private(data) => data.get(key),
         }
     }
 
     pub fn indices(&self) -> ExpectedIndices {
         match self {
-            Data::PublicSentried(data) => data.indices(),
-            Data::Public(data) => data.indices(),
-            Data::PrivateSentried(data) => data.indices(),
-            Data::Private(data) => data.indices(),
+            MapData::PublicSentried(data) => data.indices(),
+            MapData::Public(data) => data.indices(),
+            MapData::PrivateSentried(data) => data.indices(),
+            MapData::Private(data) => data.indices(),
         }
     }
 
     pub fn owner_at(&self, index: impl Into<Index>) -> Option<&Owner> {
         match self {
-            Data::PublicSentried(data) => data.owner_at(index),
-            Data::Public(data) => data.owner_at(index),
-            Data::PrivateSentried(data) => data.owner_at(index),
-            Data::Private(data) => data.owner_at(index),
+            MapData::PublicSentried(data) => data.owner_at(index),
+            MapData::Public(data) => data.owner_at(index),
+            MapData::PrivateSentried(data) => data.owner_at(index),
+            MapData::Private(data) => data.owner_at(index),
         }
     }
 
     pub fn is_owner(&self, user: PublicKey) -> bool {
         match self {
-            Data::PublicSentried(data) => data.is_owner(user),
-            Data::Public(data) => data.is_owner(user),
-            Data::PrivateSentried(data) => data.is_owner(user),
-            Data::Private(data) => data.is_owner(user),
+            MapData::PublicSentried(data) => data.is_owner(user),
+            MapData::Public(data) => data.is_owner(user),
+            MapData::PrivateSentried(data) => data.is_owner(user),
+            MapData::Private(data) => data.is_owner(user),
         }
     }
 
@@ -1095,8 +1094,8 @@ impl Data {
 
     pub fn public_permissions_at(&self, index: impl Into<Index>) -> Result<&PublicPermissions> {
         let permissions = match self {
-            Data::PublicSentried(data) => data.permissions_at(index),
-            Data::Public(data) => data.permissions_at(index),
+            MapData::PublicSentried(data) => data.permissions_at(index),
+            MapData::Public(data) => data.permissions_at(index),
             _ => return Err(Error::NoSuchData),
         };
         permissions.ok_or(Error::NoSuchEntry)
@@ -1104,8 +1103,8 @@ impl Data {
 
     pub fn private_permissions_at(&self, index: impl Into<Index>) -> Result<&PrivatePermissions> {
         let permissions = match self {
-            Data::PrivateSentried(data) => data.permissions_at(index),
-            Data::Private(data) => data.permissions_at(index),
+            MapData::PrivateSentried(data) => data.permissions_at(index),
+            MapData::Private(data) => data.permissions_at(index),
             _ => return Err(Error::NoSuchData),
         };
         permissions.ok_or(Error::NoSuchEntry)
@@ -1113,17 +1112,17 @@ impl Data {
 
     pub fn shell(&self, index: impl Into<Index>) -> Result<Self> {
         match self {
-            Data::PublicSentried(map) => map.shell(index).map(Data::PublicSentried),
-            Data::Public(map) => map.shell(index).map(Data::Public),
-            Data::PrivateSentried(map) => map.shell(index).map(Data::PrivateSentried),
-            Data::Private(map) => map.shell(index).map(Data::Private),
+            MapData::PublicSentried(map) => map.shell(index).map(MapData::PublicSentried),
+            MapData::Public(map) => map.shell(index).map(MapData::Public),
+            MapData::PrivateSentried(map) => map.shell(index).map(MapData::PrivateSentried),
+            MapData::Private(map) => map.shell(index).map(MapData::Private),
         }
     }
 
     /// Commits transaction.
     pub fn commit(&mut self, tx: MapTransaction) -> Result<()> {
         match self {
-            Data::PrivateSentried(map) => match tx {
+            MapData::PrivateSentried(map) => match tx {
                 MapTransaction::Commit(options) => {
                     if let SentryOption::ExpectVersion(stx) = options {
                         return map.commit(stx);
@@ -1135,7 +1134,7 @@ impl Data {
                     }
                 }
             },
-            Data::Private(map) => match tx {
+            MapData::Private(map) => match tx {
                 MapTransaction::Commit(options) => {
                     if let SentryOption::AnyVersion(tx) = options {
                         return map.commit(tx);
@@ -1147,7 +1146,7 @@ impl Data {
                     }
                 }
             },
-            Data::PublicSentried(map) => match tx {
+            MapData::PublicSentried(map) => match tx {
                 MapTransaction::Commit(options) => {
                     if let SentryOption::ExpectVersion(stx) = options {
                         return map.commit(stx);
@@ -1155,7 +1154,7 @@ impl Data {
                 }
                 _ => return Err(Error::InvalidOperation),
             },
-            Data::Public(map) => match tx {
+            MapData::Public(map) => match tx {
                 MapTransaction::Commit(options) => {
                     if let SentryOption::AnyVersion(tx) = options {
                         return map.commit(tx);
@@ -1169,26 +1168,26 @@ impl Data {
     }
 }
 
-impl From<PublicSentriedMap> for Data {
+impl From<PublicSentriedMap> for MapData {
     fn from(data: PublicSentriedMap) -> Self {
-        Data::PublicSentried(data)
+        MapData::PublicSentried(data)
     }
 }
 
-impl From<PublicMap> for Data {
+impl From<PublicMap> for MapData {
     fn from(data: PublicMap) -> Self {
-        Data::Public(data)
+        MapData::Public(data)
     }
 }
 
-impl From<PrivateSentriedMap> for Data {
+impl From<PrivateSentriedMap> for MapData {
     fn from(data: PrivateSentriedMap) -> Self {
-        Data::PrivateSentried(data)
+        MapData::PrivateSentried(data)
     }
 }
 
-impl From<PrivateMap> for Data {
+impl From<PrivateMap> for MapData {
     fn from(data: PrivateMap) -> Self {
-        Data::Private(data)
+        MapData::Private(data)
     }
 }

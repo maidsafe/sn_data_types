@@ -349,35 +349,34 @@ impl Debug for Sequence<PrivatePermissions, NonSentried> {
 
 /// Object storing a Sequence variant.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
-pub enum Data {
+pub enum SequenceData {
     PublicSentried(PublicSentriedSequence),
     Public(PublicSequence),
     PrivateSentried(PrivateSentriedSequence),
     Private(PrivateSequence),
 }
 
-impl Data {
+impl SequenceData {
     pub fn is_permitted(&self, request: Request, user: PublicKey) -> bool {
         match (self, request) {
-            (Data::PublicSentried(_), Request::Query(_)) | (Data::Public(_), Request::Query(_)) => {
-                return true
-            }
+            (SequenceData::PublicSentried(_), Request::Query(_))
+            | (SequenceData::Public(_), Request::Query(_)) => return true,
             _ => (),
         }
         match self {
-            Data::PublicSentried(data) => data.is_permitted(user, request),
-            Data::Public(data) => data.is_permitted(user, request),
-            Data::PrivateSentried(data) => data.is_permitted(user, request),
-            Data::Private(data) => data.is_permitted(user, request),
+            SequenceData::PublicSentried(data) => data.is_permitted(user, request),
+            SequenceData::Public(data) => data.is_permitted(user, request),
+            SequenceData::PrivateSentried(data) => data.is_permitted(user, request),
+            SequenceData::Private(data) => data.is_permitted(user, request),
         }
     }
 
     pub fn address(&self) -> &Address {
         match self {
-            Data::PublicSentried(data) => data.address(),
-            Data::Public(data) => data.address(),
-            Data::PrivateSentried(data) => data.address(),
-            Data::Private(data) => data.address(),
+            SequenceData::PublicSentried(data) => data.address(),
+            SequenceData::Public(data) => data.address(),
+            SequenceData::PrivateSentried(data) => data.address(),
+            SequenceData::Private(data) => data.address(),
         }
     }
 
@@ -407,82 +406,82 @@ impl Data {
 
     pub fn expected_data_index(&self) -> u64 {
         match self {
-            Data::PublicSentried(data) => data.expected_data_index(),
-            Data::Public(data) => data.expected_data_index(),
-            Data::PrivateSentried(data) => data.expected_data_index(),
-            Data::Private(data) => data.expected_data_index(),
+            SequenceData::PublicSentried(data) => data.expected_data_index(),
+            SequenceData::Public(data) => data.expected_data_index(),
+            SequenceData::PrivateSentried(data) => data.expected_data_index(),
+            SequenceData::Private(data) => data.expected_data_index(),
         }
     }
 
     pub fn expected_permissions_index(&self) -> u64 {
         match self {
-            Data::PublicSentried(data) => data.expected_permissions_index(),
-            Data::Public(data) => data.expected_permissions_index(),
-            Data::PrivateSentried(data) => data.expected_permissions_index(),
-            Data::Private(data) => data.expected_permissions_index(),
+            SequenceData::PublicSentried(data) => data.expected_permissions_index(),
+            SequenceData::Public(data) => data.expected_permissions_index(),
+            SequenceData::PrivateSentried(data) => data.expected_permissions_index(),
+            SequenceData::Private(data) => data.expected_permissions_index(),
         }
     }
 
     pub fn expected_owners_index(&self) -> u64 {
         match self {
-            Data::PublicSentried(data) => data.expected_owners_index(),
-            Data::Public(data) => data.expected_owners_index(),
-            Data::PrivateSentried(data) => data.expected_owners_index(),
-            Data::Private(data) => data.expected_owners_index(),
+            SequenceData::PublicSentried(data) => data.expected_owners_index(),
+            SequenceData::Public(data) => data.expected_owners_index(),
+            SequenceData::PrivateSentried(data) => data.expected_owners_index(),
+            SequenceData::Private(data) => data.expected_owners_index(),
         }
     }
 
     pub fn in_range(&self, start: Index, end: Index) -> Option<Values> {
         match self {
-            Data::PublicSentried(data) => data.in_range(start, end),
-            Data::Public(data) => data.in_range(start, end),
-            Data::PrivateSentried(data) => data.in_range(start, end),
-            Data::Private(data) => data.in_range(start, end),
+            SequenceData::PublicSentried(data) => data.in_range(start, end),
+            SequenceData::Public(data) => data.in_range(start, end),
+            SequenceData::PrivateSentried(data) => data.in_range(start, end),
+            SequenceData::Private(data) => data.in_range(start, end),
         }
     }
 
     pub fn get(&self, index: u64) -> Option<&Value> {
         match self {
-            Data::PublicSentried(data) => data.get(index),
-            Data::Public(data) => data.get(index),
-            Data::PrivateSentried(data) => data.get(index),
-            Data::Private(data) => data.get(index),
+            SequenceData::PublicSentried(data) => data.get(index),
+            SequenceData::Public(data) => data.get(index),
+            SequenceData::PrivateSentried(data) => data.get(index),
+            SequenceData::Private(data) => data.get(index),
         }
     }
 
     pub fn indices(&self) -> ExpectedIndices {
         match self {
-            Data::PublicSentried(data) => data.indices(),
-            Data::Public(data) => data.indices(),
-            Data::PrivateSentried(data) => data.indices(),
-            Data::Private(data) => data.indices(),
+            SequenceData::PublicSentried(data) => data.indices(),
+            SequenceData::Public(data) => data.indices(),
+            SequenceData::PrivateSentried(data) => data.indices(),
+            SequenceData::Private(data) => data.indices(),
         }
     }
 
     pub fn current_data_entry(&self) -> Option<DataEntry> {
         match self {
-            Data::PublicSentried(data) => data.current_data_entry(),
-            Data::Public(data) => data.current_data_entry(),
-            Data::PrivateSentried(data) => data.current_data_entry(),
-            Data::Private(data) => data.current_data_entry(),
+            SequenceData::PublicSentried(data) => data.current_data_entry(),
+            SequenceData::Public(data) => data.current_data_entry(),
+            SequenceData::PrivateSentried(data) => data.current_data_entry(),
+            SequenceData::Private(data) => data.current_data_entry(),
         }
     }
 
     pub fn owner_at(&self, index: impl Into<Index>) -> Option<&Owner> {
         match self {
-            Data::PublicSentried(data) => data.owner_at(index),
-            Data::Public(data) => data.owner_at(index),
-            Data::PrivateSentried(data) => data.owner_at(index),
-            Data::Private(data) => data.owner_at(index),
+            SequenceData::PublicSentried(data) => data.owner_at(index),
+            SequenceData::Public(data) => data.owner_at(index),
+            SequenceData::PrivateSentried(data) => data.owner_at(index),
+            SequenceData::Private(data) => data.owner_at(index),
         }
     }
 
     pub fn is_owner(&self, user: PublicKey) -> bool {
         match self {
-            Data::PublicSentried(data) => data.is_owner(user),
-            Data::Public(data) => data.is_owner(user),
-            Data::PrivateSentried(data) => data.is_owner(user),
-            Data::Private(data) => data.is_owner(user),
+            SequenceData::PublicSentried(data) => data.is_owner(user),
+            SequenceData::Public(data) => data.is_owner(user),
+            SequenceData::PrivateSentried(data) => data.is_owner(user),
+            SequenceData::Private(data) => data.is_owner(user),
         }
     }
 
@@ -512,8 +511,8 @@ impl Data {
 
     pub fn public_permissions_at(&self, index: impl Into<Index>) -> Result<&PublicPermissions> {
         let permissions = match self {
-            Data::PublicSentried(data) => data.permissions_at(index),
-            Data::Public(data) => data.permissions_at(index),
+            SequenceData::PublicSentried(data) => data.permissions_at(index),
+            SequenceData::Public(data) => data.permissions_at(index),
             _ => return Err(Error::NoSuchData),
         };
         permissions.ok_or(Error::NoSuchEntry)
@@ -521,8 +520,8 @@ impl Data {
 
     pub fn private_permissions_at(&self, index: impl Into<Index>) -> Result<&PrivatePermissions> {
         let permissions = match self {
-            Data::PrivateSentried(data) => data.permissions_at(index),
-            Data::Private(data) => data.permissions_at(index),
+            SequenceData::PrivateSentried(data) => data.permissions_at(index),
+            SequenceData::Private(data) => data.permissions_at(index),
             _ => return Err(Error::NoSuchData),
         };
         permissions.ok_or(Error::NoSuchEntry)
@@ -530,35 +529,39 @@ impl Data {
 
     pub fn shell(&self, index: impl Into<Index>) -> Result<Self> {
         match self {
-            Data::PublicSentried(adata) => adata.shell(index).map(Data::PublicSentried),
-            Data::Public(adata) => adata.shell(index).map(Data::Public),
-            Data::PrivateSentried(adata) => adata.shell(index).map(Data::PrivateSentried),
-            Data::Private(adata) => adata.shell(index).map(Data::Private),
+            SequenceData::PublicSentried(adata) => {
+                adata.shell(index).map(SequenceData::PublicSentried)
+            }
+            SequenceData::Public(adata) => adata.shell(index).map(SequenceData::Public),
+            SequenceData::PrivateSentried(adata) => {
+                adata.shell(index).map(SequenceData::PrivateSentried)
+            }
+            SequenceData::Private(adata) => adata.shell(index).map(SequenceData::Private),
         }
     }
 }
 
-impl From<PublicSentriedSequence> for Data {
+impl From<PublicSentriedSequence> for SequenceData {
     fn from(data: PublicSentriedSequence) -> Self {
-        Data::PublicSentried(data)
+        SequenceData::PublicSentried(data)
     }
 }
 
-impl From<PublicSequence> for Data {
+impl From<PublicSequence> for SequenceData {
     fn from(data: PublicSequence) -> Self {
-        Data::Public(data)
+        SequenceData::Public(data)
     }
 }
 
-impl From<PrivateSentriedSequence> for Data {
+impl From<PrivateSentriedSequence> for SequenceData {
     fn from(data: PrivateSentriedSequence) -> Self {
-        Data::PrivateSentried(data)
+        SequenceData::PrivateSentried(data)
     }
 }
 
-impl From<PrivateSequence> for Data {
+impl From<PrivateSequence> for SequenceData {
     fn from(data: PrivateSequence) -> Self {
-        Data::Private(data)
+        SequenceData::Private(data)
     }
 }
 

@@ -8,7 +8,7 @@
 // Software.
 
 pub mod permissions;
-
+mod tests;
 pub use permissions::{
     CmdType, HardErasureCmd, MapCmd, MapQuery, MapWrite, ModifyableMapPermissions,
     ModifyableSequencePermissions, Permissions, PrivatePermissionSet, PrivatePermissions,
