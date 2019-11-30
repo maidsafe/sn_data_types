@@ -63,10 +63,10 @@ pub enum Response {
     GetSequenceRange(Result<SequenceValues>),
     GetSequenceValue(Result<Vec<u8>>),
     GetExpectedIndices(Result<ExpectedIndices>),
-    GetSequenceLastEntry(Result<SequenceEntry>),
+    GetSequenceCurrentEntry(Result<SequenceEntry>),
     GetSequencePermissions(Result<SequencePermissions>),
-    GetPubSequenceUserPermissions(Result<PublicPermissionSet>),
-    GetUnpubSequenceUserPermissions(Result<PrivatePermissionSet>),
+    GetPublicSequenceUserPermissions(Result<PublicPermissionSet>),
+    GetPrivateSequenceUserPermissions(Result<PrivatePermissionSet>),
     //
     // ===== Coins =====
     //
@@ -126,10 +126,10 @@ try_from!(SequenceData, GetSequence, GetSequenceShell);
 try_from!(Owner, GetOwners);
 try_from!(SequenceValues, GetSequenceRange);
 try_from!(ExpectedIndices, GetExpectedIndices);
-try_from!(SequenceEntry, GetSequenceLastEntry);
+try_from!(SequenceEntry, GetSequenceCurrentEntry);
 try_from!(SequencePermissions, GetSequencePermissions);
-try_from!(PublicPermissionSet, GetPubSequenceUserPermissions);
-try_from!(PrivatePermissionSet, GetUnpubSequenceUserPermissions);
+try_from!(PublicPermissionSet, GetPublicSequenceUserPermissions);
+try_from!(PrivatePermissionSet, GetPrivateSequenceUserPermissions);
 try_from!(Coins, GetBalance);
 try_from!(Transaction, Transaction);
 try_from!(
@@ -168,20 +168,22 @@ impl fmt::Debug for Response {
             GetExpectedIndices(res) => {
                 write!(f, "Response::GetExpectedIndices({:?})", ErrorDebug(res))
             }
-            GetSequenceLastEntry(res) => {
-                write!(f, "Response::GetSequenceLastEntry({:?})", ErrorDebug(res))
-            }
+            GetSequenceCurrentEntry(res) => write!(
+                f,
+                "Response::GetSequenceCurrentEntry({:?})",
+                ErrorDebug(res)
+            ),
             GetSequencePermissions(res) => {
                 write!(f, "Response::GetSequencePermissions({:?})", ErrorDebug(res))
             }
-            GetPubSequenceUserPermissions(res) => write!(
+            GetPublicSequenceUserPermissions(res) => write!(
                 f,
-                "Response::GetPubSequenceUserPermissions({:?})",
+                "Response::GetPublicSequenceUserPermissions({:?})",
                 ErrorDebug(res)
             ),
-            GetUnpubSequenceUserPermissions(res) => write!(
+            GetPrivateSequenceUserPermissions(res) => write!(
                 f,
-                "Response::GetUnpubSequenceUserPermissions({:?})",
+                "Response::GetPrivateSequenceUserPermissions({:?})",
                 ErrorDebug(res)
             ),
             GetSequenceShell(res) => write!(f, "Response::GetSequenceShell({:?})", ErrorDebug(res)),
@@ -204,7 +206,7 @@ impl fmt::Debug for Response {
 // #[cfg(test)]
 // mod tests {
 //     use super::*;
-//     use crate::{PubImmutableData, UnseqMutableData};
+//     use crate::{PublicBlob, UnseqMutableData};
 //     use std::convert::{TryFrom, TryInto};
 //     use unwrap::{unwrap, unwrap_err};
 
@@ -224,7 +226,7 @@ impl fmt::Debug for Response {
 //     fn try_from() {
 //         use Response::*;
 
-//         let i_data = Blob::Pub(PubImmutableData::new(vec![1, 3, 1, 4]));
+//         let i_data = Blob::Pub(PublicBlob::new(vec![1, 3, 1, 4]));
 //         let e = Error::AccessDenied;
 //         assert_eq!(i_data, unwrap!(GetBlob(Ok(i_data.clone())).try_into()));
 //         assert_eq!(

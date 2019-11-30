@@ -11,5 +11,5 @@ pub mod sequence;
 mod tests;
 pub use sequence::{
     AppendOperation, DataEntry, PrivateSentriedSequence, PrivateSequence, PublicSentriedSequence,
-    PublicSequence, Sequence, SequenceData, SequencePermissions, Values,
+    PublicSequence, SequenceBase, SequenceData, SequencePermissions, Values,
 };

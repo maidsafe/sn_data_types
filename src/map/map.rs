@@ -10,8 +10,8 @@
 #![allow(dead_code)]
 
 use crate::permissions::{
-    Permissions, PrivatePermissionSet, PrivatePermissions, PublicPermissionSet, PublicPermissions,
-    Request,
+    DataPermissions, PrivatePermissionSet, PrivatePermissions, PublicPermissionSet,
+    PublicPermissions, Request,
 };
 use crate::shared_data::{
     to_absolute_index, to_absolute_range, Address, ExpectedIndices, Index, Key, Kind, KvPair,
@@ -25,10 +25,10 @@ use std::{
     mem,
 };
 
-pub type PublicSentriedMap = Map<PublicPermissions, Sentried>;
-pub type PublicMap = Map<PublicPermissions, NonSentried>;
-pub type PrivateSentriedMap = Map<PrivatePermissions, Sentried>;
-pub type PrivateMap = Map<PrivatePermissions, NonSentried>;
+pub type PublicSentriedMap = MapBase<PublicPermissions, Sentried>;
+pub type PublicMap = MapBase<PublicPermissions, NonSentried>;
+pub type PrivateSentriedMap = MapBase<PrivatePermissions, Sentried>;
+pub type PrivateMap = MapBase<PrivatePermissions, NonSentried>;
 pub type DataHistories = BTreeMap<Key, Vec<StoredValue>>;
 pub type Entries = Vec<DataEntry>;
 
@@ -63,7 +63,7 @@ impl DataEntry {
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
-pub struct Map<P, S> {
+pub struct MapBase<P, S> {
     address: Address,
     data: DataHistories,
     permissions: Vec<P>,
@@ -77,9 +77,9 @@ pub struct Map<P, S> {
 }
 
 /// Common methods for all `Map` flavours.
-impl<P, S> Map<P, S>
+impl<P, S> MapBase<P, S>
 where
-    P: Permissions,
+    P: DataPermissions,
     S: Copy,
 {
     /// Returns the data shell - that is - everything except the entries themselves.
@@ -306,7 +306,7 @@ pub type SentriedKvPair = (KvPair, ExpectedVersion);
 pub type SentriedTransaction = Vec<SentriedCmd>;
 
 /// Common methods for NonSentried flavours.
-impl<P: Permissions> Map<P, NonSentried> {
+impl<P: DataPermissions> MapBase<P, NonSentried> {
     /// Commit transaction.
     ///
     /// If the specified `expected_index` does not equal the entries count in data, an
@@ -424,7 +424,7 @@ impl<P: Permissions> Map<P, NonSentried> {
 }
 
 /// Common methods for Sentried flavours.
-impl<P: Permissions> Map<P, Sentried> {
+impl<P: DataPermissions> MapBase<P, Sentried> {
     /// Commit transaction.
     ///
     /// If the specified `expected_index` does not equal the entries count in data, an
@@ -582,7 +582,7 @@ pub enum StoredValue {
 }
 
 /// Public + Sentried
-impl Map<PublicPermissions, Sentried> {
+impl MapBase<PublicPermissions, Sentried> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::PublicSentried { name, tag },
@@ -595,14 +595,14 @@ impl Map<PublicPermissions, Sentried> {
     }
 }
 
-impl Debug for Map<PublicPermissions, Sentried> {
+impl Debug for MapBase<PublicPermissions, Sentried> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PublicSentriedMap {:?}", self.name())
     }
 }
 
 /// Public + NonSentried
-impl Map<PublicPermissions, NonSentried> {
+impl MapBase<PublicPermissions, NonSentried> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::Public { name, tag },
@@ -615,14 +615,14 @@ impl Map<PublicPermissions, NonSentried> {
     }
 }
 
-impl Debug for Map<PublicPermissions, NonSentried> {
+impl Debug for MapBase<PublicPermissions, NonSentried> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PublicMap {:?}", self.name())
     }
 }
 
 /// Private + Sentried
-impl Map<PrivatePermissions, Sentried> {
+impl MapBase<PrivatePermissions, Sentried> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::PrivateSentried { name, tag },
@@ -790,14 +790,14 @@ impl Map<PrivatePermissions, Sentried> {
     }
 }
 
-impl Debug for Map<PrivatePermissions, Sentried> {
+impl Debug for MapBase<PrivatePermissions, Sentried> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PrivateSentriedMap {:?}", self.name())
     }
 }
 
 /// Private + NonSentried
-impl Map<PrivatePermissions, NonSentried> {
+impl MapBase<PrivatePermissions, NonSentried> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::Private { name, tag },
@@ -933,7 +933,7 @@ impl Map<PrivatePermissions, NonSentried> {
     }
 }
 
-impl Debug for Map<PrivatePermissions, NonSentried> {
+impl Debug for MapBase<PrivatePermissions, NonSentried> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PrivateMap {:?}", self.name())
     }

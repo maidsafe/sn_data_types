@@ -8,8 +8,8 @@
 // Software.
 
 use crate::permissions::{
-    Permissions, PrivatePermissionSet, PrivatePermissions, PublicPermissionSet, PublicPermissions,
-    Request,
+    DataPermissions, PrivatePermissionSet, PrivatePermissions, PublicPermissionSet,
+    PublicPermissions, Request,
 };
 use crate::shared_data::{
     to_absolute_index, to_absolute_range, Address, ExpectedIndices, Index, Kind, NonSentried,
@@ -19,10 +19,10 @@ use crate::{Error, PublicKey, Result, XorName};
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Debug, Formatter};
 
-pub type PublicSentriedSequence = Sequence<PublicPermissions, Sentried>;
-pub type PublicSequence = Sequence<PublicPermissions, NonSentried>;
-pub type PrivateSentriedSequence = Sequence<PrivatePermissions, Sentried>;
-pub type PrivateSequence = Sequence<PrivatePermissions, NonSentried>;
+pub type PublicSentriedSequence = SequenceBase<PublicPermissions, Sentried>;
+pub type PublicSequence = SequenceBase<PublicPermissions, NonSentried>;
+pub type PrivateSentriedSequence = SequenceBase<PrivatePermissions, Sentried>;
+pub type PrivateSequence = SequenceBase<PrivatePermissions, NonSentried>;
 pub type Values = Vec<Value>;
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
@@ -56,7 +56,7 @@ impl DataEntry {
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
-pub struct Sequence<P, S> {
+pub struct SequenceBase<P, S> {
     address: Address,
     data: Values,
     permissions: Vec<P>,
@@ -67,9 +67,9 @@ pub struct Sequence<P, S> {
 }
 
 /// Common methods for all `Sequence` flavours.
-impl<P, S> Sequence<P, S>
+impl<P, S> SequenceBase<P, S>
 where
-    P: Permissions,
+    P: DataPermissions,
     S: Copy,
 {
     /// Returns the data shell - that is - everything except the Values themselves.
@@ -247,7 +247,7 @@ where
 }
 
 /// Common methods for NonSentried flavours.
-impl<P: Permissions> Sequence<P, NonSentried> {
+impl<P: DataPermissions> SequenceBase<P, NonSentried> {
     /// Append new Values.
     pub fn append(&mut self, values: Values) -> Result<()> {
         self.data.extend(values);
@@ -256,7 +256,7 @@ impl<P: Permissions> Sequence<P, NonSentried> {
 }
 
 /// Common methods for Sentried flavours.
-impl<P: Permissions> Sequence<P, Sentried> {
+impl<P: DataPermissions> SequenceBase<P, Sentried> {
     /// Append new Values.
     ///
     /// If the specified `expected_index` does not equal the Values count in data, an
@@ -272,7 +272,7 @@ impl<P: Permissions> Sequence<P, Sentried> {
 }
 
 /// Public + Sentried
-impl Sequence<PublicPermissions, Sentried> {
+impl SequenceBase<PublicPermissions, Sentried> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::PublicSentried { name, tag },
@@ -284,14 +284,14 @@ impl Sequence<PublicPermissions, Sentried> {
     }
 }
 
-impl Debug for Sequence<PublicPermissions, Sentried> {
+impl Debug for SequenceBase<PublicPermissions, Sentried> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PublicSentriedSequence {:?}", self.name())
     }
 }
 
 /// Public + NonSentried
-impl Sequence<PublicPermissions, NonSentried> {
+impl SequenceBase<PublicPermissions, NonSentried> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::Public { name, tag },
@@ -303,14 +303,14 @@ impl Sequence<PublicPermissions, NonSentried> {
     }
 }
 
-impl Debug for Sequence<PublicPermissions, NonSentried> {
+impl Debug for SequenceBase<PublicPermissions, NonSentried> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PublicSequence {:?}", self.name())
     }
 }
 
 /// Private + Sentried
-impl Sequence<PrivatePermissions, Sentried> {
+impl SequenceBase<PrivatePermissions, Sentried> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::PrivateSentried { name, tag },
@@ -322,14 +322,14 @@ impl Sequence<PrivatePermissions, Sentried> {
     }
 }
 
-impl Debug for Sequence<PrivatePermissions, Sentried> {
+impl Debug for SequenceBase<PrivatePermissions, Sentried> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PrivateSentriedSequence {:?}", self.name())
     }
 }
 
 /// Private + NonSentried
-impl Sequence<PrivatePermissions, NonSentried> {
+impl SequenceBase<PrivatePermissions, NonSentried> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::Private { name, tag },
@@ -341,7 +341,7 @@ impl Sequence<PrivatePermissions, NonSentried> {
     }
 }
 
-impl Debug for Sequence<PrivatePermissions, NonSentried> {
+impl Debug for SequenceBase<PrivatePermissions, NonSentried> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PrivateSequence {:?}", self.name())
     }

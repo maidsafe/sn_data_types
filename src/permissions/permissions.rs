@@ -198,7 +198,7 @@ impl PublicPermissionSet {
     }
 }
 
-pub trait Permissions: Clone + Eq + Ord + Hash + Serialize + DeserializeOwned {
+pub trait DataPermissions: Clone + Eq + Ord + Hash + Serialize + DeserializeOwned {
     fn is_permitted(&self, user: &PublicKey, request: &Request) -> bool;
     fn expected_data_index(&self) -> u64;
     fn expected_owners_index(&self) -> u64;
@@ -219,7 +219,7 @@ impl PrivatePermissions {
     }
 }
 
-impl Permissions for PrivatePermissions {
+impl DataPermissions for PrivatePermissions {
     fn is_permitted(&self, user: &PublicKey, request: &Request) -> bool {
         match self.permissions.get(user) {
             Some(permissions) => permissions.clone().is_permitted(request),
@@ -262,7 +262,7 @@ impl PublicPermissions {
     }
 }
 
-impl Permissions for PublicPermissions {
+impl DataPermissions for PublicPermissions {
     fn is_permitted(&self, user: &PublicKey, request: &Request) -> bool {
         match self.is_permitted_(&User::Specific(*user), request) {
             Some(true) => true,

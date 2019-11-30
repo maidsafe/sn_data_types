@@ -13,6 +13,7 @@ pub use self::login_packet::{LoginPacket, MAX_LOGIN_PACKET_BYTES};
 use crate::{
     Address,
     AppPermissions,
+    AppendOperation,
     BlobAddress,
     BlobData,
     Coins,
@@ -25,7 +26,6 @@ use crate::{
     PublicKey,
     PublicPermissions,
     Response,
-    SequenceAppend,
     SequenceData,
     TransactionId,
     User,
@@ -43,7 +43,7 @@ pub enum Request {
     //
     PutBlob(BlobData),
     GetBlob(BlobAddress),
-    DeleteUnpubBlob(BlobAddress),
+    DeletePrivateBlob(BlobAddress),
     //
     // ===== Map =====
     //
@@ -53,7 +53,7 @@ pub enum Request {
     //     address: MapAddress,
     //     key: Vec<u8>,
     // },
-    // DeleteMap(MapAddress),
+    // DeletePrivateMap(MapAddress),
     // GetMapShell(MapAddress),
     // GetMapVersion(MapAddress),
     // ListMapEntries(MapAddress),
@@ -65,7 +65,7 @@ pub enum Request {
     //     permissions: MapPermissionSet,
     //     version: u64,
     // },
-    // DelMapUserPermissions {
+    // DeletePrivateMapUserPermissions {
     //     address: MapAddress,
     //     user: PublicKey,
     //     version: u64,
@@ -75,29 +75,29 @@ pub enum Request {
     //     address: MapAddress,
     //     user: PublicKey,
     // },
-    // MutateMapEntries {
+    // CommitMapTx {
     //     address: MapAddress,
     //     actions: MapEntryActions,
     // },
     //
-    // ===== Append Only Data =====
+    // ===== Sequence =====
     //
-    /// Put a new AppendOnlyData onto the network.
+    /// Put a new Sequence onto the network.
     PutSequence(SequenceData),
-    /// Get AppendOnlyData from the network.
+    /// Get Sequence from the network.
     GetSequence(Address),
-    /// Get `AppendOnlyData` shell at a certain point in history (`data_index` refers to the list
+    /// Get `Sequence` shell at a certain point in history (`data_index` refers to the list
     /// of data).
     GetSequenceShell {
         address: Address,
         data_index: Index,
     },
-    /// Delete an unpublished unsequenced `AppendOnlyData`.
+    /// Delete private `Sequence`.
     ///
-    /// This operation MUST return an error if applied to published AppendOnlyData. Only the current
+    /// This operation MUST return an error if applied to published Sequence. Only the current
     /// owner(s) can perform this action.
-    DeleteSequence(Address),
-    /// Get a range of entries from an AppendOnlyData object on the network.
+    DeletePrivateSequence(Address),
+    /// Get a range of entries from an Sequence object on the network.
     GetSequenceRange {
         address: Address,
         // Range of entries to fetch.
@@ -119,20 +119,20 @@ pub enum Request {
     /// Get current indices: data, owners, permissions.
     GetSequenceIndices(Address),
     /// Get an entry with the current index.
-    GetSequenceLastEntry(Address),
+    GetSequenceCurrentEntry(Address),
     /// Get permissions at the provided index.
     GetSequencePermissions {
         address: Address,
         permissions_index: Index,
     },
     /// Get permissions for a specified user(s).
-    GetPubUserPermissions {
+    GetPublicUserPermissions {
         address: Address,
         permissions_index: Index,
         user: User,
     },
     /// Get permissions for a specified public key.
-    GetUnpubUserPermissions {
+    GetPrivateUserPermissions {
         address: Address,
         permissions_index: Index,
         public_key: PublicKey,
@@ -143,13 +143,13 @@ pub enum Request {
         owners_index: Index,
     },
     /// Add a new `permissions` entry.
-    AddPubSequencePermissions {
+    AddPublicSequencePermissions {
         address: Address,
         permissions: PublicPermissions,
         permissions_idx: u64,
     },
     /// Add a new `permissions` entry.
-    AddUnpubSequencePermissions {
+    AddPrivateSequencePermissions {
         address: Address,
         permissions: PrivatePermissions,
         permissions_idx: u64,
@@ -160,11 +160,11 @@ pub enum Request {
         owner: Owner,
         owners_idx: u64,
     },
-    AppendSeq {
-        append: SequenceAppend,
+    AppendSentried {
+        append: AppendOperation,
         index: u64,
     },
-    AppendUnseq(SequenceAppend),
+    Append(AppendOperation),
     //
     // ===== Coins =====
     //
@@ -242,11 +242,11 @@ impl Request {
             GetSequenceValue { .. } => Response::GetSequenceValue(Err(error)),
             GetSequenceRange { .. } => Response::GetSequenceRange(Err(error)),
             GetSequenceIndices(_) => Response::GetExpectedIndices(Err(error)),
-            GetSequenceLastEntry(_) => Response::GetSequenceLastEntry(Err(error)),
+            GetSequenceCurrentEntry(_) => Response::GetSequenceCurrentEntry(Err(error)),
             GetSequencePermissions { .. } => Response::GetSequencePermissions(Err(error)),
-            GetPubUserPermissions { .. } => Response::GetPubSequenceUserPermissions(Err(error)),
-            GetUnpubUserPermissions { .. } => {
-                Response::GetUnpubSequenceUserPermissions(Err(error))
+            GetPublicUserPermissions { .. } => Response::GetPublicSequenceUserPermissions(Err(error)),
+            GetPrivateUserPermissions { .. } => {
+                Response::GetPrivateSequenceUserPermissions(Err(error))
             }
             GetOwners { .. } => Response::GetOwners(Err(error)),
             // Coins
@@ -262,21 +262,21 @@ impl Request {
 
             // Blob
             PutBlob(_) |
-            DeleteUnpubBlob(_) |
+            DeletePrivateBlob(_) |
             // Map
             PutMap(_) |
-            //DeleteMap(_) |
+            //DeletePrivateMap(_) |
             //SetMapUserPermissions { .. } |
-            //DelMapUserPermissions { .. } |
-            //MutateMapEntries { .. } |
+            //DeletePrivateMapUserPermissions { .. } |
+            //CommitMapTx { .. } |
             // Sequence
             PutSequence(_) |
-            DeleteSequence(_) |
-            AddPubSequencePermissions { .. } |
-            AddUnpubSequencePermissions { .. } |
+            DeletePrivateSequence(_) |
+            AddPublicSequencePermissions { .. } |
+            AddPrivateSequencePermissions { .. } |
             SetOwner { .. } |
-            AppendSeq { .. } |
-            AppendUnseq(_) |
+            AppendSentried { .. } |
+            Append(_) |
             // Login Packet
             CreateLoginPacket { .. } |
             CreateLoginPacketFor { .. } |
@@ -284,7 +284,6 @@ impl Request {
             // Client (Owner) to SrcElders
             InsAuthKey { .. } |
             DelAuthKey { .. } => Response::Mutation(Err(error)),
-
         }
     }
 }
@@ -300,40 +299,41 @@ impl fmt::Debug for Request {
                 // Blob
                 PutBlob(_) => "Request::PutBlob",
                 GetBlob(_) => "Request::GetBlob",
-                DeleteUnpubBlob(_) => "Request::DeleteUnpubBlob",
+                DeletePrivateBlob(_) => "Request::DeletePrivateBlob",
                 // Map
                 PutMap(_) => "Request::PutMap",
                 // GetMap(_) => "Request::GetMap",
                 // GetMapValue { .. } => "Request::GetMapValue",
-                // DeleteMap(_) => "Request::DeleteMap",
+                // DeletePrivateMap(_) => "Request::DeletePrivateMap",
                 // GetMapShell(_) => "Request::GetMapShell",
                 // GetMapVersion(_) => "Request::GetMapVersion",
                 // ListMapEntries(_) => "Request::ListMapEntries",
                 // ListMapKeys(_) => "Request::ListMapKeys",
                 // ListMapValues(_) => "Request::ListMapValues",
                 // SetMapUserPermissions { .. } => "Request::SetMapUserPermissions",
-                // DelMapUserPermissions { .. } => "Request::DelMapUserPermissions",
+                // DeletePrivateMapUserPermissions { .. } => "Request::DeletePrivateMapUserPermissions",
                 // ListMapPermissions(_) => "Request::ListMapPermissions",
                 // ListMapUserPermissions { .. } => "Request::ListMapUserPermissions",
-                // MutateMapEntries { .. } => "Request::MutateMapEntries",
+                // CommitMapTx { .. } => "Request::CommitMapTx",
                 // Sequence
                 PutSequence(_) => "Request::PutSequence",
                 GetSequence(_) => "Request::GetSequence",
                 GetSequenceShell { .. } => "Request::GetSequenceShell",
                 GetSequenceValue { .. } => "Request::GetSequenceValue ",
-                DeleteSequence(_) => "Request::DeleteSequence",
+                DeletePrivateSequence(_) => "Request::DeletePrivateSequence",
                 GetSequenceRange { .. } => "Request::GetSequenceRange",
                 GetSequenceIndices(_) => "Request::GetSequenceIndices",
-                GetSequenceLastEntry(_) => "Request::GetSequenceLastEntry",
+                GetSequenceCurrentEntry(_) => "Request::GetSequenceCurrentEntry",
                 GetSequencePermissions { .. } => "Request::GetSequencePermissions",
-                GetPubUserPermissions { .. } => "Request::GetPubUserPermissions",
-                GetUnpubUserPermissions { .. } => "Request::GetUnpubUserPermissions",
+                GetPublicUserPermissions { .. } => "Request::GetPublicUserPermissions",
+                GetPrivateUserPermissions { .. } => "Request::GetPrivateUserPermissions",
                 GetOwners { .. } => "Request::GetOwners",
-                AddPubSequencePermissions { .. } => "Request::AddPubSequencePermissions",
-                AddUnpubSequencePermissions { .. } => "Request::AddUnpubSequencePermissions",
+                AddPublicSequencePermissions { .. } => "Request::AddPublicSequencePermissions",
+                AddPrivateSequencePermissions { .. } => "Request::AddPrivateSequencePermissions",
                 SetOwner { .. } => "Request::SetOwner",
-                AppendSeq { .. } => "Request::AppendSeq",
-                AppendUnseq(_) => "Request::AppendUnseq",
+                AppendSentried { .. } => "Request::AppendSentried",
+                Append(_) => "Request::Append",
+                // AppendRange(_) => "Request::AppendRange",
                 // Coins
                 TransferCoins { .. } => "Request::TransferCoins",
                 GetBalance => "Request::GetBalance",

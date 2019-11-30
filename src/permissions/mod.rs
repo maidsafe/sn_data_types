@@ -10,8 +10,7 @@
 pub mod permissions;
 mod tests;
 pub use permissions::{
-    CmdType, HardErasureCmd, MapCmd, MapQuery, MapWrite, ModifyableMapPermissions,
-    ModifyableSequencePermissions, Permissions, PrivatePermissionSet, PrivatePermissions,
-    PublicPermissionSet, PublicPermissions, QueryType, Request, SequenceCmd, SequenceQuery,
-    SequenceWrite,
+    CmdType, DataPermissions, HardErasureCmd, MapCmd, MapQuery, MapWrite, ModifyableMapPermissions,
+    ModifyableSequencePermissions, PrivatePermissionSet, PrivatePermissions, PublicPermissionSet,
+    PublicPermissions, QueryType, Request, SequenceCmd, SequenceQuery, SequenceWrite,
 };
