@@ -9,21 +9,21 @@
 
 use crate::{
     errors::ErrorDebug,
-    AData,
-    ADataEntries,
-    ADataEntry,
-    ADataPermissions,
     AppPermissions,
+    BlobData,
     Coins,
     Error,
     ExpectedIndices,
-    IData,
-    MData, // MDataEntries, MDataPermissionSet, MDataValue, MDataValues,
+    MapData, // MapEntries, MapPermissionSet, MapValue, MapValues,
     Owner,
     PrivatePermissionSet,
     PublicKey,
     PublicPermissionSet,
     Result,
+    SequenceData,
+    SequenceEntry,
+    SequencePermissions,
+    SequenceValues,
     Signature,
     Transaction,
 };
@@ -39,34 +39,34 @@ use std::{
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub enum Response {
     //
-    // ===== Immutable Data =====
+    // ===== Blob =====
     //
-    GetIData(Result<IData>),
+    GetBlob(Result<BlobData>),
     //
-    // ===== Mutable Data =====
+    // ===== Map =====
     //
-    GetMData(Result<MData>),
-    GetMDataShell(Result<MData>),
-    GetMDataVersion(Result<u64>),
-    //ListMDataEntries(Result<MDataEntries>),
-    ListMDataKeys(Result<BTreeSet<Vec<u8>>>),
-    //ListMDataValues(Result<MDataValues>),
-    //ListMDataUserPermissions(Result<MDataPermissionSet>),
-    //ListMDataPermissions(Result<BTreeMap<PublicKey, MDataPermissionSet>>),
-    //GetMDataValue(Result<MDataValue>),
+    GetMap(Result<MapData>),
+    GetMapShell(Result<MapData>),
+    GetMapVersion(Result<u64>),
+    //ListMapEntries(Result<MapEntries>),
+    ListMapKeys(Result<BTreeSet<Vec<u8>>>),
+    //ListMapValues(Result<MapValues>),
+    //ListMapUserPermissions(Result<MapPermissionSet>),
+    //ListMapPermissions(Result<BTreeMap<PublicKey, MapPermissionSet>>),
+    //GetMapValue(Result<MapValue>),
     //
-    // ===== Append Only Data =====
+    // ===== Sequence =====
     //
-    GetAData(Result<AData>),
-    GetADataShell(Result<AData>),
+    GetSequence(Result<SequenceData>),
+    GetSequenceShell(Result<SequenceData>),
     GetOwners(Result<Owner>),
-    GetADataRange(Result<ADataEntries>),
-    GetADataValue(Result<Vec<u8>>),
+    GetSequenceRange(Result<SequenceValues>),
+    GetSequenceValue(Result<Vec<u8>>),
     GetExpectedIndices(Result<ExpectedIndices>),
-    GetADataLastEntry(Result<ADataEntry>),
-    GetADataPermissions(Result<ADataPermissions>),
-    GetPubADataUserPermissions(Result<PublicPermissionSet>),
-    GetUnpubADataUserPermissions(Result<PrivatePermissionSet>),
+    GetSequenceLastEntry(Result<SequenceEntry>),
+    GetSequencePermissions(Result<SequencePermissions>),
+    GetPubSequenceUserPermissions(Result<PublicPermissionSet>),
+    GetUnpubSequenceUserPermissions(Result<PrivatePermissionSet>),
     //
     // ===== Coins =====
     //
@@ -112,24 +112,24 @@ macro_rules! try_from {
     };
 }
 
-try_from!(IData, GetIData);
-try_from!(MData, GetMData, GetMDataShell);
-try_from!(u64, GetMDataVersion);
-//try_from!(MDataEntries, ListMDataEntries);
-try_from!(BTreeSet<Vec<u8>>, ListMDataKeys);
-//try_from!(MDataValues, ListMDataValues);
-//try_from!(MDataPermissionSet, ListMDataUserPermissions);
-//try_from!(BTreeMap<PublicKey, MDataPermissionSet>, ListMDataPermissions);
-//try_from!(MDataValue, GetMDataValue);
-try_from!(Vec<u8>, GetADataValue);
-try_from!(AData, GetAData, GetADataShell);
+try_from!(BlobData, GetBlob);
+try_from!(MapData, GetMap, GetMapShell);
+try_from!(u64, GetMapVersion);
+//try_from!(MapEntries, ListMapEntries);
+try_from!(BTreeSet<Vec<u8>>, ListMapKeys);
+//try_from!(MapValues, ListMapValues);
+//try_from!(MapPermissionSet, ListMapUserPermissions);
+//try_from!(BTreeMap<PublicKey, MapPermissionSet>, ListMapPermissions);
+//try_from!(MapValue, GetMapValue);
+try_from!(Vec<u8>, GetSequenceValue);
+try_from!(SequenceData, GetSequence, GetSequenceShell);
 try_from!(Owner, GetOwners);
-try_from!(ADataEntries, GetADataRange);
+try_from!(SequenceValues, GetSequenceRange);
 try_from!(ExpectedIndices, GetExpectedIndices);
-try_from!(ADataEntry, GetADataLastEntry);
-try_from!(ADataPermissions, GetADataPermissions);
-try_from!(PublicPermissionSet, GetPubADataUserPermissions);
-try_from!(PrivatePermissionSet, GetUnpubADataUserPermissions);
+try_from!(SequenceEntry, GetSequenceLastEntry);
+try_from!(SequencePermissions, GetSequencePermissions);
+try_from!(PublicPermissionSet, GetPubSequenceUserPermissions);
+try_from!(PrivatePermissionSet, GetUnpubSequenceUserPermissions);
 try_from!(Coins, GetBalance);
 try_from!(Transaction, Transaction);
 try_from!(
@@ -143,48 +143,48 @@ impl fmt::Debug for Response {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use Response::*;
         match self {
-            // IData
-            GetIData(res) => write!(f, "Response::GetIData({:?})", ErrorDebug(res)),
-            // MData
-            GetMData(res) => write!(f, "Response::GetMData({:?})", ErrorDebug(res)),
-            GetMDataShell(res) => write!(f, "Response::GetMDataShell({:?})", ErrorDebug(res)),
-            GetMDataVersion(res) => write!(f, "Response::GetMDataVersion({:?})", ErrorDebug(res)),
-            //ListMDataEntries(res) => write!(f, "Response::ListMDataEntries({:?})", ErrorDebug(res)),
-            ListMDataKeys(res) => write!(f, "Response::ListMDataKeys({:?})", ErrorDebug(res)),
-            //ListMDataValues(res) => write!(f, "Response::ListMDataValues({:?})", ErrorDebug(res)),
-            // ListMDataPermissions(res) => {
-            //     write!(f, "Response::ListMDataPermissions({:?})", ErrorDebug(res))
+            // Blob
+            GetBlob(res) => write!(f, "Response::GetBlob({:?})", ErrorDebug(res)),
+            // Map
+            GetMap(res) => write!(f, "Response::GetMap({:?})", ErrorDebug(res)),
+            GetMapShell(res) => write!(f, "Response::GetMapShell({:?})", ErrorDebug(res)),
+            GetMapVersion(res) => write!(f, "Response::GetMapVersion({:?})", ErrorDebug(res)),
+            //ListMapEntries(res) => write!(f, "Response::ListMapEntries({:?})", ErrorDebug(res)),
+            ListMapKeys(res) => write!(f, "Response::ListMapKeys({:?})", ErrorDebug(res)),
+            //ListMapValues(res) => write!(f, "Response::ListMapValues({:?})", ErrorDebug(res)),
+            // ListMapPermissions(res) => {
+            //     write!(f, "Response::ListMapPermissions({:?})", ErrorDebug(res))
             // }
-            // ListMDataUserPermissions(res) => write!(
+            // ListMapUserPermissions(res) => write!(
             //     f,
-            //     "Response::ListMDataUserPermissions({:?})",
+            //     "Response::ListMapUserPermissions({:?})",
             //     ErrorDebug(res)
             // ),
-            // GetMDataValue(res) => write!(f, "Response::GetMDataValue({:?})", ErrorDebug(res)),
-            // AData
-            GetAData(res) => write!(f, "Response::GetAData({:?})", ErrorDebug(res)),
-            GetADataValue(res) => write!(f, "Response::GetADataValue({:?})", ErrorDebug(res)),
-            GetADataRange(res) => write!(f, "Response::GetADataRange({:?})", ErrorDebug(res)),
+            // GetMapValue(res) => write!(f, "Response::GetMapValue({:?})", ErrorDebug(res)),
+            // Sequence
+            GetSequence(res) => write!(f, "Response::GetSequence({:?})", ErrorDebug(res)),
+            GetSequenceValue(res) => write!(f, "Response::GetSequenceValue({:?})", ErrorDebug(res)),
+            GetSequenceRange(res) => write!(f, "Response::GetSequenceRange({:?})", ErrorDebug(res)),
             GetExpectedIndices(res) => {
                 write!(f, "Response::GetExpectedIndices({:?})", ErrorDebug(res))
             }
-            GetADataLastEntry(res) => {
-                write!(f, "Response::GetADataLastEntry({:?})", ErrorDebug(res))
+            GetSequenceLastEntry(res) => {
+                write!(f, "Response::GetSequenceLastEntry({:?})", ErrorDebug(res))
             }
-            GetADataPermissions(res) => {
-                write!(f, "Response::GetADataPermissions({:?})", ErrorDebug(res))
+            GetSequencePermissions(res) => {
+                write!(f, "Response::GetSequencePermissions({:?})", ErrorDebug(res))
             }
-            GetPubADataUserPermissions(res) => write!(
+            GetPubSequenceUserPermissions(res) => write!(
                 f,
-                "Response::GetPubADataUserPermissions({:?})",
+                "Response::GetPubSequenceUserPermissions({:?})",
                 ErrorDebug(res)
             ),
-            GetUnpubADataUserPermissions(res) => write!(
+            GetUnpubSequenceUserPermissions(res) => write!(
                 f,
-                "Response::GetUnpubADataUserPermissions({:?})",
+                "Response::GetUnpubSequenceUserPermissions({:?})",
                 ErrorDebug(res)
             ),
-            GetADataShell(res) => write!(f, "Response::GetADataShell({:?})", ErrorDebug(res)),
+            GetSequenceShell(res) => write!(f, "Response::GetSequenceShell({:?})", ErrorDebug(res)),
             GetOwners(res) => write!(f, "Response::GetOwners({:?})", ErrorDebug(res)),
             // Coins
             GetBalance(res) => write!(f, "Response::GetBalance({:?})", ErrorDebug(res)),
@@ -213,10 +213,10 @@ impl fmt::Debug for Response {
 //         let response = Response::Mutation(Ok(()));
 //         assert_eq!(format!("{:?}", response), "Response::Mutation(Success)");
 //         use crate::Error;
-//         let errored_response = Response::GetADataShell(Err(Error::AccessDenied));
+//         let errored_response = Response::GetSequenceShell(Err(Error::AccessDenied));
 //         assert_eq!(
 //             format!("{:?}", errored_response),
-//             "Response::GetADataShell(AccessDenied)"
+//             "Response::GetSequenceShell(AccessDenied)"
 //         );
 //     }
 
@@ -224,36 +224,36 @@ impl fmt::Debug for Response {
 //     fn try_from() {
 //         use Response::*;
 
-//         let i_data = IData::Pub(PubImmutableData::new(vec![1, 3, 1, 4]));
+//         let i_data = Blob::Pub(PubImmutableData::new(vec![1, 3, 1, 4]));
 //         let e = Error::AccessDenied;
-//         assert_eq!(i_data, unwrap!(GetIData(Ok(i_data.clone())).try_into()));
+//         assert_eq!(i_data, unwrap!(GetBlob(Ok(i_data.clone())).try_into()));
 //         assert_eq!(
 //             TryFromError::Response(e.clone()),
-//             unwrap_err!(IData::try_from(GetIData(Err(e.clone()))))
+//             unwrap_err!(Blob::try_from(GetBlob(Err(e.clone()))))
 //         );
 //         assert_eq!(
 //             TryFromError::WrongType,
-//             unwrap_err!(IData::try_from(Mutation(Ok(()))))
+//             unwrap_err!(Blob::try_from(Mutation(Ok(()))))
 //         );
 
 //         let mut data = BTreeMap::new();
 //         let _ = data.insert(vec![1], vec![10]);
 //         let owners = PublicKey::Bls(threshold_crypto::SecretKey::random().public_key());
-//         let m_data = MData::Unseq(UnseqMutableData::new_with_data(
+//         let m_data = Map::Unseq(UnseqMutableData::new_with_data(
 //             *i_data.name(),
 //             1,
 //             data.clone(),
 //             BTreeMap::new(),
 //             owners,
 //         ));
-//         assert_eq!(m_data, unwrap!(GetMData(Ok(m_data.clone())).try_into()));
+//         assert_eq!(m_data, unwrap!(GetMap(Ok(m_data.clone())).try_into()));
 //         assert_eq!(
 //             TryFromError::Response(e.clone()),
-//             unwrap_err!(MData::try_from(GetMData(Err(e))))
+//             unwrap_err!(Map::try_from(GetMap(Err(e))))
 //         );
 //         assert_eq!(
 //             TryFromError::WrongType,
-//             unwrap_err!(MData::try_from(Mutation(Ok(()))))
+//             unwrap_err!(Map::try_from(Mutation(Ok(()))))
 //         );
 //     }
 // }

@@ -11,22 +11,22 @@ mod login_packet;
 
 pub use self::login_packet::{LoginPacket, MAX_LOGIN_PACKET_BYTES};
 use crate::{
-    AData,
-    ADataAppend,
     Address,
     AppPermissions,
+    BlobAddress,
+    BlobData,
     Coins,
     Error,
-    IData,
-    IDataAddress,
     Index,
-    MData,
-    //MDataAddress, MDataEntryActions, MDataPermissionSet,
+    MapData,
+    //MapAddress, MapEntryActions, MapPermissionSet,
     Owner,
     PrivatePermissions,
     PublicKey,
     PublicPermissions,
     Response,
+    SequenceAppend,
+    SequenceData,
     TransactionId,
     User,
     XorName,
@@ -39,56 +39,56 @@ use std::fmt;
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub enum Request {
     //
-    // ===== Immutable Data =====
+    // ===== Blob =====
     //
-    PutIData(IData),
-    GetIData(IDataAddress),
-    DeleteUnpubIData(IDataAddress),
+    PutBlob(BlobData),
+    GetBlob(BlobAddress),
+    DeleteUnpubBlob(BlobAddress),
     //
-    // ===== Mutable Data =====
+    // ===== Map =====
     //
-    PutMData(MData),
-    //GetMData(MDataAddress),
-    // GetMDataValue {
-    //     address: MDataAddress,
+    PutMap(MapData),
+    //GetMap(MapAddress),
+    // GetMapValue {
+    //     address: MapAddress,
     //     key: Vec<u8>,
     // },
-    // DeleteMData(MDataAddress),
-    // GetMDataShell(MDataAddress),
-    // GetMDataVersion(MDataAddress),
-    // ListMDataEntries(MDataAddress),
-    // ListMDataKeys(MDataAddress),
-    // ListMDataValues(MDataAddress),
-    // SetMDataUserPermissions {
-    //     address: MDataAddress,
+    // DeleteMap(MapAddress),
+    // GetMapShell(MapAddress),
+    // GetMapVersion(MapAddress),
+    // ListMapEntries(MapAddress),
+    // ListMapKeys(MapAddress),
+    // ListMapValues(MapAddress),
+    // SetMapUserPermissions {
+    //     address: MapAddress,
     //     user: PublicKey,
-    //     permissions: MDataPermissionSet,
+    //     permissions: MapPermissionSet,
     //     version: u64,
     // },
-    // DelMDataUserPermissions {
-    //     address: MDataAddress,
+    // DelMapUserPermissions {
+    //     address: MapAddress,
     //     user: PublicKey,
     //     version: u64,
     // },
-    // ListMDataPermissions(MDataAddress),
-    // ListMDataUserPermissions {
-    //     address: MDataAddress,
+    // ListMapPermissions(MapAddress),
+    // ListMapUserPermissions {
+    //     address: MapAddress,
     //     user: PublicKey,
     // },
-    // MutateMDataEntries {
-    //     address: MDataAddress,
-    //     actions: MDataEntryActions,
+    // MutateMapEntries {
+    //     address: MapAddress,
+    //     actions: MapEntryActions,
     // },
     //
     // ===== Append Only Data =====
     //
     /// Put a new AppendOnlyData onto the network.
-    PutAData(AData),
+    PutSequence(SequenceData),
     /// Get AppendOnlyData from the network.
-    GetAData(Address),
+    GetSequence(Address),
     /// Get `AppendOnlyData` shell at a certain point in history (`data_index` refers to the list
     /// of data).
-    GetADataShell {
+    GetSequenceShell {
         address: Address,
         data_index: Index,
     },
@@ -96,9 +96,9 @@ pub enum Request {
     ///
     /// This operation MUST return an error if applied to published AppendOnlyData. Only the current
     /// owner(s) can perform this action.
-    DeleteAData(Address),
+    DeleteSequence(Address),
     /// Get a range of entries from an AppendOnlyData object on the network.
-    GetADataRange {
+    GetSequenceRange {
         address: Address,
         // Range of entries to fetch.
         //
@@ -112,16 +112,16 @@ pub enum Request {
         // range: (Index::FromStart(0), Index::FromStart(5))
         range: (Index, Index),
     },
-    GetADataValue {
+    GetSequenceValue {
         address: Address,
         key: Vec<u8>,
     },
     /// Get current indices: data, owners, permissions.
-    GetADataIndices(Address),
+    GetSequenceIndices(Address),
     /// Get an entry with the current index.
-    GetADataLastEntry(Address),
+    GetSequenceLastEntry(Address),
     /// Get permissions at the provided index.
-    GetADataPermissions {
+    GetSequencePermissions {
         address: Address,
         permissions_index: Index,
     },
@@ -143,13 +143,13 @@ pub enum Request {
         owners_index: Index,
     },
     /// Add a new `permissions` entry.
-    AddPubADataPermissions {
+    AddPubSequencePermissions {
         address: Address,
         permissions: PublicPermissions,
         permissions_idx: u64,
     },
     /// Add a new `permissions` entry.
-    AddUnpubADataPermissions {
+    AddUnpubSequencePermissions {
         address: Address,
         permissions: PrivatePermissions,
         permissions_idx: u64,
@@ -161,10 +161,10 @@ pub enum Request {
         owners_idx: u64,
     },
     AppendSeq {
-        append: ADataAppend,
+        append: SequenceAppend,
         index: u64,
     },
-    AppendUnseq(ADataAppend),
+    AppendUnseq(SequenceAppend),
     //
     // ===== Coins =====
     //
@@ -224,29 +224,29 @@ impl Request {
         use Request::*;
 
         match *self {
-            // IData
-            GetIData(_) => Response::GetIData(Err(error)),
-            // MData
-            //GetMData(_) => Response::GetMData(Err(error)),
-            //GetMDataValue { .. } => Response::GetMDataValue(Err(error)),
-            //GetMDataShell(_) => Response::GetMDataShell(Err(error)),
-            //GetMDataVersion(_) => Response::GetMDataVersion(Err(error)),
-            //ListMDataEntries(_) => Response::ListMDataEntries(Err(error)),
-            //ListMDataKeys(_) => Response::ListMDataKeys(Err(error)),
-            //ListMDataValues(_) => Response::ListMDataValues(Err(error)),
-            //ListMDataPermissions(_) => Response::ListMDataPermissions(Err(error)),
-            //ListMDataUserPermissions { .. } => Response::ListMDataUserPermissions(Err(error)),
-            // AData
-            GetAData(_) => Response::GetAData(Err(error)),
-            GetADataShell { .. } => Response::GetADataShell(Err(error)),
-            GetADataValue { .. } => Response::GetADataValue(Err(error)),
-            GetADataRange { .. } => Response::GetADataRange(Err(error)),
-            GetADataIndices(_) => Response::GetExpectedIndices(Err(error)),
-            GetADataLastEntry(_) => Response::GetADataLastEntry(Err(error)),
-            GetADataPermissions { .. } => Response::GetADataPermissions(Err(error)),
-            GetPubUserPermissions { .. } => Response::GetPubADataUserPermissions(Err(error)),
+            // Blob
+            GetBlob(_) => Response::GetBlob(Err(error)),
+            // Map
+            //GetMap(_) => Response::GetMap(Err(error)),
+            //GetMapValue { .. } => Response::GetMapValue(Err(error)),
+            //GetMapShell(_) => Response::GetMapShell(Err(error)),
+            //GetMapVersion(_) => Response::GetMapVersion(Err(error)),
+            //ListMapEntries(_) => Response::ListMapEntries(Err(error)),
+            //ListMapKeys(_) => Response::ListMapKeys(Err(error)),
+            //ListMapValues(_) => Response::ListMapValues(Err(error)),
+            //ListMapPermissions(_) => Response::ListMapPermissions(Err(error)),
+            //ListMapUserPermissions { .. } => Response::ListMapUserPermissions(Err(error)),
+            // Sequence
+            GetSequence(_) => Response::GetSequence(Err(error)),
+            GetSequenceShell { .. } => Response::GetSequenceShell(Err(error)),
+            GetSequenceValue { .. } => Response::GetSequenceValue(Err(error)),
+            GetSequenceRange { .. } => Response::GetSequenceRange(Err(error)),
+            GetSequenceIndices(_) => Response::GetExpectedIndices(Err(error)),
+            GetSequenceLastEntry(_) => Response::GetSequenceLastEntry(Err(error)),
+            GetSequencePermissions { .. } => Response::GetSequencePermissions(Err(error)),
+            GetPubUserPermissions { .. } => Response::GetPubSequenceUserPermissions(Err(error)),
             GetUnpubUserPermissions { .. } => {
-                Response::GetUnpubADataUserPermissions(Err(error))
+                Response::GetUnpubSequenceUserPermissions(Err(error))
             }
             GetOwners { .. } => Response::GetOwners(Err(error)),
             // Coins
@@ -260,20 +260,20 @@ impl Request {
 
             // Mutation
 
-            // IData
-            PutIData(_) |
-            DeleteUnpubIData(_) |
-            // MData
-            PutMData(_) |
-            //DeleteMData(_) |
-            //SetMDataUserPermissions { .. } |
-            //DelMDataUserPermissions { .. } |
-            //MutateMDataEntries { .. } |
-            // AData
-            PutAData(_) |
-            DeleteAData(_) |
-            AddPubADataPermissions { .. } |
-            AddUnpubADataPermissions { .. } |
+            // Blob
+            PutBlob(_) |
+            DeleteUnpubBlob(_) |
+            // Map
+            PutMap(_) |
+            //DeleteMap(_) |
+            //SetMapUserPermissions { .. } |
+            //DelMapUserPermissions { .. } |
+            //MutateMapEntries { .. } |
+            // Sequence
+            PutSequence(_) |
+            DeleteSequence(_) |
+            AddPubSequencePermissions { .. } |
+            AddUnpubSequencePermissions { .. } |
             SetOwner { .. } |
             AppendSeq { .. } |
             AppendUnseq(_) |
@@ -297,40 +297,40 @@ impl fmt::Debug for Request {
             formatter,
             "{}",
             match *self {
-                // IData
-                PutIData(_) => "Request::PutIData",
-                GetIData(_) => "Request::GetIData",
-                DeleteUnpubIData(_) => "Request::DeleteUnpubIData",
-                // MData
-                PutMData(_) => "Request::PutMData",
-                // GetMData(_) => "Request::GetMData",
-                // GetMDataValue { .. } => "Request::GetMDataValue",
-                // DeleteMData(_) => "Request::DeleteMData",
-                // GetMDataShell(_) => "Request::GetMDataShell",
-                // GetMDataVersion(_) => "Request::GetMDataVersion",
-                // ListMDataEntries(_) => "Request::ListMDataEntries",
-                // ListMDataKeys(_) => "Request::ListMDataKeys",
-                // ListMDataValues(_) => "Request::ListMDataValues",
-                // SetMDataUserPermissions { .. } => "Request::SetMDataUserPermissions",
-                // DelMDataUserPermissions { .. } => "Request::DelMDataUserPermissions",
-                // ListMDataPermissions(_) => "Request::ListMDataPermissions",
-                // ListMDataUserPermissions { .. } => "Request::ListMDataUserPermissions",
-                // MutateMDataEntries { .. } => "Request::MutateMDataEntries",
-                // AData
-                PutAData(_) => "Request::PutAData",
-                GetAData(_) => "Request::GetAData",
-                GetADataShell { .. } => "Request::GetADataShell",
-                GetADataValue { .. } => "Request::GetADataValue ",
-                DeleteAData(_) => "Request::DeleteAData",
-                GetADataRange { .. } => "Request::GetADataRange",
-                GetADataIndices(_) => "Request::GetADataIndices",
-                GetADataLastEntry(_) => "Request::GetADataLastEntry",
-                GetADataPermissions { .. } => "Request::GetADataPermissions",
+                // Blob
+                PutBlob(_) => "Request::PutBlob",
+                GetBlob(_) => "Request::GetBlob",
+                DeleteUnpubBlob(_) => "Request::DeleteUnpubBlob",
+                // Map
+                PutMap(_) => "Request::PutMap",
+                // GetMap(_) => "Request::GetMap",
+                // GetMapValue { .. } => "Request::GetMapValue",
+                // DeleteMap(_) => "Request::DeleteMap",
+                // GetMapShell(_) => "Request::GetMapShell",
+                // GetMapVersion(_) => "Request::GetMapVersion",
+                // ListMapEntries(_) => "Request::ListMapEntries",
+                // ListMapKeys(_) => "Request::ListMapKeys",
+                // ListMapValues(_) => "Request::ListMapValues",
+                // SetMapUserPermissions { .. } => "Request::SetMapUserPermissions",
+                // DelMapUserPermissions { .. } => "Request::DelMapUserPermissions",
+                // ListMapPermissions(_) => "Request::ListMapPermissions",
+                // ListMapUserPermissions { .. } => "Request::ListMapUserPermissions",
+                // MutateMapEntries { .. } => "Request::MutateMapEntries",
+                // Sequence
+                PutSequence(_) => "Request::PutSequence",
+                GetSequence(_) => "Request::GetSequence",
+                GetSequenceShell { .. } => "Request::GetSequenceShell",
+                GetSequenceValue { .. } => "Request::GetSequenceValue ",
+                DeleteSequence(_) => "Request::DeleteSequence",
+                GetSequenceRange { .. } => "Request::GetSequenceRange",
+                GetSequenceIndices(_) => "Request::GetSequenceIndices",
+                GetSequenceLastEntry(_) => "Request::GetSequenceLastEntry",
+                GetSequencePermissions { .. } => "Request::GetSequencePermissions",
                 GetPubUserPermissions { .. } => "Request::GetPubUserPermissions",
                 GetUnpubUserPermissions { .. } => "Request::GetUnpubUserPermissions",
                 GetOwners { .. } => "Request::GetOwners",
-                AddPubADataPermissions { .. } => "Request::AddPubADataPermissions",
-                AddUnpubADataPermissions { .. } => "Request::AddUnpubADataPermissions",
+                AddPubSequencePermissions { .. } => "Request::AddPubSequencePermissions",
+                AddUnpubSequencePermissions { .. } => "Request::AddUnpubSequencePermissions",
                 SetOwner { .. } => "Request::SetOwner",
                 AppendSeq { .. } => "Request::AppendSeq",
                 AppendUnseq(_) => "Request::AppendUnseq",

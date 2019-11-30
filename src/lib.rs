@@ -55,10 +55,10 @@
 // FIXME - write docs
 #![allow(missing_docs)]
 
+mod blob;
 mod coins;
 mod errors;
 mod identity;
-mod immutable_data;
 mod map;
 mod mutable_data;
 mod permissions;
@@ -70,6 +70,10 @@ mod shared_data;
 mod transaction;
 mod utils;
 
+pub use blob::{
+    Address as BlobAddress, BlobData, Kind as BlobKind, PrivateBlob, PublicBlob,
+    MAX_BLOB_SIZE_IN_BYTES,
+};
 pub use coins::{Coins, MAX_COINS_VALUE};
 pub use errors::{EntryError, Error, Result};
 pub use identity::{
@@ -78,19 +82,15 @@ pub use identity::{
     node::{FullId as NodeFullId, PublicId as NodePublicId},
     PublicId,
 };
-pub use immutable_data::{
-    Address as IDataAddress, Data as IData, Kind as IDataKind, PubImmutableData,
-    UnpubImmutableData, MAX_IMMUTABLE_DATA_SIZE_IN_BYTES,
-};
-pub use map::MapData as MData;
+pub use map::MapData;
 // pub use mutable_data::{
-//     Action as MDataAction, Address as MDataAddress, Entries as MDataEntries,
-//     EntryActions as MDataEntryActions, Kind as MDataKind, PermissionSet as MDataPermissionSet,
-//     SeqEntries as MDataSeqEntries, SeqEntryAction as MDataSeqEntryAction,
-//     SeqEntryActions as MDataSeqEntryActions, SeqMutableData, SeqValue as MDataSeqValue,
-//     UnseqEntries as MDataUnseqEntries, UnseqEntryAction as MDataUnseqEntryAction,
-//     UnseqEntryActions as MDataUnseqEntryActions, UnseqMutableData, UnseqValue as MDataUnseqValue,
-//     Value as MDataValue, Values as MDataValues,
+//     Action as MapDataAction, Address as MapDataAddress, Entries as MapDataEntries,
+//     EntryActions as MapDataEntryActions, Kind as MapDataKind, PermissionSet as MapDataPermissionSet,
+//     SeqEntries as MapDataSeqEntries, SeqEntryAction as MapDataSeqEntryAction,
+//     SeqEntryActions as MapDataSeqEntryActions, SeqMutableData, SeqValue as MapDataSeqValue,
+//     UnseqEntries as MapDataUnseqEntries, UnseqEntryAction as MapDataUnseqEntryAction,
+//     UnseqEntryActions as MapDataUnseqEntryActions, UnseqMutableData, UnseqValue as MapDataUnseqValue,
+//     Value as MapDataValue, Values as MapDataValues,
 // };
 pub use permissions::{
     PrivatePermissionSet, PrivatePermissions, PublicPermissionSet, PublicPermissions,
@@ -99,9 +99,9 @@ pub use public_key::{PublicKey, Signature};
 pub use request::{LoginPacket, Request, MAX_LOGIN_PACKET_BYTES};
 pub use response::Response;
 pub use sequence::{
-    AppendOperation as ADataAppend, DataEntry as ADataEntry, PrivateSentriedSequence,
-    PrivateSequence, PublicSentriedSequence, PublicSequence, Sequence, SequenceData as AData,
-    SequencePermissions as ADataPermissions, Values as ADataEntries,
+    AppendOperation as SequenceAppend, DataEntry as SequenceEntry, PrivateSentriedSequence,
+    PrivateSequence, PublicSentriedSequence, PublicSequence, Sequence, SequenceData,
+    SequencePermissions, Values as SequenceValues,
 };
 pub use sha3::Sha3_512 as Ed25519Digest;
 pub use shared_data::{Address, ExpectedIndices, Index, Kind, Owner, User};
@@ -119,39 +119,35 @@ use std::fmt::{self, Debug, Display, Formatter};
 
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Data {
-    Blob(IData),
-    Map(MData),
-    Sequence(AData),
+    Blob(BlobData),
+    Map(MapData),
+    Sequence(SequenceData),
 }
 
 impl Data {
     pub fn is_public(&self) -> bool {
         match *self {
-            Data::Blob(ref idata) => idata.is_pub(),
+            Data::Blob(ref data) => data.is_public(),
             Data::Map(ref data) => data.is_public(),
             Data::Sequence(ref data) => data.is_public(),
         }
     }
-
-    pub fn is_unpub(&self) -> bool {
-        !self.is_public()
-    }
 }
 
-impl From<IData> for Data {
-    fn from(data: IData) -> Self {
+impl From<BlobData> for Data {
+    fn from(data: BlobData) -> Self {
         Data::Blob(data)
     }
 }
 
-impl From<MData> for Data {
-    fn from(data: MData) -> Self {
+impl From<MapData> for Data {
+    fn from(data: MapData) -> Self {
         Data::Map(data)
     }
 }
 
-impl From<AData> for Data {
-    fn from(data: AData) -> Self {
+impl From<SequenceData> for Data {
+    fn from(data: SequenceData) -> Self {
         Data::Sequence(data)
     }
 }

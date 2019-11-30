@@ -7,7 +7,7 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::ADataEntries;
+use crate::SequenceValues;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
@@ -53,7 +53,7 @@ pub enum Error {
     /// Key does not exist
     NoSuchKey,
     /// The key(s) of the entry or entries contained in this error already exist
-    KeysExist(ADataEntries),
+    KeysExist(SequenceValues),
     /// Duplicate Entries in this push
     DuplicateEntryKeys,
     /// The list of owner keys is invalid
