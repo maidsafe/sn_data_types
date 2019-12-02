@@ -157,32 +157,44 @@ where
         self.permissions.len() as u64
     }
 
+    pub fn indices(&self) -> ExpectedIndices {
+        ExpectedIndices::new(
+            self.expected_data_index(),
+            self.expected_owners_index(),
+            self.expected_permissions_index(),
+        )
+    }
+
+    /// Get history of owners within the range of indices specified.
+    pub fn owner_history_range(&self, start: Index, end: Index) -> Option<&[Owner]> {
+        let range = to_absolute_range(start, end, self.owners.len())?;
+        Some(&self.owners[range])
+    }
+
     /// Get history of permission within the range of indices specified.
     pub fn permission_history_range(&self, start: Index, end: Index) -> Option<&[P]> {
         let range = to_absolute_range(start, end, self.permissions.len())?;
         Some(&self.permissions[range])
     }
 
-    /// Set permissions.
-    /// The `Permissions` struct needs to contain the correct expected indices.
-    pub fn set_permissions(&mut self, permissions: P, index: u64) -> Result<()> {
-        if permissions.expected_data_index() != self.expected_data_index() {
-            return Err(Error::InvalidSuccessor(self.expected_data_index()));
-        }
-        if permissions.expected_owners_index() != self.expected_owners_index() {
-            return Err(Error::InvalidOwnersSuccessor(self.expected_owners_index()));
-        }
-        if self.expected_permissions_index() != index {
-            return Err(Error::InvalidSuccessor(self.expected_permissions_index()));
-        }
-        self.permissions.push(permissions);
-        Ok(())
+    /// Get owner at index.
+    pub fn owner_at(&self, index: impl Into<Index>) -> Option<&Owner> {
+        let index = to_absolute_index(index.into(), self.owners.len())?;
+        self.owners.get(index)
     }
 
     /// Get permissions at index.
     pub fn permissions_at(&self, index: impl Into<Index>) -> Option<&P> {
         let index = to_absolute_index(index.into(), self.permissions.len())?;
         self.permissions.get(index)
+    }
+
+    /// Returns true if the user is the current owner.
+    pub fn is_owner(&self, user: PublicKey) -> bool {
+        match self.owner_at(Index::FromEnd(1)) {
+            Some(owner) => user == owner.public_key,
+            _ => false,
+        }
     }
 
     pub fn is_permitted(&self, user: PublicKey, request: Request) -> bool {
@@ -198,18 +210,6 @@ where
             Some(permissions) => permissions.is_permitted(&user, &request),
             None => false,
         }
-    }
-
-    /// Get owner at index.
-    pub fn owner_at(&self, index: impl Into<Index>) -> Option<&Owner> {
-        let index = to_absolute_index(index.into(), self.owners.len())?;
-        self.owners.get(index)
-    }
-
-    /// Get history of owners within the range of indices specified.
-    pub fn owner_history_range(&self, start: Index, end: Index) -> Option<&[Owner]> {
-        let range = to_absolute_range(start, end, self.owners.len())?;
-        Some(&self.owners[range])
     }
 
     /// Set owner.
@@ -229,22 +229,44 @@ where
         Ok(())
     }
 
-    /// Returns true if the user is the current owner.
-    pub fn is_owner(&self, user: PublicKey) -> bool {
-        match self.owner_at(Index::FromEnd(1)) {
-            Some(owner) => user == owner.public_key,
-            _ => false,
+    /// Set permissions.
+    /// The `Permissions` struct needs to contain the correct expected indices.
+    pub fn set_permissions(&mut self, permissions: P, index: u64) -> Result<()> {
+        if permissions.expected_data_index() != self.expected_data_index() {
+            return Err(Error::InvalidSuccessor(self.expected_data_index()));
         }
-    }
-
-    pub fn indices(&self) -> ExpectedIndices {
-        ExpectedIndices::new(
-            self.expected_data_index(),
-            self.expected_owners_index(),
-            self.expected_permissions_index(),
-        )
+        if permissions.expected_owners_index() != self.expected_owners_index() {
+            return Err(Error::InvalidOwnersSuccessor(self.expected_owners_index()));
+        }
+        if self.expected_permissions_index() != index {
+            return Err(Error::InvalidSuccessor(self.expected_permissions_index()));
+        }
+        self.permissions.push(permissions);
+        Ok(())
     }
 }
+
+#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
+pub enum Cmd {
+    /// Appends a range of new values
+    Append(Values),
+}
+
+#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
+pub enum SentriedCmd {
+    /// Appends a range of new values
+    Append(SentriedValues),
+}
+
+#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
+pub enum SequenceCmd {
+    AnyVersion(Cmd),
+    ExpectVersion(SentriedCmd),
+}
+
+pub type ExpectedVersion = u64;
+// pub type SentriedValue = (Value, ExpectedVersion);
+pub type SentriedValues = (Values, ExpectedVersion);
 
 /// Common methods for NonSentried flavours.
 impl<P: DataPermissions> SequenceBase<P, NonSentried> {
@@ -404,6 +426,24 @@ impl SequenceData {
         self.kind().is_sentried()
     }
 
+    pub fn is_owner(&self, user: PublicKey) -> bool {
+        match self {
+            SequenceData::PublicSentried(data) => data.is_owner(user),
+            SequenceData::Public(data) => data.is_owner(user),
+            SequenceData::PrivateSentried(data) => data.is_owner(user),
+            SequenceData::Private(data) => data.is_owner(user),
+        }
+    }
+
+    pub fn get(&self, index: u64) -> Option<&Value> {
+        match self {
+            SequenceData::PublicSentried(data) => data.get(index),
+            SequenceData::Public(data) => data.get(index),
+            SequenceData::PrivateSentried(data) => data.get(index),
+            SequenceData::Private(data) => data.get(index),
+        }
+    }
+
     pub fn expected_data_index(&self) -> u64 {
         match self {
             SequenceData::PublicSentried(data) => data.expected_data_index(),
@@ -431,24 +471,6 @@ impl SequenceData {
         }
     }
 
-    pub fn in_range(&self, start: Index, end: Index) -> Option<Values> {
-        match self {
-            SequenceData::PublicSentried(data) => data.in_range(start, end),
-            SequenceData::Public(data) => data.in_range(start, end),
-            SequenceData::PrivateSentried(data) => data.in_range(start, end),
-            SequenceData::Private(data) => data.in_range(start, end),
-        }
-    }
-
-    pub fn get(&self, index: u64) -> Option<&Value> {
-        match self {
-            SequenceData::PublicSentried(data) => data.get(index),
-            SequenceData::Public(data) => data.get(index),
-            SequenceData::PrivateSentried(data) => data.get(index),
-            SequenceData::Private(data) => data.get(index),
-        }
-    }
-
     pub fn indices(&self) -> ExpectedIndices {
         match self {
             SequenceData::PublicSentried(data) => data.indices(),
@@ -467,21 +489,21 @@ impl SequenceData {
         }
     }
 
+    pub fn in_range(&self, start: Index, end: Index) -> Option<Values> {
+        match self {
+            SequenceData::PublicSentried(data) => data.in_range(start, end),
+            SequenceData::Public(data) => data.in_range(start, end),
+            SequenceData::PrivateSentried(data) => data.in_range(start, end),
+            SequenceData::Private(data) => data.in_range(start, end),
+        }
+    }
+
     pub fn owner_at(&self, index: impl Into<Index>) -> Option<&Owner> {
         match self {
             SequenceData::PublicSentried(data) => data.owner_at(index),
             SequenceData::Public(data) => data.owner_at(index),
             SequenceData::PrivateSentried(data) => data.owner_at(index),
             SequenceData::Private(data) => data.owner_at(index),
-        }
-    }
-
-    pub fn is_owner(&self, user: PublicKey) -> bool {
-        match self {
-            SequenceData::PublicSentried(data) => data.is_owner(user),
-            SequenceData::Public(data) => data.is_owner(user),
-            SequenceData::PrivateSentried(data) => data.is_owner(user),
-            SequenceData::Private(data) => data.is_owner(user),
         }
     }
 
@@ -539,6 +561,44 @@ impl SequenceData {
             SequenceData::Private(adata) => adata.shell(index).map(SequenceData::Private),
         }
     }
+
+    /// Commits transaction.
+    pub fn commit(&mut self, cmd: SequenceCmd) -> Result<()> {
+        match self {
+            SequenceData::PrivateSentried(sequence) => match cmd {
+                SequenceCmd::ExpectVersion(cmd) => match cmd {
+                    SentriedCmd::Append((values, index)) => {
+                        return sequence.append(values, index);
+                    }
+                },
+                _ => return Err(Error::InvalidOperation),
+            },
+            SequenceData::Private(sequence) => match cmd {
+                SequenceCmd::AnyVersion(cmd) => match cmd {
+                    Cmd::Append(values) => {
+                        return sequence.append(values);
+                    }
+                },
+                _ => return Err(Error::InvalidOperation),
+            },
+            SequenceData::PublicSentried(sequence) => match cmd {
+                SequenceCmd::ExpectVersion(cmd) => match cmd {
+                    SentriedCmd::Append((values, index)) => {
+                        return sequence.append(values, index);
+                    }
+                },
+                _ => return Err(Error::InvalidOperation),
+            },
+            SequenceData::Public(sequence) => match cmd {
+                SequenceCmd::AnyVersion(cmd) => match cmd {
+                    Cmd::Append(values) => {
+                        return sequence.append(values);
+                    }
+                },
+                _ => return Err(Error::InvalidOperation),
+            },
+        }
+    }
 }
 
 impl From<PublicSentriedSequence> for SequenceData {
@@ -563,12 +623,4 @@ impl From<PrivateSequence> for SequenceData {
     fn from(data: PrivateSequence) -> Self {
         SequenceData::Private(data)
     }
-}
-
-#[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
-pub struct AppendOperation {
-    // Address of an Sequence object on the network.
-    pub address: Address,
-    // A list of Values to append.
-    pub values: Values,
 }

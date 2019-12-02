@@ -10,6 +10,6 @@
 pub mod sequence;
 mod tests;
 pub use sequence::{
-    AppendOperation, DataEntry, PrivateSentriedSequence, PrivateSequence, PublicSentriedSequence,
-    PublicSequence, SequenceBase, SequenceData, SequencePermissions, Values,
+    DataEntry, PrivateSentriedSequence, PrivateSequence, PublicSentriedSequence, PublicSequence,
+    SequenceBase, SequenceCmd, SequenceData, SequencePermissions, Values,
 };

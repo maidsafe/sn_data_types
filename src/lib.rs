@@ -99,8 +99,8 @@ pub use public_key::{PublicKey, Signature};
 pub use request::{LoginPacket, Request, MAX_LOGIN_PACKET_BYTES};
 pub use response::Response;
 pub use sequence::{
-    AppendOperation, DataEntry as SequenceEntry, PrivateSentriedSequence, PrivateSequence,
-    PublicSentriedSequence, PublicSequence, /*SequenceBase as Sequence, */ SequenceData,
+    DataEntry as SequenceEntry, PrivateSentriedSequence, PrivateSequence, PublicSentriedSequence,
+    PublicSequence, SequenceCmd, /*SequenceBase as Sequence, */ SequenceData,
     SequencePermissions, Values as SequenceValues,
 };
 pub use sha3::Sha3_512 as Ed25519Digest;

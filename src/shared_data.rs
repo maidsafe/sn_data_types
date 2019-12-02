@@ -15,7 +15,6 @@ use std::ops::Range;
 pub type Key = Vec<u8>;
 pub type Value = Vec<u8>;
 pub type KvPair = (Key, Value);
-// pub type IvPair = (Index, Value);
 
 /// Marker for sentried data.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]

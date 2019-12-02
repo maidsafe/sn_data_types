@@ -13,7 +13,6 @@ pub use self::login_packet::{LoginPacket, MAX_LOGIN_PACKET_BYTES};
 use crate::{
     Address,
     AppPermissions,
-    AppendOperation,
     BlobAddress,
     BlobData,
     Coins,
@@ -26,6 +25,7 @@ use crate::{
     PublicKey,
     PublicPermissions,
     Response,
+    SequenceCmd,
     SequenceData,
     TransactionId,
     User,
@@ -161,10 +161,10 @@ pub enum Request {
         owners_idx: u64,
     },
     AppendSentried {
-        append: AppendOperation,
+        append: SequenceCmd,
         index: u64,
     },
-    Append(AppendOperation),
+    Append(SequenceCmd),
     //
     // ===== Coins =====
     //

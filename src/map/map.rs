@@ -314,11 +314,7 @@ impl<P: DataPermissions> MapBase<P, NonSentried> {
     pub fn commit(&mut self, tx: Transaction) -> Result<()> {
         // Deconstruct tx into inserts, updates, and deletes
         let operations: Operations = tx.into_iter().fold(
-            (
-                BTreeSet::<KvPair>::new(),
-                BTreeSet::<KvPair>::new(),
-                BTreeSet::<Key>::new(),
-            ),
+            Default::default(),
             |(mut insert, mut update, mut delete), cmd| {
                 match cmd {
                     Cmd::Insert(kv_pair) => {
@@ -432,7 +428,7 @@ impl<P: DataPermissions> MapBase<P, Sentried> {
     pub fn commit(&mut self, tx: SentriedTransaction) -> Result<()> {
         // Deconstruct tx into inserts, updates, and deletes
         let operations: SentriedOperations = tx.into_iter().fold(
-            (BTreeSet::new(), BTreeSet::new(), BTreeSet::new()),
+            Default::default(),
             |(mut insert, mut update, mut delete), cmd| {
                 match cmd {
                     SentriedCmd::Insert(sentried_kvpair) => {
@@ -641,7 +637,7 @@ impl MapBase<PrivatePermissions, Sentried> {
     pub fn hard_commit(&mut self, tx: SentriedTransaction) -> Result<()> {
         // Deconstruct tx into inserts, updates, and deletes
         let operations: SentriedOperations = tx.into_iter().fold(
-            (BTreeSet::new(), BTreeSet::new(), BTreeSet::new()),
+            Default::default(),
             |(mut insert, mut update, mut delete), cmd| {
                 match cmd {
                     SentriedCmd::Insert(sentried_kvpair) => {
@@ -816,11 +812,7 @@ impl MapBase<PrivatePermissions, NonSentried> {
     pub fn hard_commit(&mut self, tx: Transaction) -> Result<()> {
         // Deconstruct tx into inserts, updates, and deletes
         let operations: Operations = tx.into_iter().fold(
-            (
-                BTreeSet::<KvPair>::new(),
-                BTreeSet::<KvPair>::new(),
-                BTreeSet::<Key>::new(),
-            ),
+            Default::default(),
             |(mut insert, mut update, mut delete), cmd| {
                 match cmd {
                     Cmd::Insert(kv_pair) => {
@@ -996,6 +988,24 @@ impl MapData {
         self.kind().is_sentried()
     }
 
+    pub fn is_owner(&self, user: PublicKey) -> bool {
+        match self {
+            MapData::PublicSentried(data) => data.is_owner(user),
+            MapData::Public(data) => data.is_owner(user),
+            MapData::PrivateSentried(data) => data.is_owner(user),
+            MapData::Private(data) => data.is_owner(user),
+        }
+    }
+
+    pub fn get(&self, key: &Key) -> Option<&Value> {
+        match self {
+            MapData::PublicSentried(data) => data.get(key),
+            MapData::Public(data) => data.get(key),
+            MapData::PrivateSentried(data) => data.get(key),
+            MapData::Private(data) => data.get(key),
+        }
+    }
+
     pub fn expected_data_index(&self) -> u64 {
         match self {
             MapData::PublicSentried(data) => data.expected_data_version().unwrap_or_default(),
@@ -1023,24 +1033,6 @@ impl MapData {
         }
     }
 
-    // pub fn in_range(&self, start: Index, end: Index) -> Option<Entries> {
-    //     match self {
-    //         MapData::PublicSentried(data) => data.in_range(start, end),
-    //         MapData::Public(data) => data.in_range(start, end),
-    //         MapData::PrivateSentried(data) => data.in_range(start, end),
-    //         MapData::Private(data) => data.in_range(start, end),
-    //     }
-    // }
-
-    pub fn get(&self, key: &Key) -> Option<&Value> {
-        match self {
-            MapData::PublicSentried(data) => data.get(key),
-            MapData::Public(data) => data.get(key),
-            MapData::PrivateSentried(data) => data.get(key),
-            MapData::Private(data) => data.get(key),
-        }
-    }
-
     pub fn indices(&self) -> ExpectedIndices {
         match self {
             MapData::PublicSentried(data) => data.indices(),
@@ -1050,21 +1042,21 @@ impl MapData {
         }
     }
 
+    // pub fn in_range(&self, start: Index, end: Index) -> Option<Entries> {
+    //     match self {
+    //         MapData::PublicSentried(data) => data.in_range(start, end),
+    //         MapData::Public(data) => data.in_range(start, end),
+    //         MapData::PrivateSentried(data) => data.in_range(start, end),
+    //         MapData::Private(data) => data.in_range(start, end),
+    //     }
+    // }
+
     pub fn owner_at(&self, index: impl Into<Index>) -> Option<&Owner> {
         match self {
             MapData::PublicSentried(data) => data.owner_at(index),
             MapData::Public(data) => data.owner_at(index),
             MapData::PrivateSentried(data) => data.owner_at(index),
             MapData::Private(data) => data.owner_at(index),
-        }
-    }
-
-    pub fn is_owner(&self, user: PublicKey) -> bool {
-        match self {
-            MapData::PublicSentried(data) => data.is_owner(user),
-            MapData::Public(data) => data.is_owner(user),
-            MapData::PrivateSentried(data) => data.is_owner(user),
-            MapData::Private(data) => data.is_owner(user),
         }
     }
 
