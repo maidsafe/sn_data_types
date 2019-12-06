@@ -31,14 +31,14 @@ pub enum SequenceAuth {
 }
 
 impl From<PrivateAuth> for SequenceAuth {
-    fn from(permissions: PrivateAuth) -> Self {
-        SequenceAuth::Private(permissions)
+    fn from(auth: PrivateAuth) -> Self {
+        SequenceAuth::Private(auth)
     }
 }
 
 impl From<PublicAuth> for SequenceAuth {
-    fn from(permissions: PublicAuth) -> Self {
-        SequenceAuth::Public(permissions)
+    fn from(auth: PublicAuth) -> Self {
+        SequenceAuth::Public(auth)
     }
 }
 
@@ -58,7 +58,7 @@ impl DataEntry {
 pub struct SequenceBase<P, S> {
     address: Address,
     data: Values,
-    permissions: Vec<P>,
+    auth: Vec<P>,
     // This is the history of owners, with each entry representing an owner.  Each single owner
     // could represent an individual user, or a group of users, depending on the `PublicKey` type.
     owners: Vec<Owner>,
@@ -79,10 +79,10 @@ where
         )
         .ok_or(Error::NoSuchEntry)? as u64;
 
-        let permissions = self
-            .permissions
+        let auth = self
+            .auth
             .iter()
-            .filter(|perm| perm.expected_data_index() <= expected_data_index)
+            .filter(|a| a.expected_data_index() <= expected_data_index)
             .cloned()
             .collect();
 
@@ -96,7 +96,7 @@ where
         Ok(Self {
             address: self.address,
             data: Vec::new(),
-            permissions,
+            auth,
             owners,
             _flavour: self._flavour,
         })
@@ -151,16 +151,16 @@ where
         self.owners.len() as u64
     }
 
-    /// Return the expected permissions index.
-    pub fn expected_permissions_index(&self) -> u64 {
-        self.permissions.len() as u64
+    /// Return the expected authorization index.
+    pub fn expected_auth_index(&self) -> u64 {
+        self.auth.len() as u64
     }
 
     pub fn indices(&self) -> ExpectedIndices {
         ExpectedIndices::new(
             self.expected_data_index(),
             self.expected_owners_index(),
-            self.expected_permissions_index(),
+            self.expected_auth_index(),
         )
     }
 
@@ -171,9 +171,9 @@ where
     }
 
     /// Get history of permission within the range of indices specified.
-    pub fn permission_history_range(&self, start: Index, end: Index) -> Option<&[C]> {
-        let range = to_absolute_range(start, end, self.permissions.len())?;
-        Some(&self.permissions[range])
+    pub fn auth_history_range(&self, start: Index, end: Index) -> Option<&[C]> {
+        let range = to_absolute_range(start, end, self.auth.len())?;
+        Some(&self.auth[range])
     }
 
     /// Get owner at index.
@@ -184,8 +184,8 @@ where
 
     /// Get access control at index.
     pub fn auth_at(&self, index: impl Into<Index>) -> Option<&C> {
-        let index = to_absolute_index(index.into(), self.permissions.len())?;
-        self.permissions.get(index)
+        let index = to_absolute_index(index.into(), self.auth.len())?;
+        self.auth.get(index)
     }
 
     /// Returns true if the user is the current owner.
@@ -206,7 +206,7 @@ where
             None => (),
         }
         match self.auth_at(Index::FromEnd(1)) {
-            Some(permissions) => permissions.is_allowed(&user, &access),
+            Some(auth) => auth.is_allowed(&user, &access),
             None => false,
         }
     }
@@ -216,9 +216,9 @@ where
         if owner.expected_data_index != self.expected_data_index() {
             return Err(Error::InvalidSuccessor(self.expected_data_index()));
         }
-        if owner.expected_permissions_index != self.expected_permissions_index() {
+        if owner.expected_auth_index != self.expected_auth_index() {
             return Err(Error::InvalidPermissionsSuccessor(
-                self.expected_permissions_index(),
+                self.expected_auth_index(),
             ));
         }
         if self.expected_owners_index() != index {
@@ -228,19 +228,19 @@ where
         Ok(())
     }
 
-    /// Set permissions.
-    /// The `Permissions` struct needs to contain the correct expected indices.
-    pub fn set_auth(&mut self, permissions: C, index: u64) -> Result<()> {
-        if permissions.expected_data_index() != self.expected_data_index() {
+    /// Set authorization.
+    /// The `Auth` struct needs to contain the correct expected indices.
+    pub fn set_auth(&mut self, auth: C, index: u64) -> Result<()> {
+        if auth.expected_data_index() != self.expected_data_index() {
             return Err(Error::InvalidSuccessor(self.expected_data_index()));
         }
-        if permissions.expected_owners_index() != self.expected_owners_index() {
+        if auth.expected_owners_index() != self.expected_owners_index() {
             return Err(Error::InvalidOwnersSuccessor(self.expected_owners_index()));
         }
-        if self.expected_permissions_index() != index {
-            return Err(Error::InvalidSuccessor(self.expected_permissions_index()));
+        if self.expected_auth_index() != index {
+            return Err(Error::InvalidSuccessor(self.expected_auth_index()));
         }
-        self.permissions.push(permissions);
+        self.auth.push(auth);
         Ok(())
     }
 }
@@ -298,7 +298,7 @@ impl SequenceBase<PublicAuth, Sentried> {
         Self {
             address: Address::PublicSentried { name, tag },
             data: Vec::new(),
-            permissions: Vec::new(),
+            auth: Vec::new(),
             owners: Vec::new(),
             _flavour: Sentried,
         }
@@ -317,7 +317,7 @@ impl SequenceBase<PublicAuth, NonSentried> {
         Self {
             address: Address::Public { name, tag },
             data: Vec::new(),
-            permissions: Vec::new(),
+            auth: Vec::new(),
             owners: Vec::new(),
             _flavour: NonSentried,
         }
@@ -336,7 +336,7 @@ impl SequenceBase<PrivateAuth, Sentried> {
         Self {
             address: Address::PrivateSentried { name, tag },
             data: Vec::new(),
-            permissions: Vec::new(),
+            auth: Vec::new(),
             owners: Vec::new(),
             _flavour: Sentried,
         }
@@ -355,7 +355,7 @@ impl SequenceBase<PrivateAuth, NonSentried> {
         Self {
             address: Address::Private { name, tag },
             data: Vec::new(),
-            permissions: Vec::new(),
+            auth: Vec::new(),
             owners: Vec::new(),
             _flavour: NonSentried,
         }
@@ -452,12 +452,12 @@ impl SequenceData {
         }
     }
 
-    pub fn expected_permissions_index(&self) -> u64 {
+    pub fn expected_auth_index(&self) -> u64 {
         match self {
-            SequenceData::PublicSentried(data) => data.expected_permissions_index(),
-            SequenceData::Public(data) => data.expected_permissions_index(),
-            SequenceData::PrivateSentried(data) => data.expected_permissions_index(),
-            SequenceData::Private(data) => data.expected_permissions_index(),
+            SequenceData::PublicSentried(data) => data.expected_auth_index(),
+            SequenceData::Public(data) => data.expected_auth_index(),
+            SequenceData::PrivateSentried(data) => data.expected_auth_index(),
+            SequenceData::Private(data) => data.expected_auth_index(),
         }
     }
 
@@ -506,7 +506,7 @@ impl SequenceData {
         }
     }
 
-    pub fn public_user_permissions_at(
+    pub fn public_permissions_at(
         &self,
         user: User,
         index: impl Into<Index>,
@@ -518,7 +518,7 @@ impl SequenceData {
             .ok_or(Error::NoSuchEntry)
     }
 
-    pub fn private_user_permissions_at(
+    pub fn private_permissions_at(
         &self,
         user: PublicKey,
         index: impl Into<Index>,
@@ -540,12 +540,12 @@ impl SequenceData {
     }
 
     pub fn private_auth_at(&self, index: impl Into<Index>) -> Result<&PrivateAuth> {
-        let permissions = match self {
+        let auth = match self {
             SequenceData::PrivateSentried(data) => data.auth_at(index),
             SequenceData::Private(data) => data.auth_at(index),
             _ => return Err(Error::NoSuchData),
         };
-        permissions.ok_or(Error::NoSuchEntry)
+        auth.ok_or(Error::NoSuchEntry)
     }
 
     pub fn shell(&self, index: impl Into<Index>) -> Result<Self> {

@@ -47,7 +47,7 @@ mod tests {
 
         // Verify that the permissions are part of the history.
         assert_eq!(
-            unwrap!(data.permission_history_range(Index::FromStart(0), Index::FromEnd(0),)).len(),
+            unwrap!(data.auth_history_range(Index::FromStart(0), Index::FromEnd(0),)).len(),
             1
         );
 
@@ -68,7 +68,7 @@ mod tests {
 
         // Verify that the history of permissions remains unchanged.
         assert_eq!(
-            unwrap!(data.permission_history_range(Index::FromStart(0), Index::FromEnd(0),)).len(),
+            unwrap!(data.auth_history_range(Index::FromStart(0), Index::FromEnd(0),)).len(),
             1
         );
     }
@@ -84,7 +84,7 @@ mod tests {
             Owner {
                 public_key: owner_pk,
                 expected_data_index: 0,
-                expected_permissions_index: 0,
+                expected_auth_index: 0,
             },
             0,
         );
@@ -105,7 +105,7 @@ mod tests {
             Owner {
                 public_key: owner_pk,
                 expected_data_index: 64,
-                expected_permissions_index: 0,
+                expected_auth_index: 0,
             },
             1,
         );
@@ -133,7 +133,7 @@ mod tests {
             Owner {
                 public_key: owner_pk,
                 expected_data_index: 0,
-                expected_permissions_index: 0,
+                expected_auth_index: 0,
             },
             0,
         );
@@ -142,7 +142,7 @@ mod tests {
             Owner {
                 public_key: owner_pk1,
                 expected_data_index: 0,
-                expected_permissions_index: 0,
+                expected_auth_index: 0,
             },
             1,
         );
@@ -186,15 +186,15 @@ mod tests {
         assert_eq!(data.private_auth_at(0), Err(Error::NoSuchData));
 
         assert_eq!(
-            data.public_user_permissions_at(User::Specific(public_key), 0),
+            data.public_permissions_at(User::Specific(public_key), 0),
             Ok(PublicPermissions::new(BTreeMap::new()))
         );
         assert_eq!(
-            data.private_user_permissions_at(public_key, 0),
+            data.private_permissions_at(public_key, 0),
             Err(Error::NoSuchData)
         );
         assert_eq!(
-            data.public_user_permissions_at(User::Specific(invalid_public_key), 0),
+            data.public_permissions_at(User::Specific(invalid_public_key), 0),
             Err(Error::NoSuchEntry)
         );
 
@@ -207,15 +207,15 @@ mod tests {
         assert_eq!(data.private_auth_at(0), Err(Error::NoSuchData));
 
         assert_eq!(
-            data.public_user_permissions_at(User::Specific(public_key), 0),
+            data.public_permissions_at(User::Specific(public_key), 0),
             Ok(PublicPermissions::new(BTreeMap::new()))
         );
         assert_eq!(
-            data.private_user_permissions_at(public_key, 0),
+            data.private_permissions_at(public_key, 0),
             Err(Error::NoSuchData)
         );
         assert_eq!(
-            data.public_user_permissions_at(User::Specific(invalid_public_key), 0),
+            data.public_permissions_at(User::Specific(invalid_public_key), 0),
             Err(Error::NoSuchEntry)
         );
 
@@ -228,15 +228,15 @@ mod tests {
         assert_eq!(data.public_auth_at(0), Err(Error::NoSuchData));
 
         assert_eq!(
-            data.private_user_permissions_at(public_key, 0),
+            data.private_permissions_at(public_key, 0),
             Ok(PrivatePermissions::new(BTreeMap::new()))
         );
         assert_eq!(
-            data.public_user_permissions_at(User::Specific(public_key), 0),
+            data.public_permissions_at(User::Specific(public_key), 0),
             Err(Error::NoSuchData)
         );
         assert_eq!(
-            data.private_user_permissions_at(invalid_public_key, 0),
+            data.private_permissions_at(invalid_public_key, 0),
             Err(Error::NoSuchEntry)
         );
 
@@ -249,15 +249,15 @@ mod tests {
         assert_eq!(data.public_auth_at(0), Err(Error::NoSuchData));
 
         assert_eq!(
-            data.private_user_permissions_at(public_key, 0),
+            data.private_permissions_at(public_key, 0),
             Ok(PrivatePermissions::new(BTreeMap::new()))
         );
         assert_eq!(
-            data.public_user_permissions_at(User::Specific(public_key), 0),
+            data.public_permissions_at(User::Specific(public_key), 0),
             Err(Error::NoSuchData)
         );
         assert_eq!(
-            data.private_user_permissions_at(invalid_public_key, 0),
+            data.private_permissions_at(invalid_public_key, 0),
             Err(Error::NoSuchEntry)
         );
     }
@@ -280,7 +280,7 @@ mod tests {
             Owner {
                 public_key: public_key_0,
                 expected_data_index: 0,
-                expected_permissions_index: 0,
+                expected_auth_index: 0,
             },
             0,
         ));
@@ -342,7 +342,7 @@ mod tests {
             Owner {
                 public_key: public_key_0,
                 expected_data_index: 0,
-                expected_permissions_index: 0,
+                expected_auth_index: 0,
             },
             0,
         ));
@@ -549,7 +549,7 @@ mod tests {
 
         // Verify that the permissions are part of the history.
         assert_eq!(
-            unwrap!(data.permission_history_range(Index::FromStart(0), Index::FromEnd(0),)).len(),
+            unwrap!(data.auth_history_range(Index::FromStart(0), Index::FromEnd(0),)).len(),
             1
         );
 
@@ -570,7 +570,7 @@ mod tests {
 
         // Verify that the history of permissions remains unchanged.
         assert_eq!(
-            unwrap!(data.permission_history_range(Index::FromStart(0), Index::FromEnd(0),)).len(),
+            unwrap!(data.auth_history_range(Index::FromStart(0), Index::FromEnd(0),)).len(),
             1
         );
     }
@@ -586,7 +586,7 @@ mod tests {
             Owner {
                 public_key: owner_pk,
                 expected_data_index: 0,
-                expected_permissions_index: 0,
+                expected_auth_index: 0,
             },
             0,
         );
@@ -607,7 +607,7 @@ mod tests {
             Owner {
                 public_key: owner_pk,
                 expected_data_index: 64,
-                expected_permissions_index: 0,
+                expected_auth_index: 0,
             },
             1,
         );
@@ -635,7 +635,7 @@ mod tests {
             Owner {
                 public_key: owner_pk,
                 expected_data_index: 0,
-                expected_permissions_index: 0,
+                expected_auth_index: 0,
             },
             0,
         );
@@ -644,7 +644,7 @@ mod tests {
             Owner {
                 public_key: owner_pk1,
                 expected_data_index: 0,
-                expected_permissions_index: 0,
+                expected_auth_index: 0,
             },
             1,
         );
@@ -688,15 +688,15 @@ mod tests {
         assert_eq!(data.private_auth_at(0), Err(Error::NoSuchData));
 
         assert_eq!(
-            data.public_user_permissions_at(User::Specific(public_key), 0),
+            data.public_permissions_at(User::Specific(public_key), 0),
             Ok(PublicPermissions::new(BTreeMap::new()))
         );
         assert_eq!(
-            data.private_user_permissions_at(public_key, 0),
+            data.private_permissions_at(public_key, 0),
             Err(Error::NoSuchData)
         );
         assert_eq!(
-            data.public_user_permissions_at(User::Specific(invalid_public_key), 0),
+            data.public_permissions_at(User::Specific(invalid_public_key), 0),
             Err(Error::NoSuchEntry)
         );
 
@@ -709,15 +709,15 @@ mod tests {
         assert_eq!(data.private_auth_at(0), Err(Error::NoSuchData));
 
         assert_eq!(
-            data.public_user_permissions_at(User::Specific(public_key), 0),
+            data.public_permissions_at(User::Specific(public_key), 0),
             Ok(PublicPermissions::new(BTreeMap::new()))
         );
         assert_eq!(
-            data.private_user_permissions_at(public_key, 0),
+            data.private_permissions_at(public_key, 0),
             Err(Error::NoSuchData)
         );
         assert_eq!(
-            data.public_user_permissions_at(User::Specific(invalid_public_key), 0),
+            data.public_permissions_at(User::Specific(invalid_public_key), 0),
             Err(Error::NoSuchEntry)
         );
 
@@ -730,15 +730,15 @@ mod tests {
         assert_eq!(data.public_auth_at(0), Err(Error::NoSuchData));
 
         assert_eq!(
-            data.private_user_permissions_at(public_key, 0),
+            data.private_permissions_at(public_key, 0),
             Ok(PrivatePermissions::new(BTreeMap::new()))
         );
         assert_eq!(
-            data.public_user_permissions_at(User::Specific(public_key), 0),
+            data.public_permissions_at(User::Specific(public_key), 0),
             Err(Error::NoSuchData)
         );
         assert_eq!(
-            data.private_user_permissions_at(invalid_public_key, 0),
+            data.private_permissions_at(invalid_public_key, 0),
             Err(Error::NoSuchEntry)
         );
 
@@ -751,15 +751,15 @@ mod tests {
         assert_eq!(data.public_auth_at(0), Err(Error::NoSuchData));
 
         assert_eq!(
-            data.private_user_permissions_at(public_key, 0),
+            data.private_permissions_at(public_key, 0),
             Ok(PrivatePermissions::new(BTreeMap::new()))
         );
         assert_eq!(
-            data.public_user_permissions_at(User::Specific(public_key), 0),
+            data.public_permissions_at(User::Specific(public_key), 0),
             Err(Error::NoSuchData)
         );
         assert_eq!(
-            data.private_user_permissions_at(invalid_public_key, 0),
+            data.private_permissions_at(invalid_public_key, 0),
             Err(Error::NoSuchEntry)
         );
     }
@@ -782,7 +782,7 @@ mod tests {
             Owner {
                 public_key: public_key_0,
                 expected_data_index: 0,
-                expected_permissions_index: 0,
+                expected_auth_index: 0,
             },
             0,
         ));
@@ -844,7 +844,7 @@ mod tests {
             Owner {
                 public_key: public_key_0,
                 expected_data_index: 0,
-                expected_permissions_index: 0,
+                expected_auth_index: 0,
             },
             0,
         ));

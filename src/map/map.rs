@@ -32,20 +32,20 @@ pub type DataHistories = BTreeMap<Key, Vec<StoredValue>>;
 pub type Entries = Vec<DataEntry>;
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
-pub enum MapPermissions {
+pub enum MapAuth {
     Public(PublicAuth),
     Private(PrivateAuth),
 }
 
-impl From<PrivateAuth> for MapPermissions {
-    fn from(permissions: PrivateAuth) -> Self {
-        MapPermissions::Private(permissions)
+impl From<PrivateAuth> for MapAuth {
+    fn from(auth: PrivateAuth) -> Self {
+        MapAuth::Private(auth)
     }
 }
 
-impl From<PublicAuth> for MapPermissions {
-    fn from(permissions: PublicAuth) -> Self {
-        MapPermissions::Public(permissions)
+impl From<PublicAuth> for MapAuth {
+    fn from(auth: PublicAuth) -> Self {
+        MapAuth::Public(auth)
     }
 }
 
@@ -168,18 +168,18 @@ where
         self.owners.len() as u64
     }
 
-    /// Return the expected permissions index.
-    pub fn expected_permissions_index(&self) -> u64 {
+    /// Return the expected authorization index.
+    pub fn expected_auth_index(&self) -> u64 {
         self.auth.len() as u64
     }
 
-    /// Get history of permissions within the range of indices specified.
-    pub fn permission_history_range(&self, start: Index, end: Index) -> Option<&[C]> {
+    /// Get history of authorization within the range of indices specified.
+    pub fn auth_history_range(&self, start: Index, end: Index) -> Option<&[C]> {
         let range = to_absolute_range(start, end, self.auth.len())?;
         Some(&self.auth[range])
     }
 
-    /// Set access control.
+    /// Set authorization.
     /// The `Auth` struct needs to contain the correct expected indices.
     pub fn set_auth(&mut self, auth: C, index: u64) -> Result<()> {
         if auth.expected_data_index() != self.expected_data_version().unwrap_or_default() {
@@ -190,14 +190,14 @@ where
         if auth.expected_owners_index() != self.expected_owners_index() {
             return Err(Error::InvalidOwnersSuccessor(self.expected_owners_index()));
         }
-        if self.expected_permissions_index() != index {
-            return Err(Error::InvalidSuccessor(self.expected_permissions_index()));
+        if self.expected_auth_index() != index {
+            return Err(Error::InvalidSuccessor(self.expected_auth_index()));
         }
         self.auth.push(auth);
         Ok(())
     }
 
-    /// Get permissions at index.
+    /// Get auth at index.
     pub fn auth_at(&self, index: impl Into<Index>) -> Option<&C> {
         let index = to_absolute_index(index.into(), self.auth.len())?;
         self.auth.get(index)
@@ -237,9 +237,9 @@ where
                 self.expected_data_version().unwrap_or_default(),
             ));
         }
-        if owner.expected_permissions_index != self.expected_permissions_index() {
+        if owner.expected_auth_index != self.expected_auth_index() {
             return Err(Error::InvalidPermissionsSuccessor(
-                self.expected_permissions_index(),
+                self.expected_auth_index(),
             ));
         }
         if self.expected_owners_index() != index {
@@ -261,7 +261,7 @@ where
         ExpectedIndices::new(
             self.expected_data_version().unwrap_or_default(),
             self.expected_owners_index(),
-            self.expected_permissions_index(),
+            self.expected_auth_index(),
         )
     }
 }
@@ -1014,12 +1014,12 @@ impl MapData {
         }
     }
 
-    pub fn expected_permissions_index(&self) -> u64 {
+    pub fn expected_auth_index(&self) -> u64 {
         match self {
-            MapData::PublicSentried(data) => data.expected_permissions_index(),
-            MapData::Public(data) => data.expected_permissions_index(),
-            MapData::PrivateSentried(data) => data.expected_permissions_index(),
-            MapData::Private(data) => data.expected_permissions_index(),
+            MapData::PublicSentried(data) => data.expected_auth_index(),
+            MapData::Public(data) => data.expected_auth_index(),
+            MapData::PrivateSentried(data) => data.expected_auth_index(),
+            MapData::Private(data) => data.expected_auth_index(),
         }
     }
 
@@ -1059,7 +1059,7 @@ impl MapData {
         }
     }
 
-    pub fn public_user_permissions_at(
+    pub fn public_permissions_at(
         &self,
         user: User,
         index: impl Into<Index>,
@@ -1071,7 +1071,7 @@ impl MapData {
             .ok_or(Error::NoSuchEntry)
     }
 
-    pub fn private_user_permissions_at(
+    pub fn private_permissions_at(
         &self,
         user: PublicKey,
         index: impl Into<Index>,
@@ -1084,21 +1084,21 @@ impl MapData {
     }
 
     pub fn public_auth_at(&self, index: impl Into<Index>) -> Result<&PublicAuth> {
-        let permissions = match self {
+        let auth = match self {
             MapData::PublicSentried(data) => data.auth_at(index),
             MapData::Public(data) => data.auth_at(index),
             _ => return Err(Error::NoSuchData),
         };
-        permissions.ok_or(Error::NoSuchEntry)
+        auth.ok_or(Error::NoSuchEntry)
     }
 
     pub fn private_auth_at(&self, index: impl Into<Index>) -> Result<&PrivateAuth> {
-        let permissions = match self {
+        let auth = match self {
             MapData::PrivateSentried(data) => data.auth_at(index),
             MapData::Private(data) => data.auth_at(index),
             _ => return Err(Error::NoSuchData),
         };
-        permissions.ok_or(Error::NoSuchEntry)
+        auth.ok_or(Error::NoSuchEntry)
     }
 
     pub fn shell(&self, index: impl Into<Index>) -> Result<Self> {

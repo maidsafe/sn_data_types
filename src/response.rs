@@ -64,7 +64,7 @@ pub enum Response {
     GetSequenceValue(Result<Vec<u8>>),
     GetExpectedIndices(Result<ExpectedIndices>),
     GetSequenceCurrentEntry(Result<SequenceEntry>),
-    GetSequencePermissions(Result<SequenceAuth>),
+    GetSequenceAuthorization(Result<SequenceAuth>),
     GetPublicSequenceUserPermissions(Result<PublicPermissions>),
     GetPrivateSequenceUserPermissions(Result<PrivatePermissions>),
     //
@@ -127,7 +127,7 @@ try_from!(Owner, GetOwners);
 try_from!(SequenceValues, GetSequenceRange);
 try_from!(ExpectedIndices, GetExpectedIndices);
 try_from!(SequenceEntry, GetSequenceCurrentEntry);
-try_from!(SequenceAuth, GetSequencePermissions);
+try_from!(SequenceAuth, GetSequenceAuthorization);
 try_from!(PublicPermissions, GetPublicSequenceUserPermissions);
 try_from!(PrivatePermissions, GetPrivateSequenceUserPermissions);
 try_from!(Coins, GetBalance);
@@ -173,9 +173,11 @@ impl fmt::Debug for Response {
                 "Response::GetSequenceCurrentEntry({:?})",
                 ErrorDebug(res)
             ),
-            GetSequencePermissions(res) => {
-                write!(f, "Response::GetSequencePermissions({:?})", ErrorDebug(res))
-            }
+            GetSequenceAuthorization(res) => write!(
+                f,
+                "Response::GetSequenceAuthorization({:?})",
+                ErrorDebug(res)
+            ),
             GetPublicSequenceUserPermissions(res) => write!(
                 f,
                 "Response::GetPublicSequenceUserPermissions({:?})",

@@ -47,19 +47,19 @@ impl From<u64> for Index {
 pub struct ExpectedIndices {
     expected_data_index: u64,
     expected_owners_index: u64,
-    expected_permissions_index: u64,
+    expected_auth_index: u64,
 }
 
 impl ExpectedIndices {
     pub fn new(
         expected_data_index: u64,
         expected_owners_index: u64,
-        expected_permissions_index: u64,
+        expected_auth_index: u64,
     ) -> Self {
         ExpectedIndices {
             expected_data_index,
             expected_owners_index,
-            expected_permissions_index,
+            expected_auth_index,
         }
     }
 
@@ -71,8 +71,8 @@ impl ExpectedIndices {
         self.expected_owners_index
     }
 
-    pub fn expected_permissions_index(&self) -> u64 {
-        self.expected_permissions_index
+    pub fn expected_auth_index(&self) -> u64 {
+        self.expected_auth_index
     }
 }
 
@@ -82,7 +82,7 @@ pub struct Owner {
     /// The expected index of the data at the time this ownership change is to become valid.
     pub expected_data_index: u64,
     /// The expected index of the permissions at the time this ownership change is to become valid.
-    pub expected_permissions_index: u64,
+    pub expected_auth_index: u64,
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]

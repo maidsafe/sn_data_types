@@ -121,7 +121,7 @@ pub enum Request {
     /// Get an entry with the current index.
     GetSequenceCurrentEntry(Address),
     /// Get permissions at the provided index.
-    GetSequencePermissions {
+    GetSequenceAuthorization {
         address: Address,
         index: Index,
     },
@@ -243,7 +243,7 @@ impl Request {
             GetSequenceRange { .. } => Response::GetSequenceRange(Err(error)),
             GetSequenceIndices(_) => Response::GetExpectedIndices(Err(error)),
             GetSequenceCurrentEntry(_) => Response::GetSequenceCurrentEntry(Err(error)),
-            GetSequencePermissions { .. } => Response::GetSequencePermissions(Err(error)),
+            GetSequenceAuthorization { .. } => Response::GetSequenceAuthorization(Err(error)),
             GetPublicUserPermissions { .. } => Response::GetPublicSequenceUserPermissions(Err(error)),
             GetPrivateUserPermissions { .. } => {
                 Response::GetPrivateSequenceUserPermissions(Err(error))
@@ -323,7 +323,7 @@ impl fmt::Debug for Request {
                 GetSequenceRange { .. } => "Request::GetSequenceRange",
                 GetSequenceIndices(_) => "Request::GetSequenceIndices",
                 GetSequenceCurrentEntry(_) => "Request::GetSequenceCurrentEntry",
-                GetSequencePermissions { .. } => "Request::GetSequencePermissions",
+                GetSequenceAuthorization { .. } => "Request::GetSequenceAuthorization",
                 GetPublicUserPermissions { .. } => "Request::GetPublicUserPermissions",
                 GetPrivateUserPermissions { .. } => "Request::GetPrivateUserPermissions",
                 GetOwners { .. } => "Request::GetOwners",
