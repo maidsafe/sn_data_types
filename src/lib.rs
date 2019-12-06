@@ -55,7 +55,7 @@
 // FIXME - write docs
 #![allow(missing_docs)]
 
-mod access_control;
+mod auth;
 mod blob;
 mod coins;
 mod errors;
@@ -92,16 +92,14 @@ pub use map::MapData;
 //     UnseqEntryActions as MapDataUnseqEntryActions, UnseqMutableData, UnseqValue as MapDataUnseqValue,
 //     Value as MapDataValue, Values as MapDataValues,
 // };
-pub use access_control::{
-    PrivateAccessControl, PrivatePermissions, PublicAccessControl, PublicPermissions,
-};
+pub use auth::{PrivateAuth, PrivatePermissions, PublicAuth, PublicPermissions};
 pub use public_key::{PublicKey, Signature};
 pub use request::{LoginPacket, Request, MAX_LOGIN_PACKET_BYTES};
 pub use response::Response;
 pub use sequence::{
     DataEntry as SequenceEntry, PrivateSentriedSequence, PrivateSequence, PublicSentriedSequence,
-    PublicSequence, SequenceAccessControl, SequenceCmd,
-    /*SequenceBase as Sequence, */ SequenceData, Values as SequenceValues,
+    PublicSequence, SequenceAuth, SequenceCmd, /*SequenceBase as Sequence, */ SequenceData,
+    Values as SequenceValues,
 };
 pub use sha3::Sha3_512 as Ed25519Digest;
 pub use shared_data::{Address, ExpectedIndices, Index, Kind, Owner, User};

@@ -7,9 +7,8 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::access_control::{
-    AccessType, DataAccessControl, PrivateAccessControl, PrivatePermissions, PublicAccessControl,
-    PublicPermissions,
+use crate::auth::{
+    AccessType, Auth, PrivateAuth, PrivatePermissions, PublicAuth, PublicPermissions,
 };
 use crate::shared_data::{
     to_absolute_index, to_absolute_range, Address, ExpectedIndices, Index, Kind, NonSentried,
@@ -19,27 +18,27 @@ use crate::{Error, PublicKey, Result, XorName};
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Debug, Formatter};
 
-pub type PublicSentriedSequence = SequenceBase<PublicAccessControl, Sentried>;
-pub type PublicSequence = SequenceBase<PublicAccessControl, NonSentried>;
-pub type PrivateSentriedSequence = SequenceBase<PrivateAccessControl, Sentried>;
-pub type PrivateSequence = SequenceBase<PrivateAccessControl, NonSentried>;
+pub type PublicSentriedSequence = SequenceBase<PublicAuth, Sentried>;
+pub type PublicSequence = SequenceBase<PublicAuth, NonSentried>;
+pub type PrivateSentriedSequence = SequenceBase<PrivateAuth, Sentried>;
+pub type PrivateSequence = SequenceBase<PrivateAuth, NonSentried>;
 pub type Values = Vec<Value>;
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
-pub enum SequenceAccessControl {
-    Public(PublicAccessControl),
-    Private(PrivateAccessControl),
+pub enum SequenceAuth {
+    Public(PublicAuth),
+    Private(PrivateAuth),
 }
 
-impl From<PrivateAccessControl> for SequenceAccessControl {
-    fn from(permissions: PrivateAccessControl) -> Self {
-        SequenceAccessControl::Private(permissions)
+impl From<PrivateAuth> for SequenceAuth {
+    fn from(permissions: PrivateAuth) -> Self {
+        SequenceAuth::Private(permissions)
     }
 }
 
-impl From<PublicAccessControl> for SequenceAccessControl {
-    fn from(permissions: PublicAccessControl) -> Self {
-        SequenceAccessControl::Public(permissions)
+impl From<PublicAuth> for SequenceAuth {
+    fn from(permissions: PublicAuth) -> Self {
+        SequenceAuth::Public(permissions)
     }
 }
 
@@ -67,9 +66,9 @@ pub struct SequenceBase<P, S> {
 }
 
 /// Common methods for all `Sequence` flavours.
-impl<P, S> SequenceBase<P, S>
+impl<C, S> SequenceBase<C, S>
 where
-    P: DataAccessControl,
+    C: Auth,
     S: Copy,
 {
     /// Returns the data shell - that is - everything except the Values themselves.
@@ -172,7 +171,7 @@ where
     }
 
     /// Get history of permission within the range of indices specified.
-    pub fn permission_history_range(&self, start: Index, end: Index) -> Option<&[P]> {
+    pub fn permission_history_range(&self, start: Index, end: Index) -> Option<&[C]> {
         let range = to_absolute_range(start, end, self.permissions.len())?;
         Some(&self.permissions[range])
     }
@@ -183,8 +182,8 @@ where
         self.owners.get(index)
     }
 
-    /// Get permissions at index.
-    pub fn permissions_at(&self, index: impl Into<Index>) -> Option<&P> {
+    /// Get access control at index.
+    pub fn auth_at(&self, index: impl Into<Index>) -> Option<&C> {
         let index = to_absolute_index(index.into(), self.permissions.len())?;
         self.permissions.get(index)
     }
@@ -206,7 +205,7 @@ where
             }
             None => (),
         }
-        match self.permissions_at(Index::FromEnd(1)) {
+        match self.auth_at(Index::FromEnd(1)) {
             Some(permissions) => permissions.is_allowed(&user, &access),
             None => false,
         }
@@ -231,7 +230,7 @@ where
 
     /// Set permissions.
     /// The `Permissions` struct needs to contain the correct expected indices.
-    pub fn set_permissions(&mut self, permissions: P, index: u64) -> Result<()> {
+    pub fn set_auth(&mut self, permissions: C, index: u64) -> Result<()> {
         if permissions.expected_data_index() != self.expected_data_index() {
             return Err(Error::InvalidSuccessor(self.expected_data_index()));
         }
@@ -269,7 +268,7 @@ pub type ExpectedVersion = u64;
 pub type SentriedValues = (Values, ExpectedVersion);
 
 /// Common methods for NonSentried flavours.
-impl<P: DataAccessControl> SequenceBase<P, NonSentried> {
+impl<P: Auth> SequenceBase<P, NonSentried> {
     /// Append new Values.
     pub fn append(&mut self, values: Values) -> Result<()> {
         self.data.extend(values);
@@ -278,7 +277,7 @@ impl<P: DataAccessControl> SequenceBase<P, NonSentried> {
 }
 
 /// Common methods for Sentried flavours.
-impl<P: DataAccessControl> SequenceBase<P, Sentried> {
+impl<P: Auth> SequenceBase<P, Sentried> {
     /// Append new Values.
     ///
     /// If the specified `expected_index` does not equal the Values count in data, an
@@ -294,7 +293,7 @@ impl<P: DataAccessControl> SequenceBase<P, Sentried> {
 }
 
 /// Public + Sentried
-impl SequenceBase<PublicAccessControl, Sentried> {
+impl SequenceBase<PublicAuth, Sentried> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::PublicSentried { name, tag },
@@ -306,14 +305,14 @@ impl SequenceBase<PublicAccessControl, Sentried> {
     }
 }
 
-impl Debug for SequenceBase<PublicAccessControl, Sentried> {
+impl Debug for SequenceBase<PublicAuth, Sentried> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PublicSentriedSequence {:?}", self.name())
     }
 }
 
 /// Public + NonSentried
-impl SequenceBase<PublicAccessControl, NonSentried> {
+impl SequenceBase<PublicAuth, NonSentried> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::Public { name, tag },
@@ -325,14 +324,14 @@ impl SequenceBase<PublicAccessControl, NonSentried> {
     }
 }
 
-impl Debug for SequenceBase<PublicAccessControl, NonSentried> {
+impl Debug for SequenceBase<PublicAuth, NonSentried> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PublicSequence {:?}", self.name())
     }
 }
 
 /// Private + Sentried
-impl SequenceBase<PrivateAccessControl, Sentried> {
+impl SequenceBase<PrivateAuth, Sentried> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::PrivateSentried { name, tag },
@@ -344,14 +343,14 @@ impl SequenceBase<PrivateAccessControl, Sentried> {
     }
 }
 
-impl Debug for SequenceBase<PrivateAccessControl, Sentried> {
+impl Debug for SequenceBase<PrivateAuth, Sentried> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PrivateSentriedSequence {:?}", self.name())
     }
 }
 
 /// Private + NonSentried
-impl SequenceBase<PrivateAccessControl, NonSentried> {
+impl SequenceBase<PrivateAuth, NonSentried> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::Private { name, tag },
@@ -363,7 +362,7 @@ impl SequenceBase<PrivateAccessControl, NonSentried> {
     }
 }
 
-impl Debug for SequenceBase<PrivateAccessControl, NonSentried> {
+impl Debug for SequenceBase<PrivateAuth, NonSentried> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PrivateSequence {:?}", self.name())
     }
@@ -512,7 +511,7 @@ impl SequenceData {
         user: User,
         index: impl Into<Index>,
     ) -> Result<PublicPermissions> {
-        self.public_permissions_at(index)?
+        self.public_auth_at(index)?
             .permissions()
             .get(&user)
             .cloned()
@@ -524,26 +523,26 @@ impl SequenceData {
         user: PublicKey,
         index: impl Into<Index>,
     ) -> Result<PrivatePermissions> {
-        self.private_permissions_at(index)?
+        self.private_auth_at(index)?
             .permissions()
             .get(&user)
             .cloned()
             .ok_or(Error::NoSuchEntry)
     }
 
-    pub fn public_permissions_at(&self, index: impl Into<Index>) -> Result<&PublicAccessControl> {
-        let permissions = match self {
-            SequenceData::PublicSentried(data) => data.permissions_at(index),
-            SequenceData::Public(data) => data.permissions_at(index),
+    pub fn public_auth_at(&self, index: impl Into<Index>) -> Result<&PublicAuth> {
+        let auth = match self {
+            SequenceData::PublicSentried(data) => data.auth_at(index),
+            SequenceData::Public(data) => data.auth_at(index),
             _ => return Err(Error::NoSuchData),
         };
-        permissions.ok_or(Error::NoSuchEntry)
+        auth.ok_or(Error::NoSuchEntry)
     }
 
-    pub fn private_permissions_at(&self, index: impl Into<Index>) -> Result<&PrivateAccessControl> {
+    pub fn private_auth_at(&self, index: impl Into<Index>) -> Result<&PrivateAuth> {
         let permissions = match self {
-            SequenceData::PrivateSentried(data) => data.permissions_at(index),
-            SequenceData::Private(data) => data.permissions_at(index),
+            SequenceData::PrivateSentried(data) => data.auth_at(index),
+            SequenceData::Private(data) => data.auth_at(index),
             _ => return Err(Error::NoSuchData),
         };
         permissions.ok_or(Error::NoSuchEntry)

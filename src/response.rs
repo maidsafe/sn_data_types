@@ -20,7 +20,7 @@ use crate::{
     PublicKey,
     PublicPermissions,
     Result,
-    SequenceAccessControl,
+    SequenceAuth,
     SequenceData,
     SequenceEntry,
     SequenceValues,
@@ -64,7 +64,7 @@ pub enum Response {
     GetSequenceValue(Result<Vec<u8>>),
     GetExpectedIndices(Result<ExpectedIndices>),
     GetSequenceCurrentEntry(Result<SequenceEntry>),
-    GetSequencePermissions(Result<SequenceAccessControl>),
+    GetSequencePermissions(Result<SequenceAuth>),
     GetPublicSequenceUserPermissions(Result<PublicPermissions>),
     GetPrivateSequenceUserPermissions(Result<PrivatePermissions>),
     //
@@ -127,7 +127,7 @@ try_from!(Owner, GetOwners);
 try_from!(SequenceValues, GetSequenceRange);
 try_from!(ExpectedIndices, GetExpectedIndices);
 try_from!(SequenceEntry, GetSequenceCurrentEntry);
-try_from!(SequenceAccessControl, GetSequencePermissions);
+try_from!(SequenceAuth, GetSequencePermissions);
 try_from!(PublicPermissions, GetPublicSequenceUserPermissions);
 try_from!(PrivatePermissions, GetPrivateSequenceUserPermissions);
 try_from!(Coins, GetBalance);

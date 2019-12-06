@@ -9,17 +9,7 @@
 
 #[cfg(test)]
 mod tests {
-    // pub use access_control::{
-    //     MapWriteAccess, DataAccessControl, HardErasureAccess, MapWriteAccessModification,
-    //     SequencePermissionModificationAccess, PrivateAccessControl, PrivateAccessControl, PublicAccessControl,
-    //     PublicAccessControl, ReadAccess, AccessType, SequenceWriteAccess,
-    // };
-    use crate::access_control::*;
-    // {
-    //     HardErasureAccess, MapWriteAccess, MapWriteAccessModification,
-    //     SequencePermissionModificationAccess, PrivatePermissions, PrivateAccessControl,
-    //     PublicPermissions, PublicAccessControl, ReadAccess, AccessType, SequenceWriteAccess, DataStructReadAccess, DataStructWriteAccess
-    // };
+    use crate::auth::*;
     use crate::map::*;
     use crate::sequence::*;
     use crate::shared_data::{Index, Owner, User};
@@ -41,8 +31,8 @@ mod tests {
         let mut data = PrivateSentriedSequence::new(XorName([1; 32]), 10000);
 
         // Set the first permissions with correct ExpectedIndices - should pass.
-        let res = data.set_permissions(
-            PrivateAccessControl {
+        let res = data.set_auth(
+            PrivateAuth {
                 permissions: BTreeMap::new(),
                 expected_data_index: 0,
                 expected_owners_index: 0,
@@ -62,8 +52,8 @@ mod tests {
         );
 
         // Set permissions with incorrect ExpectedIndices - should fail.
-        let res = data.set_permissions(
-            PrivateAccessControl {
+        let res = data.set_auth(
+            PrivateAuth {
                 permissions: BTreeMap::new(),
                 expected_data_index: 64,
                 expected_owners_index: 0,
@@ -168,7 +158,7 @@ mod tests {
         let public_key = gen_public_key();
         let invalid_public_key = gen_public_key();
 
-        let mut pub_permissions = PublicAccessControl {
+        let mut pub_permissions = PublicAuth {
             permissions: BTreeMap::new(),
             expected_data_index: 0,
             expected_owners_index: 0,
@@ -178,7 +168,7 @@ mod tests {
             PublicPermissions::new(BTreeMap::new()),
         );
 
-        let mut private_permissions = PrivateAccessControl {
+        let mut private_permissions = PrivateAuth {
             permissions: BTreeMap::new(),
             expected_data_index: 0,
             expected_owners_index: 0,
@@ -189,11 +179,11 @@ mod tests {
 
         // pub, unseq
         let mut data = PublicSequence::new(rand::random(), 20);
-        unwrap!(data.set_permissions(pub_permissions.clone(), 0));
+        unwrap!(data.set_auth(pub_permissions.clone(), 0));
         let data = SequenceData::from(data);
 
-        assert_eq!(data.public_permissions_at(0), Ok(&pub_permissions));
-        assert_eq!(data.private_permissions_at(0), Err(Error::NoSuchData));
+        assert_eq!(data.public_auth_at(0), Ok(&pub_permissions));
+        assert_eq!(data.private_auth_at(0), Err(Error::NoSuchData));
 
         assert_eq!(
             data.public_user_permissions_at(User::Specific(public_key), 0),
@@ -210,11 +200,11 @@ mod tests {
 
         // pub, seq
         let mut data = PublicSentriedSequence::new(rand::random(), 20);
-        unwrap!(data.set_permissions(pub_permissions.clone(), 0));
+        unwrap!(data.set_auth(pub_permissions.clone(), 0));
         let data = SequenceData::from(data);
 
-        assert_eq!(data.public_permissions_at(0), Ok(&pub_permissions));
-        assert_eq!(data.private_permissions_at(0), Err(Error::NoSuchData));
+        assert_eq!(data.public_auth_at(0), Ok(&pub_permissions));
+        assert_eq!(data.private_auth_at(0), Err(Error::NoSuchData));
 
         assert_eq!(
             data.public_user_permissions_at(User::Specific(public_key), 0),
@@ -231,11 +221,11 @@ mod tests {
 
         // Private, unseq
         let mut data = PrivateSequence::new(rand::random(), 20);
-        unwrap!(data.set_permissions(private_permissions.clone(), 0));
+        unwrap!(data.set_auth(private_permissions.clone(), 0));
         let data = SequenceData::from(data);
 
-        assert_eq!(data.private_permissions_at(0), Ok(&private_permissions));
-        assert_eq!(data.public_permissions_at(0), Err(Error::NoSuchData));
+        assert_eq!(data.private_auth_at(0), Ok(&private_permissions));
+        assert_eq!(data.public_auth_at(0), Err(Error::NoSuchData));
 
         assert_eq!(
             data.private_user_permissions_at(public_key, 0),
@@ -252,11 +242,11 @@ mod tests {
 
         // Private, seq
         let mut data = PrivateSentriedSequence::new(rand::random(), 20);
-        unwrap!(data.set_permissions(private_permissions.clone(), 0));
+        unwrap!(data.set_auth(private_permissions.clone(), 0));
         let data = SequenceData::from(data);
 
-        assert_eq!(data.private_permissions_at(0), Ok(&private_permissions));
-        assert_eq!(data.public_permissions_at(0), Err(Error::NoSuchData));
+        assert_eq!(data.private_auth_at(0), Ok(&private_permissions));
+        assert_eq!(data.public_auth_at(0), Err(Error::NoSuchData));
 
         assert_eq!(
             data.private_user_permissions_at(public_key, 0),
@@ -303,7 +293,7 @@ mod tests {
         assert_sequence_read_permitted(&data, public_key_1, true);
 
         // with permissions
-        let mut permissions = PublicAccessControl {
+        let mut permissions = PublicAuth {
             permissions: BTreeMap::new(),
             expected_data_index: 0,
             expected_owners_index: 1,
@@ -320,7 +310,7 @@ mod tests {
         let _ = permissions
             .permissions
             .insert(User::Specific(public_key_1), PublicPermissions::new(set));
-        unwrap!(sequence.set_permissions(permissions, 0));
+        unwrap!(sequence.set_auth(permissions, 0));
         let data = SequenceData::from(sequence);
 
         // existing key fallback
@@ -362,7 +352,7 @@ mod tests {
         assert_sequence_read_permitted(&data, public_key_1, false);
 
         // with permissions
-        let mut permissions = PrivateAccessControl {
+        let mut permissions = PrivateAuth {
             permissions: BTreeMap::new(),
             expected_data_index: 0,
             expected_owners_index: 1,
@@ -378,7 +368,7 @@ mod tests {
         let _ = permissions
             .permissions
             .insert(public_key_1, PrivatePermissions::new(set));
-        unwrap!(sequence.set_permissions(permissions, 0));
+        unwrap!(sequence.set_auth(permissions, 0));
         let data = SequenceData::from(sequence);
 
         // existing key
@@ -393,73 +383,59 @@ mod tests {
     }
 
     fn get_append_cmd() -> AccessType {
-        AccessType::Write(DataStructWriteAccess::Sequence(SequenceWriteAccess::Append))
+        AccessType::Write(StructWriteAccess::Sequence(SequenceWriteAccess::Append))
     }
 
     fn get_sequence_read_access(access: ReadAccess) -> AccessType {
-        AccessType::Read(DataStructReadAccess::Sequence(access))
+        AccessType::Read(StructReadAccess::Sequence(access))
     }
 
     fn get_full_sequence_read_permissions() -> Vec<AccessType> {
         vec![
-            AccessType::Read(DataStructReadAccess::Sequence(ReadAccess::Data)),
-            AccessType::Read(DataStructReadAccess::Sequence(ReadAccess::Owners)),
-            AccessType::Read(DataStructReadAccess::Sequence(ReadAccess::Permissions)),
+            AccessType::Read(StructReadAccess::Sequence(ReadAccess::Data)),
+            AccessType::Read(StructReadAccess::Sequence(ReadAccess::Owners)),
+            AccessType::Read(StructReadAccess::Sequence(ReadAccess::Permissions)),
         ]
     }
 
-    fn get_modify_sequence_permissions(
-        permission: SequencePermissionModificationAccess,
-    ) -> AccessType {
-        AccessType::Write(DataStructWriteAccess::Sequence(
-            SequenceWriteAccess::ModifyPermissions(permission),
+    fn get_modify_sequence_permissions(permission: SequenceAuthModifyAccess) -> AccessType {
+        AccessType::Write(StructWriteAccess::Sequence(
+            SequenceWriteAccess::ModifyAuth(permission),
         ))
     }
 
     fn get_full_modify_sequence_permissions() -> Vec<AccessType> {
         vec![
-            AccessType::Write(DataStructWriteAccess::Sequence(
-                SequenceWriteAccess::ModifyPermissions(SequencePermissionModificationAccess::Read(
-                    ReadAccess::Data,
-                )),
+            AccessType::Write(StructWriteAccess::Sequence(
+                SequenceWriteAccess::ModifyAuth(SequenceAuthModifyAccess::Read(ReadAccess::Data)),
             )),
-            AccessType::Write(DataStructWriteAccess::Sequence(
-                SequenceWriteAccess::ModifyPermissions(SequencePermissionModificationAccess::Read(
-                    ReadAccess::Owners,
-                )),
+            AccessType::Write(StructWriteAccess::Sequence(
+                SequenceWriteAccess::ModifyAuth(SequenceAuthModifyAccess::Read(ReadAccess::Owners)),
             )),
-            AccessType::Write(DataStructWriteAccess::Sequence(
-                SequenceWriteAccess::ModifyPermissions(SequencePermissionModificationAccess::Read(
+            AccessType::Write(StructWriteAccess::Sequence(
+                SequenceWriteAccess::ModifyAuth(SequenceAuthModifyAccess::Read(
                     ReadAccess::Permissions,
                 )),
             )),
-            AccessType::Write(DataStructWriteAccess::Sequence(
-                SequenceWriteAccess::ModifyPermissions(
-                    SequencePermissionModificationAccess::Write(
-                        SequenceWriteAccessModification::Append,
-                    ),
-                ),
+            AccessType::Write(StructWriteAccess::Sequence(
+                SequenceWriteAccess::ModifyAuth(SequenceAuthModifyAccess::Write(
+                    SequenceWriteAccessModification::Append,
+                )),
             )),
-            AccessType::Write(DataStructWriteAccess::Sequence(
-                SequenceWriteAccess::ModifyPermissions(
-                    SequencePermissionModificationAccess::Write(
-                        SequenceWriteAccessModification::ModifyPermissions,
-                    ),
-                ),
+            AccessType::Write(StructWriteAccess::Sequence(
+                SequenceWriteAccess::ModifyAuth(SequenceAuthModifyAccess::Write(
+                    SequenceWriteAccessModification::ModifyAuth,
+                )),
             )),
-            AccessType::Write(DataStructWriteAccess::Sequence(
-                SequenceWriteAccess::ModifyPermissions(
-                    SequencePermissionModificationAccess::Write(
-                        SequenceWriteAccessModification::HardErasure(HardErasureAccess::HardDelete),
-                    ),
-                ),
+            AccessType::Write(StructWriteAccess::Sequence(
+                SequenceWriteAccess::ModifyAuth(SequenceAuthModifyAccess::Write(
+                    SequenceWriteAccessModification::HardErasure(HardErasureAccess::HardDelete),
+                )),
             )),
-            AccessType::Write(DataStructWriteAccess::Sequence(
-                SequenceWriteAccess::ModifyPermissions(
-                    SequencePermissionModificationAccess::Write(
-                        SequenceWriteAccessModification::HardErasure(HardErasureAccess::HardUpdate),
-                    ),
-                ),
+            AccessType::Write(StructWriteAccess::Sequence(
+                SequenceWriteAccess::ModifyAuth(SequenceAuthModifyAccess::Write(
+                    SequenceWriteAccessModification::HardErasure(HardErasureAccess::HardUpdate),
+                )),
             )),
         ]
     }
@@ -489,25 +465,21 @@ mod tests {
     ) {
         assert_eq!(
             data.is_allowed(
-                get_modify_sequence_permissions(SequencePermissionModificationAccess::Read(
-                    ReadAccess::Data
-                )),
+                get_modify_sequence_permissions(SequenceAuthModifyAccess::Read(ReadAccess::Data)),
                 public_key
             ),
             permitted
         );
         assert_eq!(
             data.is_allowed(
-                get_modify_sequence_permissions(SequencePermissionModificationAccess::Read(
-                    ReadAccess::Owners
-                )),
+                get_modify_sequence_permissions(SequenceAuthModifyAccess::Read(ReadAccess::Owners)),
                 public_key
             ),
             permitted
         );
         assert_eq!(
             data.is_allowed(
-                get_modify_sequence_permissions(SequencePermissionModificationAccess::Read(
+                get_modify_sequence_permissions(SequenceAuthModifyAccess::Read(
                     ReadAccess::Permissions
                 )),
                 public_key
@@ -516,7 +488,7 @@ mod tests {
         );
         assert_eq!(
             data.is_allowed(
-                get_modify_sequence_permissions(SequencePermissionModificationAccess::Write(
+                get_modify_sequence_permissions(SequenceAuthModifyAccess::Write(
                     SequenceWriteAccessModification::Append
                 )),
                 public_key
@@ -525,8 +497,8 @@ mod tests {
         );
         assert_eq!(
             data.is_allowed(
-                get_modify_sequence_permissions(SequencePermissionModificationAccess::Write(
-                    SequenceWriteAccessModification::ModifyPermissions
+                get_modify_sequence_permissions(SequenceAuthModifyAccess::Write(
+                    SequenceWriteAccessModification::ModifyAuth
                 )),
                 public_key
             ),
@@ -534,7 +506,7 @@ mod tests {
         );
         assert_eq!(
             data.is_allowed(
-                get_modify_sequence_permissions(SequencePermissionModificationAccess::Write(
+                get_modify_sequence_permissions(SequenceAuthModifyAccess::Write(
                     SequenceWriteAccessModification::HardErasure(HardErasureAccess::HardDelete)
                 )),
                 public_key
@@ -543,7 +515,7 @@ mod tests {
         );
         assert_eq!(
             data.is_allowed(
-                get_modify_sequence_permissions(SequencePermissionModificationAccess::Write(
+                get_modify_sequence_permissions(SequenceAuthModifyAccess::Write(
                     SequenceWriteAccessModification::HardErasure(HardErasureAccess::HardUpdate)
                 )),
                 public_key
@@ -561,8 +533,8 @@ mod tests {
         let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
 
         // Set the first permission set with correct ExpectedIndices - should pass.
-        let res = data.set_permissions(
-            PrivateAccessControl {
+        let res = data.set_auth(
+            PrivateAuth {
                 permissions: BTreeMap::new(),
                 expected_data_index: 0,
                 expected_owners_index: 0,
@@ -582,8 +554,8 @@ mod tests {
         );
 
         // Set permissions with incorrect ExpectedIndices - should fail.
-        let res = data.set_permissions(
-            PrivateAccessControl {
+        let res = data.set_auth(
+            PrivateAuth {
                 permissions: BTreeMap::new(),
                 expected_data_index: 64,
                 expected_owners_index: 0,
@@ -688,7 +660,7 @@ mod tests {
         let public_key = gen_public_key();
         let invalid_public_key = gen_public_key();
 
-        let mut pub_permissions = PublicAccessControl {
+        let mut pub_permissions = PublicAuth {
             permissions: BTreeMap::new(),
             expected_data_index: 0,
             expected_owners_index: 0,
@@ -698,7 +670,7 @@ mod tests {
             PublicPermissions::new(BTreeMap::new()),
         );
 
-        let mut private_permissions = PrivateAccessControl {
+        let mut private_permissions = PrivateAuth {
             permissions: BTreeMap::new(),
             expected_data_index: 0,
             expected_owners_index: 0,
@@ -709,11 +681,11 @@ mod tests {
 
         // pub, unseq
         let mut data = PublicMap::new(rand::random(), 20);
-        unwrap!(data.set_permissions(pub_permissions.clone(), 0));
+        unwrap!(data.set_auth(pub_permissions.clone(), 0));
         let data = MapData::from(data);
 
-        assert_eq!(data.public_permissions_at(0), Ok(&pub_permissions));
-        assert_eq!(data.private_permissions_at(0), Err(Error::NoSuchData));
+        assert_eq!(data.public_auth_at(0), Ok(&pub_permissions));
+        assert_eq!(data.private_auth_at(0), Err(Error::NoSuchData));
 
         assert_eq!(
             data.public_user_permissions_at(User::Specific(public_key), 0),
@@ -730,11 +702,11 @@ mod tests {
 
         // pub, seq
         let mut data = PublicSentriedMap::new(rand::random(), 20);
-        unwrap!(data.set_permissions(pub_permissions.clone(), 0));
+        unwrap!(data.set_auth(pub_permissions.clone(), 0));
         let data = MapData::from(data);
 
-        assert_eq!(data.public_permissions_at(0), Ok(&pub_permissions));
-        assert_eq!(data.private_permissions_at(0), Err(Error::NoSuchData));
+        assert_eq!(data.public_auth_at(0), Ok(&pub_permissions));
+        assert_eq!(data.private_auth_at(0), Err(Error::NoSuchData));
 
         assert_eq!(
             data.public_user_permissions_at(User::Specific(public_key), 0),
@@ -751,11 +723,11 @@ mod tests {
 
         // Private, unseq
         let mut data = PrivateMap::new(rand::random(), 20);
-        unwrap!(data.set_permissions(private_permissions.clone(), 0));
+        unwrap!(data.set_auth(private_permissions.clone(), 0));
         let data = MapData::from(data);
 
-        assert_eq!(data.private_permissions_at(0), Ok(&private_permissions));
-        assert_eq!(data.public_permissions_at(0), Err(Error::NoSuchData));
+        assert_eq!(data.private_auth_at(0), Ok(&private_permissions));
+        assert_eq!(data.public_auth_at(0), Err(Error::NoSuchData));
 
         assert_eq!(
             data.private_user_permissions_at(public_key, 0),
@@ -772,11 +744,11 @@ mod tests {
 
         // Private, sentried
         let mut data = PrivateSentriedMap::new(rand::random(), 20);
-        unwrap!(data.set_permissions(private_permissions.clone(), 0));
+        unwrap!(data.set_auth(private_permissions.clone(), 0));
         let data = MapData::from(data);
 
-        assert_eq!(data.private_permissions_at(0), Ok(&private_permissions));
-        assert_eq!(data.public_permissions_at(0), Err(Error::NoSuchData));
+        assert_eq!(data.private_auth_at(0), Ok(&private_permissions));
+        assert_eq!(data.public_auth_at(0), Err(Error::NoSuchData));
 
         assert_eq!(
             data.private_user_permissions_at(public_key, 0),
@@ -823,7 +795,7 @@ mod tests {
         assert_map_read_permitted(&data, public_key_1, true);
 
         // with permissions
-        let mut permissions = PublicAccessControl {
+        let mut permissions = PublicAuth {
             permissions: BTreeMap::new(),
             expected_data_index: 0,
             expected_owners_index: 1,
@@ -840,7 +812,7 @@ mod tests {
         let _ = permissions
             .permissions
             .insert(User::Specific(public_key_1), PublicPermissions::new(set));
-        unwrap!(map.set_permissions(permissions, 0));
+        unwrap!(map.set_auth(permissions, 0));
         let data = MapData::from(map);
 
         // existing key fallback
@@ -882,7 +854,7 @@ mod tests {
         assert_map_read_permitted(&data, public_key_1, false);
 
         // with permissions
-        let mut permissions = PrivateAccessControl {
+        let mut auth = PrivateAuth {
             permissions: BTreeMap::new(),
             expected_data_index: 0,
             expected_owners_index: 1,
@@ -895,10 +867,10 @@ mod tests {
         for cmd in get_full_modify_map_permissions() {
             let _ = set.insert(cmd, false);
         }
-        let _ = permissions
+        let _ = auth
             .permissions
             .insert(public_key_1, PrivatePermissions::new(set));
-        unwrap!(map.set_permissions(permissions, 0));
+        unwrap!(map.set_auth(auth, 0));
         let data = MapData::from(map);
 
         // existing key
@@ -913,74 +885,58 @@ mod tests {
     }
 
     fn get_insert_cmd() -> AccessType {
-        AccessType::Write(DataStructWriteAccess::Map(MapWriteAccess::Insert))
+        AccessType::Write(StructWriteAccess::Map(MapWriteAccess::Insert))
     }
 
     fn get_map_read_access(access: ReadAccess) -> AccessType {
-        AccessType::Read(DataStructReadAccess::Map(access))
+        AccessType::Read(StructReadAccess::Map(access))
     }
 
     fn get_full_map_read_permissions() -> Vec<AccessType> {
         vec![
-            AccessType::Read(DataStructReadAccess::Map(ReadAccess::Data)),
-            AccessType::Read(DataStructReadAccess::Map(ReadAccess::Owners)),
-            AccessType::Read(DataStructReadAccess::Map(ReadAccess::Permissions)),
+            AccessType::Read(StructReadAccess::Map(ReadAccess::Data)),
+            AccessType::Read(StructReadAccess::Map(ReadAccess::Owners)),
+            AccessType::Read(StructReadAccess::Map(ReadAccess::Permissions)),
         ]
     }
 
-    fn get_modify_map_permissions(access: MapPermissionModificationAccess) -> AccessType {
-        AccessType::Write(DataStructWriteAccess::Map(
-            MapWriteAccess::ModifyPermissions(access),
-        ))
+    fn get_modify_map_permissions(access: MapAuthModifyAccess) -> AccessType {
+        AccessType::Write(StructWriteAccess::Map(MapWriteAccess::ModifyAuth(access)))
     }
 
     fn get_full_modify_map_permissions() -> Vec<AccessType> {
         vec![
-            AccessType::Write(DataStructWriteAccess::Map(
-                MapWriteAccess::ModifyPermissions(MapPermissionModificationAccess::Read(
-                    ReadAccess::Data,
+            AccessType::Write(StructWriteAccess::Map(MapWriteAccess::ModifyAuth(
+                MapAuthModifyAccess::Read(ReadAccess::Data),
+            ))),
+            AccessType::Write(StructWriteAccess::Map(MapWriteAccess::ModifyAuth(
+                MapAuthModifyAccess::Read(ReadAccess::Owners),
+            ))),
+            AccessType::Write(StructWriteAccess::Map(MapWriteAccess::ModifyAuth(
+                MapAuthModifyAccess::Read(ReadAccess::Permissions),
+            ))),
+            AccessType::Write(StructWriteAccess::Map(MapWriteAccess::ModifyAuth(
+                MapAuthModifyAccess::Write(MapWriteAccessModification::Insert),
+            ))),
+            AccessType::Write(StructWriteAccess::Map(MapWriteAccess::ModifyAuth(
+                MapAuthModifyAccess::Write(MapWriteAccessModification::Update),
+            ))),
+            AccessType::Write(StructWriteAccess::Map(MapWriteAccess::ModifyAuth(
+                MapAuthModifyAccess::Write(MapWriteAccessModification::Delete),
+            ))),
+            AccessType::Write(StructWriteAccess::Map(MapWriteAccess::ModifyAuth(
+                MapAuthModifyAccess::Write(MapWriteAccessModification::ModifyAuth),
+            ))),
+            AccessType::Write(StructWriteAccess::Map(MapWriteAccess::ModifyAuth(
+                MapAuthModifyAccess::Write(MapWriteAccessModification::HardErasure(
+                    HardErasureAccess::HardDelete,
                 )),
-            )),
-            AccessType::Write(DataStructWriteAccess::Map(
-                MapWriteAccess::ModifyPermissions(MapPermissionModificationAccess::Read(
-                    ReadAccess::Owners,
+            ))),
+            AccessType::Write(StructWriteAccess::Map(MapWriteAccess::ModifyAuth(
+                MapAuthModifyAccess::Write(MapWriteAccessModification::HardErasure(
+                    HardErasureAccess::HardUpdate,
                 )),
-            )),
-            AccessType::Write(DataStructWriteAccess::Map(
-                MapWriteAccess::ModifyPermissions(MapPermissionModificationAccess::Read(
-                    ReadAccess::Permissions,
-                )),
-            )),
-            AccessType::Write(DataStructWriteAccess::Map(
-                MapWriteAccess::ModifyPermissions(MapPermissionModificationAccess::Write(
-                    MapWriteAccessModification::Insert,
-                )),
-            )),
-            AccessType::Write(DataStructWriteAccess::Map(
-                MapWriteAccess::ModifyPermissions(MapPermissionModificationAccess::Write(
-                    MapWriteAccessModification::Update,
-                )),
-            )),
-            AccessType::Write(DataStructWriteAccess::Map(
-                MapWriteAccess::ModifyPermissions(MapPermissionModificationAccess::Write(
-                    MapWriteAccessModification::Delete,
-                )),
-            )),
-            AccessType::Write(DataStructWriteAccess::Map(
-                MapWriteAccess::ModifyPermissions(MapPermissionModificationAccess::Write(
-                    MapWriteAccessModification::ModifyPermissions,
-                )),
-            )),
-            AccessType::Write(DataStructWriteAccess::Map(
-                MapWriteAccess::ModifyPermissions(MapPermissionModificationAccess::Write(
-                    MapWriteAccessModification::HardErasure(HardErasureAccess::HardDelete),
-                )),
-            )),
-            AccessType::Write(DataStructWriteAccess::Map(
-                MapWriteAccess::ModifyPermissions(MapPermissionModificationAccess::Write(
-                    MapWriteAccessModification::HardErasure(HardErasureAccess::HardUpdate),
-                )),
-            )),
+            ))),
         ]
     }
 
@@ -1006,32 +962,28 @@ mod tests {
     ) {
         assert_eq!(
             data.is_allowed(
-                get_modify_map_permissions(MapPermissionModificationAccess::Read(ReadAccess::Data)),
+                get_modify_map_permissions(MapAuthModifyAccess::Read(ReadAccess::Data)),
                 public_key
             ),
             permitted
         );
         assert_eq!(
             data.is_allowed(
-                get_modify_map_permissions(MapPermissionModificationAccess::Read(
-                    ReadAccess::Owners
-                )),
+                get_modify_map_permissions(MapAuthModifyAccess::Read(ReadAccess::Owners)),
                 public_key
             ),
             permitted
         );
         assert_eq!(
             data.is_allowed(
-                get_modify_map_permissions(MapPermissionModificationAccess::Read(
-                    ReadAccess::Permissions
-                )),
+                get_modify_map_permissions(MapAuthModifyAccess::Read(ReadAccess::Permissions)),
                 public_key
             ),
             permitted
         );
         assert_eq!(
             data.is_allowed(
-                get_modify_map_permissions(MapPermissionModificationAccess::Write(
+                get_modify_map_permissions(MapAuthModifyAccess::Write(
                     MapWriteAccessModification::Insert
                 )),
                 public_key
@@ -1040,7 +992,7 @@ mod tests {
         );
         assert_eq!(
             data.is_allowed(
-                get_modify_map_permissions(MapPermissionModificationAccess::Write(
+                get_modify_map_permissions(MapAuthModifyAccess::Write(
                     MapWriteAccessModification::Update
                 )),
                 public_key
@@ -1049,7 +1001,7 @@ mod tests {
         );
         assert_eq!(
             data.is_allowed(
-                get_modify_map_permissions(MapPermissionModificationAccess::Write(
+                get_modify_map_permissions(MapAuthModifyAccess::Write(
                     MapWriteAccessModification::Delete
                 )),
                 public_key
@@ -1058,8 +1010,8 @@ mod tests {
         );
         assert_eq!(
             data.is_allowed(
-                get_modify_map_permissions(MapPermissionModificationAccess::Write(
-                    MapWriteAccessModification::ModifyPermissions
+                get_modify_map_permissions(MapAuthModifyAccess::Write(
+                    MapWriteAccessModification::ModifyAuth
                 )),
                 public_key
             ),
@@ -1067,7 +1019,7 @@ mod tests {
         );
         assert_eq!(
             data.is_allowed(
-                get_modify_map_permissions(MapPermissionModificationAccess::Write(
+                get_modify_map_permissions(MapAuthModifyAccess::Write(
                     MapWriteAccessModification::HardErasure(HardErasureAccess::HardDelete)
                 )),
                 public_key
@@ -1076,7 +1028,7 @@ mod tests {
         );
         assert_eq!(
             data.is_allowed(
-                get_modify_map_permissions(MapPermissionModificationAccess::Write(
+                get_modify_map_permissions(MapAuthModifyAccess::Write(
                     MapWriteAccessModification::HardErasure(HardErasureAccess::HardUpdate)
                 )),
                 public_key

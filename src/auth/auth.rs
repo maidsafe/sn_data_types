@@ -14,20 +14,24 @@ use crate::PublicKey;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{collections::BTreeMap, hash::Hash};
 
+/// ===========================================================
+///  Authorization to access the data types and their content.
+/// ===========================================================
+
 /// The type of access to the native data structures.
 //#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum AccessType {
     /// Writing to data structures.
-    Write(DataStructWriteAccess),
+    Write(StructWriteAccess),
     /// Reading from data structures.
-    Read(DataStructReadAccess),
+    Read(StructReadAccess),
 }
 
 /// The various write operations that can be performed on a data struct.
 //#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub enum DataStructWriteAccess {
+pub enum StructWriteAccess {
     /// Map write access.
     Map(MapWriteAccess),
     /// Sequence write access.
@@ -37,7 +41,7 @@ pub enum DataStructWriteAccess {
 /// Reading of data structures.
 //#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub enum DataStructReadAccess {
+pub enum StructReadAccess {
     /// Map read access types.
     Map(ReadAccess),
     /// Sequence read access types.
@@ -69,7 +73,7 @@ pub enum SequenceWriteAccess {
     /// Hard-delete and hard-update existing values.
     HardErasure(HardErasureAccess),
     /// Modify permissions for other users.
-    ModifyPermissions(SequencePermissionModificationAccess),
+    ModifyAuth(SequenceAuthModifyAccess),
 }
 
 /// The various write operations that can be performed on a Map.
@@ -84,11 +88,11 @@ pub enum MapWriteAccess {
     /// Hard-delete and hard-update existing values.
     HardErasure(HardErasureAccess),
     /// Modify permissions for other users.
-    ModifyPermissions(MapPermissionModificationAccess),
+    ModifyAuth(MapAuthModifyAccess),
 }
 
 #[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub enum MapPermissionModificationAccess {
+pub enum MapAuthModifyAccess {
     /// Modify permission to read from a Map.
     Read(ReadAccess),
     /// Modify permission to write to a Map.
@@ -106,11 +110,11 @@ pub enum MapWriteAccessModification {
     /// Modify permission to hard-delete and hard-update existing values.
     HardErasure(HardErasureAccess),
     /// Modify permission to modify permissions for other users (yep, inception..).
-    ModifyPermissions,
+    ModifyAuth,
 }
 
 #[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub enum SequencePermissionModificationAccess {
+pub enum SequenceAuthModifyAccess {
     /// Read from a Sequence.
     Read(ReadAccess),
     /// Write to a Sequence.
@@ -124,7 +128,7 @@ pub enum SequenceWriteAccessModification {
     /// Hard-delete and hard-update existing values.
     HardErasure(HardErasureAccess),
     /// Modify permissions for other users (yep, inception..).
-    ModifyPermissions,
+    ModifyAuth,
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
@@ -176,14 +180,14 @@ impl PublicPermissions {
     }
 }
 
-pub trait DataAccessControl: Clone + Eq + Ord + Hash + Serialize + DeserializeOwned {
+pub trait Auth: Clone + Eq + Ord + Hash + Serialize + DeserializeOwned {
     fn is_allowed(&self, user: &PublicKey, access: &AccessType) -> bool;
     fn expected_data_index(&self) -> u64;
     fn expected_owners_index(&self) -> u64;
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
-pub struct PrivateAccessControl {
+pub struct PrivateAuth {
     pub permissions: BTreeMap<PublicKey, PrivatePermissions>,
     /// The expected index of the data at the time this grant state change is to become valid.
     pub expected_data_index: u64,
@@ -191,13 +195,13 @@ pub struct PrivateAccessControl {
     pub expected_owners_index: u64,
 }
 
-impl PrivateAccessControl {
+impl PrivateAuth {
     pub fn permissions(&self) -> &BTreeMap<PublicKey, PrivatePermissions> {
         &self.permissions
     }
 }
 
-impl DataAccessControl for PrivateAccessControl {
+impl Auth for PrivateAuth {
     fn is_allowed(&self, user: &PublicKey, access: &AccessType) -> bool {
         match self.permissions.get(user) {
             Some(access_state) => access_state.clone().is_allowed(access),
@@ -215,7 +219,7 @@ impl DataAccessControl for PrivateAccessControl {
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
-pub struct PublicAccessControl {
+pub struct PublicAuth {
     pub permissions: BTreeMap<User, PublicPermissions>,
     /// The expected index of the data at the time this grant state change is to become valid.
     pub expected_data_index: u64,
@@ -223,7 +227,7 @@ pub struct PublicAccessControl {
     pub expected_owners_index: u64,
 }
 
-impl PublicAccessControl {
+impl PublicAuth {
     fn is_allowed_(&self, user: &User, access: &AccessType) -> Option<bool> {
         match self.permissions.get(user) {
             Some(state) => match state.clone().is_allowed(access) {
@@ -240,7 +244,7 @@ impl PublicAccessControl {
     }
 }
 
-impl DataAccessControl for PublicAccessControl {
+impl Auth for PublicAuth {
     fn is_allowed(&self, user: &PublicKey, access: &AccessType) -> bool {
         match self.is_allowed_(&User::Specific(*user), access) {
             Some(true) => true,
