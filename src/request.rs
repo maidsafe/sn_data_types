@@ -123,42 +123,42 @@ pub enum Request {
     /// Get permissions at the provided index.
     GetSequencePermissions {
         address: Address,
-        permissions_index: Index,
+        index: Index,
     },
     /// Get permissions for a specified user(s).
     GetPublicUserPermissions {
         address: Address,
-        permissions_index: Index,
+        index: Index,
         user: User,
     },
     /// Get permissions for a specified public key.
     GetPrivateUserPermissions {
         address: Address,
-        permissions_index: Index,
+        index: Index,
         public_key: PublicKey,
     },
     /// Get owners at the provided index.
     GetOwners {
         address: Address,
-        owners_index: Index,
+        index: Index,
     },
-    /// Add a new `permissions` entry.
-    AddPublicSequencePermissions {
+    /// Set permissions.
+    SetPublicSequencePermissions {
         address: Address,
         permissions: PublicPermissions,
-        permissions_idx: u64,
+        expected_index: u64,
     },
-    /// Add a new `permissions` entry.
-    AddPrivateSequencePermissions {
+    /// Set permissions.
+    SetPrivateSequencePermissions {
         address: Address,
         permissions: PrivatePermissions,
-        permissions_idx: u64,
+        expected_index: u64,
     },
-    /// Add a new `owners` entry. Only the current owner(s) can perform this action.
+    /// Set owner. Only the current owner(s) can perform this action.
     SetOwner {
         address: Address,
         owner: Owner,
-        owners_idx: u64,
+        expected_index: u64,
     },
     AppendSentried {
         append: SequenceCmd,
@@ -271,8 +271,8 @@ impl Request {
             // ======== Sequence ========
             PutSequence(_) |
             DeletePrivateSequence(_) |
-            AddPublicSequencePermissions { .. } |
-            AddPrivateSequencePermissions { .. } |
+            SetPublicSequencePermissions { .. } |
+            SetPrivateSequencePermissions { .. } |
             SetOwner { .. } |
             AppendSentried { .. } |
             Append(_) |
@@ -327,8 +327,8 @@ impl fmt::Debug for Request {
                 GetPublicUserPermissions { .. } => "Request::GetPublicUserPermissions",
                 GetPrivateUserPermissions { .. } => "Request::GetPrivateUserPermissions",
                 GetOwners { .. } => "Request::GetOwners",
-                AddPublicSequencePermissions { .. } => "Request::AddPublicSequencePermissions",
-                AddPrivateSequencePermissions { .. } => "Request::AddPrivateSequencePermissions",
+                SetPublicSequencePermissions { .. } => "Request::SetPublicSequencePermissions",
+                SetPrivateSequencePermissions { .. } => "Request::SetPrivateSequencePermissions",
                 SetOwner { .. } => "Request::SetOwner",
                 AppendSentried { .. } => "Request::AppendSentried",
                 Append(_) => "Request::Append",
