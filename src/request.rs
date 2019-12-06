@@ -53,7 +53,7 @@ pub enum Request {
     //     address: MapAddress,
     //     key: Vec<u8>,
     // },
-    // DeletePrivateMap(MapAddress),
+    DeletePrivateMap(Address),
     // GetMapShell(MapAddress),
     // GetMapVersion(MapAddress),
     // ListMapEntries(MapAddress),
@@ -224,9 +224,9 @@ impl Request {
         use Request::*;
 
         match *self {
-            // Blob
+            // ======== Blob ========
             GetBlob(_) => Response::GetBlob(Err(error)),
-            // Map
+            // ======== Map ========
             //GetMap(_) => Response::GetMap(Err(error)),
             //GetMapValue { .. } => Response::GetMapValue(Err(error)),
             //GetMapShell(_) => Response::GetMapShell(Err(error)),
@@ -236,7 +236,7 @@ impl Request {
             //ListMapValues(_) => Response::ListMapValues(Err(error)),
             //ListMapPermissions(_) => Response::ListMapPermissions(Err(error)),
             //ListMapUserPermissions { .. } => Response::ListMapUserPermissions(Err(error)),
-            // Sequence
+            // ======== Sequence ========
             GetSequence(_) => Response::GetSequence(Err(error)),
             GetSequenceShell { .. } => Response::GetSequenceShell(Err(error)),
             GetSequenceValue { .. } => Response::GetSequenceValue(Err(error)),
@@ -249,27 +249,26 @@ impl Request {
                 Response::GetPrivateSequenceUserPermissions(Err(error))
             }
             GetOwners { .. } => Response::GetOwners(Err(error)),
-            // Coins
+            // ===== Coins =====
             TransferCoins { .. } => Response::Transaction(Err(error)),
             GetBalance => Response::GetBalance(Err(error)),
             CreateBalance { .. } => Response::Transaction(Err(error)),
-            // Login Packet
+            // ===== Login Packet =====
             GetLoginPacket(..) => Response::GetLoginPacket(Err(error)),
-            // Client (Owner) to SrcElders
+            // ===== Client (Owner) to SrcElders =====
             ListAuthKeysAndVersion => Response::ListAuthKeysAndVersion(Err(error)),
+            // Write
 
-            // Mutation
-
-            // Blob
+            // ======== Blob ========
             PutBlob(_) |
             DeletePrivateBlob(_) |
-            // Map
+            // ======== Map ========
             PutMap(_) |
-            //DeletePrivateMap(_) |
+            DeletePrivateMap(_) |
             //SetMapUserPermissions { .. } |
             //DeletePrivateMapUserPermissions { .. } |
             //CommitMapTx { .. } |
-            // Sequence
+            // ======== Sequence ========
             PutSequence(_) |
             DeletePrivateSequence(_) |
             AddPublicSequencePermissions { .. } |
@@ -277,11 +276,11 @@ impl Request {
             SetOwner { .. } |
             AppendSentried { .. } |
             Append(_) |
-            // Login Packet
+            // ===== Login Packet =====
             CreateLoginPacket { .. } |
             CreateLoginPacketFor { .. } |
             UpdateLoginPacket { .. } |
-            // Client (Owner) to SrcElders
+            // ===== Client (Owner) to SrcElders =====
             InsAuthKey { .. } |
             DelAuthKey { .. } => Response::Mutation(Err(error)),
         }
@@ -296,15 +295,15 @@ impl fmt::Debug for Request {
             formatter,
             "{}",
             match *self {
-                // Blob
+                // ======== Blob ========
                 PutBlob(_) => "Request::PutBlob",
                 GetBlob(_) => "Request::GetBlob",
                 DeletePrivateBlob(_) => "Request::DeletePrivateBlob",
-                // Map
+                // ======== Map ========
                 PutMap(_) => "Request::PutMap",
                 // GetMap(_) => "Request::GetMap",
                 // GetMapValue { .. } => "Request::GetMapValue",
-                // DeletePrivateMap(_) => "Request::DeletePrivateMap",
+                DeletePrivateMap(_) => "Request::DeletePrivateMap",
                 // GetMapShell(_) => "Request::GetMapShell",
                 // GetMapVersion(_) => "Request::GetMapVersion",
                 // ListMapEntries(_) => "Request::ListMapEntries",
@@ -315,7 +314,7 @@ impl fmt::Debug for Request {
                 // ListMapPermissions(_) => "Request::ListMapPermissions",
                 // ListMapUserPermissions { .. } => "Request::ListMapUserPermissions",
                 // CommitMapTx { .. } => "Request::CommitMapTx",
-                // Sequence
+                // ======== Sequence ========
                 PutSequence(_) => "Request::PutSequence",
                 GetSequence(_) => "Request::GetSequence",
                 GetSequenceShell { .. } => "Request::GetSequenceShell",
@@ -338,12 +337,12 @@ impl fmt::Debug for Request {
                 TransferCoins { .. } => "Request::TransferCoins",
                 GetBalance => "Request::GetBalance",
                 CreateBalance { .. } => "Request::CreateBalance",
-                // Login Packet
+                // ===== Login Packet =====
                 CreateLoginPacket { .. } => "Request::CreateLoginPacket",
                 CreateLoginPacketFor { .. } => "Request::CreateLoginPacketFor",
                 UpdateLoginPacket { .. } => "Request::UpdateLoginPacket",
                 GetLoginPacket(..) => "Request::GetLoginPacket",
-                // Client (Owner) to SrcElders
+                // ===== Client (Owner) to SrcElders =====
                 ListAuthKeysAndVersion => "Request::ListAuthKeysAndVersion",
                 InsAuthKey { .. } => "Request::InsAuthKey",
                 DelAuthKey { .. } => "Request::DelAuthKey",
