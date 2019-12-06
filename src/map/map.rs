@@ -10,8 +10,8 @@
 #![allow(dead_code)]
 
 use crate::access_control::{
-    DataPermissions, PrivatePermissionSet, PrivatePermissions, PublicPermissionSet,
-    PublicPermissions, Request,
+    AccessType, DataAccessControl, PrivateAccessControl, PrivatePermissions, PublicAccessControl,
+    PublicPermissions,
 };
 use crate::shared_data::{
     to_absolute_index, to_absolute_range, Address, ExpectedIndices, Index, Key, Kind, KvPair,
@@ -25,27 +25,27 @@ use std::{
     mem,
 };
 
-pub type PublicSentriedMap = MapBase<PublicPermissions, Sentried>;
-pub type PublicMap = MapBase<PublicPermissions, NonSentried>;
-pub type PrivateSentriedMap = MapBase<PrivatePermissions, Sentried>;
-pub type PrivateMap = MapBase<PrivatePermissions, NonSentried>;
+pub type PublicSentriedMap = MapBase<PublicAccessControl, Sentried>;
+pub type PublicMap = MapBase<PublicAccessControl, NonSentried>;
+pub type PrivateSentriedMap = MapBase<PrivateAccessControl, Sentried>;
+pub type PrivateMap = MapBase<PrivateAccessControl, NonSentried>;
 pub type DataHistories = BTreeMap<Key, Vec<StoredValue>>;
 pub type Entries = Vec<DataEntry>;
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub enum MapPermissions {
-    Public(PublicPermissions),
-    Private(PrivatePermissions),
+    Public(PublicAccessControl),
+    Private(PrivateAccessControl),
 }
 
-impl From<PrivatePermissions> for MapPermissions {
-    fn from(permissions: PrivatePermissions) -> Self {
+impl From<PrivateAccessControl> for MapPermissions {
+    fn from(permissions: PrivateAccessControl) -> Self {
         MapPermissions::Private(permissions)
     }
 }
 
-impl From<PublicPermissions> for MapPermissions {
-    fn from(permissions: PublicPermissions) -> Self {
+impl From<PublicAccessControl> for MapPermissions {
+    fn from(permissions: PublicAccessControl) -> Self {
         MapPermissions::Public(permissions)
     }
 }
@@ -79,7 +79,7 @@ pub struct MapBase<P, S> {
 /// Common methods for all `Map` flavours.
 impl<P, S> MapBase<P, S>
 where
-    P: DataPermissions,
+    P: DataAccessControl,
     S: Copy,
 {
     /// Returns the data shell - that is - everything except the entries themselves.
@@ -204,7 +204,7 @@ where
         self.permissions.get(index)
     }
 
-    pub fn is_permitted(&self, user: PublicKey, request: Request) -> bool {
+    pub fn is_allowed(&self, user: PublicKey, access: AccessType) -> bool {
         match self.owner_at(Index::FromEnd(1)) {
             Some(owner) => {
                 if owner.public_key == user {
@@ -214,7 +214,7 @@ where
             None => (),
         }
         match self.permissions_at(Index::FromEnd(1)) {
-            Some(permissions) => permissions.is_permitted(&user, &request),
+            Some(permissions) => permissions.is_allowed(&user, &access),
             None => false,
         }
     }
@@ -306,7 +306,7 @@ pub type SentriedKvPair = (KvPair, ExpectedVersion);
 pub type SentriedTransaction = Vec<SentriedCmd>;
 
 /// Common methods for NonSentried flavours.
-impl<P: DataPermissions> MapBase<P, NonSentried> {
+impl<P: DataAccessControl> MapBase<P, NonSentried> {
     /// Commit transaction.
     ///
     /// If the specified `expected_index` does not equal the entries count in data, an
@@ -420,7 +420,7 @@ impl<P: DataPermissions> MapBase<P, NonSentried> {
 }
 
 /// Common methods for Sentried flavours.
-impl<P: DataPermissions> MapBase<P, Sentried> {
+impl<P: DataAccessControl> MapBase<P, Sentried> {
     /// Commit transaction.
     ///
     /// If the specified `expected_index` does not equal the entries count in data, an
@@ -578,7 +578,7 @@ pub enum StoredValue {
 }
 
 /// Public + Sentried
-impl MapBase<PublicPermissions, Sentried> {
+impl MapBase<PublicAccessControl, Sentried> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::PublicSentried { name, tag },
@@ -591,14 +591,14 @@ impl MapBase<PublicPermissions, Sentried> {
     }
 }
 
-impl Debug for MapBase<PublicPermissions, Sentried> {
+impl Debug for MapBase<PublicAccessControl, Sentried> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PublicSentriedMap {:?}", self.name())
     }
 }
 
 /// Public + NonSentried
-impl MapBase<PublicPermissions, NonSentried> {
+impl MapBase<PublicAccessControl, NonSentried> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::Public { name, tag },
@@ -611,14 +611,14 @@ impl MapBase<PublicPermissions, NonSentried> {
     }
 }
 
-impl Debug for MapBase<PublicPermissions, NonSentried> {
+impl Debug for MapBase<PublicAccessControl, NonSentried> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PublicMap {:?}", self.name())
     }
 }
 
 /// Private + Sentried
-impl MapBase<PrivatePermissions, Sentried> {
+impl MapBase<PrivateAccessControl, Sentried> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::PrivateSentried { name, tag },
@@ -786,14 +786,14 @@ impl MapBase<PrivatePermissions, Sentried> {
     }
 }
 
-impl Debug for MapBase<PrivatePermissions, Sentried> {
+impl Debug for MapBase<PrivateAccessControl, Sentried> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PrivateSentriedMap {:?}", self.name())
     }
 }
 
 /// Private + NonSentried
-impl MapBase<PrivatePermissions, NonSentried> {
+impl MapBase<PrivateAccessControl, NonSentried> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::Private { name, tag },
@@ -925,7 +925,7 @@ impl MapBase<PrivatePermissions, NonSentried> {
     }
 }
 
-impl Debug for MapBase<PrivatePermissions, NonSentried> {
+impl Debug for MapBase<PrivateAccessControl, NonSentried> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PrivateMap {:?}", self.name())
     }
@@ -941,17 +941,17 @@ pub enum MapData {
 }
 
 impl MapData {
-    pub fn is_permitted(&self, request: Request, user: PublicKey) -> bool {
-        match (self, request) {
-            (MapData::PublicSentried(_), Request::Query(_))
-            | (MapData::Public(_), Request::Query(_)) => return true,
+    pub fn is_allowed(&self, access: AccessType, user: PublicKey) -> bool {
+        match (self, access) {
+            (MapData::PublicSentried(_), AccessType::Read(_))
+            | (MapData::Public(_), AccessType::Read(_)) => return true,
             _ => (),
         }
         match self {
-            MapData::PublicSentried(data) => data.is_permitted(user, request),
-            MapData::Public(data) => data.is_permitted(user, request),
-            MapData::PrivateSentried(data) => data.is_permitted(user, request),
-            MapData::Private(data) => data.is_permitted(user, request),
+            MapData::PublicSentried(data) => data.is_allowed(user, access),
+            MapData::Public(data) => data.is_allowed(user, access),
+            MapData::PrivateSentried(data) => data.is_allowed(user, access),
+            MapData::Private(data) => data.is_allowed(user, access),
         }
     }
 
@@ -1064,7 +1064,7 @@ impl MapData {
         &self,
         user: User,
         index: impl Into<Index>,
-    ) -> Result<PublicPermissionSet> {
+    ) -> Result<PublicPermissions> {
         self.public_permissions_at(index)?
             .permissions()
             .get(&user)
@@ -1076,7 +1076,7 @@ impl MapData {
         &self,
         user: PublicKey,
         index: impl Into<Index>,
-    ) -> Result<PrivatePermissionSet> {
+    ) -> Result<PrivatePermissions> {
         self.private_permissions_at(index)?
             .permissions()
             .get(&user)
@@ -1084,7 +1084,7 @@ impl MapData {
             .ok_or(Error::NoSuchEntry)
     }
 
-    pub fn public_permissions_at(&self, index: impl Into<Index>) -> Result<&PublicPermissions> {
+    pub fn public_permissions_at(&self, index: impl Into<Index>) -> Result<&PublicAccessControl> {
         let permissions = match self {
             MapData::PublicSentried(data) => data.permissions_at(index),
             MapData::Public(data) => data.permissions_at(index),
@@ -1093,7 +1093,7 @@ impl MapData {
         permissions.ok_or(Error::NoSuchEntry)
     }
 
-    pub fn private_permissions_at(&self, index: impl Into<Index>) -> Result<&PrivatePermissions> {
+    pub fn private_permissions_at(&self, index: impl Into<Index>) -> Result<&PrivateAccessControl> {
         let permissions = match self {
             MapData::PrivateSentried(data) => data.permissions_at(index),
             MapData::Private(data) => data.permissions_at(index),

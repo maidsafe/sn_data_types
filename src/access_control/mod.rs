@@ -10,7 +10,8 @@
 pub mod access_control;
 mod tests;
 pub use access_control::{
-    CmdType, DataPermissions, HardErasureCmd, MapCmd, MapQuery, MapWrite, ModifyableMapPermissions,
-    ModifyableSequencePermissions, PrivatePermissionSet, PrivatePermissions, PublicPermissionSet,
-    PublicPermissions, QueryType, Request, SequenceCmd, SequenceQuery, SequenceWrite,
+    AccessType, DataAccessControl, DataStructReadAccess, DataStructWriteAccess, HardErasureAccess,
+    MapPermissionModificationAccess, MapWriteAccess, MapWriteAccessModification,
+    PrivateAccessControl, PrivatePermissions, PublicAccessControl, PublicPermissions, ReadAccess,
+    SequencePermissionModificationAccess, SequenceWriteAccess, SequenceWriteAccessModification,
 };

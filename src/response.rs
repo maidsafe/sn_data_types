@@ -16,13 +16,13 @@ use crate::{
     ExpectedIndices,
     MapData, // MapEntries, MapPermissionSet, MapValue, MapValues,
     Owner,
-    PrivatePermissionSet,
+    PrivatePermissions,
     PublicKey,
-    PublicPermissionSet,
+    PublicPermissions,
     Result,
+    SequenceAccessControl,
     SequenceData,
     SequenceEntry,
-    SequencePermissions,
     SequenceValues,
     Signature,
     Transaction,
@@ -64,9 +64,9 @@ pub enum Response {
     GetSequenceValue(Result<Vec<u8>>),
     GetExpectedIndices(Result<ExpectedIndices>),
     GetSequenceCurrentEntry(Result<SequenceEntry>),
-    GetSequencePermissions(Result<SequencePermissions>),
-    GetPublicSequenceUserPermissions(Result<PublicPermissionSet>),
-    GetPrivateSequenceUserPermissions(Result<PrivatePermissionSet>),
+    GetSequencePermissions(Result<SequenceAccessControl>),
+    GetPublicSequenceUserPermissions(Result<PublicPermissions>),
+    GetPrivateSequenceUserPermissions(Result<PrivatePermissions>),
     //
     // ===== Coins =====
     //
@@ -127,9 +127,9 @@ try_from!(Owner, GetOwners);
 try_from!(SequenceValues, GetSequenceRange);
 try_from!(ExpectedIndices, GetExpectedIndices);
 try_from!(SequenceEntry, GetSequenceCurrentEntry);
-try_from!(SequencePermissions, GetSequencePermissions);
-try_from!(PublicPermissionSet, GetPublicSequenceUserPermissions);
-try_from!(PrivatePermissionSet, GetPrivateSequenceUserPermissions);
+try_from!(SequenceAccessControl, GetSequencePermissions);
+try_from!(PublicPermissions, GetPublicSequenceUserPermissions);
+try_from!(PrivatePermissions, GetPrivateSequenceUserPermissions);
 try_from!(Coins, GetBalance);
 try_from!(Transaction, Transaction);
 try_from!(

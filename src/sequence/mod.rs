@@ -11,5 +11,5 @@ pub mod sequence;
 mod tests;
 pub use sequence::{
     DataEntry, PrivateSentriedSequence, PrivateSequence, PublicSentriedSequence, PublicSequence,
-    SequenceBase, SequenceCmd, SequenceData, SequencePermissions, Values,
+    SequenceAccessControl, SequenceBase, SequenceCmd, SequenceData, Values,
 };

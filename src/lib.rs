@@ -93,15 +93,15 @@ pub use map::MapData;
 //     Value as MapDataValue, Values as MapDataValues,
 // };
 pub use access_control::{
-    PrivatePermissionSet, PrivatePermissions, PublicPermissionSet, PublicPermissions,
+    PrivateAccessControl, PrivatePermissions, PublicAccessControl, PublicPermissions,
 };
 pub use public_key::{PublicKey, Signature};
 pub use request::{LoginPacket, Request, MAX_LOGIN_PACKET_BYTES};
 pub use response::Response;
 pub use sequence::{
     DataEntry as SequenceEntry, PrivateSentriedSequence, PrivateSequence, PublicSentriedSequence,
-    PublicSequence, SequenceCmd, /*SequenceBase as Sequence, */ SequenceData,
-    SequencePermissions, Values as SequenceValues,
+    PublicSequence, SequenceAccessControl, SequenceCmd,
+    /*SequenceBase as Sequence, */ SequenceData, Values as SequenceValues,
 };
 pub use sha3::Sha3_512 as Ed25519Digest;
 pub use shared_data::{Address, ExpectedIndices, Index, Kind, Owner, User};

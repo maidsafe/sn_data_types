@@ -14,182 +14,160 @@ use crate::PublicKey;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{collections::BTreeMap, hash::Hash};
 
-/// A query or cmd on Map.
+/// The type of access to the native data structures.
 //#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub enum Request {
-    /// A cmd on a data type.
-    Cmd(CmdType),
-    /// A query a data type.
-    Query(QueryType),
+pub enum AccessType {
+    /// Writing to data structures.
+    Write(DataStructWriteAccess),
+    /// Reading from data structures.
+    Read(DataStructReadAccess),
 }
 
-/// Set of Cmds that can be performed on a Map. Unless rejected, always mutates state.
+/// The various write operations that can be performed on a data struct.
 //#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub enum CmdType {
-    /// Map permissions.
-    Map(MapCmd),
-    /// Sequence permissions.
-    Sequence(SequenceCmd),
+pub enum DataStructWriteAccess {
+    /// Map write access.
+    Map(MapWriteAccess),
+    /// Sequence write access.
+    Sequence(SequenceWriteAccess),
+}
+
+/// Reading of data structures.
+//#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+pub enum DataStructReadAccess {
+    /// Map read access types.
+    Map(ReadAccess),
+    /// Sequence read access types.
+    Sequence(ReadAccess),
 }
 
 #[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub enum SequenceCmd {
-    /// Permission to append new values.
-    Append,
-    /// Permission to hard-delete and hard-update existing values.
-    HardErasure(HardErasureCmd),
-    /// Permission to modify permissions for other users.
-    ModifyPermissions(ModifyableSequencePermissions),
-}
-
-/// Set of Cmds that can be performed on a Map. Unless rejected, always mutates state.
-#[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub enum MapCmd {
-    /// Permission to insert new values.
-    Insert,
-    /// Permission to soft-update existing values.
-    Update,
-    /// Permission to soft-delete existing values.
-    Delete,
-    /// Permission to hard-delete and hard-update existing values.
-    HardErasure(HardErasureCmd),
-    /// Permission to modify permissions for other users.
-    ModifyPermissions(ModifyableMapPermissions),
-}
-
-#[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub enum ModifyableMapPermissions {
-    /// Read from the Map data.
-    ReadData,
-    /// Read from Map owners.
-    ReadOwners,
-    /// Read from Map permissions.
-    ReadPermissions,
-    /// Permission to write to Map.
-    Write(MapWrite),
-}
-
-#[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub enum MapWrite {
-    /// Permission to insert new values.
-    Insert,
-    /// Permission to soft-update existing values.
-    Update,
-    /// Permission to soft-delete existing values.
-    Delete,
-    /// Permission to hard-delete and hard-update existing values.
-    HardErasure(HardErasureCmd),
-    /// Permission to modify permissions for other users.
-    ModifyPermissions, // hmm.. inception...
-}
-
-#[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub enum ModifyableSequencePermissions {
+pub enum ReadAccess {
     /// Read from the data.
-    ReadData,
+    Data,
     /// Read from owners.
-    ReadOwners,
+    Owners,
     /// Read from permissions.
-    ReadPermissions,
-    /// Permission to write to Map.
-    Write(SequenceWrite),
+    Permissions,
 }
 
 #[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub enum SequenceWrite {
-    /// Permission to append new values.
-    Append,
-    /// Permission to hard-delete and hard-update existing values.
-    HardErasure(HardErasureCmd),
-    /// Permission to modify permissions for other users.
-    ModifyPermissions, // hmm.. inception...
-}
-
-#[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub enum HardErasureCmd {
-    /// Permission to hard-update existing values.
+pub enum HardErasureAccess {
+    /// Hard-update existing values.
     HardUpdate,
-    /// Permission to hard-delete existing values.
+    /// Hard-delete existing values.
     HardDelete,
 }
 
-/// A query on Map, can never mutate state.
-//#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub enum QueryType {
-    /// Query for Map types.
-    Map(MapQuery),
-    /// Query for Sequence types.
-    Sequence(SequenceQuery),
+pub enum SequenceWriteAccess {
+    /// Append new values.
+    Append,
+    /// Hard-delete and hard-update existing values.
+    HardErasure(HardErasureAccess),
+    /// Modify permissions for other users.
+    ModifyPermissions(SequencePermissionModificationAccess),
 }
 
-/// A query on Map, can never mutate state.
-//#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+/// The various write operations that can be performed on a Map.
 #[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub enum MapQuery {
-    /// Read from the data.
-    ReadData,
-    /// Read from owners.
-    ReadOwners,
-    /// Read from permissions.
-    ReadPermissions,
+pub enum MapWriteAccess {
+    /// Insert new values.
+    Insert,
+    /// Soft-update existing values.
+    Update,
+    /// Soft-delete existing values.
+    Delete,
+    /// Hard-delete and hard-update existing values.
+    HardErasure(HardErasureAccess),
+    /// Modify permissions for other users.
+    ModifyPermissions(MapPermissionModificationAccess),
 }
 
-/// A query on Map, can never mutate state.
-//#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub enum SequenceQuery {
-    /// Read from the data.
-    ReadData,
-    /// Read from owners.
-    ReadOwners,
-    /// Read from permissions.
-    ReadPermissions,
+pub enum MapPermissionModificationAccess {
+    /// Modify permission to read from a Map.
+    Read(ReadAccess),
+    /// Modify permission to write to a Map.
+    Write(MapWriteAccessModification),
+}
+
+#[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+pub enum MapWriteAccessModification {
+    /// Modify permission to insert new values.
+    Insert,
+    /// Modify permission to soft-update existing values.
+    Update,
+    /// Modify permission to soft-delete existing values.
+    Delete,
+    /// Modify permission to hard-delete and hard-update existing values.
+    HardErasure(HardErasureAccess),
+    /// Modify permission to modify permissions for other users (yep, inception..).
+    ModifyPermissions,
+}
+
+#[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+pub enum SequencePermissionModificationAccess {
+    /// Read from a Sequence.
+    Read(ReadAccess),
+    /// Write to a Sequence.
+    Write(SequenceWriteAccessModification),
+}
+
+#[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+pub enum SequenceWriteAccessModification {
+    /// Append new values.
+    Append,
+    /// Hard-delete and hard-update existing values.
+    HardErasure(HardErasureAccess),
+    /// Modify permissions for other users (yep, inception..).
+    ModifyPermissions,
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
-pub struct PrivatePermissionSet {
-    permissions: BTreeMap<Request, bool>,
+pub struct PrivatePermissions {
+    state: BTreeMap<AccessType, bool>,
 }
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
-pub struct PublicPermissionSet {
-    permissions: BTreeMap<Request, bool>,
+pub struct PublicPermissions {
+    state: BTreeMap<AccessType, bool>,
 }
 
-impl PrivatePermissionSet {
-    pub fn new(permissions: BTreeMap<Request, bool>) -> Self {
-        PrivatePermissionSet { permissions }
+impl PrivatePermissions {
+    pub fn new(state: BTreeMap<AccessType, bool>) -> Self {
+        PrivatePermissions { state }
     }
 
-    pub fn set_permissions(&mut self, permissions: BTreeMap<Request, bool>) {
-        self.permissions = permissions;
+    pub fn set(&mut self, state: BTreeMap<AccessType, bool>) {
+        self.state = state;
     }
 
-    pub fn is_permitted(self, request: &Request) -> bool {
-        match self.permissions.get(request) {
+    pub fn is_allowed(self, access: &AccessType) -> bool {
+        match self.state.get(access) {
             Some(true) => true,
             _ => false,
         }
     }
 }
 
-impl PublicPermissionSet {
-    pub fn new(permissions: BTreeMap<Request, bool>) -> Self {
-        PublicPermissionSet { permissions }
+impl PublicPermissions {
+    pub fn new(state: BTreeMap<AccessType, bool>) -> Self {
+        PublicPermissions { state }
     }
 
-    pub fn set_permissions(&mut self, permissions: BTreeMap<Request, bool>) {
-        self.permissions = permissions; // todo: filter out Queries
+    pub fn set(&mut self, state: BTreeMap<AccessType, bool>) {
+        self.state = state; // todo: filter out Queries
     }
 
-    /// Returns `Some(true)` if `request` is allowed and `Some(false)` if it's not permitted.
+    /// Returns `Some(true)` if `access` is allowed and `Some(false)` if it's not.
     /// `None` means that `User::Anyone` permissions apply.
-    pub fn is_permitted(self, request: &Request) -> Option<bool> {
-        match request {
-            Request::Query(_) => Some(true), // It's Public data, so it's always allowed to read it.
-            _ => match self.permissions.get(request) {
+    pub fn is_allowed(self, access: &AccessType) -> Option<bool> {
+        match access {
+            AccessType::Read(_) => Some(true), // It's Public data, so it's always allowed to read it.
+            _ => match self.state.get(access) {
                 Some(true) => Some(true),
                 Some(false) => Some(false),
                 None => None,
@@ -198,31 +176,31 @@ impl PublicPermissionSet {
     }
 }
 
-pub trait DataPermissions: Clone + Eq + Ord + Hash + Serialize + DeserializeOwned {
-    fn is_permitted(&self, user: &PublicKey, request: &Request) -> bool;
+pub trait DataAccessControl: Clone + Eq + Ord + Hash + Serialize + DeserializeOwned {
+    fn is_allowed(&self, user: &PublicKey, access: &AccessType) -> bool;
     fn expected_data_index(&self) -> u64;
     fn expected_owners_index(&self) -> u64;
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
-pub struct PrivatePermissions {
-    pub permissions: BTreeMap<PublicKey, PrivatePermissionSet>,
-    /// The expected index of the data at the time this permission change is to become valid.
+pub struct PrivateAccessControl {
+    pub permissions: BTreeMap<PublicKey, PrivatePermissions>,
+    /// The expected index of the data at the time this grant state change is to become valid.
     pub expected_data_index: u64,
-    /// The expected index of the owners at the time this permission change is to become valid.
+    /// The expected index of the owners at the time this grant state is to become valid.
     pub expected_owners_index: u64,
 }
 
-impl PrivatePermissions {
-    pub fn permissions(&self) -> &BTreeMap<PublicKey, PrivatePermissionSet> {
+impl PrivateAccessControl {
+    pub fn permissions(&self) -> &BTreeMap<PublicKey, PrivatePermissions> {
         &self.permissions
     }
 }
 
-impl DataPermissions for PrivatePermissions {
-    fn is_permitted(&self, user: &PublicKey, request: &Request) -> bool {
+impl DataAccessControl for PrivateAccessControl {
+    fn is_allowed(&self, user: &PublicKey, access: &AccessType) -> bool {
         match self.permissions.get(user) {
-            Some(permissions) => permissions.clone().is_permitted(request),
+            Some(access_state) => access_state.clone().is_allowed(access),
             None => false,
         }
     }
@@ -237,18 +215,18 @@ impl DataPermissions for PrivatePermissions {
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
-pub struct PublicPermissions {
-    pub permissions: BTreeMap<User, PublicPermissionSet>,
-    /// The expected index of the data at the time this permission change is to become valid.
+pub struct PublicAccessControl {
+    pub permissions: BTreeMap<User, PublicPermissions>,
+    /// The expected index of the data at the time this grant state change is to become valid.
     pub expected_data_index: u64,
-    /// The expected index of the owners at the time this permission change is to become valid.
+    /// The expected index of the owners at the time this grant state change is to become valid.
     pub expected_owners_index: u64,
 }
 
-impl PublicPermissions {
-    fn is_permitted_(&self, user: &User, request: &Request) -> Option<bool> {
+impl PublicAccessControl {
+    fn is_allowed_(&self, user: &User, access: &AccessType) -> Option<bool> {
         match self.permissions.get(user) {
-            Some(permissions) => match permissions.clone().is_permitted(request) {
+            Some(state) => match state.clone().is_allowed(access) {
                 Some(true) => Some(true),
                 Some(false) => Some(false),
                 None => None,
@@ -257,17 +235,17 @@ impl PublicPermissions {
         }
     }
 
-    pub fn permissions(&self) -> &BTreeMap<User, PublicPermissionSet> {
+    pub fn permissions(&self) -> &BTreeMap<User, PublicPermissions> {
         &self.permissions
     }
 }
 
-impl DataPermissions for PublicPermissions {
-    fn is_permitted(&self, user: &PublicKey, request: &Request) -> bool {
-        match self.is_permitted_(&User::Specific(*user), request) {
+impl DataAccessControl for PublicAccessControl {
+    fn is_allowed(&self, user: &PublicKey, access: &AccessType) -> bool {
+        match self.is_allowed_(&User::Specific(*user), access) {
             Some(true) => true,
             Some(false) => false,
-            None => match self.is_permitted_(&User::Anyone, request) {
+            None => match self.is_allowed_(&User::Anyone, access) {
                 Some(true) => true,
                 _ => false,
             },
