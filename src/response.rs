@@ -14,6 +14,7 @@ use crate::{
     Coins,
     Error,
     ExpectedIndices,
+    MapAuth,
     MapData, // MapEntries, MapPermissionSet, MapValue, MapValues,
     Owner,
     PrivatePermissions,
@@ -54,12 +55,16 @@ pub enum Response {
     //ListMapUserPermissions(Result<MapPermissionSet>),
     //ListMapPermissions(Result<BTreeMap<PublicKey, MapPermissionSet>>),
     //GetMapValue(Result<MapValue>),
+    GetMapOwner(Result<Owner>),
+    GetMapAuthorization(Result<MapAuth>),
+    GetPublicMapUserPermissions(Result<PublicPermissions>),
+    GetPrivateMapUserPermissions(Result<PrivatePermissions>),
     //
     // ===== Sequence =====
     //
     GetSequence(Result<SequenceData>),
     GetSequenceShell(Result<SequenceData>),
-    GetOwners(Result<Owner>),
+    GetSequenceOwner(Result<Owner>),
     GetSequenceRange(Result<SequenceValues>),
     GetSequenceValue(Result<Vec<u8>>),
     GetExpectedIndices(Result<ExpectedIndices>),
@@ -123,7 +128,8 @@ try_from!(BTreeSet<Vec<u8>>, ListMapKeys);
 //try_from!(MapValue, GetMapValue);
 try_from!(Vec<u8>, GetSequenceValue);
 try_from!(SequenceData, GetSequence, GetSequenceShell);
-try_from!(Owner, GetOwners);
+// try_from!(Owner, GetMapOwner); // hm conflicting impl
+try_from!(Owner, GetSequenceOwner);
 try_from!(SequenceValues, GetSequenceRange);
 try_from!(ExpectedIndices, GetExpectedIndices);
 try_from!(SequenceEntry, GetSequenceCurrentEntry);
@@ -161,6 +167,19 @@ impl fmt::Debug for Response {
             //     ErrorDebug(res)
             // ),
             // GetMapValue(res) => write!(f, "Response::GetMapValue({:?})", ErrorDebug(res)),
+            GetMapAuthorization(res) => {
+                write!(f, "Response::GetMapAuthorization({:?})", ErrorDebug(res))
+            }
+            GetPublicMapUserPermissions(res) => write!(
+                f,
+                "Response::GetPublicMapUserPermissions({:?})",
+                ErrorDebug(res)
+            ),
+            GetPrivateMapUserPermissions(res) => write!(
+                f,
+                "Response::GetPrivateMapUserPermissions({:?})",
+                ErrorDebug(res)
+            ),
             // Sequence
             GetSequence(res) => write!(f, "Response::GetSequence({:?})", ErrorDebug(res)),
             GetSequenceValue(res) => write!(f, "Response::GetSequenceValue({:?})", ErrorDebug(res)),
@@ -189,7 +208,8 @@ impl fmt::Debug for Response {
                 ErrorDebug(res)
             ),
             GetSequenceShell(res) => write!(f, "Response::GetSequenceShell({:?})", ErrorDebug(res)),
-            GetOwners(res) => write!(f, "Response::GetOwners({:?})", ErrorDebug(res)),
+            GetMapOwner(res) => write!(f, "Response::GetMapOwner({:?})", ErrorDebug(res)),
+            GetSequenceOwner(res) => write!(f, "Response::GetSequenceOwner({:?})", ErrorDebug(res)),
             // Coins
             GetBalance(res) => write!(f, "Response::GetBalance({:?})", ErrorDebug(res)),
             Transaction(res) => write!(f, "Response::Transaction({:?})", ErrorDebug(res)),

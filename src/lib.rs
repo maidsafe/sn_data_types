@@ -82,7 +82,7 @@ pub use identity::{
     node::{FullId as NodeFullId, PublicId as NodePublicId},
     PublicId,
 };
-pub use map::MapData;
+pub use map::{MapAuth, MapData};
 // pub use mutable_data::{
 //     Action as MapDataAction, Address as MapDataAddress, Entries as MapDataEntries,
 //     EntryActions as MapDataEntryActions, Kind as MapDataKind, PermissionSet as MapDataPermissionSet,
@@ -102,7 +102,7 @@ pub use sequence::{
     Values as SequenceValues,
 };
 pub use sha3::Sha3_512 as Ed25519Digest;
-pub use shared_data::{Address, ExpectedIndices, Index, Kind, Owner, User};
+pub use shared_data::{Address, ExpectedIndices, Index, Kind, Owner, User, Version};
 pub use transaction::{Transaction, TransactionId};
 pub use utils::verify_signature;
 

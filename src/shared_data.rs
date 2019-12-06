@@ -36,6 +36,12 @@ pub enum Index {
     FromEnd(u64),   // Relative index - start counting from the end
 }
 
+#[derive(Copy, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum Version {
+    FromStart(u64), // Absolute index
+    FromEnd(u64),   // Relative index - start counting from the end
+}
+
 impl From<u64> for Index {
     fn from(index: u64) -> Self {
         Index::FromStart(index)
@@ -75,6 +81,13 @@ impl ExpectedIndices {
         self.expected_auth_index
     }
 }
+
+// pub enum OwnerKind {
+//     Map(Owner),
+//     Sequence(Owner),
+//     Index(Owner),
+//     Wallet(Owner),
+// }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
 pub struct Owner {
