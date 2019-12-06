@@ -7,9 +7,9 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-pub mod permissions;
+pub mod access_control;
 mod tests;
-pub use permissions::{
+pub use access_control::{
     CmdType, DataPermissions, HardErasureCmd, MapCmd, MapQuery, MapWrite, ModifyableMapPermissions,
     ModifyableSequencePermissions, PrivatePermissionSet, PrivatePermissions, PublicPermissionSet,
     PublicPermissions, QueryType, Request, SequenceCmd, SequenceQuery, SequenceWrite,

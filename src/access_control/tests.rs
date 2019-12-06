@@ -9,13 +9,13 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::map::*;
-    use crate::permissions::{
+    use crate::access_control::{
         CmdType, HardErasureCmd, MapCmd, MapQuery, MapWrite, ModifyableMapPermissions,
         ModifyableSequencePermissions, PrivatePermissionSet, PrivatePermissions,
         PublicPermissionSet, PublicPermissions, QueryType, Request, SequenceCmd, SequenceQuery,
         SequenceWrite,
     };
+    use crate::map::*;
     use crate::sequence::*;
     use crate::shared_data::{Index, Owner, User};
     use crate::{Error, PublicKey, XorName};

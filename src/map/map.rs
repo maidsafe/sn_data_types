@@ -9,7 +9,7 @@
 
 #![allow(dead_code)]
 
-use crate::permissions::{
+use crate::access_control::{
     DataPermissions, PrivatePermissionSet, PrivatePermissions, PublicPermissionSet,
     PublicPermissions, Request,
 };

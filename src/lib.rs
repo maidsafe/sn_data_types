@@ -55,13 +55,13 @@
 // FIXME - write docs
 #![allow(missing_docs)]
 
+mod access_control;
 mod blob;
 mod coins;
 mod errors;
 mod identity;
 mod map;
 mod mutable_data;
-mod permissions;
 mod public_key;
 mod request;
 mod response;
@@ -92,7 +92,7 @@ pub use map::MapData;
 //     UnseqEntryActions as MapDataUnseqEntryActions, UnseqMutableData, UnseqValue as MapDataUnseqValue,
 //     Value as MapDataValue, Values as MapDataValues,
 // };
-pub use permissions::{
+pub use access_control::{
     PrivatePermissionSet, PrivatePermissions, PublicPermissionSet, PublicPermissions,
 };
 pub use public_key::{PublicKey, Signature};
