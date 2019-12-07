@@ -7,8 +7,6 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-#![allow(dead_code)]
-
 use crate::auth::{
     AccessType, Auth, PrivateAuth, PrivatePermissions, PublicAuth, PublicPermissions,
 };
@@ -29,7 +27,7 @@ pub type PublicMap = MapBase<PublicAuth, NonSentried>;
 pub type PrivateSentriedMap = MapBase<PrivateAuth, Sentried>;
 pub type PrivateMap = MapBase<PrivateAuth, NonSentried>;
 pub type DataHistories = BTreeMap<Key, Vec<StoredValue>>;
-pub type Entries = Vec<DataEntry>;
+pub type DataEntries = Vec<DataEntry>;
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub enum MapAuth {
@@ -130,7 +128,7 @@ where
     }
 
     /// Return all data entries.
-    pub fn data_entries(&self) -> Vec<DataEntry> {
+    pub fn data_entries(&self) -> DataEntries {
         self.data
             .iter()
             .filter_map(move |(key, values)| match values.last() {
@@ -594,13 +592,6 @@ type SentriedOperations = (
     BTreeSet<SentriedKvPair>,
     BTreeSet<SentriedKey>,
 );
-
-enum OperationSet {
-    Private(Operations),
-    Public(Operations),
-    PrivateSentried(SentriedOperations),
-    PublicSentried(SentriedOperations),
-}
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum StoredValue {
