@@ -51,21 +51,21 @@ impl From<PublicAuth> for MapAuth {
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default, Debug)]
 pub struct DataEntry {
-    pub key: Vec<u8>,
-    pub value: Vec<u8>,
+    pub key: Key,
+    pub value: Value,
 }
 
 impl DataEntry {
-    pub fn new(key: Vec<u8>, value: Vec<u8>) -> Self {
+    pub fn new(key: Key, value: Value) -> Self {
         Self { key, value }
     }
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
-pub struct MapBase<P, S> {
+pub struct MapBase<C, S> {
     address: Address,
     data: DataHistories,
-    auth: Vec<P>,
+    auth: Vec<C>,
     // This is the history of owners, with each entry representing an owner.  Each single owner
     // could represent an individual user, or a group of users, depending on the `PublicKey` type.
     owners: Vec<Owner>,
@@ -173,6 +173,39 @@ where
         self.auth.len() as u64
     }
 
+    /// Returns history of all keys
+    pub fn key_histories(&self) -> &DataHistories {
+        &self.data
+    }
+
+    // Returns the history of a specified key.
+    pub fn key_history(&self, key: &Key) -> Option<&StoredValues> {
+        match self.data.get(key) {
+            Some(history) => Some(history),
+            None => None,
+        }
+    }
+
+    /// Returns a range in the history of a specified key.
+    pub fn key_history_range(&self, key: &Key, start: Index, end: Index) -> Option<StoredValues> {
+        let range = to_absolute_range(start, end, self.data.len())?;
+        match self.data.get(key) {
+            Some(history) => Some(history[range].to_vec()),
+            None => None,
+        }
+    }
+
+    /// Get auth at index.
+    pub fn auth_at(&self, index: impl Into<Index>) -> Option<&C> {
+        let index = to_absolute_index(index.into(), self.auth.len())?;
+        self.auth.get(index)
+    }
+
+    /// Returns history of all authorization states
+    pub fn auth_histories(&self) -> &Vec<C> {
+        &self.auth
+    }
+
     /// Get history of authorization within the range of indices specified.
     pub fn auth_history_range(&self, start: Index, end: Index) -> Option<&[C]> {
         let range = to_absolute_range(start, end, self.auth.len())?;
@@ -197,12 +230,6 @@ where
         Ok(())
     }
 
-    /// Get auth at index.
-    pub fn auth_at(&self, index: impl Into<Index>) -> Option<&C> {
-        let index = to_absolute_index(index.into(), self.auth.len())?;
-        self.auth.get(index)
-    }
-
     pub fn is_allowed(&self, user: PublicKey, access: AccessType) -> bool {
         match self.owner_at(Index::FromEnd(1)) {
             Some(owner) => {
@@ -222,6 +249,11 @@ where
     pub fn owner_at(&self, index: impl Into<Index>) -> Option<&Owner> {
         let index = to_absolute_index(index.into(), self.owners.len())?;
         self.owners.get(index)
+    }
+
+    /// Returns history of all owners
+    pub fn owner_histories(&self) -> &Vec<Owner> {
+        &self.owners
     }
 
     /// Get history of owners within the range of indices specified.
@@ -575,6 +607,8 @@ pub enum StoredValue {
     Value(Value),
     Tombstone(),
 }
+
+pub type StoredValues = Vec<StoredValue>;
 
 /// Public + Sentried
 impl MapBase<PublicAuth, Sentried> {
@@ -1041,14 +1075,35 @@ impl MapData {
         }
     }
 
-    // pub fn in_range(&self, start: Index, end: Index) -> Option<Entries> {
-    //     match self {
-    //         MapData::PublicSentried(data) => data.in_range(start, end),
-    //         MapData::Public(data) => data.in_range(start, end),
-    //         MapData::PrivateSentried(data) => data.in_range(start, end),
-    //         MapData::Private(data) => data.in_range(start, end),
-    //     }
-    // }
+    // Returns the history of a specified key.
+    pub fn key_history(&self, key: &Key) -> Option<&StoredValues> {
+        match self {
+            MapData::PublicSentried(data) => data.key_history(key),
+            MapData::Public(data) => data.key_history(key),
+            MapData::PrivateSentried(data) => data.key_history(key),
+            MapData::Private(data) => data.key_history(key),
+        }
+    }
+
+    /// Returns a range in the history of a specified key.
+    pub fn key_history_range(&self, key: &Key, from: Index, to: Index) -> Option<StoredValues> {
+        match self {
+            MapData::PublicSentried(data) => data.key_history_range(key, from, to),
+            MapData::Public(data) => data.key_history_range(key, from, to),
+            MapData::PrivateSentried(data) => data.key_history_range(key, from, to),
+            MapData::Private(data) => data.key_history_range(key, from, to),
+        }
+    }
+
+    /// Returns history for all keys
+    pub fn key_histories(&self) -> &DataHistories {
+        match self {
+            MapData::PublicSentried(data) => data.key_histories(),
+            MapData::Public(data) => data.key_histories(),
+            MapData::PrivateSentried(data) => data.key_histories(),
+            MapData::Private(data) => data.key_histories(),
+        }
+    }
 
     pub fn owner_at(&self, index: impl Into<Index>) -> Option<&Owner> {
         match self {
@@ -1057,6 +1112,46 @@ impl MapData {
             MapData::PrivateSentried(data) => data.owner_at(index),
             MapData::Private(data) => data.owner_at(index),
         }
+    }
+
+    /// Returns history of all owners
+    pub fn public_owner_histories(&self) -> Result<&Vec<Owner>> {
+        let result = match self {
+            MapData::PublicSentried(data) => Some(data.owner_histories()),
+            MapData::Public(data) => Some(data.owner_histories()),
+            _ => return Err(Error::InvalidOperation),
+        };
+        result.ok_or(Error::NoSuchEntry)
+    }
+
+    /// Returns history of all owners
+    pub fn private_owner_histories(&self) -> Result<&Vec<Owner>> {
+        let result = match self {
+            MapData::PrivateSentried(data) => Some(data.owner_histories()),
+            MapData::Private(data) => Some(data.owner_histories()),
+            _ => return Err(Error::InvalidOperation),
+        };
+        result.ok_or(Error::NoSuchEntry)
+    }
+
+    /// Get history of owners within the range of indices specified.
+    pub fn public_owner_history_range(&self, start: Index, end: Index) -> Result<&[Owner]> {
+        let result = match self {
+            MapData::PublicSentried(data) => data.owner_history_range(start, end),
+            MapData::Public(data) => data.owner_history_range(start, end),
+            _ => return Err(Error::InvalidOperation),
+        };
+        result.ok_or(Error::NoSuchEntry)
+    }
+
+    /// Get history of owners within the range of indices specified.
+    pub fn private_owner_history_range(&self, start: Index, end: Index) -> Result<&[Owner]> {
+        let result = match self {
+            MapData::PrivateSentried(data) => data.owner_history_range(start, end),
+            MapData::Private(data) => data.owner_history_range(start, end),
+            _ => return Err(Error::InvalidOperation),
+        };
+        result.ok_or(Error::NoSuchEntry)
     }
 
     pub fn public_permissions_at(
@@ -1087,7 +1182,7 @@ impl MapData {
         let auth = match self {
             MapData::PublicSentried(data) => data.auth_at(index),
             MapData::Public(data) => data.auth_at(index),
-            _ => return Err(Error::NoSuchData),
+            _ => return Err(Error::InvalidOperation),
         };
         auth.ok_or(Error::NoSuchEntry)
     }
@@ -1096,9 +1191,49 @@ impl MapData {
         let auth = match self {
             MapData::PrivateSentried(data) => data.auth_at(index),
             MapData::Private(data) => data.auth_at(index),
-            _ => return Err(Error::NoSuchData),
+            _ => return Err(Error::InvalidOperation),
         };
         auth.ok_or(Error::NoSuchEntry)
+    }
+
+    /// Returns history of all authorization states
+    pub fn public_auth_histories(&self) -> Result<&Vec<PublicAuth>> {
+        let result = match self {
+            MapData::PublicSentried(data) => Some(data.auth_histories()),
+            MapData::Public(data) => Some(data.auth_histories()),
+            _ => return Err(Error::InvalidOperation),
+        };
+        result.ok_or(Error::NoSuchEntry)
+    }
+
+    /// Returns history of all authorization states
+    pub fn private_auth_histories(&self) -> Result<&Vec<PrivateAuth>> {
+        let result = match self {
+            MapData::PrivateSentried(data) => Some(data.auth_histories()),
+            MapData::Private(data) => Some(data.auth_histories()),
+            _ => return Err(Error::InvalidOperation),
+        };
+        result.ok_or(Error::NoSuchEntry)
+    }
+
+    /// Get history of authorization within the range of indices specified.
+    pub fn public_auth_history_range(&self, start: Index, end: Index) -> Result<&[PublicAuth]> {
+        let result = match self {
+            MapData::PublicSentried(data) => data.auth_history_range(start, end),
+            MapData::Public(data) => data.auth_history_range(start, end),
+            _ => return Err(Error::InvalidOperation),
+        };
+        result.ok_or(Error::NoSuchEntry)
+    }
+
+    /// Get history of authorization within the range of indices specified.
+    pub fn private_auth_history_range(&self, start: Index, end: Index) -> Result<&[PrivateAuth]> {
+        let result = match self {
+            MapData::PrivateSentried(data) => data.auth_history_range(start, end),
+            MapData::Private(data) => data.auth_history_range(start, end),
+            _ => return Err(Error::InvalidOperation),
+        };
+        result.ok_or(Error::NoSuchEntry)
     }
 
     pub fn shell(&self, index: impl Into<Index>) -> Result<Self> {
