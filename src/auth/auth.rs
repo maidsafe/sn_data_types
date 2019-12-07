@@ -19,7 +19,6 @@ use std::{collections::BTreeMap, hash::Hash};
 /// ===========================================================
 
 /// The type of access to the native data structures.
-//#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum AccessType {
     /// Writing to data structures.
@@ -28,8 +27,7 @@ pub enum AccessType {
     Read(StructReadAccess),
 }
 
-/// The various write operations that can be performed on a data struct.
-//#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+/// State changes, i.e. mutations.
 #[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum StructWriteAccess {
     /// Map write access.
@@ -39,7 +37,6 @@ pub enum StructWriteAccess {
 }
 
 /// Reading of data structures.
-//#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum StructReadAccess {
     /// Map read access types.
@@ -48,6 +45,7 @@ pub enum StructReadAccess {
     Sequence(ReadAccess),
 }
 
+/// Reading of data structures, i.e. no state changes.
 #[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum ReadAccess {
     /// Read from the data.
@@ -58,6 +56,7 @@ pub enum ReadAccess {
     Permissions,
 }
 
+/// Permanent deletion of data structure content.
 #[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum HardErasureAccess {
     /// Hard-update existing values.
@@ -66,6 +65,7 @@ pub enum HardErasureAccess {
     HardDelete,
 }
 
+/// The various write operations that can be performed on a Sequence.
 #[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum SequenceWriteAccess {
     /// Append new values.
@@ -91,6 +91,7 @@ pub enum MapWriteAccess {
     ModifyAuth(MapAuthModifyAccess),
 }
 
+/// All Map authorization management capabilities.
 #[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum MapAuthModifyAccess {
     /// Modify permission to read from a Map.
@@ -99,6 +100,7 @@ pub enum MapAuthModifyAccess {
     Write(MapWriteAccessModification),
 }
 
+/// Map authorization of state changes, including authorization management.
 #[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum MapWriteAccessModification {
     /// Modify permission to insert new values.
@@ -113,6 +115,7 @@ pub enum MapWriteAccessModification {
     ModifyAuth,
 }
 
+/// All Sequence authorization management capabilities.
 #[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum SequenceAuthModifyAccess {
     /// Read from a Sequence.
@@ -121,6 +124,7 @@ pub enum SequenceAuthModifyAccess {
     Write(SequenceWriteAccessModification),
 }
 
+/// Sequence authorization of state changes, including authorization management.
 #[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum SequenceWriteAccessModification {
     /// Append new values.
