@@ -105,6 +105,16 @@ impl Kind {
     pub fn is_sentried(self) -> bool {
         self == Kind::PublicSentried || self == Kind::PrivateSentried
     }
+
+    /// Creates `Kind` from `public` and `sentried` flags.
+    pub fn from_flags(public: bool, sentried: bool) -> Self {
+        match (public, sentried) {
+            (true, true) => Kind::PublicSentried,
+            (true, false) => Kind::Public,
+            (false, true) => Kind::PrivateSentried,
+            (false, false) => Kind::Private,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]

@@ -184,6 +184,14 @@ impl Kind {
     pub fn is_private(self) -> bool {
         !self.is_public()
     }
+
+    /// Creates `Kind` from a `public` flag.
+    pub fn from_flag(public: bool) -> Self {
+        match public {
+            true => Kind::Public,
+            false => Kind::Private,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
