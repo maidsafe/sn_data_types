@@ -8,7 +8,8 @@
 // Software.
 
 use crate::auth::{
-    AccessType, Auth, PrivateAuth, PrivatePermissions, PublicAuth, PublicPermissions,
+    AccessType, Auth, PrivateAuth, PrivatePermissions, PublicAuth, PublicPermissions, ReadAccess,
+    WriteAccess,
 };
 use crate::shared_data::{
     to_absolute_range, to_absolute_version, Address, ExpectedVersions, Kind, NonSentried, Owner,
@@ -381,25 +382,41 @@ pub enum SequenceData {
 
 impl SequenceData {
     pub fn is_allowed(&self, access: AccessType, user: PublicKey) -> bool {
+        use AccessType::*;
+        use SequenceData::*;
+        // Only let Sequence requests pass through.
         match (self, access) {
-            (SequenceData::PublicSentried(_), AccessType::Read(_))
-            | (SequenceData::Public(_), AccessType::Read(_)) => return true,
+            (_, Read(ReadAccess::Sequence)) | (_, Write(WriteAccess::Sequence(_))) => (),
+            _ => return false,
+        }
+        // Public flavours automatically allows all reads.
+        match (self, access) {
+            (PublicSentried(_), Read(ReadAccess::Sequence))
+            | (Public(_), Read(ReadAccess::Sequence)) => return true,
             _ => (),
         }
-        match self {
-            SequenceData::PublicSentried(data) => data.is_allowed(user, access),
-            SequenceData::Public(data) => data.is_allowed(user, access),
-            SequenceData::PrivateSentried(data) => data.is_allowed(user, access),
-            SequenceData::Private(data) => data.is_allowed(user, access),
+        match (self, access) {
+            (PublicSentried(data), Write(WriteAccess::Sequence(_))) => {
+                data.is_allowed(user, access)
+            }
+            (Public(data), Write(WriteAccess::Sequence(_))) => data.is_allowed(user, access),
+            (PrivateSentried(data), Write(WriteAccess::Sequence(_))) => {
+                data.is_allowed(user, access)
+            }
+            (Private(data), Write(WriteAccess::Sequence(_))) => data.is_allowed(user, access),
+            (PrivateSentried(data), Read(ReadAccess::Sequence)) => data.is_allowed(user, access),
+            (Private(data), Read(ReadAccess::Sequence)) => data.is_allowed(user, access),
+            _ => false,
         }
     }
 
     pub fn address(&self) -> &Address {
+        use SequenceData::*;
         match self {
-            SequenceData::PublicSentried(data) => data.address(),
-            SequenceData::Public(data) => data.address(),
-            SequenceData::PrivateSentried(data) => data.address(),
-            SequenceData::Private(data) => data.address(),
+            PublicSentried(data) => data.address(),
+            Public(data) => data.address(),
+            PrivateSentried(data) => data.address(),
+            Private(data) => data.address(),
         }
     }
 
@@ -428,83 +445,92 @@ impl SequenceData {
     }
 
     pub fn is_owner(&self, user: PublicKey) -> bool {
+        use SequenceData::*;
         match self {
-            SequenceData::PublicSentried(data) => data.is_owner(user),
-            SequenceData::Public(data) => data.is_owner(user),
-            SequenceData::PrivateSentried(data) => data.is_owner(user),
-            SequenceData::Private(data) => data.is_owner(user),
+            PublicSentried(data) => data.is_owner(user),
+            Public(data) => data.is_owner(user),
+            PrivateSentried(data) => data.is_owner(user),
+            Private(data) => data.is_owner(user),
         }
     }
 
     pub fn get(&self, version: u64) -> Option<&Value> {
+        use SequenceData::*;
         match self {
-            SequenceData::PublicSentried(data) => data.get(version),
-            SequenceData::Public(data) => data.get(version),
-            SequenceData::PrivateSentried(data) => data.get(version),
-            SequenceData::Private(data) => data.get(version),
+            PublicSentried(data) => data.get(version),
+            Public(data) => data.get(version),
+            PrivateSentried(data) => data.get(version),
+            Private(data) => data.get(version),
         }
     }
 
     pub fn expected_data_version(&self) -> u64 {
+        use SequenceData::*;
         match self {
-            SequenceData::PublicSentried(data) => data.expected_data_version(),
-            SequenceData::Public(data) => data.expected_data_version(),
-            SequenceData::PrivateSentried(data) => data.expected_data_version(),
-            SequenceData::Private(data) => data.expected_data_version(),
+            PublicSentried(data) => data.expected_data_version(),
+            Public(data) => data.expected_data_version(),
+            PrivateSentried(data) => data.expected_data_version(),
+            Private(data) => data.expected_data_version(),
         }
     }
 
     pub fn expected_auth_version(&self) -> u64 {
+        use SequenceData::*;
         match self {
-            SequenceData::PublicSentried(data) => data.expected_auth_version(),
-            SequenceData::Public(data) => data.expected_auth_version(),
-            SequenceData::PrivateSentried(data) => data.expected_auth_version(),
-            SequenceData::Private(data) => data.expected_auth_version(),
+            PublicSentried(data) => data.expected_auth_version(),
+            Public(data) => data.expected_auth_version(),
+            PrivateSentried(data) => data.expected_auth_version(),
+            Private(data) => data.expected_auth_version(),
         }
     }
 
     pub fn expected_owners_version(&self) -> u64 {
+        use SequenceData::*;
         match self {
-            SequenceData::PublicSentried(data) => data.expected_owners_version(),
-            SequenceData::Public(data) => data.expected_owners_version(),
-            SequenceData::PrivateSentried(data) => data.expected_owners_version(),
-            SequenceData::Private(data) => data.expected_owners_version(),
+            PublicSentried(data) => data.expected_owners_version(),
+            Public(data) => data.expected_owners_version(),
+            PrivateSentried(data) => data.expected_owners_version(),
+            Private(data) => data.expected_owners_version(),
         }
     }
 
     pub fn versions(&self) -> ExpectedVersions {
+        use SequenceData::*;
         match self {
-            SequenceData::PublicSentried(data) => data.versions(),
-            SequenceData::Public(data) => data.versions(),
-            SequenceData::PrivateSentried(data) => data.versions(),
-            SequenceData::Private(data) => data.versions(),
+            PublicSentried(data) => data.versions(),
+            Public(data) => data.versions(),
+            PrivateSentried(data) => data.versions(),
+            Private(data) => data.versions(),
         }
     }
 
     pub fn current_data_entry(&self) -> Option<DataEntry> {
+        use SequenceData::*;
         match self {
-            SequenceData::PublicSentried(data) => data.current_data_entry(),
-            SequenceData::Public(data) => data.current_data_entry(),
-            SequenceData::PrivateSentried(data) => data.current_data_entry(),
-            SequenceData::Private(data) => data.current_data_entry(),
+            PublicSentried(data) => data.current_data_entry(),
+            Public(data) => data.current_data_entry(),
+            PrivateSentried(data) => data.current_data_entry(),
+            Private(data) => data.current_data_entry(),
         }
     }
 
     pub fn in_range(&self, start: Version, end: Version) -> Option<Values> {
+        use SequenceData::*;
         match self {
-            SequenceData::PublicSentried(data) => data.in_range(start, end),
-            SequenceData::Public(data) => data.in_range(start, end),
-            SequenceData::PrivateSentried(data) => data.in_range(start, end),
-            SequenceData::Private(data) => data.in_range(start, end),
+            PublicSentried(data) => data.in_range(start, end),
+            Public(data) => data.in_range(start, end),
+            PrivateSentried(data) => data.in_range(start, end),
+            Private(data) => data.in_range(start, end),
         }
     }
 
     pub fn owner_at(&self, version: impl Into<Version>) -> Option<&Owner> {
+        use SequenceData::*;
         match self {
-            SequenceData::PublicSentried(data) => data.owner_at(version),
-            SequenceData::Public(data) => data.owner_at(version),
-            SequenceData::PrivateSentried(data) => data.owner_at(version),
-            SequenceData::Private(data) => data.owner_at(version),
+            PublicSentried(data) => data.owner_at(version),
+            Public(data) => data.owner_at(version),
+            PrivateSentried(data) => data.owner_at(version),
+            Private(data) => data.owner_at(version),
         }
     }
 
@@ -533,65 +559,66 @@ impl SequenceData {
     }
 
     pub fn public_auth_at(&self, version: impl Into<Version>) -> Result<&PublicAuth> {
+        use SequenceData::*;
         let auth = match self {
-            SequenceData::PublicSentried(data) => data.auth_at(version),
-            SequenceData::Public(data) => data.auth_at(version),
+            PublicSentried(data) => data.auth_at(version),
+            Public(data) => data.auth_at(version),
             _ => return Err(Error::InvalidOperation),
         };
         auth.ok_or(Error::NoSuchEntry)
     }
 
     pub fn private_auth_at(&self, version: impl Into<Version>) -> Result<&PrivateAuth> {
+        use SequenceData::*;
         let auth = match self {
-            SequenceData::PrivateSentried(data) => data.auth_at(version),
-            SequenceData::Private(data) => data.auth_at(version),
+            PrivateSentried(data) => data.auth_at(version),
+            Private(data) => data.auth_at(version),
             _ => return Err(Error::InvalidOperation),
         };
         auth.ok_or(Error::NoSuchEntry)
     }
 
     pub fn shell(&self, version: impl Into<Version>) -> Result<Self> {
+        use SequenceData::*;
         match self {
-            SequenceData::PublicSentried(adata) => {
-                adata.shell(version).map(SequenceData::PublicSentried)
-            }
-            SequenceData::Public(adata) => adata.shell(version).map(SequenceData::Public),
-            SequenceData::PrivateSentried(adata) => {
-                adata.shell(version).map(SequenceData::PrivateSentried)
-            }
-            SequenceData::Private(adata) => adata.shell(version).map(SequenceData::Private),
+            PublicSentried(adata) => adata.shell(version).map(PublicSentried),
+            Public(adata) => adata.shell(version).map(Public),
+            PrivateSentried(adata) => adata.shell(version).map(PrivateSentried),
+            Private(adata) => adata.shell(version).map(Private),
         }
     }
 
     /// Commits transaction.
     pub fn commit(&mut self, cmd: SequenceCmd) -> Result<()> {
+        use SequenceCmd::*;
+        use SequenceData::*;
         match self {
-            SequenceData::PrivateSentried(sequence) => match cmd {
-                SequenceCmd::ExpectVersion(cmd) => match cmd {
+            PrivateSentried(sequence) => match cmd {
+                ExpectVersion(cmd) => match cmd {
                     SentriedCmd::Append((values, expected_version)) => {
                         return sequence.append(values, expected_version);
                     }
                 },
                 _ => return Err(Error::InvalidOperation),
             },
-            SequenceData::Private(sequence) => match cmd {
-                SequenceCmd::AnyVersion(cmd) => match cmd {
+            Private(sequence) => match cmd {
+                AnyVersion(cmd) => match cmd {
                     Cmd::Append(values) => {
                         return sequence.append(values);
                     }
                 },
                 _ => return Err(Error::InvalidOperation),
             },
-            SequenceData::PublicSentried(sequence) => match cmd {
-                SequenceCmd::ExpectVersion(cmd) => match cmd {
+            PublicSentried(sequence) => match cmd {
+                ExpectVersion(cmd) => match cmd {
                     SentriedCmd::Append((values, expected_version)) => {
                         return sequence.append(values, expected_version);
                     }
                 },
                 _ => return Err(Error::InvalidOperation),
             },
-            SequenceData::Public(sequence) => match cmd {
-                SequenceCmd::AnyVersion(cmd) => match cmd {
+            Public(sequence) => match cmd {
+                AnyVersion(cmd) => match cmd {
                     Cmd::Append(values) => {
                         return sequence.append(values);
                     }

@@ -21,48 +21,20 @@ use std::{collections::BTreeMap, hash::Hash};
 /// The type of access to the native data structures.
 #[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum AccessType {
-    /// Writing to data structures.
-    Write(StructWriteAccess),
-    /// Reading from data structures.
-    Read(StructReadAccess),
+    Read(ReadAccess),
+    Write(WriteAccess),
 }
 
-/// State changes, i.e. mutations.
-#[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub enum StructWriteAccess {
-    /// Map write access.
-    Map(MapWriteAccess),
-    /// Sequence write access.
-    Sequence(SequenceWriteAccess),
-}
-
-/// Reading of data structures.
-#[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub enum StructReadAccess {
-    /// Map read access types.
-    Map(ReadAccess),
-    /// Sequence read access types.
-    Sequence(ReadAccess),
-}
-
-/// Reading of data structures, i.e. no state changes.
 #[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum ReadAccess {
-    /// Read from the data.
-    Data,
-    /// Read from owners.
-    Owners,
-    /// Read from permissions.
-    Permissions,
+    Map,
+    Sequence,
 }
 
-/// Permanent deletion of data structure content.
 #[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub enum HardErasureAccess {
-    /// Hard-update existing values.
-    HardUpdate,
-    /// Hard-delete existing values.
-    HardDelete,
+pub enum WriteAccess {
+    Map(MapWriteAccess),
+    Sequence(SequenceWriteAccess),
 }
 
 /// The various write operations that can be performed on a Sequence.
@@ -70,10 +42,12 @@ pub enum HardErasureAccess {
 pub enum SequenceWriteAccess {
     /// Append new values.
     Append,
-    /// Hard-delete and hard-update existing values.
-    HardErasure(HardErasureAccess),
+    /// Hard-update existing values.
+    HardUpdate,
+    /// Hard-delete existing values.
+    HardDelete,
     /// Modify permissions for other users.
-    ModifyAuth(SequenceAuthModifyAccess),
+    ModifyPermissions,
 }
 
 /// The various write operations that can be performed on a Map.
@@ -85,60 +59,19 @@ pub enum MapWriteAccess {
     Update,
     /// Soft-delete existing values.
     Delete,
-    /// Hard-delete and hard-update existing values.
-    HardErasure(HardErasureAccess),
+    /// Hard-update existing values.
+    HardUpdate,
+    /// Hard-delete existing values.
+    HardDelete,
     /// Modify permissions for other users.
-    ModifyAuth(MapAuthModifyAccess),
-}
-
-/// All Map authorization management capabilities.
-#[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub enum MapAuthModifyAccess {
-    /// Modify permission to read from a Map.
-    Read(ReadAccess),
-    /// Modify permission to write to a Map.
-    Write(MapWriteAccessModification),
-}
-
-/// Map authorization of state changes, including authorization management.
-#[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub enum MapWriteAccessModification {
-    /// Modify permission to insert new values.
-    Insert,
-    /// Modify permission to soft-update existing values.
-    Update,
-    /// Modify permission to soft-delete existing values.
-    Delete,
-    /// Modify permission to hard-delete and hard-update existing values.
-    HardErasure(HardErasureAccess),
-    /// Modify permission to modify permissions for other users (yep, inception..).
-    ModifyAuth,
-}
-
-/// All Sequence authorization management capabilities.
-#[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub enum SequenceAuthModifyAccess {
-    /// Read from a Sequence.
-    Read(ReadAccess),
-    /// Write to a Sequence.
-    Write(SequenceWriteAccessModification),
-}
-
-/// Sequence authorization of state changes, including authorization management.
-#[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub enum SequenceWriteAccessModification {
-    /// Append new values.
-    Append,
-    /// Hard-delete and hard-update existing values.
-    HardErasure(HardErasureAccess),
-    /// Modify permissions for other users (yep, inception..).
-    ModifyAuth,
+    ModifyPermissions,
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub struct PrivatePermissions {
     state: BTreeMap<AccessType, bool>,
 }
+
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub struct PublicPermissions {
     state: BTreeMap<AccessType, bool>,

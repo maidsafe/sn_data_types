@@ -304,9 +304,7 @@ mod tests {
             .permissions
             .insert(User::Anyone, PublicPermissions::new(set));
         let mut set = BTreeMap::new();
-        for cmd in get_full_modify_sequence_permissions() {
-            let _ = set.insert(cmd, true);
-        }
+        let _ = set.insert(get_modify_sequence_permissions(), true);
         let _ = permissions
             .permissions
             .insert(User::Specific(public_key_1), PublicPermissions::new(set));
@@ -359,12 +357,8 @@ mod tests {
         };
         let mut set = BTreeMap::new();
         let _ = set.insert(get_append_cmd(), true);
-        for query in get_full_sequence_read_permissions() {
-            let _ = set.insert(query, true);
-        }
-        for cmd in get_full_modify_sequence_permissions() {
-            let _ = set.insert(cmd, false);
-        }
+        let _ = set.insert(get_sequence_read_access(), true);
+        let _ = set.insert(get_modify_sequence_permissions(), false);
         let _ = permissions
             .permissions
             .insert(public_key_1, PrivatePermissions::new(set));
@@ -383,77 +377,22 @@ mod tests {
     }
 
     fn get_append_cmd() -> AccessType {
-        AccessType::Write(StructWriteAccess::Sequence(SequenceWriteAccess::Append))
+        AccessType::Write(WriteAccess::Sequence(SequenceWriteAccess::Append))
     }
 
-    fn get_sequence_read_access(access: ReadAccess) -> AccessType {
-        AccessType::Read(StructReadAccess::Sequence(access))
+    fn get_sequence_read_access() -> AccessType {
+        AccessType::Read(ReadAccess::Sequence)
     }
 
-    fn get_full_sequence_read_permissions() -> Vec<AccessType> {
-        vec![
-            AccessType::Read(StructReadAccess::Sequence(ReadAccess::Data)),
-            AccessType::Read(StructReadAccess::Sequence(ReadAccess::Owners)),
-            AccessType::Read(StructReadAccess::Sequence(ReadAccess::Permissions)),
-        ]
-    }
-
-    fn get_modify_sequence_permissions(permission: SequenceAuthModifyAccess) -> AccessType {
-        AccessType::Write(StructWriteAccess::Sequence(
-            SequenceWriteAccess::ModifyAuth(permission),
+    fn get_modify_sequence_permissions() -> AccessType {
+        AccessType::Write(WriteAccess::Sequence(
+            SequenceWriteAccess::ModifyPermissions,
         ))
-    }
-
-    fn get_full_modify_sequence_permissions() -> Vec<AccessType> {
-        vec![
-            AccessType::Write(StructWriteAccess::Sequence(
-                SequenceWriteAccess::ModifyAuth(SequenceAuthModifyAccess::Read(ReadAccess::Data)),
-            )),
-            AccessType::Write(StructWriteAccess::Sequence(
-                SequenceWriteAccess::ModifyAuth(SequenceAuthModifyAccess::Read(ReadAccess::Owners)),
-            )),
-            AccessType::Write(StructWriteAccess::Sequence(
-                SequenceWriteAccess::ModifyAuth(SequenceAuthModifyAccess::Read(
-                    ReadAccess::Permissions,
-                )),
-            )),
-            AccessType::Write(StructWriteAccess::Sequence(
-                SequenceWriteAccess::ModifyAuth(SequenceAuthModifyAccess::Write(
-                    SequenceWriteAccessModification::Append,
-                )),
-            )),
-            AccessType::Write(StructWriteAccess::Sequence(
-                SequenceWriteAccess::ModifyAuth(SequenceAuthModifyAccess::Write(
-                    SequenceWriteAccessModification::ModifyAuth,
-                )),
-            )),
-            AccessType::Write(StructWriteAccess::Sequence(
-                SequenceWriteAccess::ModifyAuth(SequenceAuthModifyAccess::Write(
-                    SequenceWriteAccessModification::HardErasure(HardErasureAccess::HardDelete),
-                )),
-            )),
-            AccessType::Write(StructWriteAccess::Sequence(
-                SequenceWriteAccess::ModifyAuth(SequenceAuthModifyAccess::Write(
-                    SequenceWriteAccessModification::HardErasure(HardErasureAccess::HardUpdate),
-                )),
-            )),
-        ]
     }
 
     fn assert_sequence_read_permitted(data: &SequenceData, public_key: PublicKey, permitted: bool) {
         assert_eq!(
-            data.is_allowed(get_sequence_read_access(ReadAccess::Data), public_key),
-            permitted
-        );
-        assert_eq!(
-            data.is_allowed(get_sequence_read_access(ReadAccess::Owners), public_key),
-            permitted
-        );
-        assert_eq!(
-            data.is_allowed(
-                get_sequence_read_access(ReadAccess::Permissions),
-                public_key
-            ),
+            data.is_allowed(get_sequence_read_access(), public_key),
             permitted
         );
     }
@@ -464,62 +403,7 @@ mod tests {
         permitted: bool,
     ) {
         assert_eq!(
-            data.is_allowed(
-                get_modify_sequence_permissions(SequenceAuthModifyAccess::Read(ReadAccess::Data)),
-                public_key
-            ),
-            permitted
-        );
-        assert_eq!(
-            data.is_allowed(
-                get_modify_sequence_permissions(SequenceAuthModifyAccess::Read(ReadAccess::Owners)),
-                public_key
-            ),
-            permitted
-        );
-        assert_eq!(
-            data.is_allowed(
-                get_modify_sequence_permissions(SequenceAuthModifyAccess::Read(
-                    ReadAccess::Permissions
-                )),
-                public_key
-            ),
-            permitted
-        );
-        assert_eq!(
-            data.is_allowed(
-                get_modify_sequence_permissions(SequenceAuthModifyAccess::Write(
-                    SequenceWriteAccessModification::Append
-                )),
-                public_key
-            ),
-            permitted
-        );
-        assert_eq!(
-            data.is_allowed(
-                get_modify_sequence_permissions(SequenceAuthModifyAccess::Write(
-                    SequenceWriteAccessModification::ModifyAuth
-                )),
-                public_key
-            ),
-            permitted
-        );
-        assert_eq!(
-            data.is_allowed(
-                get_modify_sequence_permissions(SequenceAuthModifyAccess::Write(
-                    SequenceWriteAccessModification::HardErasure(HardErasureAccess::HardDelete)
-                )),
-                public_key
-            ),
-            permitted
-        );
-        assert_eq!(
-            data.is_allowed(
-                get_modify_sequence_permissions(SequenceAuthModifyAccess::Write(
-                    SequenceWriteAccessModification::HardErasure(HardErasureAccess::HardUpdate)
-                )),
-                public_key
-            ),
+            data.is_allowed(get_modify_sequence_permissions(), public_key),
             permitted
         );
     }
@@ -806,9 +690,7 @@ mod tests {
             .permissions
             .insert(User::Anyone, PublicPermissions::new(set));
         let mut set = BTreeMap::new();
-        for cmd in get_full_modify_map_permissions() {
-            let _ = set.insert(cmd, true);
-        }
+        let _ = set.insert(get_modify_map_permissions(), true);
         let _ = permissions
             .permissions
             .insert(User::Specific(public_key_1), PublicPermissions::new(set));
@@ -861,12 +743,8 @@ mod tests {
         };
         let mut set = BTreeMap::new();
         let _ = set.insert(get_insert_cmd(), true);
-        for query in get_full_map_read_permissions() {
-            let _ = set.insert(query, true);
-        }
-        for cmd in get_full_modify_map_permissions() {
-            let _ = set.insert(cmd, false);
-        }
+        let _ = set.insert(get_map_read_permissions(), true);
+        let _ = set.insert(get_modify_map_permissions(), false);
         let _ = auth
             .permissions
             .insert(public_key_1, PrivatePermissions::new(set));
@@ -885,72 +763,24 @@ mod tests {
     }
 
     fn get_insert_cmd() -> AccessType {
-        AccessType::Write(StructWriteAccess::Map(MapWriteAccess::Insert))
+        AccessType::Write(WriteAccess::Map(MapWriteAccess::Insert))
     }
 
-    fn get_map_read_access(access: ReadAccess) -> AccessType {
-        AccessType::Read(StructReadAccess::Map(access))
+    fn get_map_read_access() -> AccessType {
+        AccessType::Read(ReadAccess::Map)
     }
 
-    fn get_full_map_read_permissions() -> Vec<AccessType> {
-        vec![
-            AccessType::Read(StructReadAccess::Map(ReadAccess::Data)),
-            AccessType::Read(StructReadAccess::Map(ReadAccess::Owners)),
-            AccessType::Read(StructReadAccess::Map(ReadAccess::Permissions)),
-        ]
+    fn get_map_read_permissions() -> AccessType {
+        AccessType::Read(ReadAccess::Map)
     }
 
-    fn get_modify_map_permissions(access: MapAuthModifyAccess) -> AccessType {
-        AccessType::Write(StructWriteAccess::Map(MapWriteAccess::ModifyAuth(access)))
-    }
-
-    fn get_full_modify_map_permissions() -> Vec<AccessType> {
-        vec![
-            AccessType::Write(StructWriteAccess::Map(MapWriteAccess::ModifyAuth(
-                MapAuthModifyAccess::Read(ReadAccess::Data),
-            ))),
-            AccessType::Write(StructWriteAccess::Map(MapWriteAccess::ModifyAuth(
-                MapAuthModifyAccess::Read(ReadAccess::Owners),
-            ))),
-            AccessType::Write(StructWriteAccess::Map(MapWriteAccess::ModifyAuth(
-                MapAuthModifyAccess::Read(ReadAccess::Permissions),
-            ))),
-            AccessType::Write(StructWriteAccess::Map(MapWriteAccess::ModifyAuth(
-                MapAuthModifyAccess::Write(MapWriteAccessModification::Insert),
-            ))),
-            AccessType::Write(StructWriteAccess::Map(MapWriteAccess::ModifyAuth(
-                MapAuthModifyAccess::Write(MapWriteAccessModification::Update),
-            ))),
-            AccessType::Write(StructWriteAccess::Map(MapWriteAccess::ModifyAuth(
-                MapAuthModifyAccess::Write(MapWriteAccessModification::Delete),
-            ))),
-            AccessType::Write(StructWriteAccess::Map(MapWriteAccess::ModifyAuth(
-                MapAuthModifyAccess::Write(MapWriteAccessModification::ModifyAuth),
-            ))),
-            AccessType::Write(StructWriteAccess::Map(MapWriteAccess::ModifyAuth(
-                MapAuthModifyAccess::Write(MapWriteAccessModification::HardErasure(
-                    HardErasureAccess::HardDelete,
-                )),
-            ))),
-            AccessType::Write(StructWriteAccess::Map(MapWriteAccess::ModifyAuth(
-                MapAuthModifyAccess::Write(MapWriteAccessModification::HardErasure(
-                    HardErasureAccess::HardUpdate,
-                )),
-            ))),
-        ]
+    fn get_modify_map_permissions() -> AccessType {
+        AccessType::Write(WriteAccess::Map(MapWriteAccess::ModifyPermissions))
     }
 
     fn assert_map_read_permitted(data: &MapData, public_key: PublicKey, permitted: bool) {
         assert_eq!(
-            data.is_allowed(get_map_read_access(ReadAccess::Data), public_key),
-            permitted
-        );
-        assert_eq!(
-            data.is_allowed(get_map_read_access(ReadAccess::Owners), public_key),
-            permitted
-        );
-        assert_eq!(
-            data.is_allowed(get_map_read_access(ReadAccess::Permissions), public_key),
+            data.is_allowed(get_map_read_access(), public_key),
             permitted
         );
     }
@@ -961,78 +791,7 @@ mod tests {
         permitted: bool,
     ) {
         assert_eq!(
-            data.is_allowed(
-                get_modify_map_permissions(MapAuthModifyAccess::Read(ReadAccess::Data)),
-                public_key
-            ),
-            permitted
-        );
-        assert_eq!(
-            data.is_allowed(
-                get_modify_map_permissions(MapAuthModifyAccess::Read(ReadAccess::Owners)),
-                public_key
-            ),
-            permitted
-        );
-        assert_eq!(
-            data.is_allowed(
-                get_modify_map_permissions(MapAuthModifyAccess::Read(ReadAccess::Permissions)),
-                public_key
-            ),
-            permitted
-        );
-        assert_eq!(
-            data.is_allowed(
-                get_modify_map_permissions(MapAuthModifyAccess::Write(
-                    MapWriteAccessModification::Insert
-                )),
-                public_key
-            ),
-            permitted
-        );
-        assert_eq!(
-            data.is_allowed(
-                get_modify_map_permissions(MapAuthModifyAccess::Write(
-                    MapWriteAccessModification::Update
-                )),
-                public_key
-            ),
-            permitted
-        );
-        assert_eq!(
-            data.is_allowed(
-                get_modify_map_permissions(MapAuthModifyAccess::Write(
-                    MapWriteAccessModification::Delete
-                )),
-                public_key
-            ),
-            permitted
-        );
-        assert_eq!(
-            data.is_allowed(
-                get_modify_map_permissions(MapAuthModifyAccess::Write(
-                    MapWriteAccessModification::ModifyAuth
-                )),
-                public_key
-            ),
-            permitted
-        );
-        assert_eq!(
-            data.is_allowed(
-                get_modify_map_permissions(MapAuthModifyAccess::Write(
-                    MapWriteAccessModification::HardErasure(HardErasureAccess::HardDelete)
-                )),
-                public_key
-            ),
-            permitted
-        );
-        assert_eq!(
-            data.is_allowed(
-                get_modify_map_permissions(MapAuthModifyAccess::Write(
-                    MapWriteAccessModification::HardErasure(HardErasureAccess::HardUpdate)
-                )),
-                public_key
-            ),
+            data.is_allowed(get_modify_map_permissions(), public_key),
             permitted
         );
     }

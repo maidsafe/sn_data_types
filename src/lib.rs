@@ -69,7 +69,10 @@ mod shared_data;
 mod transaction;
 mod utils;
 
-pub use auth::{PrivateAuth, PrivatePermissions, PublicAuth, PublicPermissions};
+pub use auth::{
+    AccessType, MapWriteAccess, PrivateAuth, PrivatePermissions, PublicAuth, PublicPermissions,
+    ReadAccess, SequenceWriteAccess,
+};
 pub use blob::{
     Address as BlobAddress, BlobData, Kind as BlobKind, PrivateBlob, PublicBlob,
     MAX_BLOB_SIZE_IN_BYTES,
@@ -87,7 +90,11 @@ pub use map::{
     StoredValue as MapValue, StoredValues as MapValues,
 };
 pub use public_key::{PublicKey, Signature};
-pub use request::{LoginPacket, Request, MAX_LOGIN_PACKET_BYTES};
+pub use request::{
+    AuthRead, AuthRequest, AuthWrite, BalanceRead, BalanceRequest, BalanceWrite, DataRead,
+    DataRequest, DataWrite, LoginPacket, MiscRead, MiscRequest, MiscWrite, OwnerRead, OwnerRequest,
+    OwnerWrite, Request, MAX_LOGIN_PACKET_BYTES,
+};
 pub use response::Response;
 pub use sequence::{
     DataEntry as SequenceEntry, PrivateSentriedSequence, PrivateSequence, PublicSentriedSequence,

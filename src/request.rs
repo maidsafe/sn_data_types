@@ -61,7 +61,7 @@ pub enum OwnerRequest {
     Write(OwnerWrite),
 }
 
-/// RPC atuh request that is sent to vaults
+/// RPC auth request that is sent to vaults
 #[allow(clippy::large_enum_variant, missing_docs)]
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub enum AuthRequest {
@@ -654,7 +654,6 @@ impl AuthRead {
         match *self {
             // ==== Map ====
             //
-            //GetMapAuth { .. } => Response::GetMapAuth(Err(error)),
             GetMapAuth(_) => Response::GetMapAuth(Err(error)),
             GetMapAuthAt { .. } => Response::GetMapAuthAt(Err(error)),
             GetPublicMapAuthHistory(_) => Response::GetPublicMapAuthHistory(Err(error)),
@@ -757,8 +756,7 @@ impl BalanceWrite {
     pub fn error_response(&self, error: Error) -> Response {
         use BalanceWrite::*;
         match *self {
-            TransferCoins { .. } => Response::Transaction(Err(error)),
-            CreateBalance { .. } => Response::Transaction(Err(error)),
+            TransferCoins { .. } | CreateBalance { .. } => Response::Transaction(Err(error)),
         }
     }
 }

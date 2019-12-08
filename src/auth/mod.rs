@@ -10,8 +10,6 @@
 pub mod auth;
 mod tests;
 pub use auth::{
-    AccessType, Auth, HardErasureAccess, MapAuthModifyAccess, MapWriteAccess,
-    MapWriteAccessModification, PrivateAuth, PrivatePermissions, PublicAuth, PublicPermissions,
-    ReadAccess, SequenceAuthModifyAccess, SequenceWriteAccess, SequenceWriteAccessModification,
-    StructReadAccess, StructWriteAccess,
+    AccessType, Auth, MapWriteAccess, PrivateAuth, PrivatePermissions, PublicAuth,
+    PublicPermissions, ReadAccess, SequenceWriteAccess, WriteAccess,
 };
