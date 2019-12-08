@@ -11,26 +11,9 @@ mod login_packet;
 
 pub use self::login_packet::{LoginPacket, MAX_LOGIN_PACKET_BYTES};
 use crate::{
-    Address,
-    AppPermissions,
-    BlobAddress,
-    BlobData,
-    Coins,
-    Error,
-    Index,
-    Key,
-    MapData,
-    Owner,
-    PrivatePermissions,
-    PublicKey,
-    PublicPermissions,
-    Response,
-    SequenceCmd,
-    SequenceData,
-    TransactionId,
-    User,
-    // Version,
-    XorName,
+    Address, AppPermissions, BlobAddress, BlobData, Coins, Error, Key, MapData, Owner,
+    PrivatePermissions, PublicKey, PublicPermissions, Response, SequenceCmd, SequenceData,
+    TransactionId, User, Version, XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -101,8 +84,8 @@ pub enum DataRead {
     GetMapShell(Address),
     /// Returns the expected version for the entire map instance.
     GetMapVersion(Address),
-    /// Returns expected index of data, owners and auth.
-    GetMapExpectedIndices(Address),
+    /// Returns expected Version of data, owners and auth.
+    GetMapExpectedVersions(Address),
     /// Returns each value that the keys map to.
     GetMapValues(Address),
     GetMapValue {
@@ -112,7 +95,7 @@ pub enum DataRead {
     GetMapValueAt {
         address: Address,
         key: Key,
-        index: Index,
+        version: Version,
     },
     /// Returns all key-value pairs.
     GetMapEntries(Address),
@@ -127,22 +110,22 @@ pub enum DataRead {
     GetMapKeyHistoryRange {
         address: Address,
         key: Key,
-        start: Index,
-        end: Index,
+        start: Version,
+        end: Version,
     },
     // ===== Sequence =====
     //
     /// Get Sequence from the network.
     GetSequence(Address),
-    /// Get expected indices: data, owners, permissions.
-    GetSequenceExpectedIndices(Address),
-    /// Get `Sequence` shell at a certain point in history (`data_index` refers to the list
+    /// Get expected versions: data, owners, permissions.
+    GetSequenceExpectedVersions(Address),
+    /// Get `Sequence` shell at a certain point in history (`data_version` refers to the list
     /// of data).
     GetSequenceShell {
         address: Address,
-        expected_data_index: Index,
+        expected_data_version: Version,
     },
-    /// Get an entry at the current index.
+    /// Get an entry at the current version.
     GetSequenceCurrentEntry(Address),
     /// Get a range of entries from an Sequence object on the network.
     GetSequenceRange {
@@ -150,18 +133,18 @@ pub enum DataRead {
         // Range of entries to fetch.
         //
         // For example, get 10 last entries:
-        // range: (Index::FromEnd(10), Index::FromEnd(0))
+        // range: (Version::FromEnd(10), Version::FromEnd(0))
         //
         // Get all entries:
-        // range: (Index::FromStart(0), Index::FromEnd(0))
+        // range: (Version::FromStart(0), Version::FromEnd(0))
         //
         // Get first 5 entries:
-        // range: (Index::FromStart(0), Index::FromStart(5))
-        range: (Index, Index),
+        // range: (Version::FromStart(0), Version::FromStart(5))
+        range: (Version, Version),
     },
     GetSequenceValue {
         address: Address,
-        index: Index,
+        version: Version,
     },
 }
 
@@ -196,7 +179,7 @@ pub enum DataWrite {
     // Append data with concurrency control.
     AppendSentried {
         append: SequenceCmd,
-        expected_index: u64,
+        expected_version: u64,
     },
     // Append data.
     Append(SequenceCmd),
@@ -234,31 +217,31 @@ pub enum BalanceWrite {
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub enum OwnerRead {
     GetMapOwner(Address),
-    /// Get Map owner at the provided index.
+    /// Get Map owner at the provided version.
     GetMapOwnerAt {
         address: Address,
-        index: Index,
+        version: Version,
     },
     GetMapOwnerHistory(Address),
     GetMapOwnerHistoryRange {
         address: Address,
-        start: Index,
-        end: Index,
+        start: Version,
+        end: Version,
     },
     /// Get Sequence current owner.
     GetSequenceOwner(Address),
     /// Get Sequence owner as of version.
     GetSequenceOwnerAt {
         address: Address,
-        index: Index,
+        version: Version,
     },
     GetSequenceOwnerHistory(Address),
     GetSequenceOwnerHistoryRange {
         address: Address,
-        start: Index,
-        end: Index,
+        start: Version,
+        end: Version,
     },
-    // /// Get Index owner as of version.
+    // /// Get Version owner as of version.
     // GetIndexOwner {
     //     address: Address,
     //     version: Version,
@@ -278,13 +261,13 @@ pub enum OwnerWrite {
     SetMapOwner {
         address: Address,
         owner: Owner,
-        expected_index: u64,
+        expected_version: u64,
     },
     /// Set owner. Only the current owner(s) can perform this action.
     SetSequenceOwner {
         address: Address,
         owner: Owner,
-        expected_index: u64,
+        expected_version: u64,
     },
     // /// Set owner. Only the current owner(s) can perform this action.
     // SetIndexOwner {
@@ -307,24 +290,24 @@ pub enum AuthRead {
     // ========== Map ==========
     //
     GetMapAuth(Address),
-    /// Get Map authorization at the provided index.
+    /// Get Map authorization at the provided version.
     GetMapAuthAt {
         address: Address,
-        index: Index,
+        version: Version,
     },
     GetPublicMapAuthHistory(Address),
     GetPrivateMapAuthHistory(Address),
     GetPublicMapAuthHistoryRange {
         address: Address,
         key: Key,
-        start: Index,
-        end: Index,
+        start: Version,
+        end: Version,
     },
     GetPrivateMapAuthHistoryRange {
         address: Address,
         key: Key,
-        start: Index,
-        end: Index,
+        start: Version,
+        end: Version,
     },
     GetPublicMapUserPermissions {
         address: Address,
@@ -337,13 +320,13 @@ pub enum AuthRead {
     /// Get Map permissions for a specified user(s), as of a version.
     GetPublicMapUserPermissionsAt {
         address: Address,
-        index: Index,
+        version: Version,
         user: User,
     },
     /// Get Map permissions for a specified public key, as of a version.
     GetPrivateMapUserPermissionsAt {
         address: Address,
-        index: Index,
+        version: Version,
         public_key: PublicKey,
     },
     //
@@ -353,21 +336,21 @@ pub enum AuthRead {
     /// Get Sequence authorization as of version.
     GetSequenceAuthAt {
         address: Address,
-        index: Index,
+        version: Version,
     },
     GetPublicSequenceAuthHistory(Address),
     GetPrivateSequenceAuthHistory(Address),
     GetPublicSequenceAuthHistoryRange {
         address: Address,
         key: Key,
-        start: Index,
-        end: Index,
+        start: Version,
+        end: Version,
     },
     GetPrivateSequenceAuthHistoryRange {
         address: Address,
         key: Key,
-        start: Index,
-        end: Index,
+        start: Version,
+        end: Version,
     },
     /// Get Sequence permissions for a specified user(s).
     GetPublicSequenceUserPermissions {
@@ -382,30 +365,30 @@ pub enum AuthRead {
     /// Get Sequence permissions for a specified user(s), as of version.
     GetPublicSequenceUserPermissionsAt {
         address: Address,
-        index: Index,
+        version: Version,
         user: User,
     },
     /// Get Sequence permissions for a specified public key, as of version.
     GetPrivateSequenceUserPermissionsAt {
         address: Address,
-        index: Index,
+        version: Version,
         public_key: PublicKey,
     },
     //
-    // ========== Index ==========
+    // ========== Version ==========
     //
-    // /// Get Index authorization at the provided version.
+    // /// Get Version authorization at the provided version.
     // GetIndexAuthorization {
     //     address: Address,
     //     version: Version,
     // },
-    // /// Get Index permissions for a specified user(s).
+    // /// Get Version permissions for a specified user(s).
     // GetPublicIndexUserPermissions {
     //     address: Address,
     //     version: Version,
     //     user: User,
     // },
-    // /// Get Index permissions for a specified public key.
+    // /// Get Version permissions for a specified public key.
     // GetPrivateIndexUserPermissions {
     //     address: Address,
     //     version: Version,
@@ -414,7 +397,7 @@ pub enum AuthRead {
     //
     // ========== Balance ==========
     //
-    // /// Get Balance authorization at the provided index.
+    // /// Get Balance authorization at the provided version.
     // GetBalanceAuthorization {
     //     address: Address,
     //     version: Version,
@@ -463,16 +446,16 @@ pub enum AuthWrite {
     SetPublicSequencePermissions {
         address: Address,
         permissions: PublicPermissions,
-        expected_index: u64,
+        expected_version: u64,
     },
     /// Set permissions.
     SetPrivateSequencePermissions {
         address: Address,
         permissions: PrivatePermissions,
-        expected_index: u64,
+        expected_version: u64,
     },
     //
-    // ========== Index ==========
+    // ========== Version ==========
     //
     // /// Set permissions.
     // SetPublicIndexPermissions {
@@ -597,7 +580,7 @@ impl DataRead {
             GetMapValueAt { .. } => Response::GetMapValueAt(Err(error)),
             GetMapShell(_) => Response::GetMapShell(Err(error)),
             GetMapVersion(_) => Response::GetMapVersion(Err(error)),
-            GetMapExpectedIndices(_) => Response::GetMapExpectedIndices(Err(error)),
+            GetMapExpectedVersions(_) => Response::GetMapExpectedVersions(Err(error)),
             GetMapEntries(_) => Response::GetMapEntries(Err(error)),
             GetMapKeys(_) => Response::GetMapKeys(Err(error)),
             GetMapValues(_) => Response::GetMapValues(Err(error)),
@@ -608,7 +591,7 @@ impl DataRead {
             GetSequenceShell { .. } => Response::GetSequenceShell(Err(error)),
             GetSequenceValue { .. } => Response::GetSequenceValue(Err(error)),
             GetSequenceRange { .. } => Response::GetSequenceRange(Err(error)),
-            GetSequenceExpectedIndices(_) => Response::GetSequenceExpectedIndices(Err(error)),
+            GetSequenceExpectedVersions(_) => Response::GetSequenceExpectedVersions(Err(error)),
             GetSequenceCurrentEntry(_) => Response::GetSequenceCurrentEntry(Err(error)),
         }
     }
@@ -724,7 +707,7 @@ impl AuthRead {
             GetPrivateSequenceUserPermissionsAt { .. } => {
                 Response::GetPrivateSequenceUserPermissionsAt(Err(error))
             } //
-              // ==== Index ====
+              // ==== Version ====
               //
               // GetIndexAuthorization { .. } => Response::GetIndexAuthorization(Err(error)),
               // GetPublicIndexUserPermissions { .. } => Response::GetPublicIndexUserPermissions(Err(error)),
@@ -745,7 +728,7 @@ impl AuthWrite {
     pub fn error_response(&self, error: Error) -> Response {
         use AuthWrite::*;
         match *self {
-            // ==== Index ====
+            // ==== Version ====
             // SetPublicIndexPermissions { .. } |
             // SetPrivateIndexPermissions { .. } |
             //
@@ -832,14 +815,14 @@ impl fmt::Debug for Request {
                             match read {
                                 // ==== Blob ====
                                 DataRead::GetBlob { .. } => "DataRead::GetBlob",
-                                // ==== Index ====
+                                // ==== Version ====
                                 //
                                 // ==== Map ====
                                 DataRead::GetMap(_) => "DataRead::GetMap",
                                 DataRead::GetMapShell(_) => "DataRead::GetMapShell",
                                 DataRead::GetMapVersion(_) => "DataRead::GetMapVersion",
-                                DataRead::GetMapExpectedIndices(_) => {
-                                    "DataRead::GetMapExpectedIndices"
+                                DataRead::GetMapExpectedVersions(_) => {
+                                    "DataRead::GetMapExpectedVersions"
                                 }
                                 DataRead::GetMapKeys(_) => "DataRead::GetMapKeys",
                                 DataRead::GetMapKeyHistory { .. } => "DataRead::GetMapKeyHistory",
@@ -855,8 +838,8 @@ impl fmt::Debug for Request {
                                 DataRead::GetSequenceCurrentEntry { .. } => {
                                     "DataRead::GetSequenceCurrentEntry"
                                 }
-                                DataRead::GetSequenceExpectedIndices { .. } => {
-                                    "DataRead::GetSequenceExpectedIndices"
+                                DataRead::GetSequenceExpectedVersions { .. } => {
+                                    "DataRead::GetSequenceExpectedVersions"
                                 }
                                 DataRead::GetSequenceRange { .. } => "DataRead::GetSequenceRange",
                                 DataRead::GetSequenceShell { .. } => "DataRead::GetSequenceShell",
@@ -870,7 +853,7 @@ impl fmt::Debug for Request {
                                 DataWrite::DeletePrivateBlob { .. } => {
                                     "DataWrite::DeletePrivateBlob"
                                 }
-                                // ==== Index ====
+                                // ==== Version ====
                                 //
                                 // ==== Map ====
                                 DataWrite::PutMap { .. } => "DataWrite::PutMap",
@@ -986,7 +969,7 @@ impl fmt::Debug for Request {
                                 }
                                 AuthRead::GetPublicSequenceUserPermissionsAt { .. } => {
                                     "AuthRead::GetPublicSequenceUserPermissionsAt"
-                                } // ==== Index ====
+                                } // ==== Version ====
                                   // AuthRead::GetPrivateIndexUserPermissions { .. } => "AuthRead::GetPrivateIndexUserPermissions",
                                   // AuthRead::GetIndexAuthorization { .. } => "AuthRead::GetIndexAuthorization",
                                   // AuthRead::GetPublicIndexUserPermissions { .. } => "AuthRead::GetPublicIndexUserPermissions",
@@ -1011,7 +994,7 @@ impl fmt::Debug for Request {
                                 }
                                 AuthWrite::SetPublicSequencePermissions { .. } => {
                                     "AuthWrite::SetPublicSequencePermissions"
-                                } // ==== Index ====
+                                } // ==== Version ====
                                   // AuthWrite::SetPrivateIndexPermissions { .. } => "AuthWrite::SetPrivateIndexPermissions",
                                   // AuthWrite::SetPublicIndexPermissions { .. } => "AuthWrite::SetPublicIndexPermissions",
                                   // ==== Balance ====

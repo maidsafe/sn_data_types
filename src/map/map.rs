@@ -11,8 +11,8 @@ use crate::auth::{
     AccessType, Auth, PrivateAuth, PrivatePermissions, PublicAuth, PublicPermissions,
 };
 use crate::shared_data::{
-    to_absolute_index, to_absolute_range, Address, ExpectedIndices, Index, Key, Kind, KvPair,
-    NonSentried, Owner, Sentried, User, Value,
+    to_absolute_range, to_absolute_version, Address, ExpectedVersions, Key, Kind, KvPair,
+    NonSentried, Owner, Sentried, User, Value, Version,
 };
 use crate::{EntryError, Error, PublicKey, Result, XorName};
 use serde::{Deserialize, Serialize};
@@ -80,9 +80,9 @@ where
     S: Copy,
 {
     /// Returns the data shell - that is - everything except the entries themselves.
-    pub fn shell(&self, expected_data_index: impl Into<Index>) -> Result<Self> {
-        let expected_data_index = to_absolute_index(
-            expected_data_index.into(),
+    pub fn shell(&self, expected_data_version: impl Into<Version>) -> Result<Self> {
+        let expected_data_version = to_absolute_version(
+            expected_data_version.into(),
             self.expected_data_version().unwrap_or_default() as usize,
         )
         .ok_or(Error::NoSuchEntry)? as u64;
@@ -90,14 +90,14 @@ where
         let auth = self
             .auth
             .iter()
-            .filter(|ac| ac.expected_data_index() <= expected_data_index)
+            .filter(|ac| ac.expected_data_version() <= expected_data_version)
             .cloned()
             .collect();
 
         let owners = self
             .owners
             .iter()
-            .filter(|owner| owner.expected_data_index <= expected_data_index)
+            .filter(|owner| owner.expected_data_version <= expected_data_version)
             .cloned()
             .collect();
 
@@ -161,13 +161,13 @@ where
         self.version
     }
 
-    /// Return the expected owners index.
-    pub fn expected_owners_index(&self) -> u64 {
+    /// Return the expected owners version.
+    pub fn expected_owners_version(&self) -> u64 {
         self.owners.len() as u64
     }
 
-    /// Return the expected authorization index.
-    pub fn expected_auth_index(&self) -> u64 {
+    /// Return the expected authorization version.
+    pub fn expected_auth_version(&self) -> u64 {
         self.auth.len() as u64
     }
 
@@ -185,7 +185,12 @@ where
     }
 
     /// Returns a range in the history of a specified key.
-    pub fn key_history_range(&self, key: &Key, start: Index, end: Index) -> Option<StoredValues> {
+    pub fn key_history_range(
+        &self,
+        key: &Key,
+        start: Version,
+        end: Version,
+    ) -> Option<StoredValues> {
         let range = to_absolute_range(start, end, self.data.len())?;
         match self.data.get(key) {
             Some(history) => Some(history[range].to_vec()),
@@ -193,10 +198,10 @@ where
         }
     }
 
-    /// Get auth at index.
-    pub fn auth_at(&self, index: impl Into<Index>) -> Option<&C> {
-        let index = to_absolute_index(index.into(), self.auth.len())?;
-        self.auth.get(index)
+    /// Get auth at version.
+    pub fn auth_at(&self, version: impl Into<Version>) -> Option<&C> {
+        let version = to_absolute_version(version.into(), self.auth.len())?;
+        self.auth.get(version)
     }
 
     /// Returns history of all authorization states
@@ -204,32 +209,34 @@ where
         &self.auth
     }
 
-    /// Get history of authorization within the range of indices specified.
-    pub fn auth_history_range(&self, start: Index, end: Index) -> Option<&[C]> {
+    /// Get history of authorization within the range of versions specified.
+    pub fn auth_history_range(&self, start: Version, end: Version) -> Option<&[C]> {
         let range = to_absolute_range(start, end, self.auth.len())?;
         Some(&self.auth[range])
     }
 
     /// Set authorization.
-    /// The `Auth` struct needs to contain the correct expected indices.
-    pub fn set_auth(&mut self, auth: C, index: u64) -> Result<()> {
-        if auth.expected_data_index() != self.expected_data_version().unwrap_or_default() {
+    /// The `Auth` struct needs to contain the correct expected versions.
+    pub fn set_auth(&mut self, auth: C, version: u64) -> Result<()> {
+        if auth.expected_data_version() != self.expected_data_version().unwrap_or_default() {
             return Err(Error::InvalidSuccessor(
                 self.expected_data_version().unwrap_or_default(),
             ));
         }
-        if auth.expected_owners_index() != self.expected_owners_index() {
-            return Err(Error::InvalidOwnersSuccessor(self.expected_owners_index()));
+        if auth.expected_owners_version() != self.expected_owners_version() {
+            return Err(Error::InvalidOwnersSuccessor(
+                self.expected_owners_version(),
+            ));
         }
-        if self.expected_auth_index() != index {
-            return Err(Error::InvalidSuccessor(self.expected_auth_index()));
+        if self.expected_auth_version() != version {
+            return Err(Error::InvalidSuccessor(self.expected_auth_version()));
         }
         self.auth.push(auth);
         Ok(())
     }
 
     pub fn is_allowed(&self, user: PublicKey, access: AccessType) -> bool {
-        match self.owner_at(Index::FromEnd(1)) {
+        match self.owner_at(Version::FromEnd(1)) {
             Some(owner) => {
                 if owner.public_key == user {
                     return true;
@@ -237,16 +244,16 @@ where
             }
             None => (),
         }
-        match self.auth_at(Index::FromEnd(1)) {
+        match self.auth_at(Version::FromEnd(1)) {
             Some(auth) => auth.is_allowed(&user, &access),
             None => false,
         }
     }
 
-    /// Get owner at index.
-    pub fn owner_at(&self, index: impl Into<Index>) -> Option<&Owner> {
-        let index = to_absolute_index(index.into(), self.owners.len())?;
-        self.owners.get(index)
+    /// Get owner at version.
+    pub fn owner_at(&self, version: impl Into<Version>) -> Option<&Owner> {
+        let version = to_absolute_version(version.into(), self.owners.len())?;
+        self.owners.get(version)
     }
 
     /// Returns history of all owners
@@ -254,26 +261,26 @@ where
         &self.owners
     }
 
-    /// Get history of owners within the range of indices specified.
-    pub fn owner_history_range(&self, start: Index, end: Index) -> Option<&[Owner]> {
+    /// Get history of owners within the range of versions specified.
+    pub fn owner_history_range(&self, start: Version, end: Version) -> Option<&[Owner]> {
         let range = to_absolute_range(start, end, self.owners.len())?;
         Some(&self.owners[range])
     }
 
     /// Set owner.
-    pub fn set_owner(&mut self, owner: Owner, index: u64) -> Result<()> {
-        if owner.expected_data_index != self.expected_data_version().unwrap_or_default() {
+    pub fn set_owner(&mut self, owner: Owner, version: u64) -> Result<()> {
+        if owner.expected_data_version != self.expected_data_version().unwrap_or_default() {
             return Err(Error::InvalidSuccessor(
                 self.expected_data_version().unwrap_or_default(),
             ));
         }
-        if owner.expected_auth_index != self.expected_auth_index() {
+        if owner.expected_auth_version != self.expected_auth_version() {
             return Err(Error::InvalidPermissionsSuccessor(
-                self.expected_auth_index(),
+                self.expected_auth_version(),
             ));
         }
-        if self.expected_owners_index() != index {
-            return Err(Error::InvalidSuccessor(self.expected_owners_index()));
+        if self.expected_owners_version() != version {
+            return Err(Error::InvalidSuccessor(self.expected_owners_version()));
         }
         self.owners.push(owner);
         Ok(())
@@ -281,17 +288,17 @@ where
 
     /// Returns true if the user is the current owner, false if not.
     pub fn is_owner(&self, user: PublicKey) -> bool {
-        match self.owner_at(Index::FromEnd(1)) {
+        match self.owner_at(Version::FromEnd(1)) {
             Some(owner) => user == owner.public_key,
             _ => false,
         }
     }
 
-    pub fn indices(&self) -> ExpectedIndices {
-        ExpectedIndices::new(
+    pub fn versions(&self) -> ExpectedVersions {
+        ExpectedVersions::new(
             self.expected_data_version().unwrap_or_default(),
-            self.expected_owners_index(),
-            self.expected_auth_index(),
+            self.expected_owners_version(),
+            self.expected_auth_version(),
         )
     }
 }
@@ -338,7 +345,7 @@ pub type SentriedTransaction = Vec<SentriedCmd>;
 impl<P: Auth> MapBase<P, NonSentried> {
     /// Commit transaction.
     ///
-    /// If the specified `expected_index` does not equal the entries count in data, an
+    /// If the specified `expected_version` does not equal the entries count in data, an
     /// error will be returned.
     pub fn commit(&mut self, tx: Transaction) -> Result<()> {
         // Deconstruct tx into inserts, updates, and deletes
@@ -379,7 +386,7 @@ impl<P: Auth> MapBase<P, NonSentried> {
                         Some(StoredValue::Value(_)) => {
                             let _ = errors.insert(
                                 entry.key().clone(),
-                                EntryError::EntryExists(entry.get().len() as u8),
+                                EntryError::EntryExists(entry.get().len() as u64),
                             );
                         }
                         Some(StoredValue::Tombstone()) => {
@@ -452,7 +459,7 @@ impl<P: Auth> MapBase<P, NonSentried> {
 impl<P: Auth> MapBase<P, Sentried> {
     /// Commit transaction.
     ///
-    /// If the specified `expected_index` does not equal the entries count in data, an
+    /// If the specified `expected_version` does not equal the entries count in data, an
     /// error will be returned.
     pub fn commit(&mut self, tx: SentriedTransaction) -> Result<()> {
         // Deconstruct tx into inserts, updates, and deletes
@@ -497,14 +504,14 @@ impl<P: Auth> MapBase<P, Sentried> {
                             } else {
                                 let _ = errors.insert(
                                     entry.key().clone(),
-                                    EntryError::InvalidSuccessor(expected_version as u8),
+                                    EntryError::InvalidSuccessor(expected_version),
                                 );
                             }
                         }
                         StoredValue::Value(_) => {
                             let _ = errors.insert(
                                 entry.key().clone(),
-                                EntryError::EntryExists(entry.get().len() as u8),
+                                EntryError::EntryExists(entry.get().len() as u64),
                             );
                         }
                     },
@@ -532,7 +539,7 @@ impl<P: Auth> MapBase<P, Sentried> {
                             } else {
                                 let _ = errors.insert(
                                     entry.key().clone(),
-                                    EntryError::InvalidSuccessor(expected_version as u8),
+                                    EntryError::InvalidSuccessor(expected_version),
                                 );
                             }
                         }
@@ -560,7 +567,7 @@ impl<P: Auth> MapBase<P, Sentried> {
                             } else {
                                 let _ = errors.insert(
                                     entry.key().clone(),
-                                    EntryError::InvalidSuccessor(expected_version as u8),
+                                    EntryError::InvalidSuccessor(expected_version),
                                 );
                             }
                         }
@@ -656,7 +663,7 @@ impl MapBase<PrivateAuth, Sentried> {
 
     /// Commit transaction.
     ///
-    /// If the specified `expected_index` does not equal the entries count in data, an
+    /// If the specified `expected_version` does not equal the entries count in data, an
     /// error will be returned.
     pub fn hard_commit(&mut self, tx: SentriedTransaction) -> Result<()> {
         // Deconstruct tx into inserts, updates, and deletes
@@ -698,7 +705,7 @@ impl MapBase<PrivateAuth, Sentried> {
                         Some(StoredValue::Value(_)) => {
                             let _ = errors.insert(
                                 entry.key().clone(),
-                                EntryError::EntryExists(entry.get().len() as u8),
+                                EntryError::EntryExists(entry.get().len() as u64),
                             );
                         }
                         Some(StoredValue::Tombstone()) => {
@@ -707,7 +714,7 @@ impl MapBase<PrivateAuth, Sentried> {
                             } else {
                                 let _ = errors.insert(
                                     key,
-                                    EntryError::InvalidSuccessor(entry.get().len() as u8), // I assume we are here letting caller know what successor is expected
+                                    EntryError::InvalidSuccessor(entry.get().len() as u64), // I assume we are here letting caller know what successor is expected
                                 );
                             }
                         }
@@ -742,12 +749,12 @@ impl MapBase<PrivateAuth, Sentried> {
                                 let _old_value = mem::replace(
                                     &mut history.last(),
                                     Some(&StoredValue::Tombstone()),
-                                ); // remove old value, as to properly owerwrite on update, but keep the index, as to increment history length (i.e. version)
+                                ); // remove old value, as to properly owerwrite on update, but keep the Version, as to increment history length (i.e. version)
                                 let _ = history.push(StoredValue::Value(val));
                             } else {
                                 let _ = errors.insert(
                                     entry.key().clone(),
-                                    EntryError::InvalidSuccessor(expected_version as u8), // I assume we are here letting caller know what successor is expected
+                                    EntryError::InvalidSuccessor(expected_version), // I assume we are here letting caller know what successor is expected
                                 );
                             }
                         }
@@ -777,12 +784,12 @@ impl MapBase<PrivateAuth, Sentried> {
                                 let _old_value = mem::replace(
                                     &mut history.last(),
                                     Some(&StoredValue::Tombstone()),
-                                ); // remove old value, as to properly delete, but keep the index, as to increment history length (i.e. version)
+                                ); // remove old value, as to properly delete, but keep the Version, as to increment history length (i.e. version)
                                 let _ = history.push(StoredValue::Tombstone());
                             } else {
                                 let _ = errors.insert(
                                     entry.key().clone(),
-                                    EntryError::InvalidSuccessor(expected_version as u8), // I assume we are here letting caller know what successor is expected
+                                    EntryError::InvalidSuccessor(expected_version), // I assume we are here letting caller know what successor is expected
                                 );
                             }
                         }
@@ -831,7 +838,7 @@ impl MapBase<PrivateAuth, NonSentried> {
 
     /// Commit transaction that potentially hard deletes data.
     ///
-    /// If the specified `expected_index` does not equal the entries count in data, an
+    /// If the specified `expected_version` does not equal the entries count in data, an
     /// error will be returned.
     pub fn hard_commit(&mut self, tx: Transaction) -> Result<()> {
         // Deconstruct tx into inserts, updates, and deletes
@@ -873,7 +880,7 @@ impl MapBase<PrivateAuth, NonSentried> {
                         Some(StoredValue::Value(_)) => {
                             let _ = errors.insert(
                                 entry.key().clone(),
-                                EntryError::EntryExists(entry.get().len() as u8),
+                                EntryError::EntryExists(entry.get().len() as u64),
                             );
                         }
                         Some(StoredValue::Tombstone()) => {
@@ -898,7 +905,7 @@ impl MapBase<PrivateAuth, NonSentried> {
                     match history.last() {
                         Some(StoredValue::Value(_)) => {
                             let _old_value =
-                                mem::replace(&mut history.last(), Some(&StoredValue::Tombstone())); // remove old value, as to properly owerwrite on update, but keep the index, as to increment history length (i.e. version)
+                                mem::replace(&mut history.last(), Some(&StoredValue::Tombstone())); // remove old value, as to properly owerwrite on update, but keep the Version, as to increment history length (i.e. version)
                             let _ = history.push(StoredValue::Value(val));
                         }
                         Some(StoredValue::Tombstone()) => {
@@ -923,7 +930,7 @@ impl MapBase<PrivateAuth, NonSentried> {
                     match history.last() {
                         Some(StoredValue::Value(_)) => {
                             let _old_value =
-                                mem::replace(&mut history.last(), Some(&StoredValue::Tombstone())); // remove old value, as to properly delete, but keep the index, as to increment history length (i.e. version)
+                                mem::replace(&mut history.last(), Some(&StoredValue::Tombstone())); // remove old value, as to properly delete, but keep the Version, as to increment history length (i.e. version)
                             let _ = history.push(StoredValue::Tombstone());
                         }
                         Some(StoredValue::Tombstone()) => {
@@ -1030,7 +1037,7 @@ impl MapData {
         }
     }
 
-    pub fn expected_data_index(&self) -> u64 {
+    pub fn expected_data_version(&self) -> u64 {
         match self {
             MapData::PublicSentried(data) => data.expected_data_version().unwrap_or_default(),
             MapData::Public(data) => data.expected_data_version().unwrap_or_default(),
@@ -1039,30 +1046,30 @@ impl MapData {
         }
     }
 
-    pub fn expected_auth_index(&self) -> u64 {
+    pub fn expected_auth_version(&self) -> u64 {
         match self {
-            MapData::PublicSentried(data) => data.expected_auth_index(),
-            MapData::Public(data) => data.expected_auth_index(),
-            MapData::PrivateSentried(data) => data.expected_auth_index(),
-            MapData::Private(data) => data.expected_auth_index(),
+            MapData::PublicSentried(data) => data.expected_auth_version(),
+            MapData::Public(data) => data.expected_auth_version(),
+            MapData::PrivateSentried(data) => data.expected_auth_version(),
+            MapData::Private(data) => data.expected_auth_version(),
         }
     }
 
-    pub fn expected_owners_index(&self) -> u64 {
+    pub fn expected_owners_version(&self) -> u64 {
         match self {
-            MapData::PublicSentried(data) => data.expected_owners_index(),
-            MapData::Public(data) => data.expected_owners_index(),
-            MapData::PrivateSentried(data) => data.expected_owners_index(),
-            MapData::Private(data) => data.expected_owners_index(),
+            MapData::PublicSentried(data) => data.expected_owners_version(),
+            MapData::Public(data) => data.expected_owners_version(),
+            MapData::PrivateSentried(data) => data.expected_owners_version(),
+            MapData::Private(data) => data.expected_owners_version(),
         }
     }
 
-    pub fn indices(&self) -> ExpectedIndices {
+    pub fn versions(&self) -> ExpectedVersions {
         match self {
-            MapData::PublicSentried(data) => data.indices(),
-            MapData::Public(data) => data.indices(),
-            MapData::PrivateSentried(data) => data.indices(),
-            MapData::Private(data) => data.indices(),
+            MapData::PublicSentried(data) => data.versions(),
+            MapData::Public(data) => data.versions(),
+            MapData::PrivateSentried(data) => data.versions(),
+            MapData::Private(data) => data.versions(),
         }
     }
 
@@ -1077,7 +1084,7 @@ impl MapData {
     }
 
     /// Returns a range in the history of a specified key.
-    pub fn key_history_range(&self, key: &Key, from: Index, to: Index) -> Option<StoredValues> {
+    pub fn key_history_range(&self, key: &Key, from: Version, to: Version) -> Option<StoredValues> {
         match self {
             MapData::PublicSentried(data) => data.key_history_range(key, from, to),
             MapData::Public(data) => data.key_history_range(key, from, to),
@@ -1096,12 +1103,12 @@ impl MapData {
         }
     }
 
-    pub fn owner_at(&self, index: impl Into<Index>) -> Option<&Owner> {
+    pub fn owner_at(&self, version: impl Into<Version>) -> Option<&Owner> {
         match self {
-            MapData::PublicSentried(data) => data.owner_at(index),
-            MapData::Public(data) => data.owner_at(index),
-            MapData::PrivateSentried(data) => data.owner_at(index),
-            MapData::Private(data) => data.owner_at(index),
+            MapData::PublicSentried(data) => data.owner_at(version),
+            MapData::Public(data) => data.owner_at(version),
+            MapData::PrivateSentried(data) => data.owner_at(version),
+            MapData::Private(data) => data.owner_at(version),
         }
     }
 
@@ -1125,8 +1132,8 @@ impl MapData {
         result.ok_or(Error::NoSuchEntry)
     }
 
-    /// Get history of owners within the range of indices specified.
-    pub fn public_owner_history_range(&self, start: Index, end: Index) -> Result<&[Owner]> {
+    /// Get history of owners within the range of versions specified.
+    pub fn public_owner_history_range(&self, start: Version, end: Version) -> Result<&[Owner]> {
         let result = match self {
             MapData::PublicSentried(data) => data.owner_history_range(start, end),
             MapData::Public(data) => data.owner_history_range(start, end),
@@ -1135,8 +1142,8 @@ impl MapData {
         result.ok_or(Error::NoSuchEntry)
     }
 
-    /// Get history of owners within the range of indices specified.
-    pub fn private_owner_history_range(&self, start: Index, end: Index) -> Result<&[Owner]> {
+    /// Get history of owners within the range of versions specified.
+    pub fn private_owner_history_range(&self, start: Version, end: Version) -> Result<&[Owner]> {
         let result = match self {
             MapData::PrivateSentried(data) => data.owner_history_range(start, end),
             MapData::Private(data) => data.owner_history_range(start, end),
@@ -1148,9 +1155,9 @@ impl MapData {
     pub fn public_permissions_at(
         &self,
         user: User,
-        index: impl Into<Index>,
+        version: impl Into<Version>,
     ) -> Result<PublicPermissions> {
-        self.public_auth_at(index)?
+        self.public_auth_at(version)?
             .permissions()
             .get(&user)
             .cloned()
@@ -1160,28 +1167,28 @@ impl MapData {
     pub fn private_permissions_at(
         &self,
         user: PublicKey,
-        index: impl Into<Index>,
+        version: impl Into<Version>,
     ) -> Result<PrivatePermissions> {
-        self.private_auth_at(index)?
+        self.private_auth_at(version)?
             .permissions()
             .get(&user)
             .cloned()
             .ok_or(Error::NoSuchEntry)
     }
 
-    pub fn public_auth_at(&self, index: impl Into<Index>) -> Result<&PublicAuth> {
+    pub fn public_auth_at(&self, version: impl Into<Version>) -> Result<&PublicAuth> {
         let auth = match self {
-            MapData::PublicSentried(data) => data.auth_at(index),
-            MapData::Public(data) => data.auth_at(index),
+            MapData::PublicSentried(data) => data.auth_at(version),
+            MapData::Public(data) => data.auth_at(version),
             _ => return Err(Error::InvalidOperation),
         };
         auth.ok_or(Error::NoSuchEntry)
     }
 
-    pub fn private_auth_at(&self, index: impl Into<Index>) -> Result<&PrivateAuth> {
+    pub fn private_auth_at(&self, version: impl Into<Version>) -> Result<&PrivateAuth> {
         let auth = match self {
-            MapData::PrivateSentried(data) => data.auth_at(index),
-            MapData::Private(data) => data.auth_at(index),
+            MapData::PrivateSentried(data) => data.auth_at(version),
+            MapData::Private(data) => data.auth_at(version),
             _ => return Err(Error::InvalidOperation),
         };
         auth.ok_or(Error::NoSuchEntry)
@@ -1207,8 +1214,8 @@ impl MapData {
         result.ok_or(Error::NoSuchEntry)
     }
 
-    /// Get history of authorization within the range of indices specified.
-    pub fn public_auth_history_range(&self, start: Index, end: Index) -> Result<&[PublicAuth]> {
+    /// Get history of authorization within the range of versions specified.
+    pub fn public_auth_history_range(&self, start: Version, end: Version) -> Result<&[PublicAuth]> {
         let result = match self {
             MapData::PublicSentried(data) => data.auth_history_range(start, end),
             MapData::Public(data) => data.auth_history_range(start, end),
@@ -1217,8 +1224,12 @@ impl MapData {
         result.ok_or(Error::NoSuchEntry)
     }
 
-    /// Get history of authorization within the range of indices specified.
-    pub fn private_auth_history_range(&self, start: Index, end: Index) -> Result<&[PrivateAuth]> {
+    /// Get history of authorization within the range of versions specified.
+    pub fn private_auth_history_range(
+        &self,
+        start: Version,
+        end: Version,
+    ) -> Result<&[PrivateAuth]> {
         let result = match self {
             MapData::PrivateSentried(data) => data.auth_history_range(start, end),
             MapData::Private(data) => data.auth_history_range(start, end),
@@ -1227,12 +1238,12 @@ impl MapData {
         result.ok_or(Error::NoSuchEntry)
     }
 
-    pub fn shell(&self, index: impl Into<Index>) -> Result<Self> {
+    pub fn shell(&self, version: impl Into<Version>) -> Result<Self> {
         match self {
-            MapData::PublicSentried(map) => map.shell(index).map(MapData::PublicSentried),
-            MapData::Public(map) => map.shell(index).map(MapData::Public),
-            MapData::PrivateSentried(map) => map.shell(index).map(MapData::PrivateSentried),
-            MapData::Private(map) => map.shell(index).map(MapData::Private),
+            MapData::PublicSentried(map) => map.shell(version).map(MapData::PublicSentried),
+            MapData::Public(map) => map.shell(version).map(MapData::Public),
+            MapData::PrivateSentried(map) => map.shell(version).map(MapData::PrivateSentried),
+            MapData::Private(map) => map.shell(version).map(MapData::Private),
         }
     }
 

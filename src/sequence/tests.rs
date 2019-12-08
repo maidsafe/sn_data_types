@@ -11,7 +11,7 @@
 mod tests {
     //use unwrap::{unwrap, unwrap_err};
     use crate::sequence::*;
-    use crate::shared_data::Index;
+    use crate::shared_data::Version;
     use crate::XorName;
     use unwrap::unwrap;
 
@@ -62,15 +62,15 @@ mod tests {
         unwrap!(data.append(values, 0));
 
         assert_eq!(
-            data.in_range(Index::FromStart(0), Index::FromStart(0)),
+            data.in_range(Version::FromStart(0), Version::FromStart(0)),
             Some(vec![])
         );
         assert_eq!(
-            data.in_range(Index::FromStart(0), Index::FromStart(2)),
+            data.in_range(Version::FromStart(0), Version::FromStart(2)),
             Some(vec![b"key0".to_vec(), b"value0".to_vec()])
         );
         assert_eq!(
-            data.in_range(Index::FromStart(0), Index::FromStart(4)),
+            data.in_range(Version::FromStart(0), Version::FromStart(4)),
             Some(vec![
                 b"key0".to_vec(),
                 b"value0".to_vec(),
@@ -80,11 +80,11 @@ mod tests {
         );
 
         assert_eq!(
-            data.in_range(Index::FromEnd(4), Index::FromEnd(2)),
+            data.in_range(Version::FromEnd(4), Version::FromEnd(2)),
             Some(vec![b"key0".to_vec(), b"value0".to_vec(),])
         );
         assert_eq!(
-            data.in_range(Index::FromEnd(4), Index::FromEnd(0)),
+            data.in_range(Version::FromEnd(4), Version::FromEnd(0)),
             Some(vec![
                 b"key0".to_vec(),
                 b"value0".to_vec(),
@@ -94,7 +94,7 @@ mod tests {
         );
 
         assert_eq!(
-            data.in_range(Index::FromStart(0), Index::FromEnd(0)),
+            data.in_range(Version::FromStart(0), Version::FromEnd(0)),
             Some(vec![
                 b"key0".to_vec(),
                 b"value0".to_vec(),
@@ -105,16 +105,22 @@ mod tests {
 
         // start > end
         assert_eq!(
-            data.in_range(Index::FromStart(1), Index::FromStart(0)),
+            data.in_range(Version::FromStart(1), Version::FromStart(0)),
             None
         );
-        assert_eq!(data.in_range(Index::FromEnd(1), Index::FromEnd(2)), None);
+        assert_eq!(
+            data.in_range(Version::FromEnd(1), Version::FromEnd(2)),
+            None
+        );
 
         // overflow
         assert_eq!(
-            data.in_range(Index::FromStart(0), Index::FromStart(5)),
+            data.in_range(Version::FromStart(0), Version::FromStart(5)),
             None
         );
-        assert_eq!(data.in_range(Index::FromEnd(5), Index::FromEnd(0)), None);
+        assert_eq!(
+            data.in_range(Version::FromEnd(5), Version::FromEnd(0)),
+            None
+        );
     }
 }

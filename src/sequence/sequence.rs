@@ -11,8 +11,8 @@ use crate::auth::{
     AccessType, Auth, PrivateAuth, PrivatePermissions, PublicAuth, PublicPermissions,
 };
 use crate::shared_data::{
-    to_absolute_index, to_absolute_range, Address, ExpectedIndices, Index, Kind, NonSentried,
-    Owner, Sentried, User, Value,
+    to_absolute_range, to_absolute_version, Address, ExpectedVersions, Kind, NonSentried, Owner,
+    Sentried, User, Value, Version,
 };
 use crate::{Error, PublicKey, Result, XorName};
 use serde::{Deserialize, Serialize};
@@ -44,13 +44,13 @@ impl From<PublicAuth> for SequenceAuth {
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default, Debug)]
 pub struct DataEntry {
-    pub index: u64,
+    pub version: u64,
     pub value: Vec<u8>,
 }
 
 impl DataEntry {
-    pub fn new(index: u64, value: Vec<u8>) -> Self {
-        Self { index, value }
+    pub fn new(version: u64, value: Vec<u8>) -> Self {
+        Self { version, value }
     }
 }
 
@@ -72,24 +72,24 @@ where
     S: Copy,
 {
     /// Returns the data shell - that is - everything except the Values themselves.
-    pub fn shell(&self, expected_data_index: impl Into<Index>) -> Result<Self> {
-        let expected_data_index = to_absolute_index(
-            expected_data_index.into(),
-            self.expected_data_index() as usize,
+    pub fn shell(&self, expected_data_version: impl Into<Version>) -> Result<Self> {
+        let expected_data_version = to_absolute_version(
+            expected_data_version.into(),
+            self.expected_data_version() as usize,
         )
         .ok_or(Error::NoSuchEntry)? as u64;
 
         let auth = self
             .auth
             .iter()
-            .filter(|a| a.expected_data_index() <= expected_data_index)
+            .filter(|a| a.expected_data_version() <= expected_data_version)
             .cloned()
             .collect();
 
         let owners = self
             .owners
             .iter()
-            .filter(|owner| owner.expected_data_index <= expected_data_index)
+            .filter(|owner| owner.expected_data_version <= expected_data_version)
             .cloned()
             .collect();
 
@@ -102,9 +102,9 @@ where
         })
     }
 
-    /// Return a value for the given index (if it is present).
-    pub fn get(&self, index: u64) -> Option<&Value> {
-        self.data.get(index as usize)
+    /// Return a value for the given Version (if it is present).
+    pub fn get(&self, version: u64) -> Option<&Value> {
+        self.data.get(version as usize)
     }
 
     /// Return the current data entry (if it is present).
@@ -115,8 +115,8 @@ where
         }
     }
 
-    /// Get a range of values within the given indices.
-    pub fn in_range(&self, start: Index, end: Index) -> Option<Values> {
+    /// Get a range of values within the given versions.
+    pub fn in_range(&self, start: Version, end: Version) -> Option<Values> {
         let range = to_absolute_range(start, end, self.data.len())?;
         Some(self.data[range].to_vec())
     }
@@ -141,63 +141,63 @@ where
         self.address.tag()
     }
 
-    /// Return the expected data index.
-    pub fn expected_data_index(&self) -> u64 {
+    /// Return the expected data version.
+    pub fn expected_data_version(&self) -> u64 {
         self.data.len() as u64
     }
 
-    /// Return the expected owners index.
-    pub fn expected_owners_index(&self) -> u64 {
+    /// Return the expected owners version.
+    pub fn expected_owners_version(&self) -> u64 {
         self.owners.len() as u64
     }
 
-    /// Return the expected authorization index.
-    pub fn expected_auth_index(&self) -> u64 {
+    /// Return the expected authorization version.
+    pub fn expected_auth_version(&self) -> u64 {
         self.auth.len() as u64
     }
 
-    pub fn indices(&self) -> ExpectedIndices {
-        ExpectedIndices::new(
-            self.expected_data_index(),
-            self.expected_owners_index(),
-            self.expected_auth_index(),
+    pub fn versions(&self) -> ExpectedVersions {
+        ExpectedVersions::new(
+            self.expected_data_version(),
+            self.expected_owners_version(),
+            self.expected_auth_version(),
         )
     }
 
-    /// Get history of owners within the range of indices specified.
-    pub fn owner_history_range(&self, start: Index, end: Index) -> Option<&[Owner]> {
+    /// Get history of owners within the range of versions specified.
+    pub fn owner_history_range(&self, start: Version, end: Version) -> Option<&[Owner]> {
         let range = to_absolute_range(start, end, self.owners.len())?;
         Some(&self.owners[range])
     }
 
-    /// Get history of permission within the range of indices specified.
-    pub fn auth_history_range(&self, start: Index, end: Index) -> Option<&[C]> {
+    /// Get history of permission within the range of versions specified.
+    pub fn auth_history_range(&self, start: Version, end: Version) -> Option<&[C]> {
         let range = to_absolute_range(start, end, self.auth.len())?;
         Some(&self.auth[range])
     }
 
-    /// Get owner at index.
-    pub fn owner_at(&self, index: impl Into<Index>) -> Option<&Owner> {
-        let index = to_absolute_index(index.into(), self.owners.len())?;
-        self.owners.get(index)
+    /// Get owner at version.
+    pub fn owner_at(&self, version: impl Into<Version>) -> Option<&Owner> {
+        let version = to_absolute_version(version.into(), self.owners.len())?;
+        self.owners.get(version)
     }
 
-    /// Get access control at index.
-    pub fn auth_at(&self, index: impl Into<Index>) -> Option<&C> {
-        let index = to_absolute_index(index.into(), self.auth.len())?;
-        self.auth.get(index)
+    /// Get access control at version.
+    pub fn auth_at(&self, version: impl Into<Version>) -> Option<&C> {
+        let version = to_absolute_version(version.into(), self.auth.len())?;
+        self.auth.get(version)
     }
 
     /// Returns true if the user is the current owner.
     pub fn is_owner(&self, user: PublicKey) -> bool {
-        match self.owner_at(Index::FromEnd(1)) {
+        match self.owner_at(Version::FromEnd(1)) {
             Some(owner) => user == owner.public_key,
             _ => false,
         }
     }
 
     pub fn is_allowed(&self, user: PublicKey, access: AccessType) -> bool {
-        match self.owner_at(Index::FromEnd(1)) {
+        match self.owner_at(Version::FromEnd(1)) {
             Some(owner) => {
                 if owner.public_key == user {
                     return true;
@@ -205,40 +205,42 @@ where
             }
             None => (),
         }
-        match self.auth_at(Index::FromEnd(1)) {
+        match self.auth_at(Version::FromEnd(1)) {
             Some(auth) => auth.is_allowed(&user, &access),
             None => false,
         }
     }
 
     /// Set owner.
-    pub fn set_owner(&mut self, owner: Owner, index: u64) -> Result<()> {
-        if owner.expected_data_index != self.expected_data_index() {
-            return Err(Error::InvalidSuccessor(self.expected_data_index()));
+    pub fn set_owner(&mut self, owner: Owner, version: u64) -> Result<()> {
+        if owner.expected_data_version != self.expected_data_version() {
+            return Err(Error::InvalidSuccessor(self.expected_data_version()));
         }
-        if owner.expected_auth_index != self.expected_auth_index() {
+        if owner.expected_auth_version != self.expected_auth_version() {
             return Err(Error::InvalidPermissionsSuccessor(
-                self.expected_auth_index(),
+                self.expected_auth_version(),
             ));
         }
-        if self.expected_owners_index() != index {
-            return Err(Error::InvalidSuccessor(self.expected_owners_index()));
+        if self.expected_owners_version() != version {
+            return Err(Error::InvalidSuccessor(self.expected_owners_version()));
         }
         self.owners.push(owner);
         Ok(())
     }
 
     /// Set authorization.
-    /// The `Auth` struct needs to contain the correct expected indices.
-    pub fn set_auth(&mut self, auth: C, index: u64) -> Result<()> {
-        if auth.expected_data_index() != self.expected_data_index() {
-            return Err(Error::InvalidSuccessor(self.expected_data_index()));
+    /// The `Auth` struct needs to contain the correct expected versions.
+    pub fn set_auth(&mut self, auth: C, version: u64) -> Result<()> {
+        if auth.expected_data_version() != self.expected_data_version() {
+            return Err(Error::InvalidSuccessor(self.expected_data_version()));
         }
-        if auth.expected_owners_index() != self.expected_owners_index() {
-            return Err(Error::InvalidOwnersSuccessor(self.expected_owners_index()));
+        if auth.expected_owners_version() != self.expected_owners_version() {
+            return Err(Error::InvalidOwnersSuccessor(
+                self.expected_owners_version(),
+            ));
         }
-        if self.expected_auth_index() != index {
-            return Err(Error::InvalidSuccessor(self.expected_auth_index()));
+        if self.expected_auth_version() != version {
+            return Err(Error::InvalidSuccessor(self.expected_auth_version()));
         }
         self.auth.push(auth);
         Ok(())
@@ -280,10 +282,10 @@ impl<P: Auth> SequenceBase<P, NonSentried> {
 impl<P: Auth> SequenceBase<P, Sentried> {
     /// Append new Values.
     ///
-    /// If the specified `expected_index` does not equal the Values count in data, an
+    /// If the specified `expected_version` does not equal the Values count in data, an
     /// error will be returned.
-    pub fn append(&mut self, values: Values, expected_index: u64) -> Result<()> {
-        if expected_index != self.data.len() as u64 {
+    pub fn append(&mut self, values: Values, expected_version: u64) -> Result<()> {
+        if expected_version != self.data.len() as u64 {
             return Err(Error::InvalidSuccessor(self.data.len() as u64));
         }
 
@@ -434,48 +436,48 @@ impl SequenceData {
         }
     }
 
-    pub fn get(&self, index: u64) -> Option<&Value> {
+    pub fn get(&self, version: u64) -> Option<&Value> {
         match self {
-            SequenceData::PublicSentried(data) => data.get(index),
-            SequenceData::Public(data) => data.get(index),
-            SequenceData::PrivateSentried(data) => data.get(index),
-            SequenceData::Private(data) => data.get(index),
+            SequenceData::PublicSentried(data) => data.get(version),
+            SequenceData::Public(data) => data.get(version),
+            SequenceData::PrivateSentried(data) => data.get(version),
+            SequenceData::Private(data) => data.get(version),
         }
     }
 
-    pub fn expected_data_index(&self) -> u64 {
+    pub fn expected_data_version(&self) -> u64 {
         match self {
-            SequenceData::PublicSentried(data) => data.expected_data_index(),
-            SequenceData::Public(data) => data.expected_data_index(),
-            SequenceData::PrivateSentried(data) => data.expected_data_index(),
-            SequenceData::Private(data) => data.expected_data_index(),
+            SequenceData::PublicSentried(data) => data.expected_data_version(),
+            SequenceData::Public(data) => data.expected_data_version(),
+            SequenceData::PrivateSentried(data) => data.expected_data_version(),
+            SequenceData::Private(data) => data.expected_data_version(),
         }
     }
 
-    pub fn expected_auth_index(&self) -> u64 {
+    pub fn expected_auth_version(&self) -> u64 {
         match self {
-            SequenceData::PublicSentried(data) => data.expected_auth_index(),
-            SequenceData::Public(data) => data.expected_auth_index(),
-            SequenceData::PrivateSentried(data) => data.expected_auth_index(),
-            SequenceData::Private(data) => data.expected_auth_index(),
+            SequenceData::PublicSentried(data) => data.expected_auth_version(),
+            SequenceData::Public(data) => data.expected_auth_version(),
+            SequenceData::PrivateSentried(data) => data.expected_auth_version(),
+            SequenceData::Private(data) => data.expected_auth_version(),
         }
     }
 
-    pub fn expected_owners_index(&self) -> u64 {
+    pub fn expected_owners_version(&self) -> u64 {
         match self {
-            SequenceData::PublicSentried(data) => data.expected_owners_index(),
-            SequenceData::Public(data) => data.expected_owners_index(),
-            SequenceData::PrivateSentried(data) => data.expected_owners_index(),
-            SequenceData::Private(data) => data.expected_owners_index(),
+            SequenceData::PublicSentried(data) => data.expected_owners_version(),
+            SequenceData::Public(data) => data.expected_owners_version(),
+            SequenceData::PrivateSentried(data) => data.expected_owners_version(),
+            SequenceData::Private(data) => data.expected_owners_version(),
         }
     }
 
-    pub fn indices(&self) -> ExpectedIndices {
+    pub fn versions(&self) -> ExpectedVersions {
         match self {
-            SequenceData::PublicSentried(data) => data.indices(),
-            SequenceData::Public(data) => data.indices(),
-            SequenceData::PrivateSentried(data) => data.indices(),
-            SequenceData::Private(data) => data.indices(),
+            SequenceData::PublicSentried(data) => data.versions(),
+            SequenceData::Public(data) => data.versions(),
+            SequenceData::PrivateSentried(data) => data.versions(),
+            SequenceData::Private(data) => data.versions(),
         }
     }
 
@@ -488,7 +490,7 @@ impl SequenceData {
         }
     }
 
-    pub fn in_range(&self, start: Index, end: Index) -> Option<Values> {
+    pub fn in_range(&self, start: Version, end: Version) -> Option<Values> {
         match self {
             SequenceData::PublicSentried(data) => data.in_range(start, end),
             SequenceData::Public(data) => data.in_range(start, end),
@@ -497,21 +499,21 @@ impl SequenceData {
         }
     }
 
-    pub fn owner_at(&self, index: impl Into<Index>) -> Option<&Owner> {
+    pub fn owner_at(&self, version: impl Into<Version>) -> Option<&Owner> {
         match self {
-            SequenceData::PublicSentried(data) => data.owner_at(index),
-            SequenceData::Public(data) => data.owner_at(index),
-            SequenceData::PrivateSentried(data) => data.owner_at(index),
-            SequenceData::Private(data) => data.owner_at(index),
+            SequenceData::PublicSentried(data) => data.owner_at(version),
+            SequenceData::Public(data) => data.owner_at(version),
+            SequenceData::PrivateSentried(data) => data.owner_at(version),
+            SequenceData::Private(data) => data.owner_at(version),
         }
     }
 
     pub fn public_permissions_at(
         &self,
         user: User,
-        index: impl Into<Index>,
+        version: impl Into<Version>,
     ) -> Result<PublicPermissions> {
-        self.public_auth_at(index)?
+        self.public_auth_at(version)?
             .permissions()
             .get(&user)
             .cloned()
@@ -521,43 +523,43 @@ impl SequenceData {
     pub fn private_permissions_at(
         &self,
         user: PublicKey,
-        index: impl Into<Index>,
+        version: impl Into<Version>,
     ) -> Result<PrivatePermissions> {
-        self.private_auth_at(index)?
+        self.private_auth_at(version)?
             .permissions()
             .get(&user)
             .cloned()
             .ok_or(Error::NoSuchEntry)
     }
 
-    pub fn public_auth_at(&self, index: impl Into<Index>) -> Result<&PublicAuth> {
+    pub fn public_auth_at(&self, version: impl Into<Version>) -> Result<&PublicAuth> {
         let auth = match self {
-            SequenceData::PublicSentried(data) => data.auth_at(index),
-            SequenceData::Public(data) => data.auth_at(index),
+            SequenceData::PublicSentried(data) => data.auth_at(version),
+            SequenceData::Public(data) => data.auth_at(version),
             _ => return Err(Error::NoSuchData),
         };
         auth.ok_or(Error::NoSuchEntry)
     }
 
-    pub fn private_auth_at(&self, index: impl Into<Index>) -> Result<&PrivateAuth> {
+    pub fn private_auth_at(&self, version: impl Into<Version>) -> Result<&PrivateAuth> {
         let auth = match self {
-            SequenceData::PrivateSentried(data) => data.auth_at(index),
-            SequenceData::Private(data) => data.auth_at(index),
+            SequenceData::PrivateSentried(data) => data.auth_at(version),
+            SequenceData::Private(data) => data.auth_at(version),
             _ => return Err(Error::NoSuchData),
         };
         auth.ok_or(Error::NoSuchEntry)
     }
 
-    pub fn shell(&self, index: impl Into<Index>) -> Result<Self> {
+    pub fn shell(&self, version: impl Into<Version>) -> Result<Self> {
         match self {
             SequenceData::PublicSentried(adata) => {
-                adata.shell(index).map(SequenceData::PublicSentried)
+                adata.shell(version).map(SequenceData::PublicSentried)
             }
-            SequenceData::Public(adata) => adata.shell(index).map(SequenceData::Public),
+            SequenceData::Public(adata) => adata.shell(version).map(SequenceData::Public),
             SequenceData::PrivateSentried(adata) => {
-                adata.shell(index).map(SequenceData::PrivateSentried)
+                adata.shell(version).map(SequenceData::PrivateSentried)
             }
-            SequenceData::Private(adata) => adata.shell(index).map(SequenceData::Private),
+            SequenceData::Private(adata) => adata.shell(version).map(SequenceData::Private),
         }
     }
 
@@ -566,8 +568,8 @@ impl SequenceData {
         match self {
             SequenceData::PrivateSentried(sequence) => match cmd {
                 SequenceCmd::ExpectVersion(cmd) => match cmd {
-                    SentriedCmd::Append((values, index)) => {
-                        return sequence.append(values, index);
+                    SentriedCmd::Append((values, expected_version)) => {
+                        return sequence.append(values, expected_version);
                     }
                 },
                 _ => return Err(Error::InvalidOperation),
@@ -582,8 +584,8 @@ impl SequenceData {
             },
             SequenceData::PublicSentried(sequence) => match cmd {
                 SequenceCmd::ExpectVersion(cmd) => match cmd {
-                    SentriedCmd::Append((values, index)) => {
-                        return sequence.append(values, index);
+                    SentriedCmd::Append((values, expected_version)) => {
+                        return sequence.append(values, expected_version);
                     }
                 },
                 _ => return Err(Error::InvalidOperation),

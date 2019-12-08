@@ -186,17 +186,17 @@ impl PublicPermissions {
 
 pub trait Auth: Clone + Eq + Ord + Hash + Serialize + DeserializeOwned {
     fn is_allowed(&self, user: &PublicKey, access: &AccessType) -> bool;
-    fn expected_data_index(&self) -> u64;
-    fn expected_owners_index(&self) -> u64;
+    fn expected_data_version(&self) -> u64;
+    fn expected_owners_version(&self) -> u64;
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub struct PrivateAuth {
     pub permissions: BTreeMap<PublicKey, PrivatePermissions>,
     /// The expected index of the data at the time this grant state change is to become valid.
-    pub expected_data_index: u64,
+    pub expected_data_version: u64,
     /// The expected index of the owners at the time this grant state is to become valid.
-    pub expected_owners_index: u64,
+    pub expected_owners_version: u64,
 }
 
 impl PrivateAuth {
@@ -213,12 +213,12 @@ impl Auth for PrivateAuth {
         }
     }
 
-    fn expected_data_index(&self) -> u64 {
-        self.expected_data_index
+    fn expected_data_version(&self) -> u64 {
+        self.expected_data_version
     }
 
-    fn expected_owners_index(&self) -> u64 {
-        self.expected_owners_index
+    fn expected_owners_version(&self) -> u64 {
+        self.expected_owners_version
     }
 }
 
@@ -226,9 +226,9 @@ impl Auth for PrivateAuth {
 pub struct PublicAuth {
     pub permissions: BTreeMap<User, PublicPermissions>,
     /// The expected index of the data at the time this grant state change is to become valid.
-    pub expected_data_index: u64,
+    pub expected_data_version: u64,
     /// The expected index of the owners at the time this grant state change is to become valid.
-    pub expected_owners_index: u64,
+    pub expected_owners_version: u64,
 }
 
 impl PublicAuth {
@@ -260,11 +260,11 @@ impl Auth for PublicAuth {
         }
     }
 
-    fn expected_data_index(&self) -> u64 {
-        self.expected_data_index
+    fn expected_data_version(&self) -> u64 {
+        self.expected_data_version
     }
 
-    fn expected_owners_index(&self) -> u64 {
-        self.expected_owners_index
+    fn expected_owners_version(&self) -> u64 {
+        self.expected_owners_version
     }
 }

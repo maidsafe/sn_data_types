@@ -203,8 +203,8 @@ impl error::Error for Error {
 pub enum EntryError {
     /// Entry does not exists.
     NoSuchEntry,
-    /// Entry already exists. Contains the current entry Key.
-    EntryExists(u8),
-    /// Invalid version when updating an entry. Contains the current entry Key.
-    InvalidSuccessor(u8),
+    /// Entry already exists. Contains the current entry version.
+    EntryExists(u64),
+    /// Invalid version when updating an entry. Contains the current entry version.
+    InvalidSuccessor(u64),
 }

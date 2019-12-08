@@ -8,7 +8,7 @@
 // Software.
 
 use crate::{
-    errors::ErrorDebug, AppPermissions, BlobData, Coins, Error, ExpectedIndices, Key, MapAuth,
+    errors::ErrorDebug, AppPermissions, BlobData, Coins, Error, ExpectedVersions, Key, MapAuth,
     MapData, MapEntries, MapKeyHistories, MapValue, MapValues, Owner, PrivateAuth,
     PrivatePermissions, PublicAuth, PublicKey, PublicPermissions, Result, SequenceAuth,
     SequenceData, SequenceEntry, SequenceValues, Signature, Transaction, Value as SequenceValue,
@@ -34,7 +34,7 @@ pub enum Response {
     GetMap(Result<MapData>),
     GetMapShell(Result<MapData>),
     GetMapVersion(Result<u64>),
-    GetMapExpectedIndices(Result<ExpectedIndices>),
+    GetMapExpectedVersions(Result<ExpectedVersions>),
     GetMapValue(Result<MapValue>),   // The value of a key
     GetMapValueAt(Result<MapValue>), // The value of a key as of a version.
     GetMapValues(Result<MapValues>), // All current values of map
@@ -68,7 +68,7 @@ pub enum Response {
     GetSequenceOwnerHistoryRange(Result<Vec<Owner>>),
     GetSequenceRange(Result<SequenceValues>),
     GetSequenceValue(Result<SequenceValue>),
-    GetSequenceExpectedIndices(Result<ExpectedIndices>),
+    GetSequenceExpectedVersions(Result<ExpectedVersions>),
     GetSequenceCurrentEntry(Result<SequenceEntry>),
     GetSequenceAuth(Result<SequenceAuth>),
     GetSequenceAuthAt(Result<SequenceAuth>),
@@ -137,9 +137,9 @@ try_from!(SequenceValue, GetSequenceValue);
 try_from!(SequenceData, GetSequence, GetSequenceShell);
 try_from!(Owner, GetMapOwner, GetSequenceOwner);
 try_from!(
-    ExpectedIndices,
-    GetMapExpectedIndices,
-    GetSequenceExpectedIndices
+    ExpectedVersions,
+    GetMapExpectedVersions,
+    GetSequenceExpectedVersions
 );
 try_from!(SequenceValues, GetSequenceRange);
 try_from!(SequenceEntry, GetSequenceCurrentEntry);
@@ -174,8 +174,8 @@ impl fmt::Debug for Response {
             GetMap(res) => write!(f, "Response::GetMap({:?})", ErrorDebug(res)),
             GetMapShell(res) => write!(f, "Response::GetMapShell({:?})", ErrorDebug(res)),
             GetMapVersion(res) => write!(f, "Response::GetMapVersion({:?})", ErrorDebug(res)),
-            GetMapExpectedIndices(res) => {
-                write!(f, "Response::GetMapExpectedIndices({:?})", ErrorDebug(res))
+            GetMapExpectedVersions(res) => {
+                write!(f, "Response::GetMapExpectedVersions({:?})", ErrorDebug(res))
             }
             GetMapKeyHistory(res) => write!(f, "Response::GetMapKeyHistory({:?})", ErrorDebug(res)),
             GetMapKeyHistoryRange(res) => {
@@ -246,8 +246,8 @@ impl fmt::Debug for Response {
             GetSequenceShell(res) => write!(f, "Response::GetSequenceShell({:?})", ErrorDebug(res)),
             GetSequenceValue(res) => write!(f, "Response::GetSequenceValue({:?})", ErrorDebug(res)),
             GetSequenceRange(res) => write!(f, "Response::GetSequenceRange({:?})", ErrorDebug(res)),
-            GetSequenceExpectedIndices(res) => {
-                write!(f, "Response::GetExpectedIndices({:?})", ErrorDebug(res))
+            GetSequenceExpectedVersions(res) => {
+                write!(f, "Response::GetExpectedVersions({:?})", ErrorDebug(res))
             }
             GetSequenceCurrentEntry(res) => write!(
                 f,
