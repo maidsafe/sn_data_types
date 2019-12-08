@@ -20,28 +20,28 @@ mod tests {
         let insert_1 = SentriedCmd::Insert(((vec![1], vec![0]), 0));
         let insert_2 = SentriedCmd::Insert(((vec![2], vec![0]), 0));
         let tx = vec![insert_0, insert_1, insert_2];
-        unwrap!(data.commit(tx));
+        unwrap!(data.commit(&tx));
 
         let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
         let insert_0 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
         let insert_1 = SentriedCmd::Insert(((vec![1], vec![0]), 0));
         let insert_2 = SentriedCmd::Insert(((vec![2], vec![0]), 0));
         let tx = vec![insert_0, insert_1, insert_2];
-        unwrap!(data.commit(tx));
+        unwrap!(data.commit(&tx));
 
         let mut data = PublicMap::new(XorName([1; 32]), 10000);
         let insert_0 = Cmd::Insert((vec![0], vec![0]));
         let insert_1 = Cmd::Insert((vec![1], vec![0]));
         let insert_2 = Cmd::Insert((vec![2], vec![0]));
         let tx = vec![insert_0, insert_1, insert_2];
-        unwrap!(data.commit(tx));
+        unwrap!(data.commit(&tx));
 
         let mut data = PrivateMap::new(XorName([1; 32]), 10000);
         let insert_0 = Cmd::Insert((vec![0], vec![0]));
         let insert_1 = Cmd::Insert((vec![1], vec![0]));
         let insert_2 = Cmd::Insert((vec![2], vec![0]));
         let tx = vec![insert_0, insert_1, insert_2];
-        unwrap!(data.commit(tx))
+        unwrap!(data.commit(&tx))
     }
 
     #[test]
@@ -51,28 +51,28 @@ mod tests {
         let update_1 = SentriedCmd::Update(((vec![0], vec![0]), 1));
         let update_2 = SentriedCmd::Update(((vec![0], vec![0]), 2));
         let tx = vec![insert_0, update_1, update_2];
-        unwrap!(data.commit(tx));
+        unwrap!(data.commit(&tx));
 
         let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
         let insert_0 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
         let update_1 = SentriedCmd::Update(((vec![0], vec![0]), 1));
         let update_2 = SentriedCmd::Update(((vec![0], vec![0]), 2));
         let tx = vec![insert_0, update_1, update_2];
-        unwrap!(data.commit(tx));
+        unwrap!(data.commit(&tx));
 
         let mut data = PublicMap::new(XorName([1; 32]), 10000);
         let insert_0 = Cmd::Insert((vec![0], vec![0]));
         let update_1 = Cmd::Update((vec![0], vec![0]));
         let update_2 = Cmd::Update((vec![0], vec![0]));
         let tx = vec![insert_0, update_1, update_2];
-        unwrap!(data.commit(tx));
+        unwrap!(data.commit(&tx));
 
         let mut data = PrivateMap::new(XorName([1; 32]), 10000);
         let insert_0 = Cmd::Insert((vec![0], vec![0]));
         let update_1 = Cmd::Update((vec![0], vec![0]));
         let update_2 = Cmd::Update((vec![0], vec![0]));
         let tx = vec![insert_0, update_1, update_2];
-        unwrap!(data.commit(tx))
+        unwrap!(data.commit(&tx))
     }
 
     #[test]
@@ -82,28 +82,28 @@ mod tests {
         let update_1 = SentriedCmd::Update(((vec![0], vec![0]), 1));
         let delete_2 = SentriedCmd::Delete((vec![0], 2));
         let tx = vec![insert_0, update_1, delete_2];
-        unwrap!(data.commit(tx));
+        unwrap!(data.commit(&tx));
 
         let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
         let insert_0 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
         let update_1 = SentriedCmd::Update(((vec![0], vec![0]), 1));
         let delete_2 = SentriedCmd::Delete((vec![0], 2));
         let tx = vec![insert_0, update_1, delete_2];
-        unwrap!(data.commit(tx));
+        unwrap!(data.commit(&tx));
 
         let mut data = PublicMap::new(XorName([1; 32]), 10000);
         let insert_0 = Cmd::Insert((vec![0], vec![0]));
         let update_1 = Cmd::Update((vec![0], vec![0]));
         let delete_2 = Cmd::Delete(vec![0]);
         let tx = vec![insert_0, update_1, delete_2];
-        unwrap!(data.commit(tx));
+        unwrap!(data.commit(&tx));
 
         let mut data = PrivateMap::new(XorName([1; 32]), 10000);
         let insert_0 = Cmd::Insert((vec![0], vec![0]));
         let update_1 = Cmd::Update((vec![0], vec![0]));
         let delete_2 = Cmd::Delete(vec![0]);
         let tx = vec![insert_0, update_1, delete_2];
-        unwrap!(data.commit(tx))
+        unwrap!(data.commit(&tx))
     }
 
     #[test]
@@ -113,40 +113,40 @@ mod tests {
         let update_1 = SentriedCmd::Update(((vec![0], vec![0]), 1));
         let delete_2 = SentriedCmd::Delete((vec![0], 2));
         let tx_0 = vec![insert_0, update_1, delete_2];
-        unwrap!(data.commit(tx_0));
+        unwrap!(data.commit(&tx_0));
         let insert_3 = SentriedCmd::Insert(((vec![0], vec![0]), 3));
         let tx_1 = vec![insert_3];
-        unwrap!(data.commit(tx_1));
+        unwrap!(data.commit(&tx_1));
 
         let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
         let insert_0 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
         let update_1 = SentriedCmd::Update(((vec![0], vec![0]), 1));
         let delete_2 = SentriedCmd::Delete((vec![0], 2));
         let tx_0 = vec![insert_0, update_1, delete_2];
-        unwrap!(data.commit(tx_0));
+        unwrap!(data.commit(&tx_0));
         let insert_3 = SentriedCmd::Insert(((vec![0], vec![0]), 3));
         let tx_1 = vec![insert_3];
-        unwrap!(data.commit(tx_1));
+        unwrap!(data.commit(&tx_1));
 
         let mut data = PublicMap::new(XorName([1; 32]), 10000);
         let insert_0 = Cmd::Insert((vec![0], vec![0]));
         let update_1 = Cmd::Update((vec![0], vec![0]));
         let delete_2 = Cmd::Delete(vec![0]);
         let tx_0 = vec![insert_0, update_1, delete_2];
-        unwrap!(data.commit(tx_0));
+        unwrap!(data.commit(&tx_0));
         let insert_3 = Cmd::Insert((vec![0], vec![0]));
         let tx_1 = vec![insert_3];
-        unwrap!(data.commit(tx_1));
+        unwrap!(data.commit(&tx_1));
 
         let mut data = PrivateMap::new(XorName([1; 32]), 10000);
         let insert_0 = Cmd::Insert((vec![0], vec![0]));
         let update_1 = Cmd::Update((vec![0], vec![0]));
         let delete_2 = Cmd::Delete(vec![0]);
         let tx_0 = vec![insert_0, update_1, delete_2];
-        unwrap!(data.commit(tx_0));
+        unwrap!(data.commit(&tx_0));
         let insert_3 = Cmd::Insert((vec![0], vec![0]));
         let tx_1 = vec![insert_3];
-        unwrap!(data.commit(tx_1));
+        unwrap!(data.commit(&tx_1));
     }
 
     #[test]
@@ -154,10 +154,10 @@ mod tests {
         let mut data = PublicSentriedMap::new(XorName([1; 32]), 10000);
         let insert_0 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
         let tx = vec![insert_0];
-        unwrap!(data.commit(tx));
+        unwrap!(data.commit(&tx));
         let insert_1 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
         let tx = vec![insert_1];
-        match unwrap_err!(data.commit(tx)) {
+        match unwrap_err!(data.commit(&tx)) {
             Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
                 Some(error) => assert_eq!(EntryError::EntryExists(1), *error),
                 _ => assert!(false),
@@ -168,10 +168,10 @@ mod tests {
         let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
         let insert_0 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
         let tx = vec![insert_0];
-        unwrap!(data.commit(tx));
+        unwrap!(data.commit(&tx));
         let insert_1 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
         let tx = vec![insert_1];
-        match unwrap_err!(data.commit(tx)) {
+        match unwrap_err!(data.commit(&tx)) {
             Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
                 Some(error) => assert_eq!(EntryError::EntryExists(1), *error),
                 _ => assert!(false),
@@ -182,10 +182,10 @@ mod tests {
         let mut data = PublicMap::new(XorName([1; 32]), 10000);
         let insert_0 = Cmd::Insert((vec![0], vec![0]));
         let tx = vec![insert_0];
-        unwrap!(data.commit(tx));
+        unwrap!(data.commit(&tx));
         let insert_1 = Cmd::Insert((vec![0], vec![0]));
         let tx = vec![insert_1];
-        match unwrap_err!(data.commit(tx)) {
+        match unwrap_err!(data.commit(&tx)) {
             Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
                 Some(error) => assert_eq!(EntryError::EntryExists(1), *error),
                 _ => assert!(false),
@@ -196,10 +196,10 @@ mod tests {
         let mut data = PrivateMap::new(XorName([1; 32]), 10000);
         let insert_0 = Cmd::Insert((vec![0], vec![0]));
         let tx = vec![insert_0];
-        unwrap!(data.commit(tx));
+        unwrap!(data.commit(&tx));
         let insert_1 = Cmd::Insert((vec![0], vec![0]));
         let tx = vec![insert_1];
-        match unwrap_err!(data.commit(tx)) {
+        match unwrap_err!(data.commit(&tx)) {
             Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
                 Some(error) => assert_eq!(EntryError::EntryExists(1), *error),
                 _ => assert!(false),
@@ -215,7 +215,7 @@ mod tests {
         let update_1 = SentriedCmd::Update(((vec![0], vec![0]), 1));
         let update_2 = SentriedCmd::Update(((vec![0], vec![0]), 3)); // <-- wrong version
         let tx = vec![insert_0, update_1, update_2];
-        match unwrap_err!(data.commit(tx)) {
+        match unwrap_err!(data.commit(&tx)) {
             Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
                 Some(error) => assert_eq!(EntryError::InvalidSuccessor(2), *error),
                 _ => assert!(false),
@@ -228,7 +228,7 @@ mod tests {
         let update_1 = SentriedCmd::Update(((vec![0], vec![0]), 1));
         let update_2 = SentriedCmd::Update(((vec![0], vec![0]), 3)); // <-- wrong version
         let tx = vec![insert_0, update_1, update_2];
-        match unwrap_err!(data.commit(tx)) {
+        match unwrap_err!(data.commit(&tx)) {
             Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
                 Some(error) => assert_eq!(EntryError::InvalidSuccessor(2), *error),
                 _ => assert!(false),
@@ -243,7 +243,7 @@ mod tests {
         let insert_0 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
         let delete_1 = SentriedCmd::Delete((vec![0], 3)); // <-- wrong version
         let tx = vec![insert_0, delete_1];
-        match unwrap_err!(data.commit(tx)) {
+        match unwrap_err!(data.commit(&tx)) {
             Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
                 Some(error) => assert_eq!(EntryError::InvalidSuccessor(1), *error),
                 _ => assert!(false),
@@ -255,7 +255,7 @@ mod tests {
         let insert_0 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
         let delete_1 = SentriedCmd::Delete((vec![0], 3)); // <-- wrong version
         let tx = vec![insert_0, delete_1];
-        match unwrap_err!(data.commit(tx)) {
+        match unwrap_err!(data.commit(&tx)) {
             Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
                 Some(error) => assert_eq!(EntryError::InvalidSuccessor(1), *error),
                 _ => assert!(false),
@@ -271,10 +271,10 @@ mod tests {
         let insert_0 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
         let delete_1 = SentriedCmd::Delete((vec![0], 1));
         let tx = vec![insert_0, delete_1];
-        unwrap!(data.commit(tx));
+        unwrap!(data.commit(&tx));
         let insert_2 = SentriedCmd::Insert(((vec![0], vec![0]), 3)); // <-- wrong version
         let tx = vec![insert_2];
-        match unwrap_err!(data.commit(tx)) {
+        match unwrap_err!(data.commit(&tx)) {
             Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
                 Some(error) => assert_eq!(EntryError::InvalidSuccessor(2), *error),
                 _ => assert!(false),
@@ -287,10 +287,10 @@ mod tests {
         let insert_0 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
         let delete_1 = SentriedCmd::Delete((vec![0], 1));
         let tx = vec![insert_0, delete_1];
-        unwrap!(data.commit(tx));
+        unwrap!(data.commit(&tx));
         let insert_2 = SentriedCmd::Insert(((vec![0], vec![0]), 3)); // <-- wrong version
         let tx = vec![insert_2];
-        match unwrap_err!(data.commit(tx)) {
+        match unwrap_err!(data.commit(&tx)) {
             Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
                 Some(error) => assert_eq!(EntryError::InvalidSuccessor(2), *error),
                 _ => assert!(false),
@@ -305,7 +305,7 @@ mod tests {
         // Delete
         let delete_2 = SentriedCmd::Delete((vec![0], 2));
         let tx = vec![delete_2];
-        match unwrap_err!(data.commit(tx)) {
+        match unwrap_err!(data.commit(&tx)) {
             Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
                 Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
                 _ => assert!(false),
@@ -315,7 +315,7 @@ mod tests {
         // Update
         let update_3 = SentriedCmd::Update(((vec![0], vec![0]), 3));
         let tx = vec![update_3];
-        match unwrap_err!(data.commit(tx)) {
+        match unwrap_err!(data.commit(&tx)) {
             Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
                 Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
                 _ => assert!(false),
@@ -328,7 +328,7 @@ mod tests {
         // Delete
         let delete_2 = SentriedCmd::Delete((vec![0], 2));
         let tx = vec![delete_2];
-        match unwrap_err!(data.commit(tx)) {
+        match unwrap_err!(data.commit(&tx)) {
             Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
                 Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
                 _ => assert!(false),
@@ -338,7 +338,7 @@ mod tests {
         // Update
         let update_3 = SentriedCmd::Update(((vec![0], vec![0]), 3));
         let tx = vec![update_3];
-        match unwrap_err!(data.commit(tx)) {
+        match unwrap_err!(data.commit(&tx)) {
             Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
                 Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
                 _ => assert!(false),
@@ -351,7 +351,7 @@ mod tests {
         // Delete
         let delete_2 = Cmd::Delete(vec![0]);
         let tx = vec![delete_2];
-        match unwrap_err!(data.commit(tx)) {
+        match unwrap_err!(data.commit(&tx)) {
             Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
                 Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
                 _ => assert!(false),
@@ -361,7 +361,7 @@ mod tests {
         // Update
         let update_3 = Cmd::Update((vec![0], vec![0]));
         let tx = vec![update_3];
-        match unwrap_err!(data.commit(tx)) {
+        match unwrap_err!(data.commit(&tx)) {
             Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
                 Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
                 _ => assert!(false),
@@ -374,7 +374,7 @@ mod tests {
         // Delete
         let delete_2 = Cmd::Delete(vec![0]);
         let tx = vec![delete_2];
-        match unwrap_err!(data.commit(tx)) {
+        match unwrap_err!(data.commit(&tx)) {
             Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
                 Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
                 _ => assert!(false),
@@ -384,7 +384,7 @@ mod tests {
         // Update
         let update_3 = Cmd::Update((vec![0], vec![0]));
         let tx = vec![update_3];
-        match unwrap_err!(data.commit(tx)) {
+        match unwrap_err!(data.commit(&tx)) {
             Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
                 Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
                 _ => assert!(false),
@@ -400,11 +400,11 @@ mod tests {
         let insert_0 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
         let delete_1 = SentriedCmd::Delete((vec![0], 1));
         let tx = vec![insert_0, delete_1];
-        unwrap!(data.commit(tx));
+        unwrap!(data.commit(&tx));
         // Delete
         let delete_2 = SentriedCmd::Delete((vec![0], 2));
         let tx = vec![delete_2];
-        match unwrap_err!(data.commit(tx)) {
+        match unwrap_err!(data.commit(&tx)) {
             Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
                 Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
                 _ => assert!(false),
@@ -414,7 +414,7 @@ mod tests {
         // Update
         let update_3 = SentriedCmd::Update(((vec![0], vec![0]), 3));
         let tx = vec![update_3];
-        match unwrap_err!(data.commit(tx)) {
+        match unwrap_err!(data.commit(&tx)) {
             Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
                 Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
                 _ => assert!(false),
@@ -427,11 +427,11 @@ mod tests {
         let insert_0 = SentriedCmd::Insert(((vec![0], vec![0]), 0));
         let delete_1 = SentriedCmd::Delete((vec![0], 1));
         let tx = vec![insert_0, delete_1];
-        unwrap!(data.commit(tx));
+        unwrap!(data.commit(&tx));
         // Delete
         let delete_2 = SentriedCmd::Delete((vec![0], 2));
         let tx = vec![delete_2];
-        match unwrap_err!(data.commit(tx)) {
+        match unwrap_err!(data.commit(&tx)) {
             Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
                 Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
                 _ => assert!(false),
@@ -441,7 +441,7 @@ mod tests {
         // Update
         let update_3 = SentriedCmd::Update(((vec![0], vec![0]), 3));
         let tx = vec![update_3];
-        match unwrap_err!(data.commit(tx)) {
+        match unwrap_err!(data.commit(&tx)) {
             Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
                 Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
                 _ => assert!(false),
@@ -454,11 +454,11 @@ mod tests {
         let insert_0 = Cmd::Insert((vec![0], vec![0]));
         let delete_1 = Cmd::Delete(vec![0]);
         let tx = vec![insert_0, delete_1];
-        unwrap!(data.commit(tx));
+        unwrap!(data.commit(&tx));
         // Delete
         let delete_2 = Cmd::Delete(vec![0]);
         let tx = vec![delete_2];
-        match unwrap_err!(data.commit(tx)) {
+        match unwrap_err!(data.commit(&tx)) {
             Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
                 Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
                 _ => assert!(false),
@@ -468,7 +468,7 @@ mod tests {
         // Update
         let update_3 = Cmd::Update((vec![0], vec![0]));
         let tx = vec![update_3];
-        match unwrap_err!(data.commit(tx)) {
+        match unwrap_err!(data.commit(&tx)) {
             Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
                 Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
                 _ => assert!(false),
@@ -481,11 +481,11 @@ mod tests {
         let insert_0 = Cmd::Insert((vec![0], vec![0]));
         let delete_1 = Cmd::Delete(vec![0]);
         let tx = vec![insert_0, delete_1];
-        unwrap!(data.commit(tx));
+        unwrap!(data.commit(&tx));
         // Delete
         let delete_2 = Cmd::Delete(vec![0]);
         let tx = vec![delete_2];
-        match unwrap_err!(data.commit(tx)) {
+        match unwrap_err!(data.commit(&tx)) {
             Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
                 Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
                 _ => assert!(false),
@@ -495,7 +495,7 @@ mod tests {
         // Update
         let update_3 = Cmd::Update((vec![0], vec![0]));
         let tx = vec![update_3];
-        match unwrap_err!(data.commit(tx)) {
+        match unwrap_err!(data.commit(&tx)) {
             Error::InvalidEntryActions(errors) => match errors.get(&vec![0]) {
                 Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
                 _ => assert!(false),

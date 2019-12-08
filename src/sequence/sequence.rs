@@ -589,14 +589,14 @@ impl SequenceData {
     }
 
     /// Commits transaction.
-    pub fn commit(&mut self, cmd: SequenceCmd) -> Result<()> {
+    pub fn commit(&mut self, cmd: &SequenceCmd) -> Result<()> {
         use SequenceCmd::*;
         use SequenceData::*;
         match self {
             PrivateSentried(sequence) => match cmd {
                 ExpectVersion(cmd) => match cmd {
                     SentriedCmd::Append((values, expected_version)) => {
-                        return sequence.append(values, expected_version);
+                        return sequence.append(values.to_vec(), *expected_version);
                     }
                 },
                 _ => return Err(Error::InvalidOperation),
@@ -604,7 +604,7 @@ impl SequenceData {
             Private(sequence) => match cmd {
                 AnyVersion(cmd) => match cmd {
                     Cmd::Append(values) => {
-                        return sequence.append(values);
+                        return sequence.append(values.to_vec());
                     }
                 },
                 _ => return Err(Error::InvalidOperation),
@@ -612,7 +612,7 @@ impl SequenceData {
             PublicSentried(sequence) => match cmd {
                 ExpectVersion(cmd) => match cmd {
                     SentriedCmd::Append((values, expected_version)) => {
-                        return sequence.append(values, expected_version);
+                        return sequence.append(values.to_vec(), *expected_version);
                     }
                 },
                 _ => return Err(Error::InvalidOperation),
@@ -620,7 +620,7 @@ impl SequenceData {
             Public(sequence) => match cmd {
                 AnyVersion(cmd) => match cmd {
                     Cmd::Append(values) => {
-                        return sequence.append(values);
+                        return sequence.append(values.to_vec());
                     }
                 },
                 _ => return Err(Error::InvalidOperation),

@@ -349,20 +349,20 @@ impl<P: Auth> MapBase<P, NonSentried> {
     ///
     /// If the specified `expected_version` does not equal the entries count in data, an
     /// error will be returned.
-    pub fn commit(&mut self, tx: Transaction) -> Result<()> {
+    pub fn commit(&mut self, tx: &Transaction) -> Result<()> {
         // Deconstruct tx into inserts, updates, and deletes
         let operations: Operations = tx.into_iter().fold(
             Default::default(),
             |(mut insert, mut update, mut delete), cmd| {
                 match cmd {
                     Cmd::Insert(kv_pair) => {
-                        let _ = insert.insert(kv_pair);
+                        let _ = insert.insert(kv_pair.clone());
                     }
                     Cmd::Update(kv_pair) => {
-                        let _ = update.insert(kv_pair);
+                        let _ = update.insert(kv_pair.clone());
                     }
                     Cmd::Delete(key) => {
-                        let _ = delete.insert(key);
+                        let _ = delete.insert(key.clone());
                     }
                 };
                 (insert, update, delete)
@@ -463,20 +463,20 @@ impl<P: Auth> MapBase<P, Sentried> {
     ///
     /// If the specified `expected_version` does not equal the entries count in data, an
     /// error will be returned.
-    pub fn commit(&mut self, tx: SentriedTransaction) -> Result<()> {
+    pub fn commit(&mut self, tx: &SentriedTransaction) -> Result<()> {
         // Deconstruct tx into inserts, updates, and deletes
         let operations: SentriedOperations = tx.into_iter().fold(
             Default::default(),
             |(mut insert, mut update, mut delete), cmd| {
                 match cmd {
                     SentriedCmd::Insert(sentried_kvpair) => {
-                        let _ = insert.insert(sentried_kvpair);
+                        let _ = insert.insert(sentried_kvpair.clone());
                     }
                     SentriedCmd::Update(sentried_kvpair) => {
-                        let _ = update.insert(sentried_kvpair);
+                        let _ = update.insert(sentried_kvpair.clone());
                     }
                     SentriedCmd::Delete(sentried_key) => {
-                        let _ = delete.insert(sentried_key);
+                        let _ = delete.insert(sentried_key.clone());
                     }
                 };
                 (insert, update, delete)
@@ -667,20 +667,20 @@ impl MapBase<PrivateAuth, Sentried> {
     ///
     /// If the specified `expected_version` does not equal the entries count in data, an
     /// error will be returned.
-    pub fn hard_commit(&mut self, tx: SentriedTransaction) -> Result<()> {
+    pub fn hard_commit(&mut self, tx: &SentriedTransaction) -> Result<()> {
         // Deconstruct tx into inserts, updates, and deletes
         let operations: SentriedOperations = tx.into_iter().fold(
             Default::default(),
             |(mut insert, mut update, mut delete), cmd| {
                 match cmd {
                     SentriedCmd::Insert(sentried_kvpair) => {
-                        let _ = insert.insert(sentried_kvpair);
+                        let _ = insert.insert(sentried_kvpair.clone());
                     }
                     SentriedCmd::Update(sentried_kvpair) => {
-                        let _ = update.insert(sentried_kvpair);
+                        let _ = update.insert(sentried_kvpair.clone());
                     }
                     SentriedCmd::Delete(sentried_key) => {
-                        let _ = delete.insert(sentried_key);
+                        let _ = delete.insert(sentried_key.clone());
                     }
                 };
                 (insert, update, delete)
@@ -842,20 +842,20 @@ impl MapBase<PrivateAuth, NonSentried> {
     ///
     /// If the specified `expected_version` does not equal the entries count in data, an
     /// error will be returned.
-    pub fn hard_commit(&mut self, tx: Transaction) -> Result<()> {
+    pub fn hard_commit(&mut self, tx: &Transaction) -> Result<()> {
         // Deconstruct tx into inserts, updates, and deletes
         let operations: Operations = tx.into_iter().fold(
             Default::default(),
             |(mut insert, mut update, mut delete), cmd| {
                 match cmd {
                     Cmd::Insert(kv_pair) => {
-                        let _ = insert.insert(kv_pair);
+                        let _ = insert.insert(kv_pair.clone());
                     }
                     Cmd::Update(kv_pair) => {
-                        let _ = update.insert(kv_pair);
+                        let _ = update.insert(kv_pair.clone());
                     }
                     Cmd::Delete(key) => {
-                        let _ = delete.insert(key);
+                        let _ = delete.insert(key.clone());
                     }
                 };
                 (insert, update, delete)
@@ -1284,7 +1284,7 @@ impl MapData {
     }
 
     /// Commits transaction.
-    pub fn commit(&mut self, tx: MapTransaction) -> Result<()> {
+    pub fn commit(&mut self, tx: &MapTransaction) -> Result<()> {
         use MapData::*;
         use MapTransaction::*;
         use SentryOption::*;

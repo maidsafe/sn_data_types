@@ -29,6 +29,7 @@ pub enum AccessType {
 pub enum ReadAccess {
     Map,
     Sequence,
+    Blob, // not necessary
 }
 
 #[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
