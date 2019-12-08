@@ -11,8 +11,8 @@ mod login_packet;
 
 pub use self::login_packet::{LoginPacket, MAX_LOGIN_PACKET_BYTES};
 use crate::{
-    Address, AppPermissions, BlobAddress, BlobData, Coins, Error, Key, MapData, Owner,
-    PrivatePermissions, PublicKey, PublicPermissions, Response, SequenceCmd, SequenceData,
+    Address, AppPermissions, BlobAddress, BlobData, Coins, Error, Key, MapData, MapTransaction,
+    Owner, PrivatePermissions, PublicKey, PublicPermissions, Response, SequenceCmd, SequenceData,
     TransactionId, User, Version, XorName,
 };
 use serde::{Deserialize, Serialize};
@@ -162,27 +162,21 @@ pub enum DataWrite {
     //
     PutMap(MapData),
     DeletePrivateMap(Address),
-    // CommitMapTx {
-    //     address: MapAddress,
-    //     actions: MapEntryActions,
-    // },
+    CommitMapTx {
+        address: Address,
+        tx: MapTransaction,
+    },
     //
     // ===== Sequence =====
     //
     /// Put a new Sequence onto the network.
     PutSequence(SequenceData),
     /// Delete private `Sequence`.
-    ///
     /// This operation MUST return an error if applied to published Sequence. Only the current
     /// owner(s) can perform this action.
     DeletePrivateSequence(Address),
-    // Append data with concurrency control.
-    AppendSentried {
-        append: SequenceCmd,
-        expected_version: u64,
-    },
-    // Append data.
-    Append(SequenceCmd),
+    // Operate on a Sequence instance.
+    Handle(SequenceCmd),
 }
 
 /// RPC Balance read request that is sent to vaults
@@ -609,12 +603,11 @@ impl DataWrite {
             // ======== Map ========
             PutMap(_) |
             DeletePrivateMap(_) |
-            //CommitMapTx { .. } |
+            CommitMapTx { .. } |
             // ======== Sequence ========
             PutSequence(_) |
             DeletePrivateSequence(_) |
-            AppendSentried { .. } |
-            Append(_)  => Response::Mutation(Err(error)),
+            Handle(_)  => Response::Mutation(Err(error)),
         }
     }
 }
@@ -858,13 +851,13 @@ impl fmt::Debug for Request {
                                 // ==== Map ====
                                 DataWrite::PutMap { .. } => "DataWrite::PutMap",
                                 DataWrite::DeletePrivateMap { .. } => "DataWrite::DeletePrivateMap",
+                                DataWrite::CommitMapTx { .. } => "DataWrite::CommitMapTx",
                                 // ==== Sequence ====
                                 DataWrite::PutSequence { .. } => "DataWrite::PutSequence",
                                 DataWrite::DeletePrivateSequence { .. } => {
                                     "DataWrite::DeletePrivateSequence"
                                 }
-                                DataWrite::Append { .. } => "DataWrite::Append",
-                                DataWrite::AppendSentried { .. } => "DataWrite::AppendSentried",
+                                DataWrite::Handle(_) => "DataWrite::Handle",
                             }
                         }
                     }

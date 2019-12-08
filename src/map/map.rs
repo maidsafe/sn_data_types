@@ -323,6 +323,7 @@ pub enum SentriedCmd {
     Delete(SentriedKey),
 }
 
+#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub enum MapTransaction {
     Commit(SentryOption),
     HardCommit(SentryOption),

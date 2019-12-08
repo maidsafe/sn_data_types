@@ -83,7 +83,7 @@ pub use identity::{
     PublicId,
 };
 pub use map::{
-    DataEntries as MapEntries, DataHistories as MapKeyHistories, MapAuth, MapData,
+    DataEntries as MapEntries, DataHistories as MapKeyHistories, MapAuth, MapData, MapTransaction,
     StoredValue as MapValue, StoredValues as MapValues,
 };
 pub use public_key::{PublicKey, Signature};
