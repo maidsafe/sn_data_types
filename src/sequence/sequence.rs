@@ -536,7 +536,7 @@ impl SequenceData {
         let auth = match self {
             SequenceData::PublicSentried(data) => data.auth_at(version),
             SequenceData::Public(data) => data.auth_at(version),
-            _ => return Err(Error::NoSuchData),
+            _ => return Err(Error::InvalidOperation),
         };
         auth.ok_or(Error::NoSuchEntry)
     }
@@ -545,7 +545,7 @@ impl SequenceData {
         let auth = match self {
             SequenceData::PrivateSentried(data) => data.auth_at(version),
             SequenceData::Private(data) => data.auth_at(version),
-            _ => return Err(Error::NoSuchData),
+            _ => return Err(Error::InvalidOperation),
         };
         auth.ok_or(Error::NoSuchEntry)
     }

@@ -183,7 +183,7 @@ mod tests {
         let data = SequenceData::from(data);
 
         assert_eq!(data.public_auth_at(0), Ok(&pub_permissions));
-        assert_eq!(data.private_auth_at(0), Err(Error::NoSuchData));
+        assert_eq!(data.private_auth_at(0), Err(Error::InvalidOperation));
 
         assert_eq!(
             data.public_permissions_at(User::Specific(public_key), 0),
@@ -191,7 +191,7 @@ mod tests {
         );
         assert_eq!(
             data.private_permissions_at(public_key, 0),
-            Err(Error::NoSuchData)
+            Err(Error::InvalidOperation)
         );
         assert_eq!(
             data.public_permissions_at(User::Specific(invalid_public_key), 0),
@@ -204,7 +204,7 @@ mod tests {
         let data = SequenceData::from(data);
 
         assert_eq!(data.public_auth_at(0), Ok(&pub_permissions));
-        assert_eq!(data.private_auth_at(0), Err(Error::NoSuchData));
+        assert_eq!(data.private_auth_at(0), Err(Error::InvalidOperation));
 
         assert_eq!(
             data.public_permissions_at(User::Specific(public_key), 0),
@@ -212,7 +212,7 @@ mod tests {
         );
         assert_eq!(
             data.private_permissions_at(public_key, 0),
-            Err(Error::NoSuchData)
+            Err(Error::InvalidOperation)
         );
         assert_eq!(
             data.public_permissions_at(User::Specific(invalid_public_key), 0),
@@ -225,7 +225,7 @@ mod tests {
         let data = SequenceData::from(data);
 
         assert_eq!(data.private_auth_at(0), Ok(&private_permissions));
-        assert_eq!(data.public_auth_at(0), Err(Error::NoSuchData));
+        assert_eq!(data.public_auth_at(0), Err(Error::InvalidOperation));
 
         assert_eq!(
             data.private_permissions_at(public_key, 0),
@@ -233,7 +233,7 @@ mod tests {
         );
         assert_eq!(
             data.public_permissions_at(User::Specific(public_key), 0),
-            Err(Error::NoSuchData)
+            Err(Error::InvalidOperation)
         );
         assert_eq!(
             data.private_permissions_at(invalid_public_key, 0),
@@ -246,7 +246,7 @@ mod tests {
         let data = SequenceData::from(data);
 
         assert_eq!(data.private_auth_at(0), Ok(&private_permissions));
-        assert_eq!(data.public_auth_at(0), Err(Error::NoSuchData));
+        assert_eq!(data.public_auth_at(0), Err(Error::InvalidOperation));
 
         assert_eq!(
             data.private_permissions_at(public_key, 0),
@@ -254,7 +254,7 @@ mod tests {
         );
         assert_eq!(
             data.public_permissions_at(User::Specific(public_key), 0),
-            Err(Error::NoSuchData)
+            Err(Error::InvalidOperation)
         );
         assert_eq!(
             data.private_permissions_at(invalid_public_key, 0),
