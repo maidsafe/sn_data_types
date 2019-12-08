@@ -76,7 +76,7 @@ impl PrivateBlob {
     }
 
     /// Return true if the size is valid
-    pub fn validate_size(&self) -> bool {
+    pub fn valid_size(&self) -> bool {
         self.serialised_size() <= MAX_BLOB_SIZE_IN_BYTES
     }
 }
@@ -146,7 +146,7 @@ impl PublicBlob {
     }
 
     /// Return true if the size is valid
-    pub fn validate_size(&self) -> bool {
+    pub fn valid_size(&self) -> bool {
         self.serialised_size() <= MAX_BLOB_SIZE_IN_BYTES
     }
 }
@@ -261,6 +261,27 @@ impl BlobData {
 
     pub fn is_private(&self) -> bool {
         self.kind().is_private()
+    }
+
+    pub fn value(&self) -> &Vec<u8> {
+        match self {
+            BlobData::Private(data) => data.value(),
+            BlobData::Public(data) => data.value(),
+        }
+    }
+
+    pub fn valid_size(&self) -> bool {
+        match self {
+            BlobData::Private(data) => data.valid_size(),
+            BlobData::Public(data) => data.valid_size(),
+        }
+    }
+
+    pub fn serialised_size(&self) -> u64 {
+        match self {
+            BlobData::Private(data) => data.serialised_size(),
+            BlobData::Public(data) => data.serialised_size(),
+        }
     }
 }
 
