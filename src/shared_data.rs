@@ -82,13 +82,6 @@ impl ExpectedIndices {
     }
 }
 
-// pub enum OwnerKind {
-//     Map(Owner),
-//     Sequence(Owner),
-//     Index(Owner),
-//     Wallet(Owner),
-// }
-
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
 pub struct Owner {
     pub public_key: PublicKey,
@@ -124,7 +117,6 @@ impl Kind {
 pub enum DataAddress {
     Map(Address),
     Sequence(Address),
-    // Blob(Address),
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]

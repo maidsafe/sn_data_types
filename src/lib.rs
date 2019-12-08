@@ -61,7 +61,6 @@ mod coins;
 mod errors;
 mod identity;
 mod map;
-mod mutable_data;
 mod public_key;
 mod request;
 mod response;
@@ -70,6 +69,7 @@ mod shared_data;
 mod transaction;
 mod utils;
 
+pub use auth::{PrivateAuth, PrivatePermissions, PublicAuth, PublicPermissions};
 pub use blob::{
     Address as BlobAddress, BlobData, Kind as BlobKind, PrivateBlob, PublicBlob,
     MAX_BLOB_SIZE_IN_BYTES,
@@ -82,27 +82,19 @@ pub use identity::{
     node::{FullId as NodeFullId, PublicId as NodePublicId},
     PublicId,
 };
-pub use map::{MapAuth, MapData};
-// pub use mutable_data::{
-//     Action as MapDataAction, Address as MapDataAddress, Entries as MapDataEntries,
-//     EntryActions as MapDataEntryActions, Kind as MapDataKind, PermissionSet as MapDataPermissionSet,
-//     SeqEntries as MapDataSeqEntries, SeqEntryAction as MapDataSeqEntryAction,
-//     SeqEntryActions as MapDataSeqEntryActions, SeqMutableData, SeqValue as MapDataSeqValue,
-//     UnseqEntries as MapDataUnseqEntries, UnseqEntryAction as MapDataUnseqEntryAction,
-//     UnseqEntryActions as MapDataUnseqEntryActions, UnseqMutableData, UnseqValue as MapDataUnseqValue,
-//     Value as MapDataValue, Values as MapDataValues,
-// };
-pub use auth::{PrivateAuth, PrivatePermissions, PublicAuth, PublicPermissions};
+pub use map::{
+    DataEntries as MapEntries, DataHistories as MapKeyHistories, MapAuth, MapData,
+    StoredValue as MapValue, StoredValues as MapValues,
+};
 pub use public_key::{PublicKey, Signature};
 pub use request::{LoginPacket, Request, MAX_LOGIN_PACKET_BYTES};
 pub use response::Response;
 pub use sequence::{
     DataEntry as SequenceEntry, PrivateSentriedSequence, PrivateSequence, PublicSentriedSequence,
-    PublicSequence, SequenceAuth, SequenceCmd, /*SequenceBase as Sequence, */ SequenceData,
-    Values as SequenceValues,
+    PublicSequence, SequenceAuth, SequenceCmd, SequenceData, Values as SequenceValues,
 };
 pub use sha3::Sha3_512 as Ed25519Digest;
-pub use shared_data::{Address, ExpectedIndices, Index, Kind, Owner, User, Version};
+pub use shared_data::{Address, ExpectedIndices, Index, Key, Kind, Owner, User, Value, Version};
 pub use transaction::{Transaction, TransactionId};
 pub use utils::verify_signature;
 
