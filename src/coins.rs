@@ -100,9 +100,8 @@ impl FromStr for Coins {
 }
 
 impl Debug for Coins {
-    #[allow(trivial_casts)]
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-        (self as &dyn Display).fmt(formatter)
+        Display::fmt(self, formatter)
     }
 }
 
