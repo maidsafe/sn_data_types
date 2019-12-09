@@ -218,7 +218,7 @@ where
 
     /// Set authorization.
     /// The `Auth` struct needs to contain the correct expected versions.
-    pub fn set_auth(&mut self, auth: C, version: u64) -> Result<()> {
+    pub fn set_auth(&mut self, auth: &C, version: u64) -> Result<()> {
         if auth.expected_data_version() != self.expected_data_version().unwrap_or_default() {
             return Err(Error::InvalidSuccessor(
                 self.expected_data_version().unwrap_or_default(),
@@ -232,7 +232,7 @@ where
         if self.expected_auth_version() != version {
             return Err(Error::InvalidSuccessor(self.expected_auth_version()));
         }
-        self.auth.push(auth);
+        self.auth.push(auth.clone()); // hmm... do we have to clone in situations like these?
         Ok(())
     }
 
@@ -1280,6 +1280,34 @@ impl MapData {
             Public(map) => map.shell(version).map(Public),
             PrivateSentried(map) => map.shell(version).map(PrivateSentried),
             Private(map) => map.shell(version).map(Private),
+        }
+    }
+
+    pub fn set_owner(&mut self, owner: Owner, expected_version: u64) -> Result<()> {
+        use MapData::*;
+        match self {
+            PublicSentried(adata) => adata.set_owner(owner, expected_version),
+            Public(adata) => adata.set_owner(owner, expected_version),
+            PrivateSentried(adata) => adata.set_owner(owner, expected_version),
+            Private(adata) => adata.set_owner(owner, expected_version),
+        }
+    }
+
+    pub fn set_private_auth(&mut self, auth: &PrivateAuth, expected_version: u64) -> Result<()> {
+        use MapData::*;
+        match self {
+            Private(data) => data.set_auth(auth, expected_version),
+            PrivateSentried(data) => data.set_auth(auth, expected_version),
+            _ => Err(Error::InvalidOperation),
+        }
+    }
+
+    pub fn set_public_auth(&mut self, auth: &PublicAuth, expected_version: u64) -> Result<()> {
+        use MapData::*;
+        match self {
+            Public(data) => data.set_auth(auth, expected_version),
+            PublicSentried(data) => data.set_auth(auth, expected_version),
+            _ => Err(Error::InvalidOperation),
         }
     }
 

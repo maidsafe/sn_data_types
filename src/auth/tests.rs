@@ -29,16 +29,13 @@ mod tests {
     #[test]
     fn set_sequence_permissions() {
         let mut data = PrivateSentriedSequence::new(XorName([1; 32]), 10000);
-
+        let auth = PrivateAuth {
+            permissions: BTreeMap::new(),
+            expected_data_version: 0,
+            expected_owners_version: 0,
+        };
         // Set the first permissions with correct ExpectedVersions - should pass.
-        let res = data.set_auth(
-            PrivateAuth {
-                permissions: BTreeMap::new(),
-                expected_data_version: 0,
-                expected_owners_version: 0,
-            },
-            0,
-        );
+        let res = data.set_auth(&auth, 0);
 
         match res {
             Ok(()) => (),
@@ -51,15 +48,13 @@ mod tests {
             1
         );
 
+        let auth = PrivateAuth {
+            permissions: BTreeMap::new(),
+            expected_data_version: 64,
+            expected_owners_version: 0,
+        };
         // Set permissions with incorrect ExpectedVersions - should fail.
-        let res = data.set_auth(
-            PrivateAuth {
-                permissions: BTreeMap::new(),
-                expected_data_version: 64,
-                expected_owners_version: 0,
-            },
-            1,
-        );
+        let res = data.set_auth(&auth, 1);
 
         match res {
             Err(_) => (),
@@ -179,7 +174,7 @@ mod tests {
 
         // public
         let mut data = PublicSequence::new(rand::random(), 20);
-        unwrap!(data.set_auth(pub_permissions.clone(), 0));
+        unwrap!(data.set_auth(&pub_permissions, 0));
         let data = SequenceData::from(data);
 
         assert_eq!(data.public_auth_at(0), Ok(&pub_permissions));
@@ -200,7 +195,7 @@ mod tests {
 
         // public, sentried
         let mut data = PublicSentriedSequence::new(rand::random(), 20);
-        unwrap!(data.set_auth(pub_permissions.clone(), 0));
+        unwrap!(data.set_auth(&pub_permissions, 0));
         let data = SequenceData::from(data);
 
         assert_eq!(data.public_auth_at(0), Ok(&pub_permissions));
@@ -221,7 +216,7 @@ mod tests {
 
         // Private
         let mut data = PrivateSequence::new(rand::random(), 20);
-        unwrap!(data.set_auth(private_permissions.clone(), 0));
+        unwrap!(data.set_auth(&private_permissions, 0));
         let data = SequenceData::from(data);
 
         assert_eq!(data.private_auth_at(0), Ok(&private_permissions));
@@ -242,7 +237,7 @@ mod tests {
 
         // Private, seq
         let mut data = PrivateSentriedSequence::new(rand::random(), 20);
-        unwrap!(data.set_auth(private_permissions.clone(), 0));
+        unwrap!(data.set_auth(&private_permissions, 0));
         let data = SequenceData::from(data);
 
         assert_eq!(data.private_auth_at(0), Ok(&private_permissions));
@@ -308,7 +303,7 @@ mod tests {
         let _ = permissions
             .permissions
             .insert(User::Specific(public_key_1), PublicPermissions::new(set));
-        unwrap!(sequence.set_auth(permissions, 0));
+        unwrap!(sequence.set_auth(&permissions, 0));
         let data = SequenceData::from(sequence);
 
         // existing key fallback
@@ -362,7 +357,7 @@ mod tests {
         let _ = permissions
             .permissions
             .insert(public_key_1, PrivatePermissions::new(set));
-        unwrap!(sequence.set_auth(permissions, 0));
+        unwrap!(sequence.set_auth(&permissions, 0));
         let data = SequenceData::from(sequence);
 
         // existing key
@@ -415,16 +410,14 @@ mod tests {
     #[test]
     fn set_map_permissions() {
         let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
+        let auth = PrivateAuth {
+            permissions: BTreeMap::new(),
+            expected_data_version: 0,
+            expected_owners_version: 0,
+        };
 
         // Set the first permission set with correct ExpectedVersions - should pass.
-        let res = data.set_auth(
-            PrivateAuth {
-                permissions: BTreeMap::new(),
-                expected_data_version: 0,
-                expected_owners_version: 0,
-            },
-            0,
-        );
+        let res = data.set_auth(&auth, 0);
 
         match res {
             Ok(()) => (),
@@ -436,16 +429,13 @@ mod tests {
             unwrap!(data.auth_history_range(Version::FromStart(0), Version::FromEnd(0),)).len(),
             1
         );
-
+        let auth = PrivateAuth {
+            permissions: BTreeMap::new(),
+            expected_data_version: 64,
+            expected_owners_version: 0,
+        };
         // Set permissions with incorrect ExpectedVersions - should fail.
-        let res = data.set_auth(
-            PrivateAuth {
-                permissions: BTreeMap::new(),
-                expected_data_version: 64,
-                expected_owners_version: 0,
-            },
-            1,
-        );
+        let res = data.set_auth(&auth, 1);
 
         match res {
             Err(_) => (),
@@ -565,7 +555,7 @@ mod tests {
 
         // public
         let mut data = PublicMap::new(rand::random(), 20);
-        unwrap!(data.set_auth(pub_permissions.clone(), 0));
+        unwrap!(data.set_auth(&pub_permissions, 0));
         let data = MapData::from(data);
 
         assert_eq!(data.public_auth_at(0), Ok(&pub_permissions));
@@ -586,7 +576,7 @@ mod tests {
 
         // public, sentried
         let mut data = PublicSentriedMap::new(rand::random(), 20);
-        unwrap!(data.set_auth(pub_permissions.clone(), 0));
+        unwrap!(data.set_auth(&pub_permissions, 0));
         let data = MapData::from(data);
 
         assert_eq!(data.public_auth_at(0), Ok(&pub_permissions));
@@ -607,7 +597,7 @@ mod tests {
 
         // Private
         let mut data = PrivateMap::new(rand::random(), 20);
-        unwrap!(data.set_auth(private_permissions.clone(), 0));
+        unwrap!(data.set_auth(&private_permissions, 0));
         let data = MapData::from(data);
 
         assert_eq!(data.private_auth_at(0), Ok(&private_permissions));
@@ -628,7 +618,7 @@ mod tests {
 
         // Private, sentried
         let mut data = PrivateSentriedMap::new(rand::random(), 20);
-        unwrap!(data.set_auth(private_permissions.clone(), 0));
+        unwrap!(data.set_auth(&private_permissions, 0));
         let data = MapData::from(data);
 
         assert_eq!(data.private_auth_at(0), Ok(&private_permissions));
@@ -694,7 +684,7 @@ mod tests {
         let _ = permissions
             .permissions
             .insert(User::Specific(public_key_1), PublicPermissions::new(set));
-        unwrap!(map.set_auth(permissions, 0));
+        unwrap!(map.set_auth(&permissions, 0));
         let data = MapData::from(map);
 
         // existing key fallback
@@ -748,7 +738,7 @@ mod tests {
         let _ = auth
             .permissions
             .insert(public_key_1, PrivatePermissions::new(set));
-        unwrap!(map.set_auth(auth, 0));
+        unwrap!(map.set_auth(&auth, 0));
         let data = MapData::from(map);
 
         // existing key

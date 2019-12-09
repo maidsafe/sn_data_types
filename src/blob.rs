@@ -51,6 +51,11 @@ impl PrivateBlob {
     }
 
     /// Returns the set of owners.
+    pub fn is_owner(&self, user: PublicKey) -> bool {
+        self.owner == user
+    }
+
+    /// Returns the set of owners.
     pub fn owner(&self) -> &PublicKey {
         &self.owner
     }

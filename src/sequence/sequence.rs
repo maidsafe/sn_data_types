@@ -213,7 +213,7 @@ where
     }
 
     /// Set owner.
-    pub fn set_owner(&mut self, owner: Owner, version: u64) -> Result<()> {
+    pub fn set_owner(&mut self, owner: Owner, expected_version: u64) -> Result<()> {
         if owner.expected_data_version != self.expected_data_version() {
             return Err(Error::InvalidSuccessor(self.expected_data_version()));
         }
@@ -222,7 +222,7 @@ where
                 self.expected_auth_version(),
             ));
         }
-        if self.expected_owners_version() != version {
+        if self.expected_owners_version() != expected_version {
             return Err(Error::InvalidSuccessor(self.expected_owners_version()));
         }
         self.owners.push(owner);
@@ -231,7 +231,7 @@ where
 
     /// Set authorization.
     /// The `Auth` struct needs to contain the correct expected versions.
-    pub fn set_auth(&mut self, auth: C, version: u64) -> Result<()> {
+    pub fn set_auth(&mut self, auth: &C, expected_version: u64) -> Result<()> {
         if auth.expected_data_version() != self.expected_data_version() {
             return Err(Error::InvalidSuccessor(self.expected_data_version()));
         }
@@ -240,10 +240,10 @@ where
                 self.expected_owners_version(),
             ));
         }
-        if self.expected_auth_version() != version {
+        if self.expected_auth_version() != expected_version {
             return Err(Error::InvalidSuccessor(self.expected_auth_version()));
         }
-        self.auth.push(auth);
+        self.auth.push(auth.clone()); // hmm... do we have to clone in situations like these?
         Ok(())
     }
 }
@@ -261,7 +261,7 @@ pub enum SentriedCmd {
 }
 
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
-pub enum SequenceCmd {
+pub enum CmdOption {
     AnyVersion(Cmd),
     ExpectVersion(SentriedCmd),
 }
@@ -588,9 +588,37 @@ impl SequenceData {
         }
     }
 
+    pub fn set_owner(&mut self, owner: Owner, expected_version: u64) -> Result<()> {
+        use SequenceData::*;
+        match self {
+            PublicSentried(adata) => adata.set_owner(owner, expected_version),
+            Public(adata) => adata.set_owner(owner, expected_version),
+            PrivateSentried(adata) => adata.set_owner(owner, expected_version),
+            Private(adata) => adata.set_owner(owner, expected_version),
+        }
+    }
+
+    pub fn set_private_auth(&mut self, auth: &PrivateAuth, expected_version: u64) -> Result<()> {
+        use SequenceData::*;
+        match self {
+            Private(data) => data.set_auth(auth, expected_version),
+            PrivateSentried(data) => data.set_auth(auth, expected_version),
+            _ => Err(Error::InvalidOperation),
+        }
+    }
+
+    pub fn set_public_auth(&mut self, auth: &PublicAuth, expected_version: u64) -> Result<()> {
+        use SequenceData::*;
+        match self {
+            Public(data) => data.set_auth(auth, expected_version),
+            PublicSentried(data) => data.set_auth(auth, expected_version),
+            _ => Err(Error::InvalidOperation),
+        }
+    }
+
     /// Commits transaction.
-    pub fn commit(&mut self, cmd: &SequenceCmd) -> Result<()> {
-        use SequenceCmd::*;
+    pub fn commit(&mut self, cmd: &CmdOption) -> Result<()> {
+        use CmdOption::*;
         use SequenceData::*;
         match self {
             PrivateSentried(sequence) => match cmd {

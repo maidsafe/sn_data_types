@@ -12,7 +12,7 @@ mod login_packet;
 pub use self::login_packet::{LoginPacket, MAX_LOGIN_PACKET_BYTES};
 use crate::{
     Address, AppPermissions, BlobAddress, BlobData, Coins, Error, Key, MapData, MapTransaction,
-    Owner, PrivatePermissions, PublicKey, PublicPermissions, Response, SequenceCmd, SequenceData,
+    Owner, PrivateAuth, PublicAuth, PublicKey, Response, SequenceCmdOption, SequenceData,
     TransactionId, User, Version, XorName,
 };
 use serde::{Deserialize, Serialize};
@@ -269,17 +269,17 @@ pub enum MapWriteRequest {
     ///
     /// ==== Permissions ====
     ///
-    SetPublicMapPermissions {
+    /// Set authorization.
+    SetPublicMapAuth {
         address: Address,
-        user: PublicKey,
-        permissions: PublicPermissions,
-        version: u64,
+        auth: PublicAuth,
+        expected_version: u64,
     },
-    SetPrivateMapPermissions {
+    /// Set authorization.
+    SetPrivateMapAuth {
         address: Address,
-        user: PublicKey,
-        permissions: PrivatePermissions,
-        version: u64,
+        auth: PrivateAuth,
+        expected_version: u64,
     },
 }
 
@@ -296,7 +296,7 @@ pub enum SequenceWriteRequest {
     /// owner(s) can perform this action.
     DeletePrivateSequence(Address),
     // Operate on a Sequence instance.
-    Handle(SequenceCmd),
+    Handle(SequenceCmdOption),
     ///
     /// ==== Owners ====
     ///
@@ -309,16 +309,16 @@ pub enum SequenceWriteRequest {
     ///
     /// ==== Permissions ====
     ///
-    /// Set permissions.
-    SetPublicSequencePermissions {
+    /// Set authorization.
+    SetPublicSequenceAuth {
         address: Address,
-        permissions: PublicPermissions,
+        auth: PublicAuth,
         expected_version: u64,
     },
-    /// Set permissions.
-    SetPrivateSequencePermissions {
+    /// Set authorization.
+    SetPrivateSequenceAuth {
         address: Address,
-        permissions: PrivatePermissions,
+        auth: PrivateAuth,
         expected_version: u64,
     },
 }
@@ -535,8 +535,8 @@ impl Request {
                     PutMap(_)
                     | DeletePrivateMap(_)
                     | SetMapOwner { .. }
-                    | SetPublicMapPermissions { .. }
-                    | SetPrivateMapPermissions { .. }
+                    | SetPublicMapAuth { .. }
+                    | SetPrivateMapAuth { .. }
                     | CommitMapTx { .. } => Response::Mutation(Err(error)),
                 },
                 WriteRequest::Misc(misc) => match misc {
@@ -552,8 +552,8 @@ impl Request {
                     PutSequence(_)
                     | DeletePrivateSequence(_)
                     | SetSequenceOwner { .. }
-                    | SetPublicSequencePermissions { .. }
-                    | SetPrivateSequencePermissions { .. }
+                    | SetPublicSequenceAuth { .. }
+                    | SetPrivateSequenceAuth { .. }
                     | Handle(_) => Response::Mutation(Err(error)),
                 },
             },
@@ -688,12 +688,8 @@ impl fmt::Debug for Request {
                         PutMap(_) => "MapWriteRequest::PutMap",
                         DeletePrivateMap(_) => "MapWriteRequest::DeletePrivateMap",
                         SetMapOwner { .. } => "MapWriteRequest::SetMapOwner",
-                        SetPublicMapPermissions { .. } => {
-                            "MapWriteRequest::SetPublicMapPermissions"
-                        }
-                        SetPrivateMapPermissions { .. } => {
-                            "MapWriteRequest::SetPrivateMapPermissions"
-                        }
+                        SetPublicMapAuth { .. } => "MapWriteRequest::SetPublicMapAuth",
+                        SetPrivateMapAuth { .. } => "MapWriteRequest::SetPrivateMapAuth",
                         CommitMapTx { .. } => "MapWriteRequest::CommitMapTx",
                     },
                     WriteRequest::Misc(misc) => match misc {
@@ -709,11 +705,11 @@ impl fmt::Debug for Request {
                         PutSequence(_) => "SequenceWriteRequest::PutSequence",
                         DeletePrivateSequence(_) => "SequenceWriteRequest::DeletePrivateSequence",
                         SetSequenceOwner { .. } => "SequenceWriteRequest::SetSequenceOwner",
-                        SetPublicSequencePermissions { .. } => {
-                            "SequenceWriteRequest::SetPublicSequencePermissions"
+                        SetPublicSequenceAuth { .. } => {
+                            "SequenceWriteRequest::SetPublicSequenceAuth"
                         }
-                        SetPrivateSequencePermissions { .. } => {
-                            "SequenceWriteRequest::SetPrivateSequencePermissions"
+                        SetPrivateSequenceAuth { .. } => {
+                            "SequenceWriteRequest::SetPrivateSequenceAuth"
                         }
                         Handle(_) => "SequenceWriteRequest::Handle",
                     },

@@ -86,8 +86,9 @@ pub use identity::{
     PublicId,
 };
 pub use map::{
-    Cmd, DataEntries as MapEntries, DataHistories as MapKeyHistories, MapAuth, MapData,
-    MapTransaction, SentriedCmd, SentryOption, StoredValue as MapValue, StoredValues as MapValues,
+    Cmd as MapCmd, DataEntries as MapEntries, DataHistories as MapKeyHistories, MapAuth, MapData,
+    MapTransaction, SentriedCmd as SentriedMapCmd, SentryOption, StoredValue as MapValue,
+    StoredValues as MapValues,
 };
 pub use public_key::{PublicKey, Signature};
 pub use request::{
@@ -97,7 +98,8 @@ pub use request::{
 pub use response::Response;
 pub use sequence::{
     DataEntry as SequenceEntry, PrivateSentriedSequence, PrivateSequence, PublicSentriedSequence,
-    PublicSequence, SequenceAuth, SequenceCmd, SequenceData, Values as SequenceValues,
+    PublicSequence, SentriedSequenceCmd, SequenceAuth, SequenceCmd, SequenceCmdOption,
+    SequenceData, Values as SequenceValues,
 };
 pub use sha3::Sha3_512 as Ed25519Digest;
 pub use shared_data::{Address, ExpectedVersions, Key, Kind, Owner, User, Value, Version};
@@ -129,6 +131,10 @@ impl Data {
         }
     }
 
+    /// Checks permissions for given `request` for the provided user.
+    ///
+    /// Returns:
+    /// See `is_allowed` and `is_owner` for possible errors.
     pub fn handle_request(&self, request: &Request, user: PublicKey) -> Result<()> {
         use MapWriteRequest::*;
         use Request::*;
@@ -142,66 +148,112 @@ impl Data {
                 | ReadRequest::Map(_)
                 | ReadRequest::Sequence(_)
                 | ReadRequest::Currency(_)
-                | ReadRequest::Misc(_) => Err(Error::InvalidOperation),
+                | ReadRequest::Misc(_) => Err(Error::InvalidOperation), // todo
             },
             Write(write_type) => match write_type {
-                WriteRequest::Map(map_write) => match map_write {
-                    CommitMapTx { address: _, ref tx } => match self.clone() {
-                        Data::Map(mut data) => data.commit(tx),
-                        _ => Err(Error::InvalidOperation),
+                WriteRequest::Map(map_write) => match self.clone() {
+                    Data::Map(mut data) => match map_write {
+                        PutMap(_) => Err(Error::InvalidOperation), // todo?
+                        DeletePrivateMap(_) => Err(Error::InvalidOperation), // todo?
+                        CommitMapTx { address: _, ref tx } => data.commit(tx),
+                        SetMapOwner {
+                            address: _,
+                            owner,
+                            expected_version,
+                        } => data.set_owner(*owner, *expected_version),
+                        SetPrivateMapAuth {
+                            address: _,
+                            auth,
+                            expected_version,
+                        } => data.set_private_auth(auth, *expected_version),
+                        SetPublicMapAuth {
+                            address: _,
+                            auth,
+                            expected_version,
+                        } => data.set_public_auth(auth, *expected_version),
                     },
                     _ => Err(Error::InvalidOperation),
                 },
                 WriteRequest::Sequence(seq_write_req) => match self.clone() {
                     Data::Sequence(mut data) => match seq_write_req {
-                        DeletePrivateSequence(_) => Err(Error::InvalidOperation),
+                        PutSequence(_) => Err(Error::InvalidOperation), // todo?
+                        DeletePrivateSequence(_) => Err(Error::InvalidOperation), // todo?
                         Handle(ref cmd) => data.commit(cmd),
-                        _ => Err(Error::InvalidOperation),
+                        SetSequenceOwner {
+                            address: _,
+                            owner,
+                            expected_version,
+                        } => data.set_owner(*owner, *expected_version),
+                        SetPrivateSequenceAuth {
+                            address: _,
+                            auth,
+                            expected_version,
+                        } => data.set_private_auth(auth, *expected_version),
+                        SetPublicSequenceAuth {
+                            address: _,
+                            auth,
+                            expected_version,
+                        } => data.set_public_auth(auth, *expected_version),
                     },
                     _ => Err(Error::InvalidOperation),
                 },
                 WriteRequest::Blob(_) | WriteRequest::Currency(_) | WriteRequest::Misc(_) => {
-                    Err(Error::InvalidOperation)
+                    Err(Error::InvalidOperation) // todo
                 }
             },
         }
     }
 
-    /// Checks permissions for given `request` for the provided user.
-    ///
-    /// Returns:
-    /// See `check_permission` and `check_is_last_owner` for possible errors.
-    pub fn is_request_allowed(&self, request: &Request, user: PublicKey) -> bool {
+    fn is_request_allowed(&self, request: &Request, user: PublicKey) -> bool {
+        use BlobWriteRequest::*;
         use MapTransaction::*;
         use MapWriteRequest::*;
         use Request::*;
         use SequenceWriteRequest::*;
         match request {
-            Read(read_type) => match read_type {
+            Read(read) => match read {
                 ReadRequest::Map(_) => self.is_allowed(self.read_map(), user),
                 ReadRequest::Sequence(_) => self.is_allowed(self.read_sequence(), user),
                 ReadRequest::Blob(_) => self.is_allowed(self.read_blob(), user),
-                ReadRequest::Currency(_) | ReadRequest::Misc(_) => false,
+                ReadRequest::Currency(_) | ReadRequest::Misc(_) => false, // todo
             },
-            Write(write_type) => match write_type {
-                WriteRequest::Map(map_write) => match map_write {
+            Write(write) => match write {
+                WriteRequest::Map(map) => match map {
+                    PutMap(_) => false, // todo
                     CommitMapTx { address: _, tx } => match tx {
-                        Commit(ref option) => self.is_cmd_allowed(option, user),
-                        HardCommit(ref option) => self.is_cmd_allowed(option, user),
+                        Commit(ref option) => self.is_tx_allowed(option, user, false),
+                        HardCommit(ref option) => self.is_tx_allowed(option, user, true),
                     },
-                    SetMapOwner { .. }
-                    | SetPrivateMapPermissions { .. }
-                    | SetPublicMapPermissions { .. } => {
+                    SetMapOwner { .. } | DeletePrivateMap(_) => self.is_owner(user),
+                    SetPrivateMapAuth { .. } | SetPublicMapAuth { .. } => {
                         self.is_allowed(self.modify_map_permissions(), user)
                     }
-                    PutMap(_) | DeletePrivateMap(_) => false,
                 },
-                WriteRequest::Sequence(seq_write_req) => match seq_write_req {
-                    PutSequence(_) | DeletePrivateSequence(_) => false,
-                    _ => false, // todo
+                WriteRequest::Sequence(sequence) => match sequence {
+                    PutSequence(_) => false, // todo
+                    Handle(cmd) => self.is_cmd_allowed(cmd, user),
+                    SetSequenceOwner { .. } | DeletePrivateSequence(_) => self.is_owner(user),
+                    SetPrivateSequenceAuth { .. } | SetPublicSequenceAuth { .. } => {
+                        self.is_allowed(self.modify_sequence_permissions(), user)
+                    }
                 },
-                WriteRequest::Blob(_) | WriteRequest::Currency(_) | WriteRequest::Misc(_) => false,
+                WriteRequest::Blob(blob) => match blob {
+                    PutBlob(_) => false, // todo
+                    DeletePrivateBlob(_) => self.is_owner(user),
+                },
+                WriteRequest::Currency(_) | WriteRequest::Misc(_) => false, // todo
             },
+        }
+    }
+
+    fn is_owner(&self, user: PublicKey) -> bool {
+        match *self {
+            Data::Blob(ref data) => match data {
+                BlobData::Public(_) => false,
+                BlobData::Private(private) => private.is_owner(user),
+            },
+            Data::Map(ref data) => data.is_owner(user),
+            Data::Sequence(ref data) => data.is_owner(user),
         }
     }
 
@@ -213,22 +265,42 @@ impl Data {
         }
     }
 
-    fn is_cmd_allowed(&self, option: &SentryOption, user: PublicKey) -> bool {
+    fn is_cmd_allowed(&self, cmd: &SequenceCmdOption, user: PublicKey) -> bool {
+        use SequenceCmdOption::*;
+        match cmd {
+            AnyVersion(SequenceCmd::Append(_)) => self.is_allowed(self.append_to_sequence(), user),
+            ExpectVersion(SentriedSequenceCmd::Append(_)) => {
+                self.is_allowed(self.append_to_sequence(), user)
+            }
+        }
+    }
+
+    fn is_tx_allowed(&self, option: &SentryOption, user: PublicKey, hard_erasure: bool) -> bool {
         match option {
             SentryOption::AnyVersion(tx) => {
                 for cmd in tx {
                     match cmd {
-                        Cmd::Insert(_) => {
+                        MapCmd::Insert(_) => {
                             if !self.is_allowed(self.insert_map_data(), user) {
                                 return false;
                             }
                         }
-                        Cmd::Update(_) => {
+                        MapCmd::Update(_) => {
+                            if hard_erasure {
+                                if !self.is_allowed(self.hard_update_map_data(), user) {
+                                    return false;
+                                }
+                            }
                             if !self.is_allowed(self.update_map_data(), user) {
                                 return false;
                             }
                         }
-                        Cmd::Delete(_) => {
+                        MapCmd::Delete(_) => {
+                            if hard_erasure {
+                                if !self.is_allowed(self.hard_delete_map_data(), user) {
+                                    return false;
+                                }
+                            }
                             if !self.is_allowed(self.delete_map_data(), user) {
                                 return false;
                             }
@@ -239,17 +311,27 @@ impl Data {
             SentryOption::ExpectVersion(tx) => {
                 for cmd in tx {
                     match cmd {
-                        SentriedCmd::Insert { .. } => {
+                        SentriedMapCmd::Insert { .. } => {
                             if !self.is_allowed(self.insert_map_data(), user) {
                                 return false;
                             }
                         }
-                        SentriedCmd::Update { .. } => {
+                        SentriedMapCmd::Update { .. } => {
+                            if hard_erasure {
+                                if !self.is_allowed(self.hard_update_map_data(), user) {
+                                    return false;
+                                }
+                            }
                             if !self.is_allowed(self.update_map_data(), user) {
                                 return false;
                             }
                         }
-                        SentriedCmd::Delete { .. } => {
+                        SentriedMapCmd::Delete { .. } => {
+                            if hard_erasure {
+                                if !self.is_allowed(self.hard_delete_map_data(), user) {
+                                    return false;
+                                }
+                            }
                             if !self.is_allowed(self.delete_map_data(), user) {
                                 return false;
                             }
@@ -277,45 +359,35 @@ impl Data {
         AccessType::Write(WriteAccess::Map(MapWriteAccess::Delete))
     }
 
-    // fn hard_update_map_data(&self) -> AccessType {
-    //     AccessType::Write(WriteAccess::Map(MapWriteAccess::HardUpdate))
-    // }
+    fn hard_update_map_data(&self) -> AccessType {
+        AccessType::Write(WriteAccess::Map(MapWriteAccess::HardUpdate))
+    }
 
-    // fn hard_delete_map_data(&self) -> AccessType {
-    //     AccessType::Write(WriteAccess::Map(MapWriteAccess::HardDelete))
-    // }
+    fn hard_delete_map_data(&self) -> AccessType {
+        AccessType::Write(WriteAccess::Map(MapWriteAccess::HardDelete))
+    }
 
     fn modify_map_permissions(&self) -> AccessType {
         AccessType::Write(WriteAccess::Map(MapWriteAccess::ModifyPermissions))
     }
 
-    // fn delete_private_map() -> AccessType {
-    //     AccessType::Write(WriteAccess::Map(MapWriteAccess::HardDelete))
-    // }
-
     fn read_sequence(&self) -> AccessType {
         AccessType::Read(ReadAccess::Sequence)
     }
 
-    // fn append_to_sequence(&self) -> AccessType {
-    //     AccessType::Write(WriteAccess::Sequence(SequenceWriteAccess::Append))
-    // }
+    fn append_to_sequence(&self) -> AccessType {
+        AccessType::Write(WriteAccess::Sequence(SequenceWriteAccess::Append))
+    }
 
-    // fn modify_sequence_permissions(&self) -> AccessType {
-    //     AccessType::Write(WriteAccess::Sequence(SequenceWriteAccess::ModifyPermissions))
-    // }
-
-    // fn delete_private_sequence(&self) -> AccessType {
-    //     AccessType::Write(WriteAccess::Sequence(SequenceWriteAccess::HardDelete))
-    // }
+    fn modify_sequence_permissions(&self) -> AccessType {
+        AccessType::Write(WriteAccess::Sequence(
+            SequenceWriteAccess::ModifyPermissions,
+        ))
+    }
 
     fn read_blob(&self) -> AccessType {
         AccessType::Read(ReadAccess::Blob)
     }
-
-    // fn delete_private_blob(&self) -> AccessType {
-    //     AccessType::Write(WriteAccess::Blob(BlobWriteAccess::HardDelete))
-    // }
 }
 
 impl From<BlobData> for Data {
