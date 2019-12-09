@@ -11,12 +11,12 @@ mod login_packet;
 
 pub use self::login_packet::{LoginPacket, MAX_LOGIN_PACKET_BYTES};
 use crate::{
-    Address, AppPermissions, BlobAddress, BlobData, Coins, /* Error, */ Key, MapData,
-    MapTransaction, Owner, PrivatePermissions, PublicKey, PublicPermissions,
-    /* Response, */ SequenceCmd, SequenceData, TransactionId, User, Version, XorName,
+    Address, AppPermissions, BlobAddress, BlobData, Coins, Error, Key, MapData, MapTransaction,
+    Owner, PrivatePermissions, PublicKey, PublicPermissions, Response, SequenceCmd, SequenceData,
+    TransactionId, User, Version, XorName,
 };
 use serde::{Deserialize, Serialize};
-// use std::fmt;
+use std::fmt;
 
 /// RPC Request that is sent to vaults
 #[allow(clippy::large_enum_variant, missing_docs)]
@@ -413,487 +413,312 @@ pub enum MiscWriteRequest {
     },
 }
 
-// impl Request {
-//     /// Create a Response containing an error, with the Response variant corresponding to the
-//     /// Request variant.
-//     pub fn error_response(&self, error: Error) -> Response {
-//         use Request::*;
-//         match &*self {
-//             Data(data) => match data {
-//                 DataRequest::Read(read) => read.error_response(error),
-//                 DataRequest::Write(write) => write.error_response(error),
-//             },
-//             Balance(balance) => match balance {
-//                 BalanceRequest::Read(read) => read.error_response(error),
-//                 BalanceRequest::Write(write) => write.error_response(error),
-//             },
-//             Owners(owners) => match owners {
-//                 OwnerRequest::Read(read) => read.error_response(error),
-//                 OwnerRequest::Write(write) => write.error_response(error),
-//             },
-//             Auth(auth) => match auth {
-//                 AuthRequest::Read(read) => read.error_response(error),
-//                 AuthRequest::Write(write) => write.error_response(error),
-//             },
-//             Misc(misc) => match misc {
-//                 MiscRequest::Read(read) => read.error_response(error),
-//                 MiscRequest::Write(write) => write.error_response(error),
-//             },
-//         }
-//     }
-// }
+impl Request {
+    /// Create a Response containing an error, with the Response variant corresponding to the
+    /// Request variant.
+    pub fn error_response(&self, error: Error) -> Response {
+        use BlobWriteRequest::*;
+        use CurrencyWriteRequest::*;
+        use MapReadRequest::*;
+        use MapWriteRequest::*;
+        use MiscReadRequest::*;
+        use MiscWriteRequest::*;
+        use Request::*;
+        use SequenceReadRequest::*;
+        use SequenceWriteRequest::*;
+        match &*self {
+            Read(read) => match read {
+                ReadRequest::Blob(blob) => match blob {
+                    BlobReadRequest::GetBlob(_) => Response::GetBlob(Err(error)),
+                },
+                ReadRequest::Currency(cur) => match cur {
+                    CurrencyReadRequest::GetBalance => Response::GetBalance(Err(error)),
+                },
+                ReadRequest::Map(map) => match map {
+                    GetMap(_) => Response::GetMap(Err(error)),
+                    GetMapAuth(_) => Response::GetMapAuth(Err(error)),
+                    GetMapAuthAt { .. } => Response::GetMapAuthAt(Err(error)),
+                    GetMapEntries(_) => Response::GetMapEntries(Err(error)),
+                    GetMapExpectedVersions(_) => Response::GetMapExpectedVersions(Err(error)),
+                    GetMapKeyHistory { .. } => Response::GetMapKeyHistory(Err(error)),
+                    GetMapKeyHistoryRange { .. } => Response::GetMapKeyHistoryRange(Err(error)),
+                    GetMapKeys(_) => Response::GetMapKeys(Err(error)),
+                    GetMapOwner(_) => Response::GetMapOwner(Err(error)),
+                    GetMapOwnerAt { .. } => Response::GetMapOwnerAt(Err(error)),
+                    GetMapOwnerHistory(_) => Response::GetMapOwnerHistory(Err(error)),
+                    GetMapOwnerHistoryRange { .. } => Response::GetMapOwnerHistoryRange(Err(error)),
+                    GetMapShell(_) => Response::GetMapShell(Err(error)),
+                    GetMapValue { .. } => Response::GetMapValue(Err(error)),
+                    GetMapValueAt { .. } => Response::GetMapValueAt(Err(error)),
+                    GetMapValues(_) => Response::GetMapValues(Err(error)),
+                    GetMapVersion(_) => Response::GetMapVersion(Err(error)),
+                    GetPrivateMapAuthHistory(_) => Response::GetPrivateMapAuthHistory(Err(error)),
+                    GetPrivateMapAuthHistoryRange { .. } => {
+                        Response::GetPrivateMapAuthHistoryRange(Err(error))
+                    }
+                    GetPrivateMapUserPermissions { .. } => {
+                        Response::GetPrivateMapUserPermissions(Err(error))
+                    }
+                    GetPrivateMapUserPermissionsAt { .. } => {
+                        Response::GetPrivateMapUserPermissionsAt(Err(error))
+                    }
+                    GetPublicMapAuthHistory(_) => Response::GetPublicMapAuthHistory(Err(error)),
+                    GetPublicMapAuthHistoryRange { .. } => {
+                        Response::GetPublicMapAuthHistoryRange(Err(error))
+                    }
+                    GetPublicMapUserPermissions { .. } => {
+                        Response::GetPublicMapUserPermissions(Err(error))
+                    }
+                    GetPublicMapUserPermissionsAt { .. } => {
+                        Response::GetPublicMapUserPermissionsAt(Err(error))
+                    }
+                },
+                ReadRequest::Misc(misc) => match misc {
+                    // ===== Login Packet =====
+                    GetLoginPacket(_) => Response::GetLoginPacket(Err(error)),
+                    // ===== Client (Owner) to SrcElders =====
+                    ListAuthKeysAndVersion => Response::ListAuthKeysAndVersion(Err(error)),
+                },
+                ReadRequest::Sequence(seq) => match seq {
+                    GetSequence(_) => Response::GetSequence(Err(error)),
+                    GetSequenceShell { .. } => Response::GetSequenceShell(Err(error)),
+                    GetSequenceValue { .. } => Response::GetSequenceValue(Err(error)),
+                    GetSequenceRange { .. } => Response::GetSequenceRange(Err(error)),
+                    GetSequenceExpectedVersions(_) => {
+                        Response::GetSequenceExpectedVersions(Err(error))
+                    }
+                    GetSequenceCurrentEntry(_) => Response::GetSequenceCurrentEntry(Err(error)),
+                    GetSequenceOwner(_) => Response::GetSequenceOwner(Err(error)),
+                    GetSequenceOwnerAt { .. } => Response::GetSequenceOwnerAt(Err(error)),
+                    GetSequenceOwnerHistory(_) => Response::GetSequenceOwnerHistory(Err(error)),
+                    GetSequenceOwnerHistoryRange { .. } => {
+                        Response::GetSequenceOwnerHistoryRange(Err(error))
+                    }
+                    GetSequenceAuth { .. } => Response::GetSequenceAuth(Err(error)),
+                    GetSequenceAuthAt { .. } => Response::GetSequenceAuthAt(Err(error)),
+                    GetPublicSequenceAuthHistory(_) => {
+                        Response::GetPublicSequenceAuthHistory(Err(error))
+                    }
+                    GetPrivateSequenceAuthHistory(_) => {
+                        Response::GetPrivateSequenceAuthHistory(Err(error))
+                    }
+                    GetPublicSequenceAuthHistoryRange { .. } => {
+                        Response::GetPublicSequenceAuthHistoryRange(Err(error))
+                    }
+                    GetPrivateSequenceAuthHistoryRange { .. } => {
+                        Response::GetPrivateSequenceAuthHistoryRange(Err(error))
+                    }
+                    GetPublicSequenceUserPermissions { .. } => {
+                        Response::GetPublicSequenceUserPermissions(Err(error))
+                    }
+                    GetPrivateSequenceUserPermissions { .. } => {
+                        Response::GetPrivateSequenceUserPermissions(Err(error))
+                    }
+                    GetPublicSequenceUserPermissionsAt { .. } => {
+                        Response::GetPublicSequenceUserPermissionsAt(Err(error))
+                    }
+                    GetPrivateSequenceUserPermissionsAt { .. } => {
+                        Response::GetPrivateSequenceUserPermissionsAt(Err(error))
+                    }
+                },
+            },
+            Write(write) => match write {
+                WriteRequest::Blob(blob) => match blob {
+                    PutBlob(_) | DeletePrivateBlob(_) => Response::Mutation(Err(error)),
+                },
+                WriteRequest::Currency(cur) => match cur {
+                    TransferCoins { .. } | CreateBalance { .. } => {
+                        Response::Transaction(Err(error))
+                    }
+                },
+                WriteRequest::Map(map) => match map {
+                    PutMap(_)
+                    | DeletePrivateMap(_)
+                    | SetMapOwner { .. }
+                    | SetPublicMapPermissions { .. }
+                    | SetPrivateMapPermissions { .. }
+                    | CommitMapTx { .. } => Response::Mutation(Err(error)),
+                },
+                WriteRequest::Misc(misc) => match misc {
+                    // ===== Login Packet =====
+                    CreateLoginPacket { .. } |
+                    CreateLoginPacketFor { .. } |
+                    UpdateLoginPacket { .. } |
+                    // ===== Client (Owner) to SrcElders =====
+                    InsertAuthKey { .. } |
+                    DeleteAuthKey { .. } => Response::Mutation(Err(error)),
+                },
+                WriteRequest::Sequence(seq) => match seq {
+                    PutSequence(_)
+                    | DeletePrivateSequence(_)
+                    | SetSequenceOwner { .. }
+                    | SetPublicSequencePermissions { .. }
+                    | SetPrivateSequencePermissions { .. }
+                    | Handle(_) => Response::Mutation(Err(error)),
+                },
+            },
+        }
+    }
+}
 
-// impl DataRead {
-//     /// Create a Response containing an error, with the Response variant corresponding to the
-//     /// Request variant.
-//     pub fn error_response(&self, error: Error) -> Response {
-//         use DataRead::*;
-//         match *self {
-//             // ======== Blob ========
-//             GetBlob(_) => Response::GetBlob(Err(error)),
-//             // ======== Map ========
-//             GetMap(_) => Response::GetMap(Err(error)),
-//             GetMapValue { .. } => Response::GetMapValue(Err(error)),
-//             GetMapValueAt { .. } => Response::GetMapValueAt(Err(error)),
-//             GetMapShell(_) => Response::GetMapShell(Err(error)),
-//             GetMapVersion(_) => Response::GetMapVersion(Err(error)),
-//             GetMapExpectedVersions(_) => Response::GetMapExpectedVersions(Err(error)),
-//             GetMapEntries(_) => Response::GetMapEntries(Err(error)),
-//             GetMapKeys(_) => Response::GetMapKeys(Err(error)),
-//             GetMapValues(_) => Response::GetMapValues(Err(error)),
-//             GetMapKeyHistory { .. } => Response::GetMapKeyHistory(Err(error)),
-//             GetMapKeyHistoryRange { .. } => Response::GetMapKeyHistoryRange(Err(error)),
-//             // ======== Sequence ========
-//             GetSequence(_) => Response::GetSequence(Err(error)),
-//             GetSequenceShell { .. } => Response::GetSequenceShell(Err(error)),
-//             GetSequenceValue { .. } => Response::GetSequenceValue(Err(error)),
-//             GetSequenceRange { .. } => Response::GetSequenceRange(Err(error)),
-//             GetSequenceExpectedVersions(_) => Response::GetSequenceExpectedVersions(Err(error)),
-//             GetSequenceCurrentEntry(_) => Response::GetSequenceCurrentEntry(Err(error)),
-//         }
-//     }
-// }
-
-// impl DataWrite {
-//     /// Create a Response containing an error, with the Response variant corresponding to the
-//     /// Request variant.
-//     pub fn error_response(&self, error: Error) -> Response {
-//         use DataWrite::*;
-//         match *self {
-//             // ======== Blob ========
-//             PutBlob(_) |
-//             DeletePrivateBlob(_) |
-//             // ======== Map ========
-//             PutMap(_) |
-//             DeletePrivateMap(_) |
-//             CommitMapTx { .. } |
-//             // ======== Sequence ========
-//             PutSequence(_) |
-//             DeletePrivateSequence(_) |
-//             Handle(_)  => Response::Mutation(Err(error)),
-//         }
-//     }
-// }
-
-// impl OwnerRead {
-//     /// Create a Response containing an error, with the Response variant corresponding to the
-//     /// Request variant.
-//     pub fn error_response(&self, error: Error) -> Response {
-//         use OwnerRead::*;
-//         match *self {
-//             GetMapOwner(_) => Response::GetMapOwner(Err(error)),
-//             GetMapOwnerAt { .. } => Response::GetMapOwnerAt(Err(error)),
-//             GetMapOwnerHistory(_) => Response::GetMapOwnerHistory(Err(error)),
-//             GetMapOwnerHistoryRange { .. } => Response::GetMapOwnerHistoryRange(Err(error)),
-//             GetSequenceOwner(_) => Response::GetSequenceOwner(Err(error)),
-//             GetSequenceOwnerAt { .. } => Response::GetSequenceOwnerAt(Err(error)),
-//             GetSequenceOwnerHistory(_) => Response::GetSequenceOwnerHistory(Err(error)),
-//             GetSequenceOwnerHistoryRange { .. } => {
-//                 Response::GetSequenceOwnerHistoryRange(Err(error))
-//             } // GetIndexOwner { .. } => Response::GetIndexOwner(Err(error)),
-//               // GetBalanceOwner { .. } => Response::GetBalanceOwner(Err(error)),
-//         }
-//     }
-// }
-
-// impl OwnerWrite {
-//     /// Create a Response containing an error, with the Response variant corresponding to the
-//     /// Request variant.
-//     pub fn error_response(&self, error: Error) -> Response {
-//         use OwnerWrite::*;
-//         match *self {
-//             // SetIndexOwner { .. } |
-//             SetMapOwner { .. } | SetSequenceOwner { .. } => Response::Mutation(Err(error)),
-//             // SetBalanceOwner { .. } => Response::Mutation(Err(error)),
-//         }
-//     }
-// }
-
-// impl AuthRead {
-//     /// Create a Response containing an error, with the Response variant corresponding to the
-//     /// Request variant.
-//     pub fn error_response(&self, error: Error) -> Response {
-//         use AuthRead::*;
-//         match *self {
-//             // ==== Map ====
-//             //
-//             GetMapAuth(_) => Response::GetMapAuth(Err(error)),
-//             GetMapAuthAt { .. } => Response::GetMapAuthAt(Err(error)),
-//             GetPublicMapAuthHistory(_) => Response::GetPublicMapAuthHistory(Err(error)),
-//             GetPrivateMapAuthHistory(_) => Response::GetPrivateMapAuthHistory(Err(error)),
-//             GetPublicMapAuthHistoryRange { .. } => {
-//                 Response::GetPublicMapAuthHistoryRange(Err(error))
-//             }
-//             GetPrivateMapAuthHistoryRange { .. } => {
-//                 Response::GetPrivateMapAuthHistoryRange(Err(error))
-//             }
-//             GetPublicMapUserPermissions { .. } => Response::GetPublicMapUserPermissions(Err(error)),
-//             GetPrivateMapUserPermissions { .. } => {
-//                 Response::GetPrivateMapUserPermissions(Err(error))
-//             }
-//             GetPublicMapUserPermissionsAt { .. } => {
-//                 Response::GetPublicMapUserPermissionsAt(Err(error))
-//             }
-//             GetPrivateMapUserPermissionsAt { .. } => {
-//                 Response::GetPrivateMapUserPermissionsAt(Err(error))
-//             }
-//             //
-//             // ==== Sequence ====
-//             //
-//             GetSequenceAuth { .. } => Response::GetSequenceAuth(Err(error)),
-//             GetSequenceAuthAt { .. } => Response::GetSequenceAuthAt(Err(error)),
-//             GetPublicSequenceAuthHistory(_) => Response::GetPublicSequenceAuthHistory(Err(error)),
-//             GetPrivateSequenceAuthHistory(_) => Response::GetPrivateSequenceAuthHistory(Err(error)),
-//             GetPublicSequenceAuthHistoryRange { .. } => {
-//                 Response::GetPublicSequenceAuthHistoryRange(Err(error))
-//             }
-//             GetPrivateSequenceAuthHistoryRange { .. } => {
-//                 Response::GetPrivateSequenceAuthHistoryRange(Err(error))
-//             }
-//             GetPublicSequenceUserPermissions { .. } => {
-//                 Response::GetPublicSequenceUserPermissions(Err(error))
-//             }
-//             GetPrivateSequenceUserPermissions { .. } => {
-//                 Response::GetPrivateSequenceUserPermissions(Err(error))
-//             }
-//             GetPublicSequenceUserPermissionsAt { .. } => {
-//                 Response::GetPublicSequenceUserPermissionsAt(Err(error))
-//             }
-//             GetPrivateSequenceUserPermissionsAt { .. } => {
-//                 Response::GetPrivateSequenceUserPermissionsAt(Err(error))
-//             } //
-//               // ==== Version ====
-//               //
-//               // GetIndexAuthorization { .. } => Response::GetIndexAuthorization(Err(error)),
-//               // GetPublicIndexUserPermissions { .. } => Response::GetPublicIndexUserPermissions(Err(error)),
-//               // GetPrivateIndexUserPermissions { .. } => Response::GetPrivateIndexUserPermissions(Err(error)),
-//               //
-//               // ==== Balance ====
-//               //
-//               // GetBalanceAuthorization { .. } => Response::GetBalanceAuthorization(Err(error)),
-//               // GetPublicBalanceUserPermissions { .. } => Response::GetPublicBalanceUserPermissions(Err(error)),
-//               // GetPrivateBalanceUserPermissions { .. } => Response::GetPrivateBalanceUserPermissions(Err(error)),
-//         }
-//     }
-// }
-
-// impl AuthWrite {
-//     /// Create a Response containing an error, with the Response variant corresponding to the
-//     /// Request variant.
-//     pub fn error_response(&self, error: Error) -> Response {
-//         use AuthWrite::*;
-//         match *self {
-//             // ==== Version ====
-//             // SetPublicIndexPermissions { .. } |
-//             // SetPrivateIndexPermissions { .. } |
-//             //
-//             // ==== Balance ====
-//             // SetPublicBalancePermissions { .. } |
-//             // SetPrivateBalancePermissions { .. } |
-//             //
-//             // ==== Map ====
-//             SetPublicMapPermissions { .. } |
-//             SetPrivateMapPermissions { .. } |
-//             //
-//             // ==== Sequence ====
-//             SetPublicSequencePermissions { .. } |
-//             SetPrivateSequencePermissions { .. } => Response::Mutation(Err(error)),
-//         }
-//     }
-// }
-
-// impl BalanceRead {
-//     /// Create a Response containing an error, with the Response variant corresponding to the
-//     /// Request variant.
-//     pub fn error_response(&self, error: Error) -> Response {
-//         use BalanceRead::*;
-//         match *self {
-//             GetBalance => Response::GetBalance(Err(error)),
-//         }
-//     }
-// }
-
-// impl BalanceWrite {
-//     /// Create a Response containing an error, with the Response variant corresponding to the
-//     /// Request variant.
-//     pub fn error_response(&self, error: Error) -> Response {
-//         use BalanceWrite::*;
-//         match *self {
-//             TransferCoins { .. } | CreateBalance { .. } => Response::Transaction(Err(error)),
-//         }
-//     }
-// }
-
-// impl MiscRead {
-//     /// Create a Response containing an error, with the Response variant corresponding to the
-//     /// Request variant.
-//     pub fn error_response(&self, error: Error) -> Response {
-//         use MiscRead::*;
-//         match *self {
-//             // ===== Login Packet =====
-//             GetLoginPacket(_) => Response::GetLoginPacket(Err(error)),
-//             // ===== Client (Owner) to SrcElders =====
-//             ListAuthKeysAndVersion => Response::ListAuthKeysAndVersion(Err(error)),
-//         }
-//     }
-// }
-
-// impl MiscWrite {
-//     /// Create a Response containing an error, with the Response variant corresponding to the
-//     /// Request variant.
-//     pub fn error_response(&self, error: Error) -> Response {
-//         use MiscWrite::*;
-//         match *self {
-//             // ===== Login Packet =====
-//             CreateLoginPacket { .. } |
-//             CreateLoginPacketFor { .. } |
-//             UpdateLoginPacket { .. } |
-//             // ===== Client (Owner) to SrcElders =====
-//             InsertAuthKey { .. } |
-//             DeleteAuthKey { .. } => Response::Mutation(Err(error)),
-//         }
-//     }
-// }
-
-// impl fmt::Debug for Request {
-//     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-//         use Request::*;
-
-//         write!(
-//             formatter,
-//             "{}",
-//             match &*self {
-//                 Data(data) => {
-//                     match data {
-//                         DataRequest::Read(read) => {
-//                             match read {
-//                                 // ==== Blob ====
-//                                 DataRead::GetBlob { .. } => "DataRead::GetBlob",
-//                                 // ==== Version ====
-//                                 //
-//                                 // ==== Map ====
-//                                 DataRead::GetMap(_) => "DataRead::GetMap",
-//                                 DataRead::GetMapShell(_) => "DataRead::GetMapShell",
-//                                 DataRead::GetMapVersion(_) => "DataRead::GetMapVersion",
-//                                 DataRead::GetMapExpectedVersions(_) => {
-//                                     "DataRead::GetMapExpectedVersions"
-//                                 }
-//                                 DataRead::GetMapKeys(_) => "DataRead::GetMapKeys",
-//                                 DataRead::GetMapKeyHistory { .. } => "DataRead::GetMapKeyHistory",
-//                                 DataRead::GetMapKeyHistoryRange { .. } => {
-//                                     "DataRead::GetMapKeyHistoryRange"
-//                                 }
-//                                 DataRead::GetMapEntries(_) => "DataRead::GetMapEntries",
-//                                 DataRead::GetMapValue { .. } => "DataRead::GetMapValue",
-//                                 DataRead::GetMapValueAt { .. } => "DataRead::GetMapValueAt",
-//                                 DataRead::GetMapValues(_) => "DataRead::GetMapValues",
-//                                 // ==== Sequence ====
-//                                 DataRead::GetSequence { .. } => "DataRead::GetSequence",
-//                                 DataRead::GetSequenceCurrentEntry { .. } => {
-//                                     "DataRead::GetSequenceCurrentEntry"
-//                                 }
-//                                 DataRead::GetSequenceExpectedVersions { .. } => {
-//                                     "DataRead::GetSequenceExpectedVersions"
-//                                 }
-//                                 DataRead::GetSequenceRange { .. } => "DataRead::GetSequenceRange",
-//                                 DataRead::GetSequenceShell { .. } => "DataRead::GetSequenceShell",
-//                                 DataRead::GetSequenceValue { .. } => "DataRead::GetSequenceValue",
-//                             }
-//                         }
-//                         DataRequest::Write(write) => {
-//                             match write {
-//                                 // ==== Blob ====
-//                                 DataWrite::PutBlob { .. } => "DataWrite::PutBlob",
-//                                 DataWrite::DeletePrivateBlob { .. } => {
-//                                     "DataWrite::DeletePrivateBlob"
-//                                 }
-//                                 // ==== Version ====
-//                                 //
-//                                 // ==== Map ====
-//                                 DataWrite::PutMap { .. } => "DataWrite::PutMap",
-//                                 DataWrite::DeletePrivateMap { .. } => "DataWrite::DeletePrivateMap",
-//                                 DataWrite::CommitMapTx { .. } => "DataWrite::CommitMapTx",
-//                                 // ==== Sequence ====
-//                                 DataWrite::PutSequence { .. } => "DataWrite::PutSequence",
-//                                 DataWrite::DeletePrivateSequence { .. } => {
-//                                     "DataWrite::DeletePrivateSequence"
-//                                 }
-//                                 DataWrite::Handle(_) => "DataWrite::Handle",
-//                             }
-//                         }
-//                     }
-//                 }
-//                 Balance(balance) => match balance {
-//                     BalanceRequest::Read(read) => match read {
-//                         BalanceRead::GetBalance { .. } => "BalanceRead::GetBalance",
-//                     },
-//                     BalanceRequest::Write(write) => match write {
-//                         BalanceWrite::CreateBalance { .. } => "BalanceWrite::CreateBalance",
-//                         BalanceWrite::TransferCoins { .. } => "BalanceWrite::TransferCoins",
-//                     },
-//                 },
-//                 Owners(owners) => {
-//                     match owners {
-//                         OwnerRequest::Read(read) => {
-//                             match read {
-//                                 OwnerRead::GetMapOwner(_) => "OwnerRead::GetMapOwner",
-//                                 OwnerRead::GetMapOwnerAt { .. } => "OwnerRead::GetMapOwnerAt",
-//                                 OwnerRead::GetMapOwnerHistory(_) => "OwnerRead::GetMapOwnerHistory",
-//                                 OwnerRead::GetMapOwnerHistoryRange { .. } => {
-//                                     "OwnerRead::GetMapOwnerHistoryRange"
-//                                 }
-//                                 OwnerRead::GetSequenceOwner(_) => "OwnerRead::GetSequenceOwner",
-//                                 OwnerRead::GetSequenceOwnerAt { .. } => {
-//                                     "OwnerRead::GetSequenceOwnerAt"
-//                                 }
-//                                 OwnerRead::GetSequenceOwnerHistory(_) => {
-//                                     "OwnerRead::GetSequenceOwnerHistory"
-//                                 }
-//                                 OwnerRead::GetSequenceOwnerHistoryRange { .. } => {
-//                                     "OwnerRead::GetSequenceOwnerHistoryRange"
-//                                 } // OwnerRead::GetIndexOwner { .. } => "OwnerRead::GetIndexOwner",
-//                                   // OwnerRead::GetBalanceOwner { .. } => "OwnerRead::GetBalanceOwner",
-//                             }
-//                         }
-//                         OwnerRequest::Write(write) => {
-//                             match write {
-//                                 OwnerWrite::SetMapOwner { .. } => "OwnerWrite::SetMapOwner",
-//                                 OwnerWrite::SetSequenceOwner { .. } => {
-//                                     "OwnerWrite::SetSequenceOwner"
-//                                 } // OwnerWrite::SetIndexOwner { .. } => "OwnerWrite::SetIndexOwner",
-//                                   // OwnerWrite::SetBalanceOwner { .. } => "OwnerWrite::SetBalanceOwner",
-//                             }
-//                         }
-//                     }
-//                 }
-//                 Auth(auth) => {
-//                     match auth {
-//                         AuthRequest::Read(read) => {
-//                             match read {
-//                                 // ==== Map ====
-//                                 AuthRead::GetMapAuth(_) => "AuthRead::GetMapAuth",
-//                                 AuthRead::GetMapAuthAt { .. } => "AuthRead::GetMapAuthAt",
-//                                 AuthRead::GetPublicMapAuthHistory(_) => {
-//                                     "AuthRead::GetPublicMapAuthHistory"
-//                                 }
-//                                 AuthRead::GetPrivateMapAuthHistory(_) => {
-//                                     "AuthRead::GetPrivateMapAuthHistory"
-//                                 }
-//                                 AuthRead::GetPublicMapAuthHistoryRange { .. } => {
-//                                     "AuthRead::GetPublicMapAuthHistoryRange"
-//                                 }
-//                                 AuthRead::GetPrivateMapAuthHistoryRange { .. } => {
-//                                     "AuthRead::GetPrivateMapAuthHistoryRange"
-//                                 }
-//                                 AuthRead::GetPrivateMapUserPermissions { .. } => {
-//                                     "AuthRead::GetPrivateMapUserPermissions"
-//                                 }
-//                                 AuthRead::GetPublicMapUserPermissions { .. } => {
-//                                     "AuthRead::GetPublicMapUserPermissions"
-//                                 }
-//                                 AuthRead::GetPrivateMapUserPermissionsAt { .. } => {
-//                                     "AuthRead::GetPrivateMapUserPermissions"
-//                                 }
-//                                 AuthRead::GetPublicMapUserPermissionsAt { .. } => {
-//                                     "AuthRead::GetPublicMapUserPermissionsAt"
-//                                 }
-//                                 // ==== Sequence ====
-//                                 AuthRead::GetSequenceAuth(_) => "AuthRead::GetSequenceAuth",
-//                                 AuthRead::GetSequenceAuthAt { .. } => "AuthRead::GetSequenceAuthAt",
-//                                 AuthRead::GetPublicSequenceAuthHistory(_) => {
-//                                     "AuthRead::GetPublicSequenceAuthHistory"
-//                                 }
-//                                 AuthRead::GetPrivateSequenceAuthHistory(_) => {
-//                                     "AuthRead::GetPrivateSequenceAuthHistory"
-//                                 }
-//                                 AuthRead::GetPublicSequenceAuthHistoryRange { .. } => {
-//                                     "AuthRead::GetPublicSequenceAuthHistoryRange"
-//                                 }
-//                                 AuthRead::GetPrivateSequenceAuthHistoryRange { .. } => {
-//                                     "AuthRead::GetPrivateSequenceAuthHistoryRange"
-//                                 }
-//                                 AuthRead::GetPrivateSequenceUserPermissions { .. } => {
-//                                     "AuthRead::GetPrivateSequenceUserPermissions"
-//                                 }
-//                                 AuthRead::GetPublicSequenceUserPermissions { .. } => {
-//                                     "AuthRead::GetPublicSequenceUserPermissions"
-//                                 }
-//                                 AuthRead::GetPrivateSequenceUserPermissionsAt { .. } => {
-//                                     "AuthRead::GetPrivateSequenceUserPermissions"
-//                                 }
-//                                 AuthRead::GetPublicSequenceUserPermissionsAt { .. } => {
-//                                     "AuthRead::GetPublicSequenceUserPermissionsAt"
-//                                 } // ==== Version ====
-//                                   // AuthRead::GetPrivateIndexUserPermissions { .. } => "AuthRead::GetPrivateIndexUserPermissions",
-//                                   // AuthRead::GetIndexAuthorization { .. } => "AuthRead::GetIndexAuthorization",
-//                                   // AuthRead::GetPublicIndexUserPermissions { .. } => "AuthRead::GetPublicIndexUserPermissions",
-//                                   // ==== Balance ====
-//                                   // AuthRead::GetPrivateBalanceUserPermissions { .. } => "AuthRead::GetPrivateBalanceUserPermissions",
-//                                   // AuthRead::GetPublicBalanceUserPermissions { .. } => "AuthRead::GetPublicBalanceUserPermissions",
-//                                   // AuthRead::GetBalanceAuthorization { .. } => "AuthRead::GetBalanceAuthorization",
-//                             }
-//                         }
-//                         AuthRequest::Write(write) => {
-//                             match write {
-//                                 // ==== Map ====
-//                                 AuthWrite::SetPrivateMapPermissions { .. } => {
-//                                     "AuthWrite::SetPrivateMapPermissions"
-//                                 }
-//                                 AuthWrite::SetPublicMapPermissions { .. } => {
-//                                     "AuthWrite::SetPublicMapPermissions"
-//                                 }
-//                                 // ==== Sequence ====
-//                                 AuthWrite::SetPrivateSequencePermissions { .. } => {
-//                                     "AuthWrite::SetPrivateSequencePermissions"
-//                                 }
-//                                 AuthWrite::SetPublicSequencePermissions { .. } => {
-//                                     "AuthWrite::SetPublicSequencePermissions"
-//                                 } // ==== Version ====
-//                                   // AuthWrite::SetPrivateIndexPermissions { .. } => "AuthWrite::SetPrivateIndexPermissions",
-//                                   // AuthWrite::SetPublicIndexPermissions { .. } => "AuthWrite::SetPublicIndexPermissions",
-//                                   // ==== Balance ====
-//                                   // AuthWrite::SetPrivateBalancePermissions { .. } => "AuthWrite::SetPrivateBalancePermissions",
-//                                   // AuthWrite::SetPublicBalancePermissions { .. } => "AuthWrite::SetPublicBalancePermissions",
-//                             }
-//                         }
-//                     }
-//                 }
-//                 Misc(misc) => match misc {
-//                     MiscRequest::Read(read) => match read {
-//                         MiscRead::GetLoginPacket { .. } => "MiscRead::GetLoginPacket",
-//                         MiscRead::ListAuthKeysAndVersion { .. } => {
-//                             "MiscRead::ListAuthKeysAndVersion"
-//                         }
-//                     },
-//                     MiscRequest::Write(write) => match write {
-//                         MiscWrite::CreateLoginPacket { .. } => "MiscWrite::CreateLoginPacket",
-//                         MiscWrite::CreateLoginPacketFor { .. } => "MiscWrite::CreateLoginPacketFor",
-//                         MiscWrite::UpdateLoginPacket { .. } => "MiscWrite::UpdateLoginPacket",
-//                         MiscWrite::DeleteAuthKey { .. } => "MiscWrite::DeleteAuthKey",
-//                         MiscWrite::InsertAuthKey { .. } => "MiscWrite::InsertAuthKey",
-//                     },
-//                 },
-//             }
-//         )
-//     }
-// }
+impl fmt::Debug for Request {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        use BlobWriteRequest::*;
+        use CurrencyWriteRequest::*;
+        use MapReadRequest::*;
+        use MapWriteRequest::*;
+        use MiscReadRequest::*;
+        use MiscWriteRequest::*;
+        use Request::*;
+        use SequenceReadRequest::*;
+        use SequenceWriteRequest::*;
+        write!(
+            formatter,
+            "{}",
+            match &*self {
+                Read(read) => match read {
+                    ReadRequest::Blob(blob) => match blob {
+                        BlobReadRequest::GetBlob(_) => "BlobReadRequest::GetBlob",
+                    },
+                    ReadRequest::Currency(cur) => match cur {
+                        CurrencyReadRequest::GetBalance => "CurrencyReadRequest::GetBalance",
+                    },
+                    ReadRequest::Map(map) => match map {
+                        GetMap(_) => "MapReadRequest::GetMap",
+                        GetMapAuth(_) => "MapReadRequest::GetMapAuth",
+                        GetMapAuthAt { .. } => "MapReadRequest::GetMapAuthAt",
+                        GetMapEntries(_) => "MapReadRequest::GetMapEntries",
+                        GetMapExpectedVersions(_) => "MapReadRequest::GetMapExpectedVersions",
+                        GetMapKeyHistory { .. } => "MapReadRequest::GetMapKeyHistory",
+                        GetMapKeyHistoryRange { .. } => "MapReadRequest::GetMapKeyHistoryRange",
+                        GetMapKeys(_) => "MapReadRequest::GetMapKeys",
+                        GetMapOwner(_) => "MapReadRequest::GetMapOwner",
+                        GetMapOwnerAt { .. } => "MapReadRequest::GetMapOwnerAt",
+                        GetMapOwnerHistory(_) => "MapReadRequest::GetMapOwnerHistory",
+                        GetMapOwnerHistoryRange { .. } => "MapReadRequest::GetMapOwnerHistoryRange",
+                        GetMapShell(_) => "MapReadRequest::GetMapShell",
+                        GetMapValue { .. } => "MapReadRequest::GetMapValue",
+                        GetMapValueAt { .. } => "MapReadRequest::GetMapValueAt",
+                        GetMapValues(_) => "MapReadRequest::GetMapValues",
+                        GetMapVersion(_) => "MapReadRequest::GetMapVersion",
+                        GetPrivateMapAuthHistory(_) => "MapReadRequest::GetPrivateMapAuthHistory",
+                        GetPrivateMapAuthHistoryRange { .. } => {
+                            "MapReadRequest::GetPrivateMapAuthHistoryRange"
+                        }
+                        GetPrivateMapUserPermissions { .. } => {
+                            "MapReadRequest::GetPrivateMapUserPermissions"
+                        }
+                        GetPrivateMapUserPermissionsAt { .. } => {
+                            "MapReadRequest::GetPrivateMapUserPermissionsAt"
+                        }
+                        GetPublicMapAuthHistory(_) => "MapReadRequest::GetPublicMapAuthHistory",
+                        GetPublicMapAuthHistoryRange { .. } => {
+                            "MapReadRequest::GetPublicMapAuthHistoryRange"
+                        }
+                        GetPublicMapUserPermissions { .. } => {
+                            "MapReadRequest::GetPublicMapUserPermissions"
+                        }
+                        GetPublicMapUserPermissionsAt { .. } => {
+                            "MapReadRequest::GetPublicMapUserPermissionsAt"
+                        }
+                    },
+                    ReadRequest::Misc(misc) => match misc {
+                        // ===== Login Packet =====
+                        GetLoginPacket(_) => "MiscReadRequest::GetLoginPacket",
+                        // ===== Client (Owner) to SrcElders =====
+                        ListAuthKeysAndVersion => "MiscReadRequest::ListAuthKeysAndVersion",
+                    },
+                    ReadRequest::Sequence(seq) => match seq {
+                        GetSequence(_) => "SequenceReadRequest::GetSequence",
+                        GetSequenceShell { .. } => "SequenceReadRequest::GetSequenceShell",
+                        GetSequenceValue { .. } => "SequenceReadRequest::GetSequenceValue",
+                        GetSequenceRange { .. } => "SequenceReadRequest::GetSequenceRange",
+                        GetSequenceExpectedVersions(_) => {
+                            "SequenceReadRequest::GetSequenceExpectedVersions"
+                        }
+                        GetSequenceCurrentEntry(_) => {
+                            "SequenceReadRequest::GetSequenceCurrentEntry"
+                        }
+                        GetSequenceOwner(_) => "SequenceReadRequest::GetSequenceOwner",
+                        GetSequenceOwnerAt { .. } => "SequenceReadRequest::GetSequenceOwnerAt",
+                        GetSequenceOwnerHistory(_) => {
+                            "SequenceReadRequest::GetSequenceOwnerHistory"
+                        }
+                        GetSequenceOwnerHistoryRange { .. } => {
+                            "SequenceReadRequest::GetSequenceOwnerHistoryRange"
+                        }
+                        GetSequenceAuth { .. } => "SequenceReadRequest::GetSequenceAuth",
+                        GetSequenceAuthAt { .. } => "SequenceReadRequest::GetSequenceAuthAt",
+                        GetPublicSequenceAuthHistory(_) => {
+                            "SequenceReadRequest::GetPublicSequenceAuthHistory"
+                        }
+                        GetPrivateSequenceAuthHistory(_) => {
+                            "SequenceReadRequest::GetPrivateSequenceAuthHistory"
+                        }
+                        GetPublicSequenceAuthHistoryRange { .. } => {
+                            "SequenceReadRequest::GetPublicSequenceAuthHistoryRange"
+                        }
+                        GetPrivateSequenceAuthHistoryRange { .. } => {
+                            "SequenceReadRequest::GetPrivateSequenceAuthHistoryRange"
+                        }
+                        GetPublicSequenceUserPermissions { .. } => {
+                            "SequenceReadRequest::GetPublicSequenceUserPermissions"
+                        }
+                        GetPrivateSequenceUserPermissions { .. } => {
+                            "SequenceReadRequest::GetPrivateSequenceUserPermissions"
+                        }
+                        GetPublicSequenceUserPermissionsAt { .. } => {
+                            "SequenceReadRequest::GetPublicSequenceUserPermissionsAt"
+                        }
+                        GetPrivateSequenceUserPermissionsAt { .. } => {
+                            "SequenceReadRequest::GetPrivateSequenceUserPermissionsAt"
+                        }
+                    },
+                },
+                Write(write) => match write {
+                    WriteRequest::Blob(blob) => match blob {
+                        PutBlob(_) => "BlobWriteRequest::PutBlob",
+                        DeletePrivateBlob(_) => "BlobWriteRequest::DeletePrivateBlob",
+                    },
+                    WriteRequest::Currency(cur) => match cur {
+                        TransferCoins { .. } => "CurrencyWriteRequest::TransferCoins",
+                        CreateBalance { .. } => "CurrencyWriteRequest::CreateBalance",
+                    },
+                    WriteRequest::Map(map) => match map {
+                        PutMap(_) => "MapWriteRequest::PutMap",
+                        DeletePrivateMap(_) => "MapWriteRequest::DeletePrivateMap",
+                        SetMapOwner { .. } => "MapWriteRequest::SetMapOwner",
+                        SetPublicMapPermissions { .. } => {
+                            "MapWriteRequest::SetPublicMapPermissions"
+                        }
+                        SetPrivateMapPermissions { .. } => {
+                            "MapWriteRequest::SetPrivateMapPermissions"
+                        }
+                        CommitMapTx { .. } => "MapWriteRequest::CommitMapTx",
+                    },
+                    WriteRequest::Misc(misc) => match misc {
+                        // ===== Login Packet =====
+                        CreateLoginPacket { .. } => "MiscWriteRequest::CreateLoginPacket",
+                        CreateLoginPacketFor { .. } => "MiscWriteRequest::CreateLoginPacketFor",
+                        UpdateLoginPacket { .. } => "MiscWriteRequest::UpdateLoginPacket",
+                        // ===== Client (Owner) to SrcElders =====
+                        InsertAuthKey { .. } => "MiscWriteRequest::InsertAuthKey",
+                        DeleteAuthKey { .. } => "MiscWriteRequest::DeleteAuthKey",
+                    },
+                    WriteRequest::Sequence(seq) => match seq {
+                        PutSequence(_) => "SequenceWriteRequest::PutSequence",
+                        DeletePrivateSequence(_) => "SequenceWriteRequest::DeletePrivateSequence",
+                        SetSequenceOwner { .. } => "SequenceWriteRequest::SetSequenceOwner",
+                        SetPublicSequencePermissions { .. } => {
+                            "SequenceWriteRequest::SetPublicSequencePermissions"
+                        }
+                        SetPrivateSequencePermissions { .. } => {
+                            "SequenceWriteRequest::SetPrivateSequencePermissions"
+                        }
+                        Handle(_) => "SequenceWriteRequest::Handle",
+                    },
+                },
+            }
+        )
+    }
+}
