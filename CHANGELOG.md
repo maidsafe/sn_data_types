@@ -1,5 +1,8 @@
 # safe-nd - Change Log
 
+## [0.6.1]
+- Implement `From` trait for `id::client::FullId` to allow conversion from supported key types.
+
 ## [0.6.0]
 
 - Change CI to GitHub Actions.
