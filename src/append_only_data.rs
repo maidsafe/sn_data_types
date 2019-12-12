@@ -72,13 +72,13 @@ use std::{
 };
 
 /// Published sequenced AppendOnlyData.
-pub type PubSeqAppendOnlyData = SeqAppendOnlyData<PubPermissions>;
+pub type PubSeqData = SeqData<PubPermissions>;
 /// Published unsequenced AppendOnlyData.
-pub type PubUnseqAppendOnlyData = UnseqAppendOnlyData<PubPermissions>;
+pub type PubUnseqData = UnseqData<PubPermissions>;
 /// Unpublished sequenced AppendOnlyData.
-pub type UnpubSeqAppendOnlyData = SeqAppendOnlyData<UnpubPermissions>;
+pub type UnpubSeqData = SeqData<UnpubPermissions>;
 /// Unpublished unsequenced AppendOnlyData.
-pub type UnpubUnseqAppendOnlyData = UnseqAppendOnlyData<UnpubPermissions>;
+pub type UnpubUnseqData = UnseqData<UnpubPermissions>;
 /// List of entries.
 pub type Entries = Vec<Entry>;
 
@@ -670,10 +670,10 @@ macro_rules! impl_appendable_data {
     };
 }
 
-impl_appendable_data!(SeqAppendOnlyData);
-impl_appendable_data!(UnseqAppendOnlyData);
+impl_appendable_data!(SeqData);
+impl_appendable_data!(UnseqData);
 
-impl SeqAppendOnlyData<PubPermissions> {
+impl SeqData<PubPermissions> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             inner: AppendOnly {
@@ -686,13 +686,13 @@ impl SeqAppendOnlyData<PubPermissions> {
     }
 }
 
-impl Debug for SeqAppendOnlyData<PubPermissions> {
+impl Debug for SeqData<PubPermissions> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PubSeqAppendOnlyData {:?}", self.name())
     }
 }
 
-impl UnseqAppendOnlyData<PubPermissions> {
+impl UnseqData<PubPermissions> {
     /// Constructs a new published unsequenced AppendOnlyData.
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
@@ -706,13 +706,13 @@ impl UnseqAppendOnlyData<PubPermissions> {
     }
 }
 
-impl Debug for UnseqAppendOnlyData<PubPermissions> {
+impl Debug for UnseqData<PubPermissions> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PubUnseqAppendOnlyData {:?}", self.name())
     }
 }
 
-impl SeqAppendOnlyData<UnpubPermissions> {
+impl SeqData<UnpubPermissions> {
     /// Constructs a new unpublished sequenced AppendOnlyData.
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
@@ -726,13 +726,13 @@ impl SeqAppendOnlyData<UnpubPermissions> {
     }
 }
 
-impl Debug for SeqAppendOnlyData<UnpubPermissions> {
+impl Debug for SeqData<UnpubPermissions> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "PubSeqAppendOnlyData {:?}", self.name())
+        write!(formatter, "UnpubSeqAppendOnlyData {:?}", self.name())
     }
 }
 
-impl UnseqAppendOnlyData<UnpubPermissions> {
+impl UnseqData<UnpubPermissions> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             inner: AppendOnly {
@@ -745,7 +745,7 @@ impl UnseqAppendOnlyData<UnpubPermissions> {
     }
 }
 
-impl Debug for UnseqAppendOnlyData<UnpubPermissions> {
+impl Debug for UnseqData<UnpubPermissions> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "UnpubUnseqAppendOnlyData {:?}", self.name())
     }
@@ -770,7 +770,7 @@ fn check_dup(data: &[Entry], entries: &mut Entries) -> Result<()> {
     Ok(())
 }
 
-impl<P> SeqAppendOnly for SeqAppendOnlyData<P>
+impl<P> SeqAppendOnly for SeqData<P>
 where
     P: Perm + Hash + Clone,
 {
@@ -786,7 +786,7 @@ where
     }
 }
 
-impl<P> UnseqAppendOnly for UnseqAppendOnlyData<P>
+impl<P> UnseqAppendOnly for UnseqData<P>
 where
     P: Perm + Hash + Clone,
 {
@@ -980,13 +980,13 @@ impl Address {
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Data {
     /// Published sequenced AppendOnlyData.
-    PubSeq(PubSeqAppendOnlyData),
+    PubSeq(PubSeqData),
     /// Published unsequenced AppendOnlyData.
-    PubUnseq(PubUnseqAppendOnlyData),
+    PubUnseq(PubUnseqData),
     /// Unpublished sequenced AppendOnlyData.
-    UnpubSeq(UnpubSeqAppendOnlyData),
+    UnpubSeq(UnpubSeqData),
     /// Unpublished unsequenced AppendOnlyData.
-    UnpubUnseq(UnpubUnseqAppendOnlyData),
+    UnpubUnseq(UnpubUnseqData),
 }
 
 impl Data {
@@ -1295,26 +1295,26 @@ impl Data {
     }
 }
 
-impl From<PubSeqAppendOnlyData> for Data {
-    fn from(data: PubSeqAppendOnlyData) -> Self {
+impl From<PubSeqData> for Data {
+    fn from(data: PubSeqData) -> Self {
         Data::PubSeq(data)
     }
 }
 
-impl From<PubUnseqAppendOnlyData> for Data {
-    fn from(data: PubUnseqAppendOnlyData) -> Self {
+impl From<PubUnseqData> for Data {
+    fn from(data: PubUnseqData) -> Self {
         Data::PubUnseq(data)
     }
 }
 
-impl From<UnpubSeqAppendOnlyData> for Data {
-    fn from(data: UnpubSeqAppendOnlyData) -> Self {
+impl From<UnpubSeqData> for Data {
+    fn from(data: UnpubSeqData) -> Self {
         Data::UnpubSeq(data)
     }
 }
 
-impl From<UnpubUnseqAppendOnlyData> for Data {
-    fn from(data: UnpubUnseqAppendOnlyData) -> Self {
+impl From<UnpubUnseqData> for Data {
+    fn from(data: UnpubUnseqData) -> Self {
         Data::UnpubUnseq(data)
     }
 }
@@ -1355,7 +1355,7 @@ mod tests {
 
     #[test]
     fn append_permissions() {
-        let mut data = SeqAppendOnlyData::<UnpubPermissions>::new(XorName([1; 32]), 10000);
+        let mut data = SeqData::<UnpubPermissions>::new(XorName([1; 32]), 10000);
 
         // Append the first permission set with correct indices - should pass.
         let res = data.append_permissions(
@@ -1404,7 +1404,7 @@ mod tests {
     fn append_owners() {
         let owner_pk = gen_public_key();
 
-        let mut data = SeqAppendOnlyData::<UnpubPermissions>::new(XorName([1; 32]), 10000);
+        let mut data = SeqData::<UnpubPermissions>::new(XorName([1; 32]), 10000);
 
         // Append the first owner with correct indices - should pass.
         let res = data.append_owner(
@@ -1451,7 +1451,7 @@ mod tests {
 
     #[test]
     fn seq_append_entries() {
-        let mut data = SeqAppendOnlyData::<PubPermissions>::new(XorName([1; 32]), 10000);
+        let mut data = SeqData::<PubPermissions>::new(XorName([1; 32]), 10000);
         unwrap!(data.append(vec![Entry::new(b"hello".to_vec(), b"world".to_vec())], 0));
     }
 
@@ -1460,7 +1460,7 @@ mod tests {
         let owner_pk = gen_public_key();
         let owner_pk1 = gen_public_key();
 
-        let mut data = SeqAppendOnlyData::<UnpubPermissions>::new(XorName([1; 32]), 10000);
+        let mut data = SeqData::<UnpubPermissions>::new(XorName([1; 32]), 10000);
 
         let _ = data.append_owner(
             Owner {
@@ -1494,7 +1494,7 @@ mod tests {
 
     #[test]
     fn append_unseq_data_test() {
-        let mut data = UnpubUnseqAppendOnlyData::new(XorName(rand::random()), 10);
+        let mut data = UnpubUnseqData::new(XorName(rand::random()), 10);
 
         // Assert that the entries are not appended because of duplicate keys.
         let entries = vec![
@@ -1526,7 +1526,7 @@ mod tests {
 
     #[test]
     fn append_seq_data_test() {
-        let mut data = UnpubSeqAppendOnlyData::new(XorName(rand::random()), 10);
+        let mut data = UnpubSeqData::new(XorName(rand::random()), 10);
 
         // Assert that the entries are not appended because of duplicate keys.
         let entries = vec![
@@ -1560,7 +1560,7 @@ mod tests {
 
     #[test]
     fn in_range() {
-        let mut data = PubSeqAppendOnlyData::new(rand::random(), 10);
+        let mut data = PubSeqData::new(rand::random(), 10);
         let entries = vec![
             Entry::new(b"key0".to_vec(), b"value0".to_vec()),
             Entry::new(b"key1".to_vec(), b"value1".to_vec()),
@@ -1642,7 +1642,7 @@ mod tests {
             .insert(public_key, UnpubPermissionSet::new(false, false, false));
 
         // pub, unseq
-        let mut data = PubUnseqAppendOnlyData::new(rand::random(), 20);
+        let mut data = PubUnseqData::new(rand::random(), 20);
         unwrap!(data.append_permissions(pub_perms.clone(), 0));
         let data = Data::from(data);
 
@@ -1663,7 +1663,7 @@ mod tests {
         );
 
         // pub, seq
-        let mut data = PubSeqAppendOnlyData::new(rand::random(), 20);
+        let mut data = PubSeqData::new(rand::random(), 20);
         unwrap!(data.append_permissions(pub_perms.clone(), 0));
         let data = Data::from(data);
 
@@ -1684,7 +1684,7 @@ mod tests {
         );
 
         // unpub, unseq
-        let mut data = UnpubUnseqAppendOnlyData::new(rand::random(), 20);
+        let mut data = UnpubUnseqData::new(rand::random(), 20);
         unwrap!(data.append_permissions(unpub_perms.clone(), 0));
         let data = Data::from(data);
 
@@ -1705,7 +1705,7 @@ mod tests {
         );
 
         // unpub, seq
-        let mut data = UnpubSeqAppendOnlyData::new(rand::random(), 20);
+        let mut data = UnpubSeqData::new(rand::random(), 20);
         unwrap!(data.append_permissions(unpub_perms.clone(), 0));
         let data = Data::from(data);
 
@@ -1735,7 +1735,7 @@ mod tests {
         let public_key_0 = gen_public_key();
         let public_key_1 = gen_public_key();
         let public_key_2 = gen_public_key();
-        let mut inner = SeqAppendOnlyData::<PubPermissions>::new(XorName([1; 32]), 100);
+        let mut inner = SeqData::<PubPermissions>::new(XorName([1; 32]), 100);
 
         // no owner
         let data = Data::from(inner.clone());
@@ -1805,7 +1805,7 @@ mod tests {
         let public_key_0 = gen_public_key();
         let public_key_1 = gen_public_key();
         let public_key_2 = gen_public_key();
-        let mut inner = SeqAppendOnlyData::<UnpubPermissions>::new(XorName([1; 32]), 100);
+        let mut inner = SeqData::<UnpubPermissions>::new(XorName([1; 32]), 100);
 
         // no owner
         let data = Data::from(inner.clone());
