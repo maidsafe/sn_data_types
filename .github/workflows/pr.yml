@@ -54,7 +54,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --release --all-targets
+          args: --all-targets
 
   test:
     name: Test
