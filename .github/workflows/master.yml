@@ -13,6 +13,8 @@ on:
       - master
 
 env:
+  # Run all cargo commands with --verbose.
+  CARGO_TERM_VERBOSE: true
   RUST_BACKTRACE: 1
 
 jobs:
@@ -24,16 +26,36 @@ jobs:
         os: [ubuntu-latest, windows-latest, macOS-latest]
     steps:
       - uses: actions/checkout@v1
-      # TODO: Measure if any speedup from caching (no Cargo.lock, so always reuse cache)
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: stable
           override: true
+      # Generate Cargo.lock, needed for the cache.
+      - uses: actions-rs/cargo@v1
+        with:
+          command: update
+      # Cache.
+      - name: Cache cargo registry
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache cargo index
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache cargo build
+        uses: actions/cache@v1
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+      # Make sure the code builds.
       - uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --verbose --release
+          args: --release
 
   publish:
     name: Publish
@@ -41,17 +63,18 @@ jobs:
     needs: build
     steps:
       - uses: actions/checkout@v1
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
       # Is this a version change commit?
       - shell: bash
         id: commit_message
         run: |
           commit_message=$(git log --format=%B -n 1 ${{ github.sha }})
           echo "::set-output name=commit_message::$commit_message"
+      - uses: actions-rs/toolchain@v1
+        if: startsWith(steps.commit_message.outputs.commit_message, 'Version change')
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
       - uses: actions-rs/cargo@v1
         if: startsWith(steps.commit_message.outputs.commit_message, 'Version change')
         with:
