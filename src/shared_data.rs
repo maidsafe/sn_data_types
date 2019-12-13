@@ -47,19 +47,19 @@ impl From<u64> for Version {
 pub struct ExpectedVersions {
     expected_data_version: u64,
     expected_owners_version: u64,
-    expected_auth_version: u64,
+    expected_access_list_version: u64,
 }
 
 impl ExpectedVersions {
     pub fn new(
         expected_data_version: u64,
         expected_owners_version: u64,
-        expected_auth_version: u64,
+        expected_access_list_version: u64,
     ) -> Self {
         ExpectedVersions {
             expected_data_version,
             expected_owners_version,
-            expected_auth_version,
+            expected_access_list_version,
         }
     }
 
@@ -71,8 +71,8 @@ impl ExpectedVersions {
         self.expected_owners_version
     }
 
-    pub fn expected_auth_version(&self) -> u64 {
-        self.expected_auth_version
+    pub fn expected_access_list_version(&self) -> u64 {
+        self.expected_access_list_version
     }
 }
 
@@ -82,7 +82,7 @@ pub struct Owner {
     /// The expected Version of the data at the time this ownership change is to become valid.
     pub expected_data_version: u64,
     /// The expected Version of the permissions at the time this ownership change is to become valid.
-    pub expected_auth_version: u64,
+    pub expected_access_list_version: u64,
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]

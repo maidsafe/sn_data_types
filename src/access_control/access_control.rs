@@ -15,7 +15,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{collections::BTreeMap, hash::Hash};
 
 /// ===========================================================
-///  Authorization to access the data types and their content.
+///  Access control of data type instances and their content.
 /// ===========================================================
 
 /// The type of access to the native data structures.
@@ -69,39 +69,39 @@ pub enum MapWriteAccess {
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
-pub struct PrivatePermissions {
-    state: BTreeMap<AccessType, bool>,
+pub struct PrivateUserAccess {
+    status: BTreeMap<AccessType, bool>,
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
-pub struct PublicPermissions {
-    state: BTreeMap<AccessType, bool>,
+pub struct PublicUserAccess {
+    status: BTreeMap<AccessType, bool>,
 }
 
-impl PrivatePermissions {
-    pub fn new(state: BTreeMap<AccessType, bool>) -> Self {
-        PrivatePermissions { state }
+impl PrivateUserAccess {
+    pub fn new(status: BTreeMap<AccessType, bool>) -> Self {
+        PrivateUserAccess { status }
     }
 
-    pub fn set(&mut self, state: BTreeMap<AccessType, bool>) {
-        self.state = state;
+    pub fn set(&mut self, status: BTreeMap<AccessType, bool>) {
+        self.status = status;
     }
 
     pub fn is_allowed(self, access: &AccessType) -> bool {
-        match self.state.get(access) {
+        match self.status.get(access) {
             Some(true) => true,
             _ => false,
         }
     }
 }
 
-impl PublicPermissions {
-    pub fn new(state: BTreeMap<AccessType, bool>) -> Self {
-        PublicPermissions { state }
+impl PublicUserAccess {
+    pub fn new(status: BTreeMap<AccessType, bool>) -> Self {
+        PublicUserAccess { status }
     }
 
-    pub fn set(&mut self, state: BTreeMap<AccessType, bool>) {
-        self.state = state; // todo: filter out Queries
+    pub fn set(&mut self, status: BTreeMap<AccessType, bool>) {
+        self.status = status; // todo: filter out Queries
     }
 
     /// Returns `Some(true)` if `access` is allowed and `Some(false)` if it's not.
@@ -109,7 +109,7 @@ impl PublicPermissions {
     pub fn is_allowed(self, access: &AccessType) -> Option<bool> {
         match access {
             AccessType::Read(_) => Some(true), // It's Public data, so it's always allowed to read it.
-            _ => match self.state.get(access) {
+            _ => match self.status.get(access) {
                 Some(true) => Some(true),
                 Some(false) => Some(false),
                 None => None,
@@ -118,31 +118,31 @@ impl PublicPermissions {
     }
 }
 
-pub trait Auth: Clone + Eq + Ord + Hash + Serialize + DeserializeOwned {
+pub trait AccessList: Clone + Eq + Ord + Hash + Serialize + DeserializeOwned {
     fn is_allowed(&self, user: &PublicKey, access: &AccessType) -> bool;
     fn expected_data_version(&self) -> u64;
     fn expected_owners_version(&self) -> u64;
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
-pub struct PrivateAuth {
-    pub permissions: BTreeMap<PublicKey, PrivatePermissions>,
-    /// The expected index of the data at the time this grant state change is to become valid.
+pub struct PrivateAccessList {
+    pub access_list: BTreeMap<PublicKey, PrivateUserAccess>,
+    /// The expected index of the data at the time this grant status change is to become valid.
     pub expected_data_version: u64,
-    /// The expected index of the owners at the time this grant state is to become valid.
+    /// The expected index of the owners at the time this grant status is to become valid.
     pub expected_owners_version: u64,
 }
 
-impl PrivateAuth {
-    pub fn permissions(&self) -> &BTreeMap<PublicKey, PrivatePermissions> {
-        &self.permissions
+impl PrivateAccessList {
+    pub fn access_list(&self) -> &BTreeMap<PublicKey, PrivateUserAccess> {
+        &self.access_list
     }
 }
 
-impl Auth for PrivateAuth {
+impl AccessList for PrivateAccessList {
     fn is_allowed(&self, user: &PublicKey, access: &AccessType) -> bool {
-        match self.permissions.get(user) {
-            Some(access_state) => access_state.clone().is_allowed(access),
+        match self.access_list.get(user) {
+            Some(access_status) => access_status.clone().is_allowed(access),
             None => false,
         }
     }
@@ -157,18 +157,18 @@ impl Auth for PrivateAuth {
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
-pub struct PublicAuth {
-    pub permissions: BTreeMap<User, PublicPermissions>,
-    /// The expected index of the data at the time this grant state change is to become valid.
+pub struct PublicAccessList {
+    pub access_list: BTreeMap<User, PublicUserAccess>,
+    /// The expected index of the data at the time this grant status change is to become valid.
     pub expected_data_version: u64,
-    /// The expected index of the owners at the time this grant state change is to become valid.
+    /// The expected index of the owners at the time this grant status change is to become valid.
     pub expected_owners_version: u64,
 }
 
-impl PublicAuth {
+impl PublicAccessList {
     fn is_allowed_(&self, user: &User, access: &AccessType) -> Option<bool> {
-        match self.permissions.get(user) {
-            Some(state) => match state.clone().is_allowed(access) {
+        match self.access_list.get(user) {
+            Some(status) => match status.clone().is_allowed(access) {
                 Some(true) => Some(true),
                 Some(false) => Some(false),
                 None => None,
@@ -177,12 +177,12 @@ impl PublicAuth {
         }
     }
 
-    pub fn permissions(&self) -> &BTreeMap<User, PublicPermissions> {
-        &self.permissions
+    pub fn access_list(&self) -> &BTreeMap<User, PublicUserAccess> {
+        &self.access_list
     }
 }
 
-impl Auth for PublicAuth {
+impl AccessList for PublicAccessList {
     fn is_allowed(&self, user: &PublicKey, access: &AccessType) -> bool {
         match self.is_allowed_(&User::Specific(*user), access) {
             Some(true) => true,

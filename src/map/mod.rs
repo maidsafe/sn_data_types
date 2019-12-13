@@ -9,4 +9,9 @@
 
 pub mod map;
 mod tests;
-pub use map::*;
+pub use map::{
+    AccessList as MapAccessList, Cmd as MapCmd, DataEntries as MapEntries,
+    DataHistories as MapKeyHistories, MapData, MapTransaction, PrivateMap, PrivateSentriedMap,
+    PublicMap, PublicSentriedMap, SentriedCmd as SentriedMapCmd, SentryOption,
+    StoredValue as MapValue, StoredValues as MapValues,
+};

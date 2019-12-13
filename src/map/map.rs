@@ -7,9 +7,9 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::auth::{
-    AccessType, Auth, PrivateAuth, PrivatePermissions, PublicAuth, PublicPermissions, ReadAccess,
-    WriteAccess,
+use crate::access_control::{
+    AccessList as AccessListTrait, AccessType, PrivateAccessList, PrivateUserAccess,
+    PublicAccessList, PublicUserAccess, ReadAccess, WriteAccess,
 };
 use crate::shared_data::{
     to_absolute_range, to_absolute_version, Address, ExpectedVersions, Key, Kind, KvPair,
@@ -23,28 +23,28 @@ use std::{
     mem,
 };
 
-pub type PublicSentriedMap = MapBase<PublicAuth, Sentried>;
-pub type PublicMap = MapBase<PublicAuth, NonSentried>;
-pub type PrivateSentriedMap = MapBase<PrivateAuth, Sentried>;
-pub type PrivateMap = MapBase<PrivateAuth, NonSentried>;
+pub type PublicSentriedMap = MapBase<PublicAccessList, Sentried>;
+pub type PublicMap = MapBase<PublicAccessList, NonSentried>;
+pub type PrivateSentriedMap = MapBase<PrivateAccessList, Sentried>;
+pub type PrivateMap = MapBase<PrivateAccessList, NonSentried>;
 pub type DataHistories = BTreeMap<Key, Vec<StoredValue>>;
 pub type DataEntries = Vec<DataEntry>;
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
-pub enum MapAuth {
-    Public(PublicAuth),
-    Private(PrivateAuth),
+pub enum AccessList {
+    Public(PublicAccessList),
+    Private(PrivateAccessList),
 }
 
-impl From<PrivateAuth> for MapAuth {
-    fn from(auth: PrivateAuth) -> Self {
-        MapAuth::Private(auth)
+impl From<PrivateAccessList> for AccessList {
+    fn from(list: PrivateAccessList) -> Self {
+        AccessList::Private(list)
     }
 }
 
-impl From<PublicAuth> for MapAuth {
-    fn from(auth: PublicAuth) -> Self {
-        MapAuth::Public(auth)
+impl From<PublicAccessList> for AccessList {
+    fn from(list: PublicAccessList) -> Self {
+        AccessList::Public(list)
     }
 }
 
@@ -64,7 +64,7 @@ impl DataEntry {
 pub struct MapBase<C, S> {
     address: Address,
     data: DataHistories,
-    auth: Vec<C>,
+    access_list: Vec<C>,
     // This is the history of owners, with each entry representing an owner.  Each single owner
     // could represent an individual user, or a group of users, depending on the `PublicKey` type.
     owners: Vec<Owner>,
@@ -77,7 +77,7 @@ pub struct MapBase<C, S> {
 /// Common methods for all `Map` flavours.
 impl<C, S> MapBase<C, S>
 where
-    C: Auth,
+    C: AccessListTrait,
     S: Copy,
 {
     /// Returns the data shell - that is - everything except the entries themselves.
@@ -88,8 +88,8 @@ where
         )
         .ok_or(Error::NoSuchEntry)? as u64;
 
-        let auth = self
-            .auth
+        let access_list = self
+            .access_list
             .iter()
             .filter(|ac| ac.expected_data_version() <= expected_data_version)
             .cloned()
@@ -105,7 +105,7 @@ where
         Ok(Self {
             address: self.address,
             data: BTreeMap::new(),
-            auth,
+            access_list,
             owners,
             version: self.version,
             _flavour: self._flavour,
@@ -167,9 +167,9 @@ where
         self.owners.len() as u64
     }
 
-    /// Return the expected authorization version.
-    pub fn expected_auth_version(&self) -> u64 {
-        self.auth.len() as u64
+    /// Return the expected access list version.
+    pub fn expected_access_list_version(&self) -> u64 {
+        self.access_list.len() as u64
     }
 
     /// Returns history of all keys
@@ -199,40 +199,40 @@ where
         }
     }
 
-    /// Get auth at version.
-    pub fn auth_at(&self, version: impl Into<Version>) -> Option<&C> {
-        let version = to_absolute_version(version.into(), self.auth.len())?;
-        self.auth.get(version)
+    /// Get access list at version.
+    pub fn access_list_at(&self, version: impl Into<Version>) -> Option<&C> {
+        let version = to_absolute_version(version.into(), self.access_list.len())?;
+        self.access_list.get(version)
     }
 
-    /// Returns history of all authorization states
-    pub fn auth_histories(&self) -> &Vec<C> {
-        &self.auth
+    /// Returns history of all access list states
+    pub fn access_list_histories(&self) -> &Vec<C> {
+        &self.access_list
     }
 
-    /// Get history of authorization within the range of versions specified.
-    pub fn auth_history_range(&self, start: Version, end: Version) -> Option<&[C]> {
-        let range = to_absolute_range(start, end, self.auth.len())?;
-        Some(&self.auth[range])
+    /// Get history of access list within the range of versions specified.
+    pub fn access_list_history_range(&self, start: Version, end: Version) -> Option<&[C]> {
+        let range = to_absolute_range(start, end, self.access_list.len())?;
+        Some(&self.access_list[range])
     }
 
-    /// Set authorization.
-    /// The `Auth` struct needs to contain the correct expected versions.
-    pub fn set_auth(&mut self, auth: &C, version: u64) -> Result<()> {
-        if auth.expected_data_version() != self.expected_data_version().unwrap_or_default() {
+    /// Set access list.
+    /// The `AccessList` struct needs to contain the correct expected versions.
+    pub fn set_access_list(&mut self, access_list: &C, version: u64) -> Result<()> {
+        if access_list.expected_data_version() != self.expected_data_version().unwrap_or_default() {
             return Err(Error::InvalidSuccessor(
                 self.expected_data_version().unwrap_or_default(),
             ));
         }
-        if auth.expected_owners_version() != self.expected_owners_version() {
+        if access_list.expected_owners_version() != self.expected_owners_version() {
             return Err(Error::InvalidOwnersSuccessor(
                 self.expected_owners_version(),
             ));
         }
-        if self.expected_auth_version() != version {
-            return Err(Error::InvalidSuccessor(self.expected_auth_version()));
+        if self.expected_access_list_version() != version {
+            return Err(Error::InvalidSuccessor(self.expected_access_list_version()));
         }
-        self.auth.push(auth.clone()); // hmm... do we have to clone in situations like these?
+        self.access_list.push(access_list.clone()); // hmm... do we have to clone in situations like these?
         Ok(())
     }
 
@@ -245,8 +245,8 @@ where
             }
             None => (),
         }
-        match self.auth_at(Version::FromEnd(1)) {
-            Some(auth) => auth.is_allowed(&user, &access),
+        match self.access_list_at(Version::FromEnd(1)) {
+            Some(access_list) => access_list.is_allowed(&user, &access),
             None => false,
         }
     }
@@ -275,9 +275,9 @@ where
                 self.expected_data_version().unwrap_or_default(),
             ));
         }
-        if owner.expected_auth_version != self.expected_auth_version() {
+        if owner.expected_access_list_version != self.expected_access_list_version() {
             return Err(Error::InvalidPermissionsSuccessor(
-                self.expected_auth_version(),
+                self.expected_access_list_version(),
             ));
         }
         if self.expected_owners_version() != version {
@@ -299,7 +299,7 @@ where
         ExpectedVersions::new(
             self.expected_data_version().unwrap_or_default(),
             self.expected_owners_version(),
-            self.expected_auth_version(),
+            self.expected_access_list_version(),
         )
     }
 }
@@ -344,7 +344,7 @@ pub type SentriedKvPair = (KvPair, ExpectedVersion);
 pub type SentriedTransaction = Vec<SentriedCmd>;
 
 /// Common methods for NonSentried flavours.
-impl<P: Auth> MapBase<P, NonSentried> {
+impl<P: AccessListTrait> MapBase<P, NonSentried> {
     /// Commit transaction.
     ///
     /// If the specified `expected_version` does not equal the entries count in data, an
@@ -458,7 +458,7 @@ impl<P: Auth> MapBase<P, NonSentried> {
 }
 
 /// Common methods for Sentried flavours.
-impl<P: Auth> MapBase<P, Sentried> {
+impl<P: AccessListTrait> MapBase<P, Sentried> {
     /// Commit transaction.
     ///
     /// If the specified `expected_version` does not equal the entries count in data, an
@@ -611,12 +611,12 @@ pub enum StoredValue {
 pub type StoredValues = Vec<StoredValue>;
 
 /// Public + Sentried
-impl MapBase<PublicAuth, Sentried> {
+impl MapBase<PublicAccessList, Sentried> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::PublicSentried { name, tag },
             data: BTreeMap::new(),
-            auth: Vec::new(),
+            access_list: Vec::new(),
             owners: Vec::new(),
             version: Some(0),
             _flavour: Sentried,
@@ -624,19 +624,19 @@ impl MapBase<PublicAuth, Sentried> {
     }
 }
 
-impl Debug for MapBase<PublicAuth, Sentried> {
+impl Debug for MapBase<PublicAccessList, Sentried> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PublicSentriedMap {:?}", self.name())
     }
 }
 
 /// Public + NonSentried
-impl MapBase<PublicAuth, NonSentried> {
+impl MapBase<PublicAccessList, NonSentried> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::Public { name, tag },
             data: BTreeMap::new(),
-            auth: Vec::new(),
+            access_list: Vec::new(),
             owners: Vec::new(),
             version: None,
             _flavour: NonSentried,
@@ -644,19 +644,19 @@ impl MapBase<PublicAuth, NonSentried> {
     }
 }
 
-impl Debug for MapBase<PublicAuth, NonSentried> {
+impl Debug for MapBase<PublicAccessList, NonSentried> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PublicMap {:?}", self.name())
     }
 }
 
 /// Private + Sentried
-impl MapBase<PrivateAuth, Sentried> {
+impl MapBase<PrivateAccessList, Sentried> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::PrivateSentried { name, tag },
             data: BTreeMap::new(),
-            auth: Vec::new(),
+            access_list: Vec::new(),
             owners: Vec::new(),
             version: Some(0),
             _flavour: Sentried,
@@ -819,19 +819,19 @@ impl MapBase<PrivateAuth, Sentried> {
     }
 }
 
-impl Debug for MapBase<PrivateAuth, Sentried> {
+impl Debug for MapBase<PrivateAccessList, Sentried> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PrivateSentriedMap {:?}", self.name())
     }
 }
 
 /// Private + NonSentried
-impl MapBase<PrivateAuth, NonSentried> {
+impl MapBase<PrivateAccessList, NonSentried> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::Private { name, tag },
             data: BTreeMap::new(),
-            auth: Vec::new(),
+            access_list: Vec::new(),
             owners: Vec::new(),
             version: None,
             _flavour: NonSentried,
@@ -958,7 +958,7 @@ impl MapBase<PrivateAuth, NonSentried> {
     }
 }
 
-impl Debug for MapBase<PrivateAuth, NonSentried> {
+impl Debug for MapBase<PrivateAccessList, NonSentried> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PrivateMap {:?}", self.name())
     }
@@ -1064,13 +1064,13 @@ impl MapData {
         }
     }
 
-    pub fn expected_auth_version(&self) -> u64 {
+    pub fn expected_access_list_version(&self) -> u64 {
         use MapData::*;
         match self {
-            PublicSentried(data) => data.expected_auth_version(),
-            Public(data) => data.expected_auth_version(),
-            PrivateSentried(data) => data.expected_auth_version(),
-            Private(data) => data.expected_auth_version(),
+            PublicSentried(data) => data.expected_access_list_version(),
+            Public(data) => data.expected_access_list_version(),
+            PrivateSentried(data) => data.expected_access_list_version(),
+            Private(data) => data.expected_access_list_version(),
         }
     }
 
@@ -1181,93 +1181,100 @@ impl MapData {
         result.ok_or(Error::NoSuchEntry)
     }
 
-    pub fn public_permissions_at(
+    pub fn public_user_access_at(
         &self,
         user: User,
         version: impl Into<Version>,
-    ) -> Result<PublicPermissions> {
-        self.public_auth_at(version)?
-            .permissions()
+    ) -> Result<PublicUserAccess> {
+        self.public_access_list_at(version)?
+            .access_list()
             .get(&user)
             .cloned()
             .ok_or(Error::NoSuchEntry)
     }
 
-    pub fn private_permissions_at(
+    pub fn private_user_access_at(
         &self,
         user: PublicKey,
         version: impl Into<Version>,
-    ) -> Result<PrivatePermissions> {
-        self.private_auth_at(version)?
-            .permissions()
+    ) -> Result<PrivateUserAccess> {
+        self.private_access_list_at(version)?
+            .access_list()
             .get(&user)
             .cloned()
             .ok_or(Error::NoSuchEntry)
     }
 
-    pub fn public_auth_at(&self, version: impl Into<Version>) -> Result<&PublicAuth> {
+    pub fn public_access_list_at(&self, version: impl Into<Version>) -> Result<&PublicAccessList> {
         use MapData::*;
-        let auth = match self {
-            PublicSentried(data) => data.auth_at(version),
-            Public(data) => data.auth_at(version),
+        let access_list = match self {
+            PublicSentried(data) => data.access_list_at(version),
+            Public(data) => data.access_list_at(version),
             _ => return Err(Error::InvalidOperation),
         };
-        auth.ok_or(Error::NoSuchEntry)
+        access_list.ok_or(Error::NoSuchEntry)
     }
 
-    pub fn private_auth_at(&self, version: impl Into<Version>) -> Result<&PrivateAuth> {
+    pub fn private_access_list_at(
+        &self,
+        version: impl Into<Version>,
+    ) -> Result<&PrivateAccessList> {
         use MapData::*;
-        let auth = match self {
-            PrivateSentried(data) => data.auth_at(version),
-            Private(data) => data.auth_at(version),
+        let access_list = match self {
+            PrivateSentried(data) => data.access_list_at(version),
+            Private(data) => data.access_list_at(version),
             _ => return Err(Error::InvalidOperation),
         };
-        auth.ok_or(Error::NoSuchEntry)
+        access_list.ok_or(Error::NoSuchEntry)
     }
 
-    /// Returns history of all authorization states
-    pub fn public_auth_histories(&self) -> Result<&Vec<PublicAuth>> {
+    /// Returns history of all access list states
+    pub fn public_access_list_histories(&self) -> Result<&Vec<PublicAccessList>> {
         use MapData::*;
         let result = match self {
-            PublicSentried(data) => Some(data.auth_histories()),
-            Public(data) => Some(data.auth_histories()),
+            PublicSentried(data) => Some(data.access_list_histories()),
+            Public(data) => Some(data.access_list_histories()),
             _ => return Err(Error::InvalidOperation),
         };
         result.ok_or(Error::NoSuchEntry)
     }
 
-    /// Returns history of all authorization states
-    pub fn private_auth_histories(&self) -> Result<&Vec<PrivateAuth>> {
+    /// Returns history of all access list states
+    pub fn private_access_list_histories(&self) -> Result<&Vec<PrivateAccessList>> {
         use MapData::*;
         let result = match self {
-            PrivateSentried(data) => Some(data.auth_histories()),
-            Private(data) => Some(data.auth_histories()),
+            PrivateSentried(data) => Some(data.access_list_histories()),
+            Private(data) => Some(data.access_list_histories()),
             _ => return Err(Error::InvalidOperation),
         };
         result.ok_or(Error::NoSuchEntry)
     }
 
-    /// Get history of authorization within the range of versions specified.
-    pub fn public_auth_history_range(&self, start: Version, end: Version) -> Result<&[PublicAuth]> {
-        use MapData::*;
-        let result = match self {
-            PublicSentried(data) => data.auth_history_range(start, end),
-            Public(data) => data.auth_history_range(start, end),
-            _ => return Err(Error::InvalidOperation),
-        };
-        result.ok_or(Error::NoSuchEntry)
-    }
-
-    /// Get history of authorization within the range of versions specified.
-    pub fn private_auth_history_range(
+    /// Get history of access list within the range of versions specified.
+    pub fn public_access_list_history_range(
         &self,
         start: Version,
         end: Version,
-    ) -> Result<&[PrivateAuth]> {
+    ) -> Result<&[PublicAccessList]> {
         use MapData::*;
         let result = match self {
-            PrivateSentried(data) => data.auth_history_range(start, end),
-            Private(data) => data.auth_history_range(start, end),
+            PublicSentried(data) => data.access_list_history_range(start, end),
+            Public(data) => data.access_list_history_range(start, end),
+            _ => return Err(Error::InvalidOperation),
+        };
+        result.ok_or(Error::NoSuchEntry)
+    }
+
+    /// Get history of access list within the range of versions specified.
+    pub fn private_access_list_history_range(
+        &self,
+        start: Version,
+        end: Version,
+    ) -> Result<&[PrivateAccessList]> {
+        use MapData::*;
+        let result = match self {
+            PrivateSentried(data) => data.access_list_history_range(start, end),
+            Private(data) => data.access_list_history_range(start, end),
             _ => return Err(Error::InvalidOperation),
         };
         result.ok_or(Error::NoSuchEntry)
@@ -1293,20 +1300,28 @@ impl MapData {
         }
     }
 
-    pub fn set_private_auth(&mut self, auth: &PrivateAuth, expected_version: u64) -> Result<()> {
+    pub fn set_private_access_list(
+        &mut self,
+        access_list: &PrivateAccessList,
+        expected_version: u64,
+    ) -> Result<()> {
         use MapData::*;
         match self {
-            Private(data) => data.set_auth(auth, expected_version),
-            PrivateSentried(data) => data.set_auth(auth, expected_version),
+            Private(data) => data.set_access_list(access_list, expected_version),
+            PrivateSentried(data) => data.set_access_list(access_list, expected_version),
             _ => Err(Error::InvalidOperation),
         }
     }
 
-    pub fn set_public_auth(&mut self, auth: &PublicAuth, expected_version: u64) -> Result<()> {
+    pub fn set_public_access_list(
+        &mut self,
+        access_list: &PublicAccessList,
+        expected_version: u64,
+    ) -> Result<()> {
         use MapData::*;
         match self {
-            Public(data) => data.set_auth(auth, expected_version),
-            PublicSentried(data) => data.set_auth(auth, expected_version),
+            Public(data) => data.set_access_list(access_list, expected_version),
+            PublicSentried(data) => data.set_access_list(access_list, expected_version),
             _ => Err(Error::InvalidOperation),
         }
     }

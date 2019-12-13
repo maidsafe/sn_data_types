@@ -55,7 +55,7 @@
 // FIXME - write docs
 #![allow(missing_docs)]
 
-mod auth;
+mod access_control;
 mod blob;
 mod coins;
 mod errors;
@@ -69,9 +69,9 @@ mod shared_data;
 mod transaction;
 mod utils;
 
-pub use auth::{
-    AccessType, MapWriteAccess, PrivateAuth, PrivatePermissions, PublicAuth, PublicPermissions,
-    ReadAccess, SequenceWriteAccess, WriteAccess,
+pub use access_control::{
+    AccessType, MapWriteAccess, PrivateAccessList, PrivateUserAccess, PublicAccessList,
+    PublicUserAccess, ReadAccess, SequenceWriteAccess, WriteAccess,
 };
 pub use blob::{
     Address as BlobAddress, BlobData, Kind as BlobKind, PrivateBlob, PublicBlob,
@@ -86,9 +86,8 @@ pub use identity::{
     PublicId,
 };
 pub use map::{
-    Cmd as MapCmd, DataEntries as MapEntries, DataHistories as MapKeyHistories, MapAuth, MapData,
-    MapTransaction, SentriedCmd as SentriedMapCmd, SentryOption, StoredValue as MapValue,
-    StoredValues as MapValues,
+    MapAccessList, MapCmd, MapData, MapEntries, MapKeyHistories, MapTransaction, MapValue,
+    MapValues, SentriedMapCmd, SentryOption,
 };
 pub use public_key::{PublicKey, Signature};
 pub use request::{
@@ -97,9 +96,9 @@ pub use request::{
 };
 pub use response::Response;
 pub use sequence::{
-    DataEntry as SequenceEntry, PrivateSentriedSequence, PrivateSequence, PublicSentriedSequence,
-    PublicSequence, SentriedSequenceCmd, SequenceAuth, SequenceCmd, SequenceCmdOption,
-    SequenceData, Values as SequenceValues,
+    PrivateSentriedSequence, PrivateSequence, PublicSentriedSequence, PublicSequence,
+    SentriedSequenceCmd, SequenceAccessList, SequenceCmd, SequenceCmdOption, SequenceData,
+    SequenceEntry, SequenceValues,
 };
 pub use sha3::Sha3_512 as Ed25519Digest;
 pub use shared_data::{Address, ExpectedVersions, Key, Kind, Owner, User, Value, Version};
@@ -161,16 +160,16 @@ impl Data {
                             owner,
                             expected_version,
                         } => data.set_owner(*owner, *expected_version),
-                        SetPrivateMapAuth {
+                        SetPrivateMapAccessList {
                             address: _,
-                            auth,
+                            access_list,
                             expected_version,
-                        } => data.set_private_auth(auth, *expected_version),
-                        SetPublicMapAuth {
+                        } => data.set_private_access_list(access_list, *expected_version),
+                        SetPublicMapAccessList {
                             address: _,
-                            auth,
+                            access_list,
                             expected_version,
-                        } => data.set_public_auth(auth, *expected_version),
+                        } => data.set_public_access_list(access_list, *expected_version),
                     },
                     _ => Err(Error::InvalidOperation),
                 },
@@ -184,16 +183,16 @@ impl Data {
                             owner,
                             expected_version,
                         } => data.set_owner(*owner, *expected_version),
-                        SetPrivateSequenceAuth {
+                        SetPrivateSequenceAccessList {
                             address: _,
-                            auth,
+                            access_list,
                             expected_version,
-                        } => data.set_private_auth(auth, *expected_version),
-                        SetPublicSequenceAuth {
+                        } => data.set_private_access_list(access_list, *expected_version),
+                        SetPublicSequenceAccessList {
                             address: _,
-                            auth,
+                            access_list,
                             expected_version,
-                        } => data.set_public_auth(auth, *expected_version),
+                        } => data.set_public_access_list(access_list, *expected_version),
                     },
                     _ => Err(Error::InvalidOperation),
                 },
@@ -225,7 +224,7 @@ impl Data {
                         HardCommit(ref option) => self.is_tx_allowed(option, user, true),
                     },
                     SetMapOwner { .. } | DeletePrivateMap(_) => self.is_owner(user),
-                    SetPrivateMapAuth { .. } | SetPublicMapAuth { .. } => {
+                    SetPrivateMapAccessList { .. } | SetPublicMapAccessList { .. } => {
                         self.is_allowed(self.modify_map_permissions(), user)
                     }
                 },
@@ -233,7 +232,7 @@ impl Data {
                     PutSequence(_) => false, // todo
                     Handle(cmd) => self.is_cmd_allowed(cmd, user),
                     SetSequenceOwner { .. } | DeletePrivateSequence(_) => self.is_owner(user),
-                    SetPrivateSequenceAuth { .. } | SetPublicSequenceAuth { .. } => {
+                    SetPrivateSequenceAccessList { .. } | SetPublicSequenceAccessList { .. } => {
                         self.is_allowed(self.modify_sequence_permissions(), user)
                     }
                 },

@@ -7,9 +7,9 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-pub mod auth;
+pub mod access_control;
 mod tests;
-pub use auth::{
-    AccessType, Auth, MapWriteAccess, PrivateAuth, PrivatePermissions, PublicAuth,
-    PublicPermissions, ReadAccess, SequenceWriteAccess, WriteAccess,
+pub use access_control::{
+    AccessList, AccessType, MapWriteAccess, PrivateAccessList, PrivateUserAccess, PublicAccessList,
+    PublicUserAccess, ReadAccess, SequenceWriteAccess, WriteAccess,
 };

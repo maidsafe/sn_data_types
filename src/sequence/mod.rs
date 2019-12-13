@@ -10,7 +10,8 @@
 pub mod sequence;
 mod tests;
 pub use sequence::{
-    Cmd as SequenceCmd, CmdOption as SequenceCmdOption, DataEntry, PrivateSentriedSequence,
-    PrivateSequence, PublicSentriedSequence, PublicSequence, SentriedCmd as SentriedSequenceCmd,
-    SequenceAuth, SequenceBase, SequenceData, Values,
+    AccessList as SequenceAccessList, Cmd as SequenceCmd, CmdOption as SequenceCmdOption,
+    DataEntry as SequenceEntry, PrivateSentriedSequence, PrivateSequence, PublicSentriedSequence,
+    PublicSequence, SentriedCmd as SentriedSequenceCmd, SequenceBase, SequenceData,
+    Values as SequenceValues,
 };

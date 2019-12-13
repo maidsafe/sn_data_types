@@ -7,9 +7,9 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::auth::{
-    AccessType, Auth, PrivateAuth, PrivatePermissions, PublicAuth, PublicPermissions, ReadAccess,
-    WriteAccess,
+use crate::access_control::{
+    AccessList as AccessListTrait, AccessType, PrivateAccessList, PrivateUserAccess,
+    PublicAccessList, PublicUserAccess, ReadAccess, WriteAccess,
 };
 use crate::shared_data::{
     to_absolute_range, to_absolute_version, Address, ExpectedVersions, Kind, NonSentried, Owner,
@@ -19,27 +19,27 @@ use crate::{Error, PublicKey, Result, XorName};
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Debug, Formatter};
 
-pub type PublicSentriedSequence = SequenceBase<PublicAuth, Sentried>;
-pub type PublicSequence = SequenceBase<PublicAuth, NonSentried>;
-pub type PrivateSentriedSequence = SequenceBase<PrivateAuth, Sentried>;
-pub type PrivateSequence = SequenceBase<PrivateAuth, NonSentried>;
+pub type PublicSentriedSequence = SequenceBase<PublicAccessList, Sentried>;
+pub type PublicSequence = SequenceBase<PublicAccessList, NonSentried>;
+pub type PrivateSentriedSequence = SequenceBase<PrivateAccessList, Sentried>;
+pub type PrivateSequence = SequenceBase<PrivateAccessList, NonSentried>;
 pub type Values = Vec<Value>;
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
-pub enum SequenceAuth {
-    Public(PublicAuth),
-    Private(PrivateAuth),
+pub enum AccessList {
+    Public(PublicAccessList),
+    Private(PrivateAccessList),
 }
 
-impl From<PrivateAuth> for SequenceAuth {
-    fn from(auth: PrivateAuth) -> Self {
-        SequenceAuth::Private(auth)
+impl From<PrivateAccessList> for AccessList {
+    fn from(list: PrivateAccessList) -> Self {
+        AccessList::Private(list)
     }
 }
 
-impl From<PublicAuth> for SequenceAuth {
-    fn from(auth: PublicAuth) -> Self {
-        SequenceAuth::Public(auth)
+impl From<PublicAccessList> for AccessList {
+    fn from(list: PublicAccessList) -> Self {
+        AccessList::Public(list)
     }
 }
 
@@ -59,7 +59,7 @@ impl DataEntry {
 pub struct SequenceBase<P, S> {
     address: Address,
     data: Values,
-    auth: Vec<P>,
+    access_list: Vec<P>,
     // This is the history of owners, with each entry representing an owner.  Each single owner
     // could represent an individual user, or a group of users, depending on the `PublicKey` type.
     owners: Vec<Owner>,
@@ -69,7 +69,7 @@ pub struct SequenceBase<P, S> {
 /// Common methods for all `Sequence` flavours.
 impl<C, S> SequenceBase<C, S>
 where
-    C: Auth,
+    C: AccessListTrait,
     S: Copy,
 {
     /// Returns the data shell - that is - everything except the Values themselves.
@@ -80,8 +80,8 @@ where
         )
         .ok_or(Error::NoSuchEntry)? as u64;
 
-        let auth = self
-            .auth
+        let access_list = self
+            .access_list
             .iter()
             .filter(|a| a.expected_data_version() <= expected_data_version)
             .cloned()
@@ -97,7 +97,7 @@ where
         Ok(Self {
             address: self.address,
             data: Vec::new(),
-            auth,
+            access_list,
             owners,
             _flavour: self._flavour,
         })
@@ -152,16 +152,16 @@ where
         self.owners.len() as u64
     }
 
-    /// Return the expected authorization version.
-    pub fn expected_auth_version(&self) -> u64 {
-        self.auth.len() as u64
+    /// Return the expected access list version.
+    pub fn expected_access_list_version(&self) -> u64 {
+        self.access_list.len() as u64
     }
 
     pub fn versions(&self) -> ExpectedVersions {
         ExpectedVersions::new(
             self.expected_data_version(),
             self.expected_owners_version(),
-            self.expected_auth_version(),
+            self.expected_access_list_version(),
         )
     }
 
@@ -172,9 +172,9 @@ where
     }
 
     /// Get history of permission within the range of versions specified.
-    pub fn auth_history_range(&self, start: Version, end: Version) -> Option<&[C]> {
-        let range = to_absolute_range(start, end, self.auth.len())?;
-        Some(&self.auth[range])
+    pub fn access_list_history_range(&self, start: Version, end: Version) -> Option<&[C]> {
+        let range = to_absolute_range(start, end, self.access_list.len())?;
+        Some(&self.access_list[range])
     }
 
     /// Get owner at version.
@@ -184,9 +184,9 @@ where
     }
 
     /// Get access control at version.
-    pub fn auth_at(&self, version: impl Into<Version>) -> Option<&C> {
-        let version = to_absolute_version(version.into(), self.auth.len())?;
-        self.auth.get(version)
+    pub fn access_list_at(&self, version: impl Into<Version>) -> Option<&C> {
+        let version = to_absolute_version(version.into(), self.access_list.len())?;
+        self.access_list.get(version)
     }
 
     /// Returns true if the user is the current owner.
@@ -206,8 +206,8 @@ where
             }
             None => (),
         }
-        match self.auth_at(Version::FromEnd(1)) {
-            Some(auth) => auth.is_allowed(&user, &access),
+        match self.access_list_at(Version::FromEnd(1)) {
+            Some(list) => list.is_allowed(&user, &access),
             None => false,
         }
     }
@@ -217,9 +217,9 @@ where
         if owner.expected_data_version != self.expected_data_version() {
             return Err(Error::InvalidSuccessor(self.expected_data_version()));
         }
-        if owner.expected_auth_version != self.expected_auth_version() {
+        if owner.expected_access_list_version != self.expected_access_list_version() {
             return Err(Error::InvalidPermissionsSuccessor(
-                self.expected_auth_version(),
+                self.expected_access_list_version(),
             ));
         }
         if self.expected_owners_version() != expected_version {
@@ -229,21 +229,21 @@ where
         Ok(())
     }
 
-    /// Set authorization.
-    /// The `Auth` struct needs to contain the correct expected versions.
-    pub fn set_auth(&mut self, auth: &C, expected_version: u64) -> Result<()> {
-        if auth.expected_data_version() != self.expected_data_version() {
+    /// Set access list.
+    /// The `AccessList` struct needs to contain the correct expected versions.
+    pub fn set_access_list(&mut self, access_list: &C, expected_version: u64) -> Result<()> {
+        if access_list.expected_data_version() != self.expected_data_version() {
             return Err(Error::InvalidSuccessor(self.expected_data_version()));
         }
-        if auth.expected_owners_version() != self.expected_owners_version() {
+        if access_list.expected_owners_version() != self.expected_owners_version() {
             return Err(Error::InvalidOwnersSuccessor(
                 self.expected_owners_version(),
             ));
         }
-        if self.expected_auth_version() != expected_version {
-            return Err(Error::InvalidSuccessor(self.expected_auth_version()));
+        if self.expected_access_list_version() != expected_version {
+            return Err(Error::InvalidSuccessor(self.expected_access_list_version()));
         }
-        self.auth.push(auth.clone()); // hmm... do we have to clone in situations like these?
+        self.access_list.push(access_list.clone()); // hmm... do we have to clone in situations like these?
         Ok(())
     }
 }
@@ -271,7 +271,7 @@ pub type ExpectedVersion = u64;
 pub type SentriedValues = (Values, ExpectedVersion);
 
 /// Common methods for NonSentried flavours.
-impl<P: Auth> SequenceBase<P, NonSentried> {
+impl<P: AccessListTrait> SequenceBase<P, NonSentried> {
     /// Append new Values.
     pub fn append(&mut self, values: Values) -> Result<()> {
         self.data.extend(values);
@@ -280,7 +280,7 @@ impl<P: Auth> SequenceBase<P, NonSentried> {
 }
 
 /// Common methods for Sentried flavours.
-impl<P: Auth> SequenceBase<P, Sentried> {
+impl<P: AccessListTrait> SequenceBase<P, Sentried> {
     /// Append new Values.
     ///
     /// If the specified `expected_version` does not equal the Values count in data, an
@@ -296,76 +296,76 @@ impl<P: Auth> SequenceBase<P, Sentried> {
 }
 
 /// Public + Sentried
-impl SequenceBase<PublicAuth, Sentried> {
+impl SequenceBase<PublicAccessList, Sentried> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::PublicSentried { name, tag },
             data: Vec::new(),
-            auth: Vec::new(),
+            access_list: Vec::new(),
             owners: Vec::new(),
             _flavour: Sentried,
         }
     }
 }
 
-impl Debug for SequenceBase<PublicAuth, Sentried> {
+impl Debug for SequenceBase<PublicAccessList, Sentried> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PublicSentriedSequence {:?}", self.name())
     }
 }
 
 /// Public + NonSentried
-impl SequenceBase<PublicAuth, NonSentried> {
+impl SequenceBase<PublicAccessList, NonSentried> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::Public { name, tag },
             data: Vec::new(),
-            auth: Vec::new(),
+            access_list: Vec::new(),
             owners: Vec::new(),
             _flavour: NonSentried,
         }
     }
 }
 
-impl Debug for SequenceBase<PublicAuth, NonSentried> {
+impl Debug for SequenceBase<PublicAccessList, NonSentried> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PublicSequence {:?}", self.name())
     }
 }
 
 /// Private + Sentried
-impl SequenceBase<PrivateAuth, Sentried> {
+impl SequenceBase<PrivateAccessList, Sentried> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::PrivateSentried { name, tag },
             data: Vec::new(),
-            auth: Vec::new(),
+            access_list: Vec::new(),
             owners: Vec::new(),
             _flavour: Sentried,
         }
     }
 }
 
-impl Debug for SequenceBase<PrivateAuth, Sentried> {
+impl Debug for SequenceBase<PrivateAccessList, Sentried> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PrivateSentriedSequence {:?}", self.name())
     }
 }
 
 /// Private + NonSentried
-impl SequenceBase<PrivateAuth, NonSentried> {
+impl SequenceBase<PrivateAccessList, NonSentried> {
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::Private { name, tag },
             data: Vec::new(),
-            auth: Vec::new(),
+            access_list: Vec::new(),
             owners: Vec::new(),
             _flavour: NonSentried,
         }
     }
 }
 
-impl Debug for SequenceBase<PrivateAuth, NonSentried> {
+impl Debug for SequenceBase<PrivateAccessList, NonSentried> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PrivateSequence {:?}", self.name())
     }
@@ -474,13 +474,13 @@ impl SequenceData {
         }
     }
 
-    pub fn expected_auth_version(&self) -> u64 {
+    pub fn expected_access_list_version(&self) -> u64 {
         use SequenceData::*;
         match self {
-            PublicSentried(data) => data.expected_auth_version(),
-            Public(data) => data.expected_auth_version(),
-            PrivateSentried(data) => data.expected_auth_version(),
-            Private(data) => data.expected_auth_version(),
+            PublicSentried(data) => data.expected_access_list_version(),
+            Public(data) => data.expected_access_list_version(),
+            PrivateSentried(data) => data.expected_access_list_version(),
+            Private(data) => data.expected_access_list_version(),
         }
     }
 
@@ -534,48 +534,51 @@ impl SequenceData {
         }
     }
 
-    pub fn public_permissions_at(
+    pub fn public_user_access_at(
         &self,
         user: User,
         version: impl Into<Version>,
-    ) -> Result<PublicPermissions> {
-        self.public_auth_at(version)?
-            .permissions()
+    ) -> Result<PublicUserAccess> {
+        self.public_access_list_at(version)?
+            .access_list()
             .get(&user)
             .cloned()
             .ok_or(Error::NoSuchEntry)
     }
 
-    pub fn private_permissions_at(
+    pub fn private_user_access_at(
         &self,
         user: PublicKey,
         version: impl Into<Version>,
-    ) -> Result<PrivatePermissions> {
-        self.private_auth_at(version)?
-            .permissions()
+    ) -> Result<PrivateUserAccess> {
+        self.private_access_list_at(version)?
+            .access_list()
             .get(&user)
             .cloned()
             .ok_or(Error::NoSuchEntry)
     }
 
-    pub fn public_auth_at(&self, version: impl Into<Version>) -> Result<&PublicAuth> {
+    pub fn public_access_list_at(&self, version: impl Into<Version>) -> Result<&PublicAccessList> {
         use SequenceData::*;
-        let auth = match self {
-            PublicSentried(data) => data.auth_at(version),
-            Public(data) => data.auth_at(version),
+        let access_list = match self {
+            PublicSentried(data) => data.access_list_at(version),
+            Public(data) => data.access_list_at(version),
             _ => return Err(Error::InvalidOperation),
         };
-        auth.ok_or(Error::NoSuchEntry)
+        access_list.ok_or(Error::NoSuchEntry)
     }
 
-    pub fn private_auth_at(&self, version: impl Into<Version>) -> Result<&PrivateAuth> {
+    pub fn private_access_list_at(
+        &self,
+        version: impl Into<Version>,
+    ) -> Result<&PrivateAccessList> {
         use SequenceData::*;
-        let auth = match self {
-            PrivateSentried(data) => data.auth_at(version),
-            Private(data) => data.auth_at(version),
+        let access_list = match self {
+            PrivateSentried(data) => data.access_list_at(version),
+            Private(data) => data.access_list_at(version),
             _ => return Err(Error::InvalidOperation),
         };
-        auth.ok_or(Error::NoSuchEntry)
+        access_list.ok_or(Error::NoSuchEntry)
     }
 
     pub fn shell(&self, version: impl Into<Version>) -> Result<Self> {
@@ -598,20 +601,28 @@ impl SequenceData {
         }
     }
 
-    pub fn set_private_auth(&mut self, auth: &PrivateAuth, expected_version: u64) -> Result<()> {
+    pub fn set_private_access_list(
+        &mut self,
+        access_list: &PrivateAccessList,
+        expected_version: u64,
+    ) -> Result<()> {
         use SequenceData::*;
         match self {
-            Private(data) => data.set_auth(auth, expected_version),
-            PrivateSentried(data) => data.set_auth(auth, expected_version),
+            Private(data) => data.set_access_list(access_list, expected_version),
+            PrivateSentried(data) => data.set_access_list(access_list, expected_version),
             _ => Err(Error::InvalidOperation),
         }
     }
 
-    pub fn set_public_auth(&mut self, auth: &PublicAuth, expected_version: u64) -> Result<()> {
+    pub fn set_public_access_list(
+        &mut self,
+        access_list: &PublicAccessList,
+        expected_version: u64,
+    ) -> Result<()> {
         use SequenceData::*;
         match self {
-            Public(data) => data.set_auth(auth, expected_version),
-            PublicSentried(data) => data.set_auth(auth, expected_version),
+            Public(data) => data.set_access_list(access_list, expected_version),
+            PublicSentried(data) => data.set_access_list(access_list, expected_version),
             _ => Err(Error::InvalidOperation),
         }
     }

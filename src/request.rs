@@ -12,8 +12,8 @@ mod login_packet;
 pub use self::login_packet::{LoginPacket, MAX_LOGIN_PACKET_BYTES};
 use crate::{
     Address, AppPermissions, BlobAddress, BlobData, Coins, Error, Key, MapData, MapTransaction,
-    Owner, PrivateAuth, PublicAuth, PublicKey, Response, SequenceCmdOption, SequenceData,
-    TransactionId, User, Version, XorName,
+    Owner, PrivateAccessList, PublicAccessList, PublicKey, Response, SequenceCmdOption,
+    SequenceData, TransactionId, User, Version, XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -46,7 +46,7 @@ pub enum MapReadRequest {
     GetMapShell(Address),
     /// Returns the expected version for the entire map instance.
     GetMapVersion(Address),
-    /// Returns expected Version of data, owners and auth.
+    /// Returns expected Version of data, owners and access list.
     GetMapExpectedVersions(Address),
     /// Returns each value that the keys map to.
     GetMapValues(Address),
@@ -93,21 +93,21 @@ pub enum MapReadRequest {
     ///
     /// ==== Permissions ====
     ///
-    GetMapAuth(Address),
-    /// Get Map authorization at the provided version.
-    GetMapAuthAt {
+    GetMapAccessList(Address),
+    /// Get Map access list at the provided version.
+    GetMapAccessListAt {
         address: Address,
         version: Version,
     },
-    GetPublicMapAuthHistory(Address),
-    GetPrivateMapAuthHistory(Address),
-    GetPublicMapAuthHistoryRange {
+    GetPublicMapAccessListHistory(Address),
+    GetPrivateMapAccessListHistory(Address),
+    GetPublicMapAccessListHistoryRange {
         address: Address,
         key: Key,
         start: Version,
         end: Version,
     },
-    GetPrivateMapAuthHistoryRange {
+    GetPrivateMapAccessListHistoryRange {
         address: Address,
         key: Key,
         start: Version,
@@ -191,21 +191,21 @@ pub enum SequenceReadRequest {
     ///
     /// ==== Permissions ====
     ///
-    GetSequenceAuth(Address),
-    /// Get Sequence authorization as of version.
-    GetSequenceAuthAt {
+    GetSequenceAccessList(Address),
+    /// Get Sequence access list as of version.
+    GetSequenceAccessListAt {
         address: Address,
         version: Version,
     },
-    GetPublicSequenceAuthHistory(Address),
-    GetPrivateSequenceAuthHistory(Address),
-    GetPublicSequenceAuthHistoryRange {
+    GetPublicSequenceAccessListHistory(Address),
+    GetPrivateSequenceAccessListHistory(Address),
+    GetPublicSequenceAccessListHistoryRange {
         address: Address,
         key: Key,
         start: Version,
         end: Version,
     },
-    GetPrivateSequenceAuthHistoryRange {
+    GetPrivateSequenceAccessListHistoryRange {
         address: Address,
         key: Key,
         start: Version,
@@ -269,16 +269,16 @@ pub enum MapWriteRequest {
     ///
     /// ==== Permissions ====
     ///
-    /// Set authorization.
-    SetPublicMapAuth {
+    /// Set access list.
+    SetPublicMapAccessList {
         address: Address,
-        auth: PublicAuth,
+        access_list: PublicAccessList,
         expected_version: u64,
     },
-    /// Set authorization.
-    SetPrivateMapAuth {
+    /// Set access list.
+    SetPrivateMapAccessList {
         address: Address,
-        auth: PrivateAuth,
+        access_list: PrivateAccessList,
         expected_version: u64,
     },
 }
@@ -309,16 +309,16 @@ pub enum SequenceWriteRequest {
     ///
     /// ==== Permissions ====
     ///
-    /// Set authorization.
-    SetPublicSequenceAuth {
+    /// Set access list.
+    SetPublicSequenceAccessList {
         address: Address,
-        auth: PublicAuth,
+        access_list: PublicAccessList,
         expected_version: u64,
     },
-    /// Set authorization.
-    SetPrivateSequenceAuth {
+    /// Set access list.
+    SetPrivateSequenceAccessList {
         address: Address,
-        auth: PrivateAuth,
+        access_list: PrivateAccessList,
         expected_version: u64,
     },
 }
@@ -436,8 +436,8 @@ impl Request {
                 },
                 ReadRequest::Map(map) => match map {
                     GetMap(_) => Response::GetMap(Err(error)),
-                    GetMapAuth(_) => Response::GetMapAuth(Err(error)),
-                    GetMapAuthAt { .. } => Response::GetMapAuthAt(Err(error)),
+                    GetMapAccessList(_) => Response::GetMapAccessList(Err(error)),
+                    GetMapAccessListAt { .. } => Response::GetMapAccessListAt(Err(error)),
                     GetMapEntries(_) => Response::GetMapEntries(Err(error)),
                     GetMapExpectedVersions(_) => Response::GetMapExpectedVersions(Err(error)),
                     GetMapKeyHistory { .. } => Response::GetMapKeyHistory(Err(error)),
@@ -452,9 +452,11 @@ impl Request {
                     GetMapValueAt { .. } => Response::GetMapValueAt(Err(error)),
                     GetMapValues(_) => Response::GetMapValues(Err(error)),
                     GetMapVersion(_) => Response::GetMapVersion(Err(error)),
-                    GetPrivateMapAuthHistory(_) => Response::GetPrivateMapAuthHistory(Err(error)),
-                    GetPrivateMapAuthHistoryRange { .. } => {
-                        Response::GetPrivateMapAuthHistoryRange(Err(error))
+                    GetPrivateMapAccessListHistory(_) => {
+                        Response::GetPrivateMapAccessListHistory(Err(error))
+                    }
+                    GetPrivateMapAccessListHistoryRange { .. } => {
+                        Response::GetPrivateMapAccessListHistoryRange(Err(error))
                     }
                     GetPrivateMapUserPermissions { .. } => {
                         Response::GetPrivateMapUserPermissions(Err(error))
@@ -462,9 +464,11 @@ impl Request {
                     GetPrivateMapUserPermissionsAt { .. } => {
                         Response::GetPrivateMapUserPermissionsAt(Err(error))
                     }
-                    GetPublicMapAuthHistory(_) => Response::GetPublicMapAuthHistory(Err(error)),
-                    GetPublicMapAuthHistoryRange { .. } => {
-                        Response::GetPublicMapAuthHistoryRange(Err(error))
+                    GetPublicMapAccessListHistory(_) => {
+                        Response::GetPublicMapAccessListHistory(Err(error))
+                    }
+                    GetPublicMapAccessListHistoryRange { .. } => {
+                        Response::GetPublicMapAccessListHistoryRange(Err(error))
                     }
                     GetPublicMapUserPermissions { .. } => {
                         Response::GetPublicMapUserPermissions(Err(error))
@@ -494,19 +498,19 @@ impl Request {
                     GetSequenceOwnerHistoryRange { .. } => {
                         Response::GetSequenceOwnerHistoryRange(Err(error))
                     }
-                    GetSequenceAuth { .. } => Response::GetSequenceAuth(Err(error)),
-                    GetSequenceAuthAt { .. } => Response::GetSequenceAuthAt(Err(error)),
-                    GetPublicSequenceAuthHistory(_) => {
-                        Response::GetPublicSequenceAuthHistory(Err(error))
+                    GetSequenceAccessList { .. } => Response::GetSequenceAccessList(Err(error)),
+                    GetSequenceAccessListAt { .. } => Response::GetSequenceAccessListAt(Err(error)),
+                    GetPublicSequenceAccessListHistory(_) => {
+                        Response::GetPublicSequenceAccessListHistory(Err(error))
                     }
-                    GetPrivateSequenceAuthHistory(_) => {
-                        Response::GetPrivateSequenceAuthHistory(Err(error))
+                    GetPrivateSequenceAccessListHistory(_) => {
+                        Response::GetPrivateSequenceAccessListHistory(Err(error))
                     }
-                    GetPublicSequenceAuthHistoryRange { .. } => {
-                        Response::GetPublicSequenceAuthHistoryRange(Err(error))
+                    GetPublicSequenceAccessListHistoryRange { .. } => {
+                        Response::GetPublicSequenceAccessListHistoryRange(Err(error))
                     }
-                    GetPrivateSequenceAuthHistoryRange { .. } => {
-                        Response::GetPrivateSequenceAuthHistoryRange(Err(error))
+                    GetPrivateSequenceAccessListHistoryRange { .. } => {
+                        Response::GetPrivateSequenceAccessListHistoryRange(Err(error))
                     }
                     GetPublicSequenceUserPermissions { .. } => {
                         Response::GetPublicSequenceUserPermissions(Err(error))
@@ -535,8 +539,8 @@ impl Request {
                     PutMap(_)
                     | DeletePrivateMap(_)
                     | SetMapOwner { .. }
-                    | SetPublicMapAuth { .. }
-                    | SetPrivateMapAuth { .. }
+                    | SetPublicMapAccessList { .. }
+                    | SetPrivateMapAccessList { .. }
                     | CommitMapTx { .. } => Response::Mutation(Err(error)),
                 },
                 WriteRequest::Misc(misc) => match misc {
@@ -552,8 +556,8 @@ impl Request {
                     PutSequence(_)
                     | DeletePrivateSequence(_)
                     | SetSequenceOwner { .. }
-                    | SetPublicSequenceAuth { .. }
-                    | SetPrivateSequenceAuth { .. }
+                    | SetPublicSequenceAccessList { .. }
+                    | SetPrivateSequenceAccessList { .. }
                     | Handle(_) => Response::Mutation(Err(error)),
                 },
             },
@@ -585,8 +589,8 @@ impl fmt::Debug for Request {
                     },
                     ReadRequest::Map(map) => match map {
                         GetMap(_) => "MapReadRequest::GetMap",
-                        GetMapAuth(_) => "MapReadRequest::GetMapAuth",
-                        GetMapAuthAt { .. } => "MapReadRequest::GetMapAuthAt",
+                        GetMapAccessList(_) => "MapReadRequest::GetMapAccessList",
+                        GetMapAccessListAt { .. } => "MapReadRequest::GetMapAccessListAt",
                         GetMapEntries(_) => "MapReadRequest::GetMapEntries",
                         GetMapExpectedVersions(_) => "MapReadRequest::GetMapExpectedVersions",
                         GetMapKeyHistory { .. } => "MapReadRequest::GetMapKeyHistory",
@@ -601,9 +605,11 @@ impl fmt::Debug for Request {
                         GetMapValueAt { .. } => "MapReadRequest::GetMapValueAt",
                         GetMapValues(_) => "MapReadRequest::GetMapValues",
                         GetMapVersion(_) => "MapReadRequest::GetMapVersion",
-                        GetPrivateMapAuthHistory(_) => "MapReadRequest::GetPrivateMapAuthHistory",
-                        GetPrivateMapAuthHistoryRange { .. } => {
-                            "MapReadRequest::GetPrivateMapAuthHistoryRange"
+                        GetPrivateMapAccessListHistory(_) => {
+                            "MapReadRequest::GetPrivateMapAccessListHistory"
+                        }
+                        GetPrivateMapAccessListHistoryRange { .. } => {
+                            "MapReadRequest::GetPrivateMapAccessListHistoryRange"
                         }
                         GetPrivateMapUserPermissions { .. } => {
                             "MapReadRequest::GetPrivateMapUserPermissions"
@@ -611,9 +617,11 @@ impl fmt::Debug for Request {
                         GetPrivateMapUserPermissionsAt { .. } => {
                             "MapReadRequest::GetPrivateMapUserPermissionsAt"
                         }
-                        GetPublicMapAuthHistory(_) => "MapReadRequest::GetPublicMapAuthHistory",
-                        GetPublicMapAuthHistoryRange { .. } => {
-                            "MapReadRequest::GetPublicMapAuthHistoryRange"
+                        GetPublicMapAccessListHistory(_) => {
+                            "MapReadRequest::GetPublicMapAccessListHistory"
+                        }
+                        GetPublicMapAccessListHistoryRange { .. } => {
+                            "MapReadRequest::GetPublicMapAccessListHistoryRange"
                         }
                         GetPublicMapUserPermissions { .. } => {
                             "MapReadRequest::GetPublicMapUserPermissions"
@@ -647,19 +655,23 @@ impl fmt::Debug for Request {
                         GetSequenceOwnerHistoryRange { .. } => {
                             "SequenceReadRequest::GetSequenceOwnerHistoryRange"
                         }
-                        GetSequenceAuth { .. } => "SequenceReadRequest::GetSequenceAuth",
-                        GetSequenceAuthAt { .. } => "SequenceReadRequest::GetSequenceAuthAt",
-                        GetPublicSequenceAuthHistory(_) => {
-                            "SequenceReadRequest::GetPublicSequenceAuthHistory"
+                        GetSequenceAccessList { .. } => {
+                            "SequenceReadRequest::GetSequenceAccessList"
                         }
-                        GetPrivateSequenceAuthHistory(_) => {
-                            "SequenceReadRequest::GetPrivateSequenceAuthHistory"
+                        GetSequenceAccessListAt { .. } => {
+                            "SequenceReadRequest::GetSequenceAccessListAt"
                         }
-                        GetPublicSequenceAuthHistoryRange { .. } => {
-                            "SequenceReadRequest::GetPublicSequenceAuthHistoryRange"
+                        GetPublicSequenceAccessListHistory(_) => {
+                            "SequenceReadRequest::GetPublicSequenceAccessListHistory"
                         }
-                        GetPrivateSequenceAuthHistoryRange { .. } => {
-                            "SequenceReadRequest::GetPrivateSequenceAuthHistoryRange"
+                        GetPrivateSequenceAccessListHistory(_) => {
+                            "SequenceReadRequest::GetPrivateSequenceAccessListHistory"
+                        }
+                        GetPublicSequenceAccessListHistoryRange { .. } => {
+                            "SequenceReadRequest::GetPublicSequenceAccessListHistoryRange"
+                        }
+                        GetPrivateSequenceAccessListHistoryRange { .. } => {
+                            "SequenceReadRequest::GetPrivateSequenceAccessListHistoryRange"
                         }
                         GetPublicSequenceUserPermissions { .. } => {
                             "SequenceReadRequest::GetPublicSequenceUserPermissions"
@@ -688,8 +700,10 @@ impl fmt::Debug for Request {
                         PutMap(_) => "MapWriteRequest::PutMap",
                         DeletePrivateMap(_) => "MapWriteRequest::DeletePrivateMap",
                         SetMapOwner { .. } => "MapWriteRequest::SetMapOwner",
-                        SetPublicMapAuth { .. } => "MapWriteRequest::SetPublicMapAuth",
-                        SetPrivateMapAuth { .. } => "MapWriteRequest::SetPrivateMapAuth",
+                        SetPublicMapAccessList { .. } => "MapWriteRequest::SetPublicMapAccessList",
+                        SetPrivateMapAccessList { .. } => {
+                            "MapWriteRequest::SetPrivateMapAccessList"
+                        }
                         CommitMapTx { .. } => "MapWriteRequest::CommitMapTx",
                     },
                     WriteRequest::Misc(misc) => match misc {
@@ -705,11 +719,11 @@ impl fmt::Debug for Request {
                         PutSequence(_) => "SequenceWriteRequest::PutSequence",
                         DeletePrivateSequence(_) => "SequenceWriteRequest::DeletePrivateSequence",
                         SetSequenceOwner { .. } => "SequenceWriteRequest::SetSequenceOwner",
-                        SetPublicSequenceAuth { .. } => {
-                            "SequenceWriteRequest::SetPublicSequenceAuth"
+                        SetPublicSequenceAccessList { .. } => {
+                            "SequenceWriteRequest::SetPublicSequenceAccessList"
                         }
-                        SetPrivateSequenceAuth { .. } => {
-                            "SequenceWriteRequest::SetPrivateSequenceAuth"
+                        SetPrivateSequenceAccessList { .. } => {
+                            "SequenceWriteRequest::SetPrivateSequenceAccessList"
                         }
                         Handle(_) => "SequenceWriteRequest::Handle",
                     },
