@@ -182,13 +182,11 @@ pub enum Request {
     GetPrivateSequenceAccessListHistory(Address),
     GetPublicSequenceAccessListHistoryRange {
         address: Address,
-        key: Key,
         start: Version,
         end: Version,
     },
     GetPrivateSequenceAccessListHistoryRange {
         address: Address,
-        key: Key,
         start: Version,
         end: Version,
     },
