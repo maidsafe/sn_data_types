@@ -10,6 +10,6 @@
 pub mod access_control;
 mod tests;
 pub use access_control::{
-    AccessList, AccessType, MapWriteAccess, PrivateAccessList, PrivateUserAccess, PublicAccessList,
-    PublicUserAccess, ReadAccess, SequenceWriteAccess, WriteAccess,
+    AccessList, AccessType, PrivateAccessList, PrivateUserAccess, PublicAccessList,
+    PublicUserAccess,
 };

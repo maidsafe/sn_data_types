@@ -19,39 +19,10 @@ use std::{collections::BTreeMap, hash::Hash};
 /// The type of access to the native data structures.
 #[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum AccessType {
-    Read(ReadAccess),
-    Write(WriteAccess),
-}
-
-#[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub enum ReadAccess {
-    Map,
-    Sequence,
-    Blob, // not necessary
-}
-
-#[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub enum WriteAccess {
-    Map(MapWriteAccess),
-    Sequence(SequenceWriteAccess),
-}
-
-/// The various write operations that can be performed on a Sequence.
-#[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub enum SequenceWriteAccess {
+    /// Read data, owners and permissions.
+    Read,
     /// Append new values.
     Append,
-    /// Hard-update existing values.
-    HardUpdate,
-    /// Hard-delete existing values.
-    HardDelete,
-    /// Modify permissions for other users.
-    ModifyPermissions,
-}
-
-/// The various write operations that can be performed on a Map.
-#[derive(Clone, Copy, Debug, Hash, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub enum MapWriteAccess {
     /// Insert new values.
     Insert,
     /// Soft-update existing values.
@@ -106,7 +77,7 @@ impl PublicUserAccess {
     /// `None` means that `User::Anyone` permissions apply.
     pub fn is_allowed(self, access: &AccessType) -> Option<bool> {
         match access {
-            AccessType::Read(_) => Some(true), // It's Public data, so it's always allowed to read it.
+            AccessType::Read => Some(true), // It's Public data, so it's always allowed to read it.
             _ => match self.status.get(access) {
                 Some(true) => Some(true),
                 Some(false) => Some(false),

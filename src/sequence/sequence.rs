@@ -9,7 +9,7 @@
 
 use crate::access_control::{
     AccessList as AccessListTrait, AccessType, PrivateAccessList, PrivateUserAccess,
-    PublicAccessList, PublicUserAccess, ReadAccess, WriteAccess,
+    PublicAccessList, PublicUserAccess,
 };
 use crate::shared_data::{
     to_absolute_range, to_absolute_version, Address, ExpectedVersions, Kind, NonSentried, Owner,
@@ -384,28 +384,27 @@ impl SequenceData {
     pub fn is_allowed(&self, access: AccessType, user: PublicKey) -> bool {
         use AccessType::*;
         use SequenceData::*;
-        // Only let Sequence requests pass through.
-        match (self, access) {
-            (_, Read(ReadAccess::Sequence)) | (_, Write(WriteAccess::Sequence(_))) => (),
-            _ => return false,
-        }
         // Public flavours automatically allows all reads.
         match (self, access) {
-            (PublicSentried(_), Read(ReadAccess::Sequence))
-            | (Public(_), Read(ReadAccess::Sequence)) => return true,
+            (PublicSentried(_), Read) | (Public(_), Read) => return true,
             _ => (),
         }
         match (self, access) {
-            (PublicSentried(data), Write(WriteAccess::Sequence(_))) => {
+            (PublicSentried(data), Append) | (PublicSentried(data), ModifyPermissions) => {
                 data.is_allowed(user, access)
             }
-            (Public(data), Write(WriteAccess::Sequence(_))) => data.is_allowed(user, access),
-            (PrivateSentried(data), Write(WriteAccess::Sequence(_))) => {
+            (Public(data), Append) | (Public(data), ModifyPermissions) => {
                 data.is_allowed(user, access)
             }
-            (Private(data), Write(WriteAccess::Sequence(_))) => data.is_allowed(user, access),
-            (PrivateSentried(data), Read(ReadAccess::Sequence)) => data.is_allowed(user, access),
-            (Private(data), Read(ReadAccess::Sequence)) => data.is_allowed(user, access),
+
+            (PrivateSentried(data), Append) | (PrivateSentried(data), ModifyPermissions) => {
+                data.is_allowed(user, access)
+            }
+            (Private(data), Append) | (Private(data), ModifyPermissions) => {
+                data.is_allowed(user, access)
+            }
+            (PrivateSentried(data), Read) => data.is_allowed(user, access),
+            (Private(data), Read) => data.is_allowed(user, access),
             _ => false,
         }
     }

@@ -268,7 +268,7 @@ mod tests {
 
         // no owner
         let data = SequenceData::from(sequence.clone());
-        assert_eq!(data.is_allowed(get_append_cmd(), public_key_0), false);
+        assert_eq!(data.is_allowed(AccessType::Append, public_key_0), false);
         // data is Public - read always allowed
         assert_sequence_read_permitted(&data, public_key_0, true);
 
@@ -283,8 +283,8 @@ mod tests {
         ));
         let data = SequenceData::from(sequence.clone());
 
-        assert_eq!(data.is_allowed(get_append_cmd(), public_key_0), true);
-        assert_eq!(data.is_allowed(get_append_cmd(), public_key_1), false);
+        assert_eq!(data.is_allowed(AccessType::Append, public_key_0), true);
+        assert_eq!(data.is_allowed(AccessType::Append, public_key_1), false);
         // data is Public - read always allowed
         assert_sequence_read_permitted(&data, public_key_0, true);
         assert_sequence_read_permitted(&data, public_key_1, true);
@@ -296,12 +296,12 @@ mod tests {
             expected_owners_version: 1,
         };
         let mut set = BTreeMap::new();
-        let _ = set.insert(get_append_cmd(), true);
+        let _ = set.insert(AccessType::Append, true);
         let _ = access_list
             .access_list
             .insert(User::Anyone, PublicUserAccess::new(set));
         let mut set = BTreeMap::new();
-        let _ = set.insert(get_modify_sequence_access_list(), true);
+        let _ = set.insert(AccessType::ModifyPermissions, true);
         let _ = access_list
             .access_list
             .insert(User::Specific(public_key_1), PublicUserAccess::new(set));
@@ -309,11 +309,11 @@ mod tests {
         let data = SequenceData::from(sequence);
 
         // existing key fallback
-        assert_eq!(data.is_allowed(get_append_cmd(), public_key_1), true);
+        assert_eq!(data.is_allowed(AccessType::Append, public_key_1), true);
         // existing key override
         assert_modify_sequence_access_list_permitted(&data, public_key_1, true);
         // non-existing keys are handled by `Anyone`
-        assert_eq!(data.is_allowed(get_append_cmd(), public_key_2), true);
+        assert_eq!(data.is_allowed(AccessType::Append, public_key_2), true);
         assert_modify_sequence_access_list_permitted(&data, public_key_2, false);
         // data is Public - read always allowed
         assert_sequence_read_permitted(&data, public_key_0, true);
@@ -353,9 +353,9 @@ mod tests {
             expected_owners_version: 1,
         };
         let mut set = BTreeMap::new();
-        let _ = set.insert(get_append_cmd(), true);
-        let _ = set.insert(get_sequence_read_access(), true);
-        let _ = set.insert(get_modify_sequence_access_list(), false);
+        let _ = set.insert(AccessType::Append, true);
+        let _ = set.insert(AccessType::Read, true);
+        let _ = set.insert(AccessType::ModifyPermissions, false);
         let _ = access_list
             .access_list
             .insert(public_key_1, PrivateUserAccess::new(set));
@@ -364,34 +364,17 @@ mod tests {
 
         // existing key
         assert_sequence_read_permitted(&data, public_key_1, true);
-        assert_eq!(data.is_allowed(get_append_cmd(), public_key_1), true);
+        assert_eq!(data.is_allowed(AccessType::Append, public_key_1), true);
         assert_modify_sequence_access_list_permitted(&data, public_key_1, false);
 
         // non-existing key
         assert_sequence_read_permitted(&data, public_key_2, false);
-        assert_eq!(data.is_allowed(get_append_cmd(), public_key_2), false);
+        assert_eq!(data.is_allowed(AccessType::Append, public_key_2), false);
         assert_modify_sequence_access_list_permitted(&data, public_key_2, false);
     }
 
-    fn get_append_cmd() -> AccessType {
-        AccessType::Write(WriteAccess::Sequence(SequenceWriteAccess::Append))
-    }
-
-    fn get_sequence_read_access() -> AccessType {
-        AccessType::Read(ReadAccess::Sequence)
-    }
-
-    fn get_modify_sequence_access_list() -> AccessType {
-        AccessType::Write(WriteAccess::Sequence(
-            SequenceWriteAccess::ModifyPermissions,
-        ))
-    }
-
     fn assert_sequence_read_permitted(data: &SequenceData, public_key: PublicKey, permitted: bool) {
-        assert_eq!(
-            data.is_allowed(get_sequence_read_access(), public_key),
-            permitted
-        );
+        assert_eq!(data.is_allowed(AccessType::Read, public_key), permitted);
     }
 
     fn assert_modify_sequence_access_list_permitted(
@@ -400,7 +383,7 @@ mod tests {
         permitted: bool,
     ) {
         assert_eq!(
-            data.is_allowed(get_modify_sequence_access_list(), public_key),
+            data.is_allowed(AccessType::ModifyPermissions, public_key),
             permitted
         );
     }
@@ -651,7 +634,7 @@ mod tests {
 
         // no owner
         let data = MapData::from(map.clone());
-        assert_eq!(data.is_allowed(get_insert_cmd(), public_key_0), false);
+        assert_eq!(data.is_allowed(AccessType::Insert, public_key_0), false);
         // data is Public - read always allowed
         assert_map_read_permitted(&data, public_key_0, true);
 
@@ -666,8 +649,8 @@ mod tests {
         ));
         let data = MapData::from(map.clone());
 
-        assert_eq!(data.is_allowed(get_insert_cmd(), public_key_0), true);
-        assert_eq!(data.is_allowed(get_insert_cmd(), public_key_1), false);
+        assert_eq!(data.is_allowed(AccessType::Insert, public_key_0), true);
+        assert_eq!(data.is_allowed(AccessType::Insert, public_key_1), false);
         // data is Public - read always allowed
         assert_map_read_permitted(&data, public_key_0, true);
         assert_map_read_permitted(&data, public_key_1, true);
@@ -679,12 +662,12 @@ mod tests {
             expected_owners_version: 1,
         };
         let mut set = BTreeMap::new();
-        let _ = set.insert(get_insert_cmd(), true);
+        let _ = set.insert(AccessType::Insert, true);
         let _ = access_list
             .access_list
             .insert(User::Anyone, PublicUserAccess::new(set));
         let mut set = BTreeMap::new();
-        let _ = set.insert(get_modify_map_access_list(), true);
+        let _ = set.insert(AccessType::ModifyPermissions, true);
         let _ = access_list
             .access_list
             .insert(User::Specific(public_key_1), PublicUserAccess::new(set));
@@ -692,11 +675,11 @@ mod tests {
         let data = MapData::from(map);
 
         // existing key fallback
-        assert_eq!(data.is_allowed(get_insert_cmd(), public_key_1), true);
+        assert_eq!(data.is_allowed(AccessType::Insert, public_key_1), true);
         // existing key override
         assert_modify_map_access_list_permitted(&data, public_key_1, true);
         // non-existing keys are handled by `Anyone`
-        assert_eq!(data.is_allowed(get_insert_cmd(), public_key_2), true);
+        assert_eq!(data.is_allowed(AccessType::Insert, public_key_2), true);
         assert_modify_map_access_list_permitted(&data, public_key_2, false);
         // data is Public - read always allowed
         assert_map_read_permitted(&data, public_key_0, true);
@@ -736,9 +719,9 @@ mod tests {
             expected_owners_version: 1,
         };
         let mut set = BTreeMap::new();
-        let _ = set.insert(get_insert_cmd(), true);
-        let _ = set.insert(get_map_read_access_list(), true);
-        let _ = set.insert(get_modify_map_access_list(), false);
+        let _ = set.insert(AccessType::Insert, true);
+        let _ = set.insert(AccessType::Read, true);
+        let _ = set.insert(AccessType::ModifyPermissions, false);
         let _ = access_list
             .access_list
             .insert(public_key_1, PrivateUserAccess::new(set));
@@ -747,36 +730,17 @@ mod tests {
 
         // existing key
         assert_map_read_permitted(&data, public_key_1, true);
-        assert_eq!(data.is_allowed(get_insert_cmd(), public_key_1), true);
+        assert_eq!(data.is_allowed(AccessType::Insert, public_key_1), true);
         assert_modify_map_access_list_permitted(&data, public_key_1, false);
 
         // non-existing key
         assert_map_read_permitted(&data, public_key_2, false);
-        assert_eq!(data.is_allowed(get_insert_cmd(), public_key_2), false);
+        assert_eq!(data.is_allowed(AccessType::Insert, public_key_2), false);
         assert_modify_map_access_list_permitted(&data, public_key_2, false);
     }
 
-    fn get_insert_cmd() -> AccessType {
-        AccessType::Write(WriteAccess::Map(MapWriteAccess::Insert))
-    }
-
-    fn get_map_read_access() -> AccessType {
-        AccessType::Read(ReadAccess::Map)
-    }
-
-    fn get_map_read_access_list() -> AccessType {
-        AccessType::Read(ReadAccess::Map)
-    }
-
-    fn get_modify_map_access_list() -> AccessType {
-        AccessType::Write(WriteAccess::Map(MapWriteAccess::ModifyPermissions))
-    }
-
     fn assert_map_read_permitted(data: &MapData, public_key: PublicKey, permitted: bool) {
-        assert_eq!(
-            data.is_allowed(get_map_read_access(), public_key),
-            permitted
-        );
+        assert_eq!(data.is_allowed(AccessType::Read, public_key), permitted);
     }
 
     fn assert_modify_map_access_list_permitted(
@@ -785,7 +749,7 @@ mod tests {
         permitted: bool,
     ) {
         assert_eq!(
-            data.is_allowed(get_modify_map_access_list(), public_key),
+            data.is_allowed(AccessType::ModifyPermissions, public_key),
             permitted
         );
     }

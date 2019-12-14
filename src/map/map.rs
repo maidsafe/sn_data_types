@@ -9,7 +9,7 @@
 
 use crate::access_control::{
     AccessList as AccessListTrait, AccessType, PrivateAccessList, PrivateUserAccess,
-    PublicAccessList, PublicUserAccess, ReadAccess, WriteAccess,
+    PublicAccessList, PublicUserAccess,
 };
 use crate::shared_data::{
     to_absolute_range, to_absolute_version, Address, ExpectedVersions, Key, Kind, KvPair,
@@ -977,25 +977,34 @@ impl MapData {
     pub fn is_allowed(&self, access: AccessType, user: PublicKey) -> bool {
         use AccessType::*;
         use MapData::*;
-        // Only let Map requests pass through.
-        match (self, access) {
-            (_, Read(ReadAccess::Map)) | (_, Write(WriteAccess::Map(_))) => (),
-            _ => return false,
-        }
         // Public flavours automatically allows all reads.
         match (self, access) {
-            (PublicSentried(_), Read(ReadAccess::Map)) | (Public(_), Read(ReadAccess::Map)) => {
-                return true
-            }
+            (PublicSentried(_), Read) | (Public(_), Read) => return true,
             _ => (),
         }
         match (self, access) {
-            (PublicSentried(data), Write(WriteAccess::Map(_))) => data.is_allowed(user, access),
-            (Public(data), Write(WriteAccess::Map(_))) => data.is_allowed(user, access),
-            (PrivateSentried(data), Write(WriteAccess::Map(_))) => data.is_allowed(user, access),
-            (Private(data), Write(WriteAccess::Map(_))) => data.is_allowed(user, access),
-            (PrivateSentried(data), Read(ReadAccess::Map)) => data.is_allowed(user, access),
-            (Private(data), Read(ReadAccess::Map)) => data.is_allowed(user, access),
+            (PublicSentried(data), Insert)
+            | (PublicSentried(data), Update)
+            | (PublicSentried(data), Delete)
+            | (PublicSentried(data), ModifyPermissions) => data.is_allowed(user, access),
+            (Public(data), Insert)
+            | (Public(data), Update)
+            | (Public(data), Delete)
+            | (Public(data), ModifyPermissions) => data.is_allowed(user, access),
+            (PrivateSentried(data), Insert)
+            | (PrivateSentried(data), Update)
+            | (PrivateSentried(data), Delete)
+            | (PrivateSentried(data), HardUpdate)
+            | (PrivateSentried(data), HardDelete)
+            | (PrivateSentried(data), ModifyPermissions) => data.is_allowed(user, access),
+            (Private(data), Insert)
+            | (Private(data), Update)
+            | (Private(data), Delete)
+            | (Private(data), HardUpdate)
+            | (Private(data), HardDelete)
+            | (Private(data), ModifyPermissions) => data.is_allowed(user, access),
+            (PrivateSentried(data), Read) => data.is_allowed(user, access),
+            (Private(data), Read) => data.is_allowed(user, access),
             _ => false,
         }
     }
