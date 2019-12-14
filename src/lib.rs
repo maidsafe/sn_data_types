@@ -70,7 +70,7 @@ mod transaction;
 mod utils;
 
 pub use access_control::{
-    AccessType, MapWriteAccess, PrivateAccessList, PrivateUserAccess, PublicAccessList,
+    AccessType, AccessList, MapWriteAccess, PrivateAccessList, PrivateUserAccess, PublicAccessList,
     PublicUserAccess, ReadAccess, SequenceWriteAccess, WriteAccess,
 };
 pub use blob::{
@@ -92,7 +92,7 @@ pub use map::{
 pub use public_key::{PublicKey, Signature};
 pub use request::{
     BlobWriteRequest, LoginPacket, MapWriteRequest, MiscReadRequest, MiscWriteRequest, ReadRequest,
-    Request, SequenceWriteRequest, WriteRequest, MAX_LOGIN_PACKET_BYTES,
+    Request, SequenceWriteRequest, WriteRequest, MAX_LOGIN_PACKET_BYTES, MapReadRequest, SequenceReadRequest,
 };
 pub use response::Response;
 pub use sequence::{
