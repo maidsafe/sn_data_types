@@ -89,13 +89,11 @@ pub enum Request {
     GetPrivateMapAccessListHistory(Address),
     GetPublicMapAccessListHistoryRange {
         address: Address,
-        key: Key,
         start: Version,
         end: Version,
     },
     GetPrivateMapAccessListHistoryRange {
         address: Address,
-        key: Key,
         start: Version,
         end: Version,
     },
