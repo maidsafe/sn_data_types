@@ -251,9 +251,23 @@ where
 
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
 pub struct AppendOperation {
-    address: Address,
+    pub address: Address,
     values: Values,
     expected_version: Option<ExpectedVersion>,
+}
+
+impl AppendOperation {
+    pub fn new(
+        address: Address,
+        values: Values,
+        expected_version: Option<ExpectedVersion>,
+    ) -> Self {
+        Self {
+            address,
+            values,
+            expected_version,
+        }
+    }
 }
 
 pub type ExpectedVersion = u64;
