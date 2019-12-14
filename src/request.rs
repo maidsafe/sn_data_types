@@ -59,6 +59,8 @@ pub enum Request {
         start: Version,
         end: Version,
     },
+    /// Returns history for all keys
+    GetMapKeyHistories(Address),
     ///
     /// ==== Owners ====
     ///
@@ -370,6 +372,7 @@ impl Request {
             GetMapKeyHistory { .. } => Response::GetMapKeyHistory(Err(error)),
             GetMapKeyHistoryRange { .. } => Response::GetMapKeyHistoryRange(Err(error)),
             GetMapKeys(_) => Response::GetMapKeys(Err(error)),
+            GetMapKeyHistories(_) => Response::GetMapKeyHistories(Err(error)),
             GetMapOwner(_) => Response::GetMapOwner(Err(error)),
             GetMapOwnerAt { .. } => Response::GetMapOwnerAt(Err(error)),
             GetMapOwnerHistory(_) => Response::GetMapOwnerHistory(Err(error)),
@@ -490,6 +493,7 @@ impl fmt::Debug for Request {
                 GetMapExpectedVersions(_) => "MapReadRequest::GetMapExpectedVersions",
                 GetMapKeyHistory { .. } => "MapReadRequest::GetMapKeyHistory",
                 GetMapKeyHistoryRange { .. } => "MapReadRequest::GetMapKeyHistoryRange",
+                GetMapKeyHistories(_) => "MapReadRequest::GetMapKeyHistories",
                 GetMapKeys(_) => "MapReadRequest::GetMapKeys",
                 GetMapOwner(_) => "MapReadRequest::GetMapOwner",
                 GetMapOwnerAt { .. } => "MapReadRequest::GetMapOwnerAt",

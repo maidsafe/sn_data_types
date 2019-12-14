@@ -139,6 +139,7 @@ impl Data {
             | GetMapExpectedVersions(_)
             | GetMapKeyHistory { .. }
             | GetMapKeyHistoryRange { .. }
+            | GetMapKeyHistories(_)
             | GetMapKeys(_)
             | GetMapOwner(_)
             | GetMapOwnerAt { .. }
