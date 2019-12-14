@@ -251,6 +251,7 @@ where
 
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
 pub struct AppendOperation {
+    address: Address,
     values: Values,
     expected_version: Option<ExpectedVersion>,
 }
