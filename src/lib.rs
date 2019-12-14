@@ -340,6 +340,8 @@ impl From<SequenceData> for Data {
     Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Default, Debug,
 )]
 pub struct AppPermissions {
+    pub get_balance: bool,
+    pub perform_mutations: bool,
     pub transfer_coins: bool,
 }
 
