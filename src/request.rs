@@ -11,9 +11,9 @@ mod login_packet;
 
 pub use self::login_packet::{LoginPacket, MAX_LOGIN_PACKET_BYTES};
 use crate::{
-    Address, AppPermissions, BlobAddress, BlobData, Coins, Error, Key, MapData, MapTransaction,
-    Owner, PrivateAccessList, PublicAccessList, PublicKey, Response, SequenceCmdOption,
-    SequenceData, TransactionId, User, Version, XorName,
+    Address, AppPermissions, AppendOperation, BlobAddress, BlobData, Coins, Error, Key, MapData,
+    MapTransaction, Owner, PrivateAccessList, PublicAccessList, PublicKey, Response, SequenceData,
+    TransactionId, User, Version, XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -258,8 +258,8 @@ pub enum Request {
     /// This operation MUST return an error if applied to published Sequence. Only the current
     /// owner(s) can perform this action.
     DeletePrivateSequence(Address),
-    // Operate on a Sequence instance.
-    Handle(SequenceCmdOption),
+    // Append to a Sequence instance.
+    Append(AppendOperation),
     ///
     /// ==== Owners ====
     ///
@@ -469,7 +469,7 @@ impl Request {
             | SetSequenceOwner { .. }
             | SetPublicSequenceAccessList { .. }
             | SetPrivateSequenceAccessList { .. }
-            | Handle(_) => Response::Mutation(Err(error)),
+            | Append(_) => Response::Mutation(Err(error)),
         }
     }
 }
@@ -590,7 +590,7 @@ impl fmt::Debug for Request {
                 SetPrivateSequenceAccessList { .. } => {
                     "SequenceWriteRequest::SetPrivateSequenceAccessList"
                 }
-                Handle(_) => "SequenceWriteRequest::Handle",
+                Append(_) => "SequenceWriteRequest::Append",
             }
         )
     }

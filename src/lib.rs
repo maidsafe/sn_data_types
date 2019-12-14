@@ -93,9 +93,8 @@ pub use public_key::{PublicKey, Signature};
 pub use request::{LoginPacket, Request, MAX_LOGIN_PACKET_BYTES};
 pub use response::Response;
 pub use sequence::{
-    PrivateSentriedSequence, PrivateSequence, PublicSentriedSequence, PublicSequence,
-    SentriedSequenceCmd, SequenceAccessList, SequenceCmd, SequenceCmdOption, SequenceData,
-    SequenceEntry, SequenceValues,
+    AppendOperation, PrivateSentriedSequence, PrivateSequence, PublicSentriedSequence,
+    PublicSequence, SequenceAccessList, SequenceData, SequenceEntry, SequenceValues,
 };
 pub use sha3::Sha3_512 as Ed25519Digest;
 pub use shared_data::{Address, ExpectedVersions, Key, Kind, Owner, User, Value, Version};
@@ -205,7 +204,7 @@ impl Data {
             // === Sequence Write ===
             //
             PutSequence(_) => false, // todo
-            Handle(cmd) => self.is_cmd_allowed(cmd, user),
+            Append(_) => self.is_allowed(AccessType::Append, user),
             SetSequenceOwner { .. } | DeletePrivateSequence(_) => self.is_owner(user),
             SetPrivateSequenceAccessList { .. } | SetPublicSequenceAccessList { .. } => {
                 self.is_allowed(AccessType::ModifyPermissions, user)
@@ -246,16 +245,6 @@ impl Data {
             Data::Blob(_) => true, // todo
             Data::Map(ref data) => data.is_allowed(access, user),
             Data::Sequence(ref data) => data.is_allowed(access, user),
-        }
-    }
-
-    fn is_cmd_allowed(&self, cmd: &SequenceCmdOption, user: PublicKey) -> bool {
-        use SequenceCmdOption::*;
-        match cmd {
-            AnyVersion(SequenceCmd::Append(_)) => self.is_allowed(AccessType::Append, user),
-            ExpectVersion(SentriedSequenceCmd::Append(_)) => {
-                self.is_allowed(AccessType::Append, user)
-            }
         }
     }
 

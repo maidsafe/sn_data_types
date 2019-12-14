@@ -104,8 +104,9 @@ where
     }
 
     /// Return a value for the given Version (if it is present).
-    pub fn get(&self, version: u64) -> Option<&Value> {
-        self.data.get(version as usize)
+    pub fn get(&self, version: Version) -> Option<&Value> {
+        let absolute_version = to_absolute_version(version, self.data.len())?;
+        self.data.get(absolute_version)
     }
 
     /// Return the current data entry (if it is present).
@@ -249,26 +250,12 @@ where
 }
 
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
-pub enum Cmd {
-    /// Appends a range of new values
-    Append(Values),
-}
-
-#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
-pub enum SentriedCmd {
-    /// Appends a range of new values
-    Append(SentriedValues),
-}
-
-#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
-pub enum CmdOption {
-    AnyVersion(Cmd),
-    ExpectVersion(SentriedCmd),
+pub struct AppendOperation {
+    values: Values,
+    expected_version: Option<ExpectedVersion>,
 }
 
 pub type ExpectedVersion = u64;
-// pub type SentriedValue = (Value, ExpectedVersion);
-pub type SentriedValues = (Values, ExpectedVersion);
 
 /// Common methods for NonSentried flavours.
 impl<P: AccessListTrait> SequenceBase<P, NonSentried> {
@@ -453,7 +440,7 @@ impl SequenceData {
         }
     }
 
-    pub fn get(&self, version: u64) -> Option<&Value> {
+    pub fn get(&self, version: Version) -> Option<&Value> {
         use SequenceData::*;
         match self {
             PublicSentried(data) => data.get(version),
@@ -626,41 +613,32 @@ impl SequenceData {
         }
     }
 
-    /// Commits transaction.
-    pub fn commit(&mut self, cmd: &CmdOption) -> Result<()> {
-        use CmdOption::*;
+    /// Appends values.
+    pub fn append(&mut self, operation: &AppendOperation) -> Result<()> {
         use SequenceData::*;
         match self {
-            PrivateSentried(sequence) => match cmd {
-                ExpectVersion(cmd) => match cmd {
-                    SentriedCmd::Append((values, expected_version)) => {
-                        return sequence.append(values.to_vec(), *expected_version);
-                    }
-                },
+            PrivateSentried(sequence) => match operation.expected_version {
+                Some(expected_version) => {
+                    return sequence.append(operation.values.to_vec(), expected_version);
+                }
                 _ => return Err(Error::InvalidOperation),
             },
-            Private(sequence) => match cmd {
-                AnyVersion(cmd) => match cmd {
-                    Cmd::Append(values) => {
-                        return sequence.append(values.to_vec());
-                    }
-                },
+            Private(sequence) => match operation.expected_version {
+                None => {
+                    return sequence.append(operation.values.to_vec());
+                }
                 _ => return Err(Error::InvalidOperation),
             },
-            PublicSentried(sequence) => match cmd {
-                ExpectVersion(cmd) => match cmd {
-                    SentriedCmd::Append((values, expected_version)) => {
-                        return sequence.append(values.to_vec(), *expected_version);
-                    }
-                },
+            PublicSentried(sequence) => match operation.expected_version {
+                Some(expected_version) => {
+                    return sequence.append(operation.values.to_vec(), expected_version);
+                }
                 _ => return Err(Error::InvalidOperation),
             },
-            Public(sequence) => match cmd {
-                AnyVersion(cmd) => match cmd {
-                    Cmd::Append(values) => {
-                        return sequence.append(values.to_vec());
-                    }
-                },
+            Public(sequence) => match operation.expected_version {
+                None => {
+                    return sequence.append(operation.values.to_vec());
+                }
                 _ => return Err(Error::InvalidOperation),
             },
         }
