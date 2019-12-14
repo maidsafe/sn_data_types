@@ -9,10 +9,9 @@
 
 use crate::{
     errors::ErrorDebug, AppPermissions, BlobData, Coins, Error, ExpectedVersions, Key,
-    MapAccessList, MapData, MapEntries, MapKeyHistories, MapValue, MapValues, Owner,
-    PrivateAccessList, PrivateUserAccess, PublicAccessList, PublicKey, PublicUserAccess, Result,
-    SequenceAccessList, SequenceData, SequenceEntry, SequenceValues, Signature, Transaction,
-    Value as SequenceValue,
+    MapAccessList, MapData, MapEntries, MapKeyHistories, MapValues, Owner, PrivateAccessList,
+    PrivateUserAccess, PublicAccessList, PublicKey, PublicUserAccess, Result, SequenceAccessList,
+    SequenceData, SequenceEntry, Signature, Transaction, Value,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -20,6 +19,8 @@ use std::{
     convert::TryFrom,
     fmt,
 };
+
+pub type Values = Vec<Value>;
 
 /// RPC responses from vaults.
 #[allow(clippy::large_enum_variant, clippy::type_complexity, missing_docs)]
@@ -36,9 +37,9 @@ pub enum Response {
     GetMapShell(Result<MapData>),
     GetMapVersion(Result<u64>),
     GetMapExpectedVersions(Result<ExpectedVersions>),
-    GetMapValue(Result<MapValue>),   // The value of a key
-    GetMapValueAt(Result<MapValue>), // The value of a key as of a version.
-    GetMapValues(Result<MapValues>), // All current values of map
+    GetMapValue(Result<Value>),   // The value of a key
+    GetMapValueAt(Result<Value>), // The value of a key as of a version.
+    GetMapValues(Result<Values>), // All current values of map
     GetMapEntries(Result<MapEntries>),
     GetMapKeys(Result<BTreeSet<Key>>),
     GetMapKeyHistories(Result<MapKeyHistories>),
@@ -67,8 +68,8 @@ pub enum Response {
     GetSequenceOwnerAt(Result<Owner>),
     GetSequenceOwnerHistory(Result<Vec<Owner>>),
     GetSequenceOwnerHistoryRange(Result<Vec<Owner>>),
-    GetSequenceRange(Result<SequenceValues>),
-    GetSequenceValue(Result<SequenceValue>),
+    GetSequenceRange(Result<Values>),
+    GetSequenceValue(Result<Value>),
     GetSequenceExpectedVersions(Result<ExpectedVersions>),
     GetSequenceCurrentEntry(Result<SequenceEntry>),
     GetSequenceAccessList(Result<SequenceAccessList>),
@@ -132,9 +133,8 @@ try_from!(MapData, GetMap, GetMapShell);
 try_from!(u64, GetMapVersion);
 try_from!(MapEntries, GetMapEntries);
 try_from!(BTreeSet<Key>, GetMapKeys);
-try_from!(MapValues, GetMapValues);
-try_from!(MapValue, GetMapValue);
-try_from!(SequenceValue, GetSequenceValue);
+try_from!(Values, GetMapValues, GetSequenceRange);
+try_from!(Value, GetMapValue, GetSequenceValue);
 try_from!(SequenceData, GetSequence, GetSequenceShell);
 try_from!(Owner, GetMapOwner, GetSequenceOwner);
 try_from!(
@@ -142,7 +142,6 @@ try_from!(
     GetMapExpectedVersions,
     GetSequenceExpectedVersions
 );
-try_from!(SequenceValues, GetSequenceRange);
 try_from!(SequenceEntry, GetSequenceCurrentEntry);
 try_from!(MapAccessList, GetMapAccessList);
 try_from!(SequenceAccessList, GetSequenceAccessList);
