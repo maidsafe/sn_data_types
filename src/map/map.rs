@@ -156,7 +156,7 @@ where
     }
 
     /// Return a value for the given key (if it is present).
-    pub fn get(&self, key: &Key) -> Option<&Value> {
+    pub fn get_value(&self, key: &Key) -> Option<&Value> {
         match self.data.get(key) {
             Some(history) => {
                 match history.last() {
@@ -172,7 +172,7 @@ where
     }
 
     /// Return a value for the given key (if it is present).
-    pub fn get_at(&self, key: &Key, version: Version) -> Option<&Value> {
+    pub fn get_value_at(&self, key: &Key, version: Version) -> Option<&Value> {
         match self.data.get(key) {
             Some(history) => {
                 let abs_ver = to_absolute_version(version, history.len())?;
@@ -1092,23 +1092,23 @@ impl MapData {
         }
     }
 
-    pub fn get(&self, key: &Key) -> Option<&Value> {
+    pub fn get_value(&self, key: &Key) -> Option<&Value> {
         use MapData::*;
         match self {
-            PublicSentried(data) => data.get(key),
-            Public(data) => data.get(key),
-            PrivateSentried(data) => data.get(key),
-            Private(data) => data.get(key),
+            PublicSentried(data) => data.get_value(key),
+            Public(data) => data.get_value(key),
+            PrivateSentried(data) => data.get_value(key),
+            Private(data) => data.get_value(key),
         }
     }
 
-    pub fn get_at(&self, key: &Key, version: Version) -> Option<&Value> {
+    pub fn get_value_at(&self, key: &Key, version: Version) -> Option<&Value> {
         use MapData::*;
         match self {
-            PublicSentried(data) => data.get_at(key, version),
-            Public(data) => data.get_at(key, version),
-            PrivateSentried(data) => data.get_at(key, version),
-            Private(data) => data.get_at(key, version),
+            PublicSentried(data) => data.get_value_at(key, version),
+            Public(data) => data.get_value_at(key, version),
+            PrivateSentried(data) => data.get_value_at(key, version),
+            Private(data) => data.get_value_at(key, version),
         }
     }
 
