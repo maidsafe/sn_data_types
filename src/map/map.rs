@@ -219,8 +219,8 @@ where
     }
 
     /// Returns history of all owners
-    pub fn owner_history(&self) -> &Vec<Owner> {
-        &self.owners
+    pub fn owner_history(&self) -> Vec<Owner> {
+        self.owners.clone()
     }
 
     /// Get history of owners within the range of versions specified.
@@ -1129,7 +1129,7 @@ impl MapData {
     }
 
     /// Returns history of all owners
-    pub fn owner_history(&self) -> Result<&Vec<Owner>> {
+    pub fn owner_history(&self) -> Result<Vec<Owner>> {
         use MapData::*;
         let result = match self {
             PublicSentried(data) => Some(data.owner_history()),
