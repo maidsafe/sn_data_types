@@ -171,6 +171,23 @@ where
         }
     }
 
+    /// Return a value for the given key (if it is present).
+    pub fn get_at(&self, key: &Key, version: Version) -> Option<&Value> {
+        match self.data.get(key) {
+            Some(history) => {
+                let abs_ver = to_absolute_version(version, history.len())?;
+                match history.get(abs_ver) {
+                    Some(StoredValue::Value(value)) => Some(value),
+                    Some(StoredValue::Tombstone()) => None,
+                    None => panic!(
+                        "This is a bug! We are not supposed to have stored None under a key."
+                    ), // should we panic here? Would like to return Error::NetworkOther(String)
+                }
+            }
+            None => None,
+        }
+    }
+
     /// Return all data entries.
     pub fn data_entries(&self) -> DataEntries {
         self.data
@@ -1035,16 +1052,6 @@ impl MapData {
         }
     }
 
-    pub fn get(&self, key: &Key) -> Option<&Value> {
-        use MapData::*;
-        match self {
-            PublicSentried(data) => data.get(key),
-            Public(data) => data.get(key),
-            PrivateSentried(data) => data.get(key),
-            Private(data) => data.get(key),
-        }
-    }
-
     pub fn expected_data_version(&self) -> u64 {
         use MapData::*;
         match self {
@@ -1082,6 +1089,26 @@ impl MapData {
             Public(data) => data.versions(),
             PrivateSentried(data) => data.versions(),
             Private(data) => data.versions(),
+        }
+    }
+
+    pub fn get(&self, key: &Key) -> Option<&Value> {
+        use MapData::*;
+        match self {
+            PublicSentried(data) => data.get(key),
+            Public(data) => data.get(key),
+            PrivateSentried(data) => data.get(key),
+            Private(data) => data.get(key),
+        }
+    }
+
+    pub fn get_at(&self, key: &Key, version: Version) -> Option<&Value> {
+        use MapData::*;
+        match self {
+            PublicSentried(data) => data.get_at(key, version),
+            Public(data) => data.get_at(key, version),
+            PrivateSentried(data) => data.get_at(key, version),
+            Private(data) => data.get_at(key, version),
         }
     }
 

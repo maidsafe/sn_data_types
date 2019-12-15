@@ -447,16 +447,6 @@ impl SequenceData {
         }
     }
 
-    pub fn get(&self, version: Version) -> Option<&Value> {
-        use SequenceData::*;
-        match self {
-            PublicSentried(data) => data.get(version),
-            Public(data) => data.get(version),
-            PrivateSentried(data) => data.get(version),
-            Private(data) => data.get(version),
-        }
-    }
-
     pub fn expected_data_version(&self) -> u64 {
         use SequenceData::*;
         match self {
@@ -494,6 +484,16 @@ impl SequenceData {
             Public(data) => data.versions(),
             PrivateSentried(data) => data.versions(),
             Private(data) => data.versions(),
+        }
+    }
+
+    pub fn get(&self, version: Version) -> Option<&Value> {
+        use SequenceData::*;
+        match self {
+            PublicSentried(data) => data.get(version),
+            Public(data) => data.get(version),
+            PrivateSentried(data) => data.get(version),
+            Private(data) => data.get(version),
         }
     }
 
