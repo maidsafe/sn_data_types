@@ -183,9 +183,9 @@ where
     }
 
     /// Get history of owners within the range of versions specified.
-    pub fn owner_history_range(&self, start: Version, end: Version) -> Option<&[Owner]> {
+    pub fn owner_history_range(&self, start: Version, end: Version) -> Option<Vec<Owner>> {
         let range = to_absolute_range(start, end, self.owners.len())?;
-        Some(&self.owners[range])
+        Some(self.owners[range].iter().map(|c| *c).collect())
     }
 
     /// Get access control at version.
@@ -195,14 +195,14 @@ where
     }
 
     /// Returns history of all access list states
-    pub fn access_list_history(&self) -> &Vec<C> {
-        &self.access_list
+    pub fn access_list_history(&self) -> Vec<C> {
+        self.access_list.clone()
     }
 
-    /// Get history of permission within the range of versions specified.
-    pub fn access_list_history_range(&self, start: Version, end: Version) -> Option<&[C]> {
+    /// Get history of access list within the range of versions specified.
+    pub fn access_list_history_range(&self, start: Version, end: Version) -> Option<Vec<C>> {
         let range = to_absolute_range(start, end, self.access_list.len())?;
-        Some(&self.access_list[range])
+        Some(self.access_list[range].iter().map(|c| c.clone()).collect())
     }
 
     /// Set owner.
@@ -540,7 +540,7 @@ impl SequenceData {
     }
 
     /// Get history of owners within the range of versions specified.
-    pub fn owner_history_range(&self, start: Version, end: Version) -> Result<&[Owner]> {
+    pub fn owner_history_range(&self, start: Version, end: Version) -> Result<Vec<Owner>> {
         use SequenceData::*;
         let result = match self {
             PublicSentried(data) => data.owner_history_range(start, end),
@@ -599,7 +599,7 @@ impl SequenceData {
     }
 
     /// Returns history of all access list states
-    pub fn public_access_list_history(&self) -> Result<&Vec<PublicAccessList>> {
+    pub fn public_access_list_history(&self) -> Result<Vec<PublicAccessList>> {
         use SequenceData::*;
         let result = match self {
             PublicSentried(data) => Some(data.access_list_history()),
@@ -610,7 +610,7 @@ impl SequenceData {
     }
 
     /// Returns history of all access list states
-    pub fn private_access_list_history(&self) -> Result<&Vec<PrivateAccessList>> {
+    pub fn private_access_list_history(&self) -> Result<Vec<PrivateAccessList>> {
         use SequenceData::*;
         let result = match self {
             PrivateSentried(data) => Some(data.access_list_history()),
@@ -625,7 +625,7 @@ impl SequenceData {
         &self,
         start: Version,
         end: Version,
-    ) -> Result<&[PublicAccessList]> {
+    ) -> Result<Vec<PublicAccessList>> {
         use SequenceData::*;
         let result = match self {
             PublicSentried(data) => data.access_list_history_range(start, end),
@@ -640,7 +640,7 @@ impl SequenceData {
         &self,
         start: Version,
         end: Version,
-    ) -> Result<&[PrivateAccessList]> {
+    ) -> Result<Vec<PrivateAccessList>> {
         use SequenceData::*;
         let result = match self {
             PrivateSentried(data) => data.access_list_history_range(start, end),
