@@ -1125,6 +1125,17 @@ impl MapData {
         }
     }
 
+    // Returns all key value pairs.
+    pub fn data_entries(&self) -> DataEntries {
+        use MapData::*;
+        match self {
+            PublicSentried(data) => data.data_entries(),
+            Public(data) => data.data_entries(),
+            PrivateSentried(data) => data.data_entries(),
+            Private(data) => data.data_entries(),
+        }
+    }
+
     // Returns all values.
     pub fn get_values(&self) -> Vec<Value> {
         use MapData::*;
