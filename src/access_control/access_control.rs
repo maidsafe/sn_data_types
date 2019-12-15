@@ -38,6 +38,42 @@ pub enum AccessType {
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
+pub enum AccessList {
+    Public(PublicAccessList),
+    Private(PrivateAccessList),
+}
+
+impl From<PrivateAccessList> for AccessList {
+    fn from(list: PrivateAccessList) -> Self {
+        AccessList::Private(list)
+    }
+}
+
+impl From<PublicAccessList> for AccessList {
+    fn from(list: PublicAccessList) -> Self {
+        AccessList::Public(list)
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
+pub enum UserAccess {
+    Public(PublicUserAccess),
+    Private(PrivateUserAccess),
+}
+
+impl From<PrivateUserAccess> for UserAccess {
+    fn from(access: PrivateUserAccess) -> Self {
+        UserAccess::Private(access)
+    }
+}
+
+impl From<PublicUserAccess> for UserAccess {
+    fn from(access: PublicUserAccess) -> Self {
+        UserAccess::Public(access)
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub struct PrivateUserAccess {
     status: BTreeMap<AccessType, bool>,
 }
@@ -87,7 +123,7 @@ impl PublicUserAccess {
     }
 }
 
-pub trait AccessList: Clone + Eq + Ord + Hash + Serialize + DeserializeOwned {
+pub trait AccessListTrait: Clone + Eq + Ord + Hash + Serialize + DeserializeOwned {
     fn is_allowed(&self, user: &PublicKey, access: &AccessType) -> bool;
     fn expected_data_version(&self) -> u64;
     fn expected_owners_version(&self) -> u64;
@@ -108,7 +144,7 @@ impl PrivateAccessList {
     }
 }
 
-impl AccessList for PrivateAccessList {
+impl AccessListTrait for PrivateAccessList {
     fn is_allowed(&self, user: &PublicKey, access: &AccessType) -> bool {
         match self.access_list.get(user) {
             Some(access_status) => access_status.clone().is_allowed(access),
@@ -151,7 +187,7 @@ impl PublicAccessList {
     }
 }
 
-impl AccessList for PublicAccessList {
+impl AccessListTrait for PublicAccessList {
     fn is_allowed(&self, user: &PublicKey, access: &AccessType) -> bool {
         match self.is_allowed_(&User::Specific(*user), access) {
             Some(true) => true,

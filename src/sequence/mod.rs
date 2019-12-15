@@ -10,7 +10,6 @@
 pub mod sequence;
 mod tests;
 pub use sequence::{
-    AccessList as SequenceAccessList, AppendOperation, DataEntry as SequenceEntry,
-    PrivateSentriedSequence, PrivateSequence, PublicSentriedSequence, PublicSequence, SequenceBase,
-    SequenceData, Values as SequenceValues,
+    AppendOperation, DataEntry as SequenceEntry, PrivateSentriedSequence, PrivateSequence,
+    PublicSentriedSequence, PublicSequence, SequenceBase, SequenceData, Values as SequenceValues,
 };

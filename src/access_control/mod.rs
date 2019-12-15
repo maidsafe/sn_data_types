@@ -10,6 +10,6 @@
 pub mod access_control;
 mod tests;
 pub use access_control::{
-    AccessList, AccessType, PrivateAccessList, PrivateUserAccess, PublicAccessList,
-    PublicUserAccess,
+    AccessList, AccessListTrait, AccessType, PrivateAccessList, PrivateUserAccess,
+    PublicAccessList, PublicUserAccess, UserAccess,
 };

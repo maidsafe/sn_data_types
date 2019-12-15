@@ -8,10 +8,10 @@
 // Software.
 
 use crate::{
-    errors::ErrorDebug, AppPermissions, BlobData, Coins, Error, ExpectedVersions, Key,
-    MapAccessList, MapData, MapEntries, MapKeyHistories, MapValues, Owner, PrivateAccessList,
-    PrivateUserAccess, PublicAccessList, PublicKey, PublicUserAccess, Result, SequenceAccessList,
-    SequenceData, SequenceEntry, Signature, Transaction, Value,
+    errors::ErrorDebug, AccessList, AppPermissions, BlobData, Coins, Error, ExpectedVersions, Key,
+    MapData, MapEntries, MapKeyHistories, MapValues, Owner, PrivateAccessList, PrivateUserAccess,
+    PublicAccessList, PublicKey, PublicUserAccess, Result, SequenceData, SequenceEntry, Signature,
+    Transaction, Value,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -53,8 +53,8 @@ pub enum Response {
     GetPublicMapAccessListHistoryRange(Result<Vec<PublicAccessList>>),
     GetPrivateMapAccessListHistory(Result<Vec<PrivateAccessList>>),
     GetPrivateMapAccessListHistoryRange(Result<Vec<PrivateAccessList>>),
-    GetMapAccessList(Result<MapAccessList>),
-    GetMapAccessListAt(Result<MapAccessList>),
+    GetMapAccessList(Result<AccessList>),
+    GetMapAccessListAt(Result<AccessList>),
     GetPublicMapUserPermissions(Result<PublicUserAccess>),
     GetPrivateMapUserPermissions(Result<PrivateUserAccess>),
     GetPublicMapUserPermissionsAt(Result<PublicUserAccess>),
@@ -72,8 +72,8 @@ pub enum Response {
     GetSequenceValue(Result<Value>),
     GetSequenceExpectedVersions(Result<ExpectedVersions>),
     GetSequenceCurrentEntry(Result<SequenceEntry>),
-    GetSequenceAccessList(Result<SequenceAccessList>),
-    GetSequenceAccessListAt(Result<SequenceAccessList>),
+    GetSequenceAccessList(Result<AccessList>),
+    GetSequenceAccessListAt(Result<AccessList>),
     GetPublicSequenceAccessListHistory(Result<Vec<PublicAccessList>>),
     GetPublicSequenceAccessListHistoryRange(Result<Vec<PublicAccessList>>),
     GetPrivateSequenceAccessListHistory(Result<Vec<PrivateAccessList>>),
@@ -143,8 +143,7 @@ try_from!(
     GetSequenceExpectedVersions
 );
 try_from!(SequenceEntry, GetSequenceCurrentEntry);
-try_from!(MapAccessList, GetMapAccessList);
-try_from!(SequenceAccessList, GetSequenceAccessList);
+try_from!(AccessList, GetMapAccessList, GetSequenceAccessList);
 try_from!(
     PublicUserAccess,
     GetPublicMapUserPermissions,

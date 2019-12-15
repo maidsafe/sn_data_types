@@ -8,8 +8,8 @@
 // Software.
 
 use crate::access_control::{
-    AccessList as AccessListTrait, AccessType, PrivateAccessList, PrivateUserAccess,
-    PublicAccessList, PublicUserAccess,
+    AccessListTrait, AccessType, PrivateAccessList, PrivateUserAccess, PublicAccessList,
+    PublicUserAccess,
 };
 use crate::shared_data::{
     to_absolute_range, to_absolute_version, Address, ExpectedVersions, Key, Kind, KvPair,
@@ -29,24 +29,6 @@ pub type PrivateSentriedMap = MapBase<PrivateAccessList, Sentried>;
 pub type PrivateMap = MapBase<PrivateAccessList, NonSentried>;
 pub type DataHistories = BTreeMap<Key, Vec<StoredValue>>;
 pub type DataEntries = Vec<DataEntry>;
-
-#[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
-pub enum AccessList {
-    Public(PublicAccessList),
-    Private(PrivateAccessList),
-}
-
-impl From<PrivateAccessList> for AccessList {
-    fn from(list: PrivateAccessList) -> Self {
-        AccessList::Private(list)
-    }
-}
-
-impl From<PublicAccessList> for AccessList {
-    fn from(list: PublicAccessList) -> Self {
-        AccessList::Public(list)
-    }
-}
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default, Debug)]
 pub struct DataEntry {
@@ -80,6 +62,67 @@ where
     C: AccessListTrait,
     S: Copy,
 {
+    pub fn is_allowed(&self, user: PublicKey, access: AccessType) -> bool {
+        match self.owner_at(Version::FromEnd(1)) {
+            Some(owner) => {
+                if owner.public_key == user {
+                    return true;
+                }
+            }
+            None => (),
+        }
+        match self.access_list_at(Version::FromEnd(1)) {
+            Some(access_list) => access_list.is_allowed(&user, &access),
+            None => false,
+        }
+    }
+
+    /// Return the address of this Map.
+    pub fn address(&self) -> &Address {
+        &self.address
+    }
+
+    /// Return the name of this Map.
+    pub fn name(&self) -> &XorName {
+        self.address.name()
+    }
+
+    /// Return the type tag of this Map.
+    pub fn tag(&self) -> u64 {
+        self.address.tag()
+    }
+
+    /// Returns true if the user is the current owner, false if not.
+    pub fn is_owner(&self, user: PublicKey) -> bool {
+        match self.owner_at(Version::FromEnd(1)) {
+            Some(owner) => user == owner.public_key,
+            _ => false,
+        }
+    }
+
+    /// Return the expected data version.
+    pub fn expected_data_version(&self) -> Option<u64> {
+        self.version
+    }
+
+    /// Return the expected owners version.
+    pub fn expected_owners_version(&self) -> u64 {
+        self.owners.len() as u64
+    }
+
+    /// Return the expected access list version.
+    pub fn expected_access_list_version(&self) -> u64 {
+        self.access_list.len() as u64
+    }
+
+    pub fn versions(&self) -> ExpectedVersions {
+        ExpectedVersions::new(
+            self.expected_data_version().unwrap_or_default(),
+            self.expected_owners_version(),
+            self.expected_access_list_version(),
+        )
+    }
+
     /// Returns the data shell - that is - everything except the entries themselves.
     pub fn shell(&self, expected_data_version: impl Into<Version>) -> Result<Self> {
         let expected_data_version = to_absolute_version(
@@ -142,36 +185,6 @@ where
             .collect()
     }
 
-    /// Return the address of this Map.
-    pub fn address(&self) -> &Address {
-        &self.address
-    }
-
-    /// Return the name of this Map.
-    pub fn name(&self) -> &XorName {
-        self.address.name()
-    }
-
-    /// Return the type tag of this Map.
-    pub fn tag(&self) -> u64 {
-        self.address.tag()
-    }
-
-    /// Return the expected data version.
-    pub fn expected_data_version(&self) -> Option<u64> {
-        self.version
-    }
-
-    /// Return the expected owners version.
-    pub fn expected_owners_version(&self) -> u64 {
-        self.owners.len() as u64
-    }
-
-    /// Return the expected access list version.
-    pub fn expected_access_list_version(&self) -> u64 {
-        self.access_list.len() as u64
-    }
-
     /// Returns history of all keys
     pub fn key_histories(&self) -> &DataHistories {
         &self.data
@@ -199,58 +212,6 @@ where
         }
     }
 
-    /// Get access list at version.
-    pub fn access_list_at(&self, version: impl Into<Version>) -> Option<&C> {
-        let version = to_absolute_version(version.into(), self.access_list.len())?;
-        self.access_list.get(version)
-    }
-
-    /// Returns history of all access list states
-    pub fn access_list_histories(&self) -> &Vec<C> {
-        &self.access_list
-    }
-
-    /// Get history of access list within the range of versions specified.
-    pub fn access_list_history_range(&self, start: Version, end: Version) -> Option<&[C]> {
-        let range = to_absolute_range(start, end, self.access_list.len())?;
-        Some(&self.access_list[range])
-    }
-
-    /// Set access list.
-    /// The `AccessList` struct needs to contain the correct expected versions.
-    pub fn set_access_list(&mut self, access_list: &C, version: u64) -> Result<()> {
-        if access_list.expected_data_version() != self.expected_data_version().unwrap_or_default() {
-            return Err(Error::InvalidSuccessor(
-                self.expected_data_version().unwrap_or_default(),
-            ));
-        }
-        if access_list.expected_owners_version() != self.expected_owners_version() {
-            return Err(Error::InvalidOwnersSuccessor(
-                self.expected_owners_version(),
-            ));
-        }
-        if self.expected_access_list_version() != version {
-            return Err(Error::InvalidSuccessor(self.expected_access_list_version()));
-        }
-        self.access_list.push(access_list.clone()); // hmm... do we have to clone in situations like these?
-        Ok(())
-    }
-
-    pub fn is_allowed(&self, user: PublicKey, access: AccessType) -> bool {
-        match self.owner_at(Version::FromEnd(1)) {
-            Some(owner) => {
-                if owner.public_key == user {
-                    return true;
-                }
-            }
-            None => (),
-        }
-        match self.access_list_at(Version::FromEnd(1)) {
-            Some(access_list) => access_list.is_allowed(&user, &access),
-            None => false,
-        }
-    }
-
     /// Get owner at version.
     pub fn owner_at(&self, version: impl Into<Version>) -> Option<&Owner> {
         let version = to_absolute_version(version.into(), self.owners.len())?;
@@ -258,7 +219,7 @@ where
     }
 
     /// Returns history of all owners
-    pub fn owner_histories(&self) -> &Vec<Owner> {
+    pub fn owner_history(&self) -> &Vec<Owner> {
         &self.owners
     }
 
@@ -266,6 +227,23 @@ where
     pub fn owner_history_range(&self, start: Version, end: Version) -> Option<&[Owner]> {
         let range = to_absolute_range(start, end, self.owners.len())?;
         Some(&self.owners[range])
+    }
+
+    /// Get access list at version.
+    pub fn access_list_at(&self, version: impl Into<Version>) -> Option<&C> {
+        let version = to_absolute_version(version.into(), self.access_list.len())?;
+        self.access_list.get(version)
+    }
+
+    /// Returns history of all access list states
+    pub fn access_list_history(&self) -> &Vec<C> {
+        &self.access_list
+    }
+
+    /// Get history of access list within the range of versions specified.
+    pub fn access_list_history_range(&self, start: Version, end: Version) -> Option<&[C]> {
+        let range = to_absolute_range(start, end, self.access_list.len())?;
+        Some(&self.access_list[range])
     }
 
     /// Set owner.
@@ -287,20 +265,24 @@ where
         Ok(())
     }
 
-    /// Returns true if the user is the current owner, false if not.
-    pub fn is_owner(&self, user: PublicKey) -> bool {
-        match self.owner_at(Version::FromEnd(1)) {
-            Some(owner) => user == owner.public_key,
-            _ => false,
+    /// Set access list.
+    /// The `AccessList` struct needs to contain the correct expected versions.
+    pub fn set_access_list(&mut self, access_list: &C, version: u64) -> Result<()> {
+        if access_list.expected_data_version() != self.expected_data_version().unwrap_or_default() {
+            return Err(Error::InvalidSuccessor(
+                self.expected_data_version().unwrap_or_default(),
+            ));
         }
-    }
-
-    pub fn versions(&self) -> ExpectedVersions {
-        ExpectedVersions::new(
-            self.expected_data_version().unwrap_or_default(),
-            self.expected_owners_version(),
-            self.expected_access_list_version(),
-        )
+        if access_list.expected_owners_version() != self.expected_owners_version() {
+            return Err(Error::InvalidOwnersSuccessor(
+                self.expected_owners_version(),
+            ));
+        }
+        if self.expected_access_list_version() != version {
+            return Err(Error::InvalidSuccessor(self.expected_access_list_version()));
+        }
+        self.access_list.push(access_list.clone()); // hmm... do we have to clone in situations like these?
+        Ok(())
     }
 }
 
@@ -1147,45 +1129,25 @@ impl MapData {
     }
 
     /// Returns history of all owners
-    pub fn public_owner_histories(&self) -> Result<&Vec<Owner>> {
+    pub fn owner_history(&self) -> Result<&Vec<Owner>> {
         use MapData::*;
         let result = match self {
-            PublicSentried(data) => Some(data.owner_histories()),
-            Public(data) => Some(data.owner_histories()),
-            _ => return Err(Error::InvalidOperation),
-        };
-        result.ok_or(Error::NoSuchEntry)
-    }
-
-    /// Returns history of all owners
-    pub fn private_owner_histories(&self) -> Result<&Vec<Owner>> {
-        use MapData::*;
-        let result = match self {
-            PrivateSentried(data) => Some(data.owner_histories()),
-            Private(data) => Some(data.owner_histories()),
-            _ => return Err(Error::InvalidOperation),
+            PublicSentried(data) => Some(data.owner_history()),
+            Public(data) => Some(data.owner_history()),
+            PrivateSentried(data) => Some(data.owner_history()),
+            Private(data) => Some(data.owner_history()),
         };
         result.ok_or(Error::NoSuchEntry)
     }
 
     /// Get history of owners within the range of versions specified.
-    pub fn public_owner_history_range(&self, start: Version, end: Version) -> Result<&[Owner]> {
+    pub fn owner_history_range(&self, start: Version, end: Version) -> Result<&[Owner]> {
         use MapData::*;
         let result = match self {
             PublicSentried(data) => data.owner_history_range(start, end),
             Public(data) => data.owner_history_range(start, end),
-            _ => return Err(Error::InvalidOperation),
-        };
-        result.ok_or(Error::NoSuchEntry)
-    }
-
-    /// Get history of owners within the range of versions specified.
-    pub fn private_owner_history_range(&self, start: Version, end: Version) -> Result<&[Owner]> {
-        use MapData::*;
-        let result = match self {
             PrivateSentried(data) => data.owner_history_range(start, end),
             Private(data) => data.owner_history_range(start, end),
-            _ => return Err(Error::InvalidOperation),
         };
         result.ok_or(Error::NoSuchEntry)
     }
@@ -1238,22 +1200,22 @@ impl MapData {
     }
 
     /// Returns history of all access list states
-    pub fn public_access_list_histories(&self) -> Result<&Vec<PublicAccessList>> {
+    pub fn public_access_list_history(&self) -> Result<&Vec<PublicAccessList>> {
         use MapData::*;
         let result = match self {
-            PublicSentried(data) => Some(data.access_list_histories()),
-            Public(data) => Some(data.access_list_histories()),
+            PublicSentried(data) => Some(data.access_list_history()),
+            Public(data) => Some(data.access_list_history()),
             _ => return Err(Error::InvalidOperation),
         };
         result.ok_or(Error::NoSuchEntry)
     }
 
     /// Returns history of all access list states
-    pub fn private_access_list_histories(&self) -> Result<&Vec<PrivateAccessList>> {
+    pub fn private_access_list_history(&self) -> Result<&Vec<PrivateAccessList>> {
         use MapData::*;
         let result = match self {
-            PrivateSentried(data) => Some(data.access_list_histories()),
-            Private(data) => Some(data.access_list_histories()),
+            PrivateSentried(data) => Some(data.access_list_history()),
+            Private(data) => Some(data.access_list_history()),
             _ => return Err(Error::InvalidOperation),
         };
         result.ok_or(Error::NoSuchEntry)

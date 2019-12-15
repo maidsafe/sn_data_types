@@ -86,15 +86,15 @@ pub use identity::{
     PublicId,
 };
 pub use map::{
-    MapAccessList, MapCmd, MapData, MapEntries, MapKeyHistories, MapTransaction, MapValue,
-    MapValues, SentriedMapCmd, SentryOption,
+    MapCmd, MapData, MapEntries, MapKeyHistories, MapTransaction, MapValue, MapValues,
+    SentriedMapCmd, SentryOption,
 };
 pub use public_key::{PublicKey, Signature};
 pub use request::{LoginPacket, Request, MAX_LOGIN_PACKET_BYTES};
 pub use response::Response;
 pub use sequence::{
     AppendOperation, PrivateSentriedSequence, PrivateSequence, PublicSentriedSequence,
-    PublicSequence, SequenceAccessList, SequenceData, SequenceEntry, SequenceValues,
+    PublicSequence, SequenceData, SequenceEntry, SequenceValues,
 };
 pub use sha3::Sha3_512 as Ed25519Digest;
 pub use shared_data::{Address, ExpectedVersions, Key, Kind, Owner, User, Value, Version};

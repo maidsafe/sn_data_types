@@ -8,8 +8,8 @@
 // Software.
 
 use crate::access_control::{
-    AccessList as AccessListTrait, AccessType, PrivateAccessList, PrivateUserAccess,
-    PublicAccessList, PublicUserAccess,
+    AccessListTrait, AccessType, PrivateAccessList, PrivateUserAccess, PublicAccessList,
+    PublicUserAccess,
 };
 use crate::shared_data::{
     to_absolute_range, to_absolute_version, Address, ExpectedVersions, Kind, NonSentried, Owner,
@@ -24,24 +24,6 @@ pub type PublicSequence = SequenceBase<PublicAccessList, NonSentried>;
 pub type PrivateSentriedSequence = SequenceBase<PrivateAccessList, Sentried>;
 pub type PrivateSequence = SequenceBase<PrivateAccessList, NonSentried>;
 pub type Values = Vec<Value>;
-
-#[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
-pub enum AccessList {
-    Public(PublicAccessList),
-    Private(PrivateAccessList),
-}
-
-impl From<PrivateAccessList> for AccessList {
-    fn from(list: PrivateAccessList) -> Self {
-        AccessList::Private(list)
-    }
-}
-
-impl From<PublicAccessList> for AccessList {
-    fn from(list: PublicAccessList) -> Self {
-        AccessList::Public(list)
-    }
-}
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default, Debug)]
 pub struct DataEntry {
@@ -72,6 +54,67 @@ where
     C: AccessListTrait,
     S: Copy,
 {
+    pub fn is_allowed(&self, user: PublicKey, access: AccessType) -> bool {
+        match self.owner_at(Version::FromEnd(1)) {
+            Some(owner) => {
+                if owner.public_key == user {
+                    return true;
+                }
+            }
+            None => (),
+        }
+        match self.access_list_at(Version::FromEnd(1)) {
+            Some(list) => list.is_allowed(&user, &access),
+            None => false,
+        }
+    }
+
+    /// Return the address of this Sequence.
+    pub fn address(&self) -> &Address {
+        &self.address
+    }
+
+    /// Return the name of this Sequence.
+    pub fn name(&self) -> &XorName {
+        self.address.name()
+    }
+
+    /// Return the type tag of this Sequence.
+    pub fn tag(&self) -> u64 {
+        self.address.tag()
+    }
+
+    /// Returns true if the user is the current owner.
+    pub fn is_owner(&self, user: PublicKey) -> bool {
+        match self.owner_at(Version::FromEnd(1)) {
+            Some(owner) => user == owner.public_key,
+            _ => false,
+        }
+    }
+
+    /// Return the expected data version.
+    pub fn expected_data_version(&self) -> u64 {
+        self.data.len() as u64
+    }
+
+    /// Return the expected owners version.
+    pub fn expected_owners_version(&self) -> u64 {
+        self.owners.len() as u64
+    }
+
+    /// Return the expected access list version.
+    pub fn expected_access_list_version(&self) -> u64 {
+        self.access_list.len() as u64
+    }
+
+    pub fn versions(&self) -> ExpectedVersions {
+        ExpectedVersions::new(
+            self.expected_data_version(),
+            self.expected_owners_version(),
+            self.expected_access_list_version(),
+        )
+    }
+
     /// Returns the data shell - that is - everything except the Values themselves.
     pub fn shell(&self, expected_data_version: impl Into<Version>) -> Result<Self> {
         let expected_data_version = to_absolute_version(
@@ -128,42 +171,15 @@ where
         &self.data
     }
 
-    /// Return the address of this Sequence.
-    pub fn address(&self) -> &Address {
-        &self.address
+    /// Get owner at version.
+    pub fn owner_at(&self, version: impl Into<Version>) -> Option<&Owner> {
+        let version = to_absolute_version(version.into(), self.owners.len())?;
+        self.owners.get(version)
     }
 
-    /// Return the name of this Sequence.
-    pub fn name(&self) -> &XorName {
-        self.address.name()
-    }
-
-    /// Return the type tag of this Sequence.
-    pub fn tag(&self) -> u64 {
-        self.address.tag()
-    }
-
-    /// Return the expected data version.
-    pub fn expected_data_version(&self) -> u64 {
-        self.data.len() as u64
-    }
-
-    /// Return the expected owners version.
-    pub fn expected_owners_version(&self) -> u64 {
-        self.owners.len() as u64
-    }
-
-    /// Return the expected access list version.
-    pub fn expected_access_list_version(&self) -> u64 {
-        self.access_list.len() as u64
-    }
-
-    pub fn versions(&self) -> ExpectedVersions {
-        ExpectedVersions::new(
-            self.expected_data_version(),
-            self.expected_owners_version(),
-            self.expected_access_list_version(),
-        )
+    /// Returns history of all owners
+    pub fn owner_history(&self) -> &Vec<Owner> {
+        &self.owners
     }
 
     /// Get history of owners within the range of versions specified.
@@ -172,45 +188,21 @@ where
         Some(&self.owners[range])
     }
 
-    /// Get history of permission within the range of versions specified.
-    pub fn access_list_history_range(&self, start: Version, end: Version) -> Option<&[C]> {
-        let range = to_absolute_range(start, end, self.access_list.len())?;
-        Some(&self.access_list[range])
-    }
-
-    /// Get owner at version.
-    pub fn owner_at(&self, version: impl Into<Version>) -> Option<&Owner> {
-        let version = to_absolute_version(version.into(), self.owners.len())?;
-        self.owners.get(version)
-    }
-
     /// Get access control at version.
     pub fn access_list_at(&self, version: impl Into<Version>) -> Option<&C> {
         let version = to_absolute_version(version.into(), self.access_list.len())?;
         self.access_list.get(version)
     }
 
-    /// Returns true if the user is the current owner.
-    pub fn is_owner(&self, user: PublicKey) -> bool {
-        match self.owner_at(Version::FromEnd(1)) {
-            Some(owner) => user == owner.public_key,
-            _ => false,
-        }
+    /// Returns history of all access list states
+    pub fn access_list_history(&self) -> &Vec<C> {
+        &self.access_list
     }
 
-    pub fn is_allowed(&self, user: PublicKey, access: AccessType) -> bool {
-        match self.owner_at(Version::FromEnd(1)) {
-            Some(owner) => {
-                if owner.public_key == user {
-                    return true;
-                }
-            }
-            None => (),
-        }
-        match self.access_list_at(Version::FromEnd(1)) {
-            Some(list) => list.is_allowed(&user, &access),
-            None => false,
-        }
+    /// Get history of permission within the range of versions specified.
+    pub fn access_list_history_range(&self, start: Version, end: Version) -> Option<&[C]> {
+        let range = to_absolute_range(start, end, self.access_list.len())?;
+        Some(&self.access_list[range])
     }
 
     /// Set owner.
@@ -535,6 +527,30 @@ impl SequenceData {
         }
     }
 
+    /// Returns history of all owners
+    pub fn owner_history(&self) -> Result<&Vec<Owner>> {
+        use SequenceData::*;
+        let result = match self {
+            PublicSentried(data) => Some(data.owner_history()),
+            Public(data) => Some(data.owner_history()),
+            PrivateSentried(data) => Some(data.owner_history()),
+            Private(data) => Some(data.owner_history()),
+        };
+        result.ok_or(Error::NoSuchEntry)
+    }
+
+    /// Get history of owners within the range of versions specified.
+    pub fn owner_history_range(&self, start: Version, end: Version) -> Result<&[Owner]> {
+        use SequenceData::*;
+        let result = match self {
+            PublicSentried(data) => data.owner_history_range(start, end),
+            Public(data) => data.owner_history_range(start, end),
+            PrivateSentried(data) => data.owner_history_range(start, end),
+            Private(data) => data.owner_history_range(start, end),
+        };
+        result.ok_or(Error::NoSuchEntry)
+    }
+
     pub fn public_user_access_at(
         &self,
         user: User,
@@ -580,6 +596,58 @@ impl SequenceData {
             _ => return Err(Error::InvalidOperation),
         };
         access_list.ok_or(Error::NoSuchEntry)
+    }
+
+    /// Returns history of all access list states
+    pub fn public_access_list_history(&self) -> Result<&Vec<PublicAccessList>> {
+        use SequenceData::*;
+        let result = match self {
+            PublicSentried(data) => Some(data.access_list_history()),
+            Public(data) => Some(data.access_list_history()),
+            _ => return Err(Error::InvalidOperation),
+        };
+        result.ok_or(Error::NoSuchEntry)
+    }
+
+    /// Returns history of all access list states
+    pub fn private_access_list_history(&self) -> Result<&Vec<PrivateAccessList>> {
+        use SequenceData::*;
+        let result = match self {
+            PrivateSentried(data) => Some(data.access_list_history()),
+            Private(data) => Some(data.access_list_history()),
+            _ => return Err(Error::InvalidOperation),
+        };
+        result.ok_or(Error::NoSuchEntry)
+    }
+
+    /// Get history of access list within the range of versions specified.
+    pub fn public_access_list_history_range(
+        &self,
+        start: Version,
+        end: Version,
+    ) -> Result<&[PublicAccessList]> {
+        use SequenceData::*;
+        let result = match self {
+            PublicSentried(data) => data.access_list_history_range(start, end),
+            Public(data) => data.access_list_history_range(start, end),
+            _ => return Err(Error::InvalidOperation),
+        };
+        result.ok_or(Error::NoSuchEntry)
+    }
+
+    /// Get history of access list within the range of versions specified.
+    pub fn private_access_list_history_range(
+        &self,
+        start: Version,
+        end: Version,
+    ) -> Result<&[PrivateAccessList]> {
+        use SequenceData::*;
+        let result = match self {
+            PrivateSentried(data) => data.access_list_history_range(start, end),
+            Private(data) => data.access_list_history_range(start, end),
+            _ => return Err(Error::InvalidOperation),
+        };
+        result.ok_or(Error::NoSuchEntry)
     }
 
     pub fn shell(&self, version: impl Into<Version>) -> Result<Self> {
