@@ -11,7 +11,7 @@ use crate::{
     errors::ErrorDebug, AccessList, AppPermissions, BlobData, Coins, Error, ExpectedVersions, Key,
     MapData, MapEntries, MapKeyHistories, MapValues, Owner, PrivateAccessList, PrivateUserAccess,
     PublicAccessList, PublicKey, PublicUserAccess, Result, SequenceData, SequenceEntry, Signature,
-    Transaction, Value,
+    Transaction, Value, Values,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -19,8 +19,6 @@ use std::{
     convert::TryFrom,
     fmt,
 };
-
-pub type Values = Vec<Value>;
 
 /// RPC responses from vaults.
 #[allow(clippy::large_enum_variant, clippy::type_complexity, missing_docs)]

@@ -188,6 +188,17 @@ where
         }
     }
 
+    /// Return all values.
+    pub fn get_values(&self) -> Vec<Value> {
+        self.data
+            .iter()
+            .filter_map(move |(_, values)| match values.last() {
+                Some(StoredValue::Value(val)) => Some(val.to_vec()),
+                _ => None,
+            })
+            .collect()
+    }
+
     /// Return all data entries.
     pub fn data_entries(&self) -> DataEntries {
         self.data
@@ -1092,6 +1103,7 @@ impl MapData {
         }
     }
 
+    // Returns the value of the key.
     pub fn get_value(&self, key: &Key) -> Option<&Value> {
         use MapData::*;
         match self {
@@ -1102,6 +1114,7 @@ impl MapData {
         }
     }
 
+    // Returns the value of the key, at a specific version of the key.
     pub fn get_value_at(&self, key: &Key, version: Version) -> Option<&Value> {
         use MapData::*;
         match self {
@@ -1109,6 +1122,17 @@ impl MapData {
             Public(data) => data.get_value_at(key, version),
             PrivateSentried(data) => data.get_value_at(key, version),
             Private(data) => data.get_value_at(key, version),
+        }
+    }
+
+    // Returns all values.
+    pub fn get_values(&self) -> Vec<Value> {
+        use MapData::*;
+        match self {
+            PublicSentried(data) => data.get_values(),
+            Public(data) => data.get_values(),
+            PrivateSentried(data) => data.get_values(),
+            Private(data) => data.get_values(),
         }
     }
 
