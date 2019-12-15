@@ -27,7 +27,10 @@ pub enum Request {
     /// ==== Data ====
     ///
     GetMap(Address),
-    GetMapShell(Address),
+    GetMapShell {
+        address: Address,
+        expected_data_version: Version,
+    },
     /// Returns the expected version for the entire map instance.
     GetMapVersion(Address),
     /// Returns expected Version of data, owners and access list.
@@ -373,7 +376,7 @@ impl Request {
             GetMapOwnerAt { .. } => Response::GetMapOwnerAt(Err(error)),
             GetMapOwnerHistory(_) => Response::GetMapOwnerHistory(Err(error)),
             GetMapOwnerHistoryRange { .. } => Response::GetMapOwnerHistoryRange(Err(error)),
-            GetMapShell(_) => Response::GetMapShell(Err(error)),
+            GetMapShell { .. } => Response::GetMapShell(Err(error)),
             GetMapValue { .. } => Response::GetMapValue(Err(error)),
             GetMapValueAt { .. } => Response::GetMapValueAt(Err(error)),
             GetMapValues(_) => Response::GetMapValues(Err(error)),
@@ -495,7 +498,7 @@ impl fmt::Debug for Request {
                 GetMapOwnerAt { .. } => "MapReadRequest::GetMapOwnerAt",
                 GetMapOwnerHistory(_) => "MapReadRequest::GetMapOwnerHistory",
                 GetMapOwnerHistoryRange { .. } => "MapReadRequest::GetMapOwnerHistoryRange",
-                GetMapShell(_) => "MapReadRequest::GetMapShell",
+                GetMapShell { .. } => "MapReadRequest::GetMapShell",
                 GetMapValue { .. } => "MapReadRequest::GetMapValue",
                 GetMapValueAt { .. } => "MapReadRequest::GetMapValueAt",
                 GetMapValues(_) => "MapReadRequest::GetMapValues",

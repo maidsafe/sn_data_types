@@ -145,7 +145,7 @@ impl Data {
             | GetMapOwnerAt { .. }
             | GetMapOwnerHistory(_)
             | GetMapOwnerHistoryRange { .. }
-            | GetMapShell(_)
+            | GetMapShell { .. }
             | GetMapValue { .. }
             | GetMapValueAt { .. }
             | GetMapValues(_)
