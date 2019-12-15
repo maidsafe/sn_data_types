@@ -16,6 +16,7 @@ pub type Key = Vec<u8>;
 pub type Value = Vec<u8>;
 pub type KvPair = (Key, Value);
 pub type Values = Vec<Value>;
+pub type Keys = Vec<Key>;
 
 /// Marker for sentried data.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]

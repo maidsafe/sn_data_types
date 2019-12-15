@@ -97,7 +97,9 @@ pub use sequence::{
     PublicSequence, SequenceData, SequenceEntry, SequenceValues,
 };
 pub use sha3::Sha3_512 as Ed25519Digest;
-pub use shared_data::{Address, ExpectedVersions, Key, Kind, Owner, User, Value, Values, Version};
+pub use shared_data::{
+    Address, ExpectedVersions, Key, Keys, Kind, Owner, User, Value, Values, Version,
+};
 pub use transaction::{Transaction, TransactionId};
 pub use utils::verify_signature;
 

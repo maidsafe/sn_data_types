@@ -12,8 +12,8 @@ use crate::access_control::{
     PublicUserAccess,
 };
 use crate::shared_data::{
-    to_absolute_range, to_absolute_version, Address, ExpectedVersions, Key, Kind, KvPair,
-    NonSentried, Owner, Sentried, User, Value, Version,
+    to_absolute_range, to_absolute_version, Address, ExpectedVersions, Key, Keys, Kind, KvPair,
+    NonSentried, Owner, Sentried, User, Value, Values, Version,
 };
 use crate::{EntryError, Error, PublicKey, Result, XorName};
 use serde::{Deserialize, Serialize};
@@ -189,7 +189,7 @@ where
     }
 
     /// Return all values.
-    pub fn get_values(&self) -> Vec<Value> {
+    pub fn get_values(&self) -> Values {
         self.data
             .iter()
             .filter_map(move |(_, values)| match values.last() {
@@ -208,6 +208,17 @@ where
                     key: key.clone(),
                     value: val.to_vec(),
                 }),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// Return all keys.
+    pub fn get_keys(&self) -> Keys {
+        self.data
+            .iter()
+            .filter_map(move |(key, values)| match values.last() {
+                Some(StoredValue::Value(_)) => Some(key.to_vec()),
                 _ => None,
             })
             .collect()
@@ -1137,13 +1148,24 @@ impl MapData {
     }
 
     // Returns all values.
-    pub fn get_values(&self) -> Vec<Value> {
+    pub fn get_values(&self) -> Values {
         use MapData::*;
         match self {
             PublicSentried(data) => data.get_values(),
             Public(data) => data.get_values(),
             PrivateSentried(data) => data.get_values(),
             Private(data) => data.get_values(),
+        }
+    }
+
+    // Returns all keys.
+    pub fn get_keys(&self) -> Keys {
+        use MapData::*;
+        match self {
+            PublicSentried(data) => data.get_keys(),
+            Public(data) => data.get_keys(),
+            PrivateSentried(data) => data.get_keys(),
+            Private(data) => data.get_keys(),
         }
     }
 

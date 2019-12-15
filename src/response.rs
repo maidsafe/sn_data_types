@@ -8,17 +8,13 @@
 // Software.
 
 use crate::{
-    errors::ErrorDebug, AccessList, AppPermissions, BlobData, Coins, Error, ExpectedVersions, Key,
+    errors::ErrorDebug, AccessList, AppPermissions, BlobData, Coins, Error, ExpectedVersions, Keys,
     MapData, MapEntries, MapKeyHistories, MapValues, Owner, PrivateAccessList, PrivateUserAccess,
     PublicAccessList, PublicKey, PublicUserAccess, Result, SequenceData, SequenceEntry, Signature,
     Transaction, Value, Values,
 };
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    convert::TryFrom,
-    fmt,
-};
+use std::{collections::BTreeMap, convert::TryFrom, fmt};
 
 /// RPC responses from vaults.
 #[allow(clippy::large_enum_variant, clippy::type_complexity, missing_docs)]
@@ -39,7 +35,7 @@ pub enum Response {
     GetMapValueAt(Result<Value>), // The value of a key as of a version.
     GetMapValues(Result<Values>), // All current values of map
     GetMapEntries(Result<MapEntries>),
-    GetMapKeys(Result<BTreeSet<Key>>),
+    GetMapKeys(Result<Keys>),
     GetMapKeyHistories(Result<MapKeyHistories>),
     GetMapKeyHistory(Result<MapValues>),
     GetMapKeyHistoryRange(Result<MapValues>),
@@ -130,8 +126,7 @@ try_from!(BlobData, GetBlob);
 try_from!(MapData, GetMap, GetMapShell);
 try_from!(u64, GetMapVersion);
 try_from!(MapEntries, GetMapEntries);
-try_from!(BTreeSet<Key>, GetMapKeys);
-try_from!(Values, GetMapValues, GetSequenceRange);
+try_from!(Vec<Vec<u8>>, GetMapKeys, GetMapValues, GetSequenceRange); // Values and Keys are Vec<Vec<u8>>
 try_from!(Value, GetMapValue, GetSequenceValue);
 try_from!(SequenceData, GetSequence, GetSequenceShell);
 try_from!(Owner, GetMapOwner, GetSequenceOwner);
