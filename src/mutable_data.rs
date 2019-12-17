@@ -933,6 +933,26 @@ pub enum SeqEntryAction {
     Del(u64),
 }
 
+impl SeqEntryAction {
+    /// Returns the version for this action.
+    pub fn version(&self) -> u64 {
+        match *self {
+            Self::Ins(ref value) => value.version,
+            Self::Update(ref value) => value.version,
+            Self::Del(v) => v,
+        }
+    }
+
+    /// Sets the version for this action.
+    pub fn set_version(&mut self, version: u64) {
+        match *self {
+            Self::Ins(ref mut value) => value.version = version,
+            Self::Update(ref mut value) => value.version = version,
+            Self::Del(ref mut v) => *v = version,
+        }
+    }
+}
+
 /// Action for an unsequenced Entry.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
 pub enum UnseqEntryAction {
@@ -947,8 +967,7 @@ pub enum UnseqEntryAction {
 /// Sequenced Entry Actions for given entry keys.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug, Default)]
 pub struct SeqEntryActions {
-    // A BTreeMap containing keys to which the corresponding sequenced entry action is to be
-    // performed.
+    // A map containing keys and corresponding sequenced entry actions to perform.
     actions: BTreeMap<Vec<u8>, SeqEntryAction>,
 }
 
@@ -963,7 +982,7 @@ impl SeqEntryActions {
         &self.actions
     }
 
-    /// Converts SeqEntryActions struct to a BTreeMap of the keys with their corresponding action.
+    /// Converts `self` to a map of the keys with their corresponding action.
     pub fn into_actions(self) -> BTreeMap<Vec<u8>, SeqEntryAction> {
         self.actions
     }
@@ -1007,7 +1026,7 @@ impl SeqEntryActions {
         self
     }
 
-    /// Adds a SeqEntryAction to the list of actions, replacing it if it is already present
+    /// Adds an action to the list of actions, replacing it if it is already present.
     pub fn add_action(&mut self, key: Vec<u8>, action: SeqEntryAction) {
         let _ = self.actions.insert(key, action);
     }
