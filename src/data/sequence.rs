@@ -7,6 +7,8 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
+#![allow(dead_code)] // for the draft PR only
+
 use crate::authorization::{
     AccessListTrait, AccessType, PrivateAccessList, PrivateUserAccess, PublicAccessList,
     PublicUserAccess,
@@ -25,13 +27,17 @@ pub type PrivateSentriedSequence = SequenceBase<PrivateAccessList, Sentried>;
 pub type PrivateSequence = SequenceBase<PrivateAccessList, NonSentried>;
 pub type Values = Vec<Value>;
 
+/// A representation of data at some version.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default, Debug)]
 pub struct DataEntry {
+    /// Data version
     pub version: u64,
+    /// Data value
     pub value: Vec<u8>,
 }
 
 impl DataEntry {
+    /// Returns a new instance of a data entry.
     pub fn new(version: u64, value: Vec<u8>) -> Self {
         Self { version, value }
     }
@@ -54,6 +60,7 @@ where
     C: AccessListTrait,
     S: Copy,
 {
+    /// Returns true if the provided access type is allowed for the specific user (identified y their public key).
     pub fn is_allowed(&self, user: PublicKey, access: AccessType) -> bool {
         match self.owner_at(Version::FromEnd(1)) {
             Some(owner) => {
@@ -249,6 +256,8 @@ pub struct AppendOperation {
 }
 
 impl AppendOperation {
+    /// An operation to append values to a sequence instance at an address,
+    /// where an expected version needs to provided if the instance is sentried.
     pub fn new(
         address: Address,
         values: Values,
@@ -291,6 +300,7 @@ impl<P: AccessListTrait> SequenceBase<P, Sentried> {
 
 /// Public + Sentried
 impl SequenceBase<PublicAccessList, Sentried> {
+    /// Returns new instance of public SequenceBase flavour with concurrency control.
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::PublicSentried { name, tag },
@@ -310,6 +320,7 @@ impl Debug for SequenceBase<PublicAccessList, Sentried> {
 
 /// Public + NonSentried
 impl SequenceBase<PublicAccessList, NonSentried> {
+    /// Returns new instance of public SequenceBase flavour.
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::Public { name, tag },
@@ -329,6 +340,7 @@ impl Debug for SequenceBase<PublicAccessList, NonSentried> {
 
 /// Private + Sentried
 impl SequenceBase<PrivateAccessList, Sentried> {
+    /// Returns new instance of private SequenceBase flavour with concurrency control.
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::PrivateSentried { name, tag },
@@ -348,6 +360,7 @@ impl Debug for SequenceBase<PrivateAccessList, Sentried> {
 
 /// Private + NonSentried
 impl SequenceBase<PrivateAccessList, NonSentried> {
+    /// Returns new instance of private SequenceBase flavour.
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::Private { name, tag },
@@ -368,13 +381,18 @@ impl Debug for SequenceBase<PrivateAccessList, NonSentried> {
 /// Object storing a Sequence variant.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum SequenceData {
+    /// Public instance with concurrency control.
     PublicSentried(PublicSentriedSequence),
+    /// Public instance.
     Public(PublicSequence),
+    /// Private instance with concurrency control.
     PrivateSentried(PrivateSentriedSequence),
+    /// Private instance.
     Private(PrivateSequence),
 }
 
 impl SequenceData {
+    /// Returns true if the provided access type is allowed for the specific user (identified y their public key).
     pub fn is_allowed(&self, access: AccessType, user: PublicKey) -> bool {
         use AccessType::*;
         use SequenceData::*;
@@ -403,6 +421,7 @@ impl SequenceData {
         }
     }
 
+    /// Returns the address.
     pub fn address(&self) -> &Address {
         use SequenceData::*;
         match self {
@@ -413,30 +432,37 @@ impl SequenceData {
         }
     }
 
+    /// Returns the kind.
     pub fn kind(&self) -> Kind {
         self.address().kind()
     }
 
+    /// Returns the xor name.
     pub fn name(&self) -> &XorName {
         self.address().name()
     }
 
+    /// Returns the tag type.
     pub fn tag(&self) -> u64 {
         self.address().tag()
     }
 
+    /// Returns true if this instance is public.
     pub fn is_public(&self) -> bool {
         self.kind().is_public()
     }
 
+    /// Returns true if this instance is private.
     pub fn is_private(&self) -> bool {
         self.kind().is_private()
     }
 
+    /// Returns true if this instance employs concurrency control.
     pub fn is_sentried(&self) -> bool {
         self.kind().is_sentried()
     }
 
+    /// Returns true if the provided user (identified by their public key) is the current owner.
     pub fn is_owner(&self, user: PublicKey) -> bool {
         use SequenceData::*;
         match self {
@@ -447,6 +473,7 @@ impl SequenceData {
         }
     }
 
+    /// Returns expected version of the instance data.
     pub fn expected_data_version(&self) -> u64 {
         use SequenceData::*;
         match self {
@@ -457,6 +484,7 @@ impl SequenceData {
         }
     }
 
+    /// Returns expected version of the instance access list.
     pub fn expected_access_list_version(&self) -> u64 {
         use SequenceData::*;
         match self {
@@ -467,6 +495,7 @@ impl SequenceData {
         }
     }
 
+    /// Returns expected version of the instance owner.
     pub fn expected_owners_version(&self) -> u64 {
         use SequenceData::*;
         match self {
@@ -477,6 +506,7 @@ impl SequenceData {
         }
     }
 
+    /// Returns expected versions of data, owner and access list.
     pub fn versions(&self) -> ExpectedVersions {
         use SequenceData::*;
         match self {
@@ -487,6 +517,7 @@ impl SequenceData {
         }
     }
 
+    /// Returns the data at a specific version.
     pub fn get(&self, version: Version) -> Option<&Value> {
         use SequenceData::*;
         match self {
@@ -497,6 +528,7 @@ impl SequenceData {
         }
     }
 
+    /// Returns the current data entry.
     pub fn current_data_entry(&self) -> Option<DataEntry> {
         use SequenceData::*;
         match self {
@@ -507,6 +539,7 @@ impl SequenceData {
         }
     }
 
+    /// Returns a range in the history of data.
     pub fn in_range(&self, start: Version, end: Version) -> Option<Values> {
         use SequenceData::*;
         match self {
@@ -517,6 +550,7 @@ impl SequenceData {
         }
     }
 
+    /// Returns the owner at a specific version of owners.
     pub fn owner_at(&self, version: impl Into<Version>) -> Option<&Owner> {
         use SequenceData::*;
         match self {
@@ -551,6 +585,7 @@ impl SequenceData {
         result.ok_or(Error::NoSuchEntry)
     }
 
+    /// Returns a specific user's access list of a public instance at a specific version.
     pub fn public_user_access_at(
         &self,
         user: User,
@@ -563,6 +598,7 @@ impl SequenceData {
             .ok_or(Error::NoSuchEntry)
     }
 
+    /// Returns a specific user's access list of a private instance at a specific version.
     pub fn private_user_access_at(
         &self,
         user: PublicKey,
@@ -575,6 +611,7 @@ impl SequenceData {
             .ok_or(Error::NoSuchEntry)
     }
 
+    /// Returns the access list of a public instance at a specific version.
     pub fn public_access_list_at(&self, version: impl Into<Version>) -> Result<&PublicAccessList> {
         use SequenceData::*;
         let access_list = match self {
@@ -585,6 +622,7 @@ impl SequenceData {
         access_list.ok_or(Error::NoSuchEntry)
     }
 
+    /// Returns the access list of a private instance at a specific version.
     pub fn private_access_list_at(
         &self,
         version: impl Into<Version>,
@@ -650,6 +688,7 @@ impl SequenceData {
         result.ok_or(Error::NoSuchEntry)
     }
 
+    /// Returns a shell without the data of the instance, as of a specific data version.
     pub fn shell(&self, version: impl Into<Version>) -> Result<Self> {
         use SequenceData::*;
         match self {
@@ -660,6 +699,7 @@ impl SequenceData {
         }
     }
 
+    /// Sets a new owner.
     pub fn set_owner(&mut self, owner: Owner, expected_version: u64) -> Result<()> {
         use SequenceData::*;
         match self {
@@ -670,6 +710,7 @@ impl SequenceData {
         }
     }
 
+    /// Sets a new access list of a private instance.
     pub fn set_private_access_list(
         &mut self,
         access_list: &PrivateAccessList,
@@ -683,6 +724,7 @@ impl SequenceData {
         }
     }
 
+    /// Sets a new access list of a public instance.
     pub fn set_public_access_list(
         &mut self,
         access_list: &PublicAccessList,

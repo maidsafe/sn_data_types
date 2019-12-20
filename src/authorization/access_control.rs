@@ -7,6 +7,8 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
+#![allow(dead_code)] // for the draft PR only
+
 use crate::shared_types::User;
 use crate::PublicKey;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
