@@ -92,8 +92,8 @@ impl PrivateUserAccess {
         self.status = status;
     }
 
-    pub fn is_allowed(self, access: &AccessType) -> bool {
-        match self.status.get(access) {
+    pub fn is_allowed(&self, access: AccessType) -> bool {
+        match self.status.get(&access) {
             Some(true) => true,
             _ => false,
         }
@@ -111,10 +111,10 @@ impl PublicUserAccess {
 
     /// Returns `Some(true)` if `access` is allowed and `Some(false)` if it's not.
     /// `None` means that `User::Anyone` permissions apply.
-    pub fn is_allowed(self, access: &AccessType) -> Option<bool> {
+    pub fn is_allowed(&self, access: AccessType) -> Option<bool> {
         match access {
             AccessType::Read => Some(true), // It's Public data, so it's always allowed to read it.
-            _ => match self.status.get(access) {
+            _ => match self.status.get(&access) {
                 Some(true) => Some(true),
                 Some(false) => Some(false),
                 None => None,
@@ -124,7 +124,7 @@ impl PublicUserAccess {
 }
 
 pub trait AccessListTrait: Clone + Eq + Ord + Hash + Serialize + DeserializeOwned {
-    fn is_allowed(&self, user: &PublicKey, access: &AccessType) -> bool;
+    fn is_allowed(&self, user: &PublicKey, access: AccessType) -> bool;
     fn expected_data_version(&self) -> u64;
     fn expected_owners_version(&self) -> u64;
 }
@@ -145,7 +145,7 @@ impl PrivateAccessList {
 }
 
 impl AccessListTrait for PrivateAccessList {
-    fn is_allowed(&self, user: &PublicKey, access: &AccessType) -> bool {
+    fn is_allowed(&self, user: &PublicKey, access: AccessType) -> bool {
         match self.access_list.get(user) {
             Some(access_status) => access_status.clone().is_allowed(access),
             None => false,
@@ -171,7 +171,7 @@ pub struct PublicAccessList {
 }
 
 impl PublicAccessList {
-    fn is_allowed_(&self, user: &User, access: &AccessType) -> Option<bool> {
+    fn is_allowed_(&self, user: &User, access: AccessType) -> Option<bool> {
         match self.access_list.get(user) {
             Some(status) => match status.clone().is_allowed(access) {
                 Some(true) => Some(true),
@@ -188,7 +188,7 @@ impl PublicAccessList {
 }
 
 impl AccessListTrait for PublicAccessList {
-    fn is_allowed(&self, user: &PublicKey, access: &AccessType) -> bool {
+    fn is_allowed(&self, user: &PublicKey, access: AccessType) -> bool {
         match self.is_allowed_(&User::Specific(*user), access) {
             Some(true) => true,
             Some(false) => false,

@@ -75,16 +75,13 @@ where
 {
     /// Returns true if the provided access type is allowed for the specific user (identified y their public key).
     pub fn is_allowed(&self, user: PublicKey, access: AccessType) -> bool {
-        match self.owner_at(Version::FromEnd(1)) {
-            Some(owner) => {
-                if owner.public_key == user {
-                    return true;
-                }
+        if let Some(owner) = self.owner_at(Version::FromEnd(1)) {
+            if owner.public_key == user {
+                return true;
             }
-            None => (),
         }
         match self.access_list_at(Version::FromEnd(1)) {
-            Some(access_list) => access_list.is_allowed(&user, &access),
+            Some(access_list) => access_list.is_allowed(&user, access),
             None => false,
         }
     }
@@ -228,10 +225,11 @@ where
 
     /// Return all keys.
     pub fn get_keys(&self) -> Keys {
+        // return borrowed or copied here?
         self.data
             .iter()
             .filter_map(move |(key, values)| match values.last() {
-                Some(StoredValue::Value(_)) => Some(key.to_vec()),
+                Some(StoredValue::Value(_)) => Some(key.clone().into()),
                 _ => None,
             })
             .collect()
@@ -278,7 +276,7 @@ where
     /// Get history of owners within the range of versions specified.
     pub fn owner_history_range(&self, start: Version, end: Version) -> Option<Vec<Owner>> {
         let range = to_absolute_range(start, end, self.owners.len())?;
-        Some(self.owners[range].iter().map(|c| *c).collect())
+        Some(self.owners[range].iter().copied().collect())
     }
 
     /// Get access list at version.
@@ -295,7 +293,7 @@ where
     /// Get history of access list within the range of versions specified.
     pub fn access_list_history_range(&self, start: Version, end: Version) -> Option<Vec<C>> {
         let range = to_absolute_range(start, end, self.access_list.len())?;
-        Some(self.access_list[range].iter().map(|c| c.clone()).collect())
+        Some(self.access_list[range].to_vec())
     }
 
     /// Set owner.
@@ -397,7 +395,7 @@ impl<P: AccessListTrait> MapBase<P, NonSentried> {
     /// error will be returned.
     pub fn commit(&mut self, tx: &Transaction) -> Result<()> {
         // Deconstruct tx into inserts, updates, and deletes
-        let operations: Operations = tx.into_iter().fold(
+        let operations: Operations = tx.iter().fold(
             Default::default(),
             |(mut insert, mut update, mut delete), cmd| {
                 match cmd {
@@ -438,11 +436,11 @@ impl<P: AccessListTrait> MapBase<P, NonSentried> {
                             );
                         }
                         Some(StoredValue::Tombstone()) => {
-                            let _ = history.push(StoredValue::Value(val));
+                            history.push(StoredValue::Value(val));
                             // todo: fix From impl
                         }
                         None => {
-                            let _ = history.push(StoredValue::Value(val));
+                            history.push(StoredValue::Value(val));
                             // todo: fix From impl
                         }
                     }
@@ -459,7 +457,7 @@ impl<P: AccessListTrait> MapBase<P, NonSentried> {
                     let history = entry.get_mut();
                     match history.last() {
                         Some(StoredValue::Value(_)) => {
-                            let _ = history.push(StoredValue::Value(val));
+                            history.push(StoredValue::Value(val));
                             // todo: fix From impl
                         }
                         Some(StoredValue::Tombstone()) => {
@@ -480,7 +478,7 @@ impl<P: AccessListTrait> MapBase<P, NonSentried> {
                     let history = entry.get_mut();
                     match history.last() {
                         Some(StoredValue::Value(_)) => {
-                            let _ = history.push(StoredValue::Tombstone());
+                            history.push(StoredValue::Tombstone());
                         }
                         Some(StoredValue::Tombstone()) => {
                             let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
@@ -511,7 +509,7 @@ impl<P: AccessListTrait> MapBase<P, Sentried> {
     /// error will be returned.
     pub fn commit(&mut self, tx: &SentriedTransaction) -> Result<()> {
         // Deconstruct tx into inserts, updates, and deletes
-        let operations: SentriedOperations = tx.into_iter().fold(
+        let operations: SentriedOperations = tx.iter().fold(
             Default::default(),
             |(mut insert, mut update, mut delete), cmd| {
                 match cmd {
@@ -583,7 +581,7 @@ impl<P: AccessListTrait> MapBase<P, Sentried> {
                             let history = entry.get_mut();
                             let expected_version = history.len() as u64;
                             if version == expected_version {
-                                let _ = history.push(StoredValue::Value(val));
+                                history.push(StoredValue::Value(val));
                             } else {
                                 let _ = errors.insert(
                                     entry.key().clone(),
@@ -611,7 +609,7 @@ impl<P: AccessListTrait> MapBase<P, Sentried> {
                         Some(StoredValue::Value(_)) => {
                             let expected_version = history.len() as u64;
                             if version == expected_version {
-                                let _ = history.push(StoredValue::Tombstone());
+                                history.push(StoredValue::Tombstone());
                             } else {
                                 let _ = errors.insert(
                                     entry.key().clone(),
@@ -722,7 +720,7 @@ impl MapBase<PrivateAccessList, Sentried> {
     /// error will be returned.
     pub fn hard_commit(&mut self, tx: &SentriedTransaction) -> Result<()> {
         // Deconstruct tx into inserts, updates, and deletes
-        let operations: SentriedOperations = tx.into_iter().fold(
+        let operations: SentriedOperations = tx.iter().fold(
             Default::default(),
             |(mut insert, mut update, mut delete), cmd| {
                 match cmd {
@@ -765,7 +763,7 @@ impl MapBase<PrivateAccessList, Sentried> {
                         }
                         Some(StoredValue::Tombstone()) => {
                             if version == history.len() as u64 {
-                                let _ = history.push(StoredValue::Value(val));
+                                history.push(StoredValue::Value(val));
                             } else {
                                 let _ = errors.insert(
                                     key,
@@ -805,7 +803,7 @@ impl MapBase<PrivateAccessList, Sentried> {
                                     &mut history.last(),
                                     Some(&StoredValue::Tombstone()),
                                 ); // remove old value, as to properly owerwrite on update, but keep the Version, as to increment history length (i.e. version)
-                                let _ = history.push(StoredValue::Value(val));
+                                history.push(StoredValue::Value(val));
                             } else {
                                 let _ = errors.insert(
                                     entry.key().clone(),
@@ -840,7 +838,7 @@ impl MapBase<PrivateAccessList, Sentried> {
                                     &mut history.last(),
                                     Some(&StoredValue::Tombstone()),
                                 ); // remove old value, as to properly delete, but keep the Version, as to increment history length (i.e. version)
-                                let _ = history.push(StoredValue::Tombstone());
+                                history.push(StoredValue::Tombstone());
                             } else {
                                 let _ = errors.insert(
                                     entry.key().clone(),
@@ -898,7 +896,7 @@ impl MapBase<PrivateAccessList, NonSentried> {
     /// error will be returned.
     pub fn hard_commit(&mut self, tx: &Transaction) -> Result<()> {
         // Deconstruct tx into inserts, updates, and deletes
-        let operations: Operations = tx.into_iter().fold(
+        let operations: Operations = tx.iter().fold(
             Default::default(),
             |(mut insert, mut update, mut delete), cmd| {
                 match cmd {
@@ -940,7 +938,7 @@ impl MapBase<PrivateAccessList, NonSentried> {
                             );
                         }
                         Some(StoredValue::Tombstone()) => {
-                            let _ = history.push(StoredValue::Value(val));
+                            history.push(StoredValue::Value(val));
                         }
                         None => {
                             panic!("This would be a bug! We are not supposed to store empty vecs!")
@@ -962,7 +960,7 @@ impl MapBase<PrivateAccessList, NonSentried> {
                         Some(StoredValue::Value(_)) => {
                             let _old_value =
                                 mem::replace(&mut history.last(), Some(&StoredValue::Tombstone())); // remove old value, as to properly owerwrite on update, but keep the Version, as to increment history length (i.e. version)
-                            let _ = history.push(StoredValue::Value(val));
+                            history.push(StoredValue::Value(val));
                         }
                         Some(StoredValue::Tombstone()) => {
                             let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
@@ -987,7 +985,7 @@ impl MapBase<PrivateAccessList, NonSentried> {
                         Some(StoredValue::Value(_)) => {
                             let _old_value =
                                 mem::replace(&mut history.last(), Some(&StoredValue::Tombstone())); // remove old value, as to properly delete, but keep the Version, as to increment history length (i.e. version)
-                            let _ = history.push(StoredValue::Tombstone());
+                            history.push(StoredValue::Tombstone());
                         }
                         Some(StoredValue::Tombstone()) => {
                             let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);

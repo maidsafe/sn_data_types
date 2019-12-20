@@ -7,6 +7,7 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
+use crate::shared_types::Key;
 use crate::ADataEntries;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -50,7 +51,7 @@ pub enum Error {
     /// Exceeded a limit on a number of entries
     TooManyEntries,
     /// Some entry actions are not valid.
-    InvalidEntryActions(BTreeMap<Vec<u8>, EntryError>),
+    InvalidEntryActions(BTreeMap<Key, EntryError>),
     /// Key does not exist
     NoSuchKey,
     /// The key(s) of the entry or entries contained in this error already exist

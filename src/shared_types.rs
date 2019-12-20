@@ -10,9 +10,33 @@
 use crate::{utils, PublicKey, Result, XorName};
 use multibase::Decodable;
 use serde::{Deserialize, Serialize};
+use std::ops::Deref;
 use std::ops::Range;
 
-pub type Key = Vec<u8>;
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default, Debug)]
+pub struct Key(Vec<u8>);
+
+impl Key {
+    pub fn get(&self) -> &Vec<u8> {
+        &self.0
+    }
+}
+
+impl Deref for Key {
+    type Target = Vec<u8>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<Vec<u8>> for Key {
+    fn from(vec: Vec<u8>) -> Self {
+        Key(vec)
+    }
+}
+
+// pub type Key = Vec<u8>;
 pub type Value = Vec<u8>;
 pub type KvPair = (Key, Value);
 pub type Values = Vec<Value>;

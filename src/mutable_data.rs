@@ -476,7 +476,7 @@ impl UnseqData {
         for (key, val) in insert {
             match new_data.entry(key) {
                 Entry::Occupied(entry) => {
-                    let _ = errors.insert(entry.key().clone(), EntryError::EntryExists(0));
+                    let _ = errors.insert(entry.key().clone().into(), EntryError::EntryExists(0));
                 }
                 Entry::Vacant(entry) => {
                     let _ = entry.insert(val);
@@ -490,7 +490,7 @@ impl UnseqData {
                     let _ = entry.insert(val);
                 }
                 Entry::Vacant(entry) => {
-                    let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
+                    let _ = errors.insert(entry.key().clone().into(), EntryError::NoSuchEntry);
                 }
             }
         }
@@ -501,7 +501,7 @@ impl UnseqData {
                     let _ = new_data.remove(&key);
                 }
                 Entry::Vacant(entry) => {
-                    let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
+                    let _ = errors.insert(entry.key().clone().into(), EntryError::NoSuchEntry);
                 }
             }
         }
@@ -604,7 +604,7 @@ impl SeqData {
             match new_data.entry(key) {
                 Entry::Occupied(entry) => {
                     let _ = errors.insert(
-                        entry.key().clone(),
+                        entry.key().clone().into(),
                         EntryError::EntryExists(entry.get().version),
                     );
                 }
@@ -622,13 +622,13 @@ impl SeqData {
                         let _ = entry.insert(val);
                     } else {
                         let _ = errors.insert(
-                            entry.key().clone(),
+                            entry.key().clone().into(),
                             EntryError::InvalidSuccessor(current_version),
                         );
                     }
                 }
                 Entry::Vacant(entry) => {
-                    let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
+                    let _ = errors.insert(entry.key().clone().into(), EntryError::NoSuchEntry);
                 }
             }
         }
@@ -641,13 +641,13 @@ impl SeqData {
                         let _ = new_data.remove(&key);
                     } else {
                         let _ = errors.insert(
-                            entry.key().clone(),
+                            entry.key().clone().into(),
                             EntryError::InvalidSuccessor(current_version),
                         );
                     }
                 }
                 Entry::Vacant(entry) => {
-                    let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
+                    let _ = errors.insert(entry.key().clone().into(), EntryError::NoSuchEntry);
                 }
             }
         }
