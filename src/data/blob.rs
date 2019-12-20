@@ -199,9 +199,10 @@ impl Kind {
 
     /// Creates `Kind` from a `public` flag.
     pub fn from_flag(public: bool) -> Self {
-        match public {
-            true => Kind::Public,
-            false => Kind::Private,
+        if public {
+            Kind::Public
+        } else {
+            Kind::Private
         }
     }
 }
