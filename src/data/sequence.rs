@@ -62,16 +62,13 @@ where
 {
     /// Returns true if the provided access type is allowed for the specific user (identified y their public key).
     pub fn is_allowed(&self, user: PublicKey, access: AccessType) -> bool {
-        match self.owner_at(Version::FromEnd(1)) {
-            Some(owner) => {
-                if owner.public_key == user {
-                    return true;
-                }
+        if let Some(owner) = self.owner_at(Version::FromEnd(1)) {
+            if owner.public_key == user {
+                return true;
             }
-            None => (),
         }
         match self.access_list_at(Version::FromEnd(1)) {
-            Some(list) => list.is_allowed(&user, &access),
+            Some(list) => list.is_allowed(&user, access),
             None => false,
         }
     }
@@ -192,7 +189,7 @@ where
     /// Get history of owners within the range of versions specified.
     pub fn owner_history_range(&self, start: Version, end: Version) -> Option<Vec<Owner>> {
         let range = to_absolute_range(start, end, self.owners.len())?;
-        Some(self.owners[range].iter().map(|c| *c).collect())
+        Some(self.owners[range].iter().copied().collect())
     }
 
     /// Get access control at version.
@@ -209,7 +206,7 @@ where
     /// Get history of access list within the range of versions specified.
     pub fn access_list_history_range(&self, start: Version, end: Version) -> Option<Vec<C>> {
         let range = to_absolute_range(start, end, self.access_list.len())?;
-        Some(self.access_list[range].iter().map(|c| c.clone()).collect())
+        Some(self.access_list[range].to_vec())
     }
 
     /// Set owner.
@@ -744,27 +741,23 @@ impl SequenceData {
         match self {
             PrivateSentried(sequence) => match operation.expected_version {
                 Some(expected_version) => {
-                    return sequence.append(operation.values.to_vec(), expected_version);
+                    sequence.append(operation.values.to_vec(), expected_version)
                 }
-                _ => return Err(Error::InvalidOperation),
+                _ => Err(Error::InvalidOperation),
             },
             Private(sequence) => match operation.expected_version {
-                None => {
-                    return sequence.append(operation.values.to_vec());
-                }
-                _ => return Err(Error::InvalidOperation),
+                None => sequence.append(operation.values.to_vec()),
+                _ => Err(Error::InvalidOperation),
             },
             PublicSentried(sequence) => match operation.expected_version {
                 Some(expected_version) => {
-                    return sequence.append(operation.values.to_vec(), expected_version);
+                    sequence.append(operation.values.to_vec(), expected_version)
                 }
-                _ => return Err(Error::InvalidOperation),
+                _ => Err(Error::InvalidOperation),
             },
             Public(sequence) => match operation.expected_version {
-                None => {
-                    return sequence.append(operation.values.to_vec());
-                }
-                _ => return Err(Error::InvalidOperation),
+                None => sequence.append(operation.values.to_vec()),
+                _ => Err(Error::InvalidOperation),
             },
         }
     }

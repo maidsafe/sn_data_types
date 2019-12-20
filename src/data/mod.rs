@@ -8,6 +8,7 @@
 // Software.
 
 pub mod sequence;
+#[cfg(test)]
 mod tests;
 pub use sequence::{
     AppendOperation, DataEntry as SequenceEntry, PrivateSentriedSequence, PrivateSequence,
