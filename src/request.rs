@@ -12,9 +12,9 @@ mod login_packet;
 pub use self::login_packet::{LoginPacket, MAX_LOGIN_PACKET_BYTES};
 use crate::{
     AData, ADataAddress, ADataAppendOperation, ADataIndex, ADataOwner, ADataPubPermissions,
-    ADataUnpubPermissions, ADataUser, AppPermissions, Coins, Error, IData, IDataAddress, MData,
-    MDataAddress, MDataEntryActions, MDataPermissionSet, PublicKey, Response, TransactionId,
-    XorName,
+    ADataUnpubPermissions, ADataUser, AppPermissions, BlobAddress, BlobData, Coins, Error, IData,
+    IDataAddress, MData, MDataAddress, MDataEntryActions, MDataPermissionSet, PublicKey, Response,
+    TransactionId, XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -36,6 +36,16 @@ pub enum Type {
 #[allow(clippy::large_enum_variant)]
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub enum Request {
+    ///
+    /// --- Blob Read ---
+    ///
+    GetBlob(BlobAddress),
+    ///
+    /// --- Blob Write ---
+    /// Creates a new blob instance with the given data.
+    PutBlob(BlobData),
+    /// Deletes a blob instance at the given address.
+    DeletePrivateBlob(BlobAddress),
     //
     // ===== Immutable Data =====
     //
@@ -294,6 +304,16 @@ impl Request {
         use Request::*;
 
         match *self {
+            // Blob requests
+
+            GetBlob(address) => {
+                if address.is_public() {
+                    Type::PublicGet
+                } else {
+                    Type::PrivateGet
+                }
+            }
+
             // IData requests
 
             GetIData(address) => {
@@ -353,6 +373,9 @@ impl Request {
 
             // Mutation
 
+            // Blob
+            PutBlob(_) |
+            DeletePrivateBlob(_) |
             // IData
             PutIData(_) |
             DeleteUnpubIData(_) |
@@ -385,6 +408,8 @@ impl Request {
         use Request::*;
 
         match *self {
+            // Blob
+            GetBlob(_) => Response::GetBlob(Err(error)),
             // IData
             GetIData(_) => Response::GetIData(Err(error)),
             // MData
@@ -426,6 +451,9 @@ impl Request {
 
             // Mutation
 
+            // Blob
+            PutBlob(_) |
+            DeletePrivateBlob(_) |
             // IData
             PutIData(_) |
             DeleteUnpubIData(_) |
@@ -462,6 +490,10 @@ impl fmt::Debug for Request {
             formatter,
             "Request::{}",
             match *self {
+                // Blob
+                PutBlob(_) => "BlobWriteRequest::PutBlob",
+                GetBlob(_) => "BlobReadRequest::GetBlob",
+                DeletePrivateBlob(_) => "BlobWriteRequest::DeletePrivateBlob",
                 // IData
                 PutIData(_) => "PutIData",
                 GetIData(_) => "GetIData",

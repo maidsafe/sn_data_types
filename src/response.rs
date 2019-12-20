@@ -9,9 +9,9 @@
 
 use crate::{
     errors::ErrorDebug, AData, ADataEntries, ADataEntry, ADataIndices, ADataOwner,
-    ADataPermissions, ADataPubPermissionSet, ADataUnpubPermissionSet, AppPermissions, Coins, Error,
-    IData, MData, MDataEntries, MDataPermissionSet, MDataValue, MDataValues, PublicKey, Result,
-    Signature, Transaction,
+    ADataPermissions, ADataPubPermissionSet, ADataUnpubPermissionSet, AppPermissions, BlobData,
+    Coins, Error, IData, MData, MDataEntries, MDataPermissionSet, MDataValue, MDataValues,
+    PublicKey, Result, Signature, Transaction,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -24,6 +24,11 @@ use std::{
 #[allow(clippy::large_enum_variant, clippy::type_complexity)]
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub enum Response {
+    //
+    // ===== Blob =====
+    //
+    /// Get Blob.
+    GetBlob(Result<BlobData>),
     //
     // ===== Immutable Data =====
     //
@@ -124,6 +129,7 @@ macro_rules! try_from {
     };
 }
 
+try_from!(BlobData, GetBlob);
 try_from!(IData, GetIData);
 try_from!(MData, GetMData, GetMDataShell);
 try_from!(u64, GetMDataVersion);
@@ -156,6 +162,8 @@ impl fmt::Debug for Response {
         use Response::*;
 
         match self {
+            // Blob
+            GetBlob(res) => write!(f, "Response::GetBlob({:?})", ErrorDebug(res)),
             // IData
             GetIData(res) => write!(f, "Response::GetIData({:?})", ErrorDebug(res)),
             // MData
@@ -215,7 +223,7 @@ impl fmt::Debug for Response {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{PubImmutableData, UnseqMutableData};
+    use crate::{PublicBlob, UnseqMutableData};
     use std::convert::{TryFrom, TryInto};
     use unwrap::{unwrap, unwrap_err};
 
@@ -235,23 +243,23 @@ mod tests {
     fn try_from() {
         use Response::*;
 
-        let i_data = IData::Pub(PubImmutableData::new(vec![1, 3, 1, 4]));
+        let blob = BlobData::Public(PublicBlob::new(vec![1, 3, 1, 4]));
         let e = Error::AccessDenied;
-        assert_eq!(i_data, unwrap!(GetIData(Ok(i_data.clone())).try_into()));
+        assert_eq!(blob, unwrap!(GetBlob(Ok(blob.clone())).try_into()));
         assert_eq!(
             TryFromError::Response(e.clone()),
-            unwrap_err!(IData::try_from(GetIData(Err(e.clone()))))
+            unwrap_err!(BlobData::try_from(GetBlob(Err(e.clone()))))
         );
         assert_eq!(
             TryFromError::WrongType,
-            unwrap_err!(IData::try_from(Mutation(Ok(()))))
+            unwrap_err!(BlobData::try_from(Mutation(Ok(()))))
         );
 
         let mut data = BTreeMap::new();
         let _ = data.insert(vec![1], vec![10]);
         let owners = PublicKey::Bls(threshold_crypto::SecretKey::random().public_key());
         let m_data = MData::Unseq(UnseqMutableData::new_with_data(
-            *i_data.name(),
+            *blob.name(),
             1,
             data,
             BTreeMap::new(),

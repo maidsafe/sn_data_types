@@ -30,6 +30,7 @@
 
 mod append_only_data;
 mod coins;
+mod data;
 mod errors;
 mod identity;
 mod immutable_data;
@@ -51,6 +52,10 @@ pub use append_only_data::{
     UnseqAppendOnly, User as ADataUser,
 };
 pub use coins::{Coins, MAX_COINS_VALUE};
+pub use data::blob::{
+    Address as BlobAddress, BlobData, Kind as BlobKind, PrivateBlob, PublicBlob,
+    MAX_BLOB_SIZE_IN_BYTES,
+};
 pub use errors::{EntryError, Error, Result};
 pub use identity::{
     app::{FullId as AppFullId, PublicId as AppPublicId},
@@ -92,6 +97,8 @@ use std::{
 /// Object storing a data variant.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Data {
+    /// BlobData.
+    Blob(BlobData),
     /// ImmutableData.
     Immutable(IData),
     /// MutableData.
@@ -104,6 +111,7 @@ impl Data {
     /// Returns true if published.
     pub fn is_pub(&self) -> bool {
         match *self {
+            Self::Blob(ref data) => data.is_public(),
             Self::Immutable(ref idata) => idata.is_pub(),
             Self::Mutable(_) => false,
             Self::AppendOnly(ref adata) => adata.is_pub(),
@@ -113,6 +121,12 @@ impl Data {
     /// Returns true if unpublished.
     pub fn is_unpub(&self) -> bool {
         !self.is_pub()
+    }
+}
+
+impl From<BlobData> for Data {
+    fn from(data: BlobData) -> Self {
+        Self::Blob(data)
     }
 }
 
