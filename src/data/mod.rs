@@ -7,8 +7,11 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-pub mod access_control;
-pub use access_control::{
-    AccessList, AccessListTrait, AccessType, PrivateAccessList, PrivateUserAccess,
-    PublicAccessList, PublicUserAccess, UserAccess,
+pub mod map;
+mod tests;
+pub use map::{
+    Cmd as MapCmd, DataEntries as MapEntries, DataHistories as MapKeyHistories, MapData,
+    MapTransaction, PrivateMap, PrivateSentriedMap, PublicMap, PublicSentriedMap,
+    SentriedCmd as SentriedMapCmd, SentryOption, StoredValue as MapValue,
+    StoredValues as MapValues,
 };

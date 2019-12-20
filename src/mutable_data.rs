@@ -605,7 +605,7 @@ impl SeqData {
                 Entry::Occupied(entry) => {
                     let _ = errors.insert(
                         entry.key().clone(),
-                        EntryError::EntryExists(entry.get().version as u8),
+                        EntryError::EntryExists(entry.get().version),
                     );
                 }
                 Entry::Vacant(entry) => {
@@ -623,7 +623,7 @@ impl SeqData {
                     } else {
                         let _ = errors.insert(
                             entry.key().clone(),
-                            EntryError::InvalidSuccessor(current_version as u8),
+                            EntryError::InvalidSuccessor(current_version),
                         );
                     }
                 }
@@ -642,7 +642,7 @@ impl SeqData {
                     } else {
                         let _ = errors.insert(
                             entry.key().clone(),
-                            EntryError::InvalidSuccessor(current_version as u8),
+                            EntryError::InvalidSuccessor(current_version),
                         );
                     }
                 }

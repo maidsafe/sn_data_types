@@ -29,7 +29,9 @@
 )]
 
 mod append_only_data;
+mod authorization;
 mod coins;
+mod data;
 mod errors;
 mod identity;
 mod immutable_data;
@@ -37,6 +39,7 @@ mod keys;
 mod mutable_data;
 mod request;
 mod response;
+mod shared_types;
 mod utils;
 
 pub use append_only_data::{
@@ -51,6 +54,7 @@ pub use append_only_data::{
     UnseqAppendOnly, User as ADataUser,
 };
 pub use coins::{Coins, MAX_COINS_VALUE};
+pub use data::map::*;
 pub use errors::{EntryError, Error, Result};
 pub use identity::{
     app::{FullId as AppFullId, PublicId as AppPublicId},
