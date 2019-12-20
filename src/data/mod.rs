@@ -7,8 +7,9 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-pub mod access_control;
-pub use access_control::{
-    AccessList, AccessListTrait, AccessType, PrivateAccessList, PrivateUserAccess,
-    PublicAccessList, PublicUserAccess, UserAccess,
+pub mod sequence;
+mod tests;
+pub use sequence::{
+    AppendOperation, DataEntry as SequenceEntry, PrivateSentriedSequence, PrivateSequence,
+    PublicSentriedSequence, PublicSequence, SequenceBase, SequenceData, Values as SequenceValues,
 };

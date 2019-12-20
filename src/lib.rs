@@ -29,7 +29,9 @@
 )]
 
 mod append_only_data;
+mod authorization;
 mod coins;
+mod data;
 mod errors;
 mod identity;
 mod immutable_data;
@@ -37,6 +39,7 @@ mod keys;
 mod mutable_data;
 mod request;
 mod response;
+mod shared_types;
 mod utils;
 
 pub use append_only_data::{
