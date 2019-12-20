@@ -17,8 +17,8 @@ use std::ops::Range;
 pub struct Key(Vec<u8>);
 
 impl Key {
-    pub fn get(&self) -> &Vec<u8> {
-        &self.0
+    pub fn get(&self) -> Vec<u8> {
+        self.0.to_vec()
     }
 }
 

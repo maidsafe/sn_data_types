@@ -21,6 +21,7 @@ use std::{
     collections::{btree_map::Entry, BTreeMap, BTreeSet},
     fmt::{self, Debug, Formatter},
     mem,
+    ops::Deref,
 };
 
 /// Public Map with concurrency control.
@@ -229,7 +230,7 @@ where
         self.data
             .iter()
             .filter_map(move |(key, values)| match values.last() {
-                Some(StoredValue::Value(_)) => Some(key.clone().into()),
+                Some(StoredValue::Value(_)) => Some(key.get().into()),
                 _ => None,
             })
             .collect()
@@ -376,7 +377,42 @@ pub enum SentryOption {
     ExpectVersion(SentriedTransaction),
 }
 
-pub type Transaction = Vec<Cmd>;
+// pub type Transaction = Vec<Cmd>;
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default, Debug)]
+pub struct Transaction(Vec<Cmd>);
+
+impl Deref for Transaction {
+    type Target = Vec<Cmd>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<Vec<Cmd>> for Transaction {
+    fn from(vec: Vec<Cmd>) -> Self {
+        Transaction(vec)
+    }
+}
+
+// pub type SentriedTransaction = Vec<SentriedCmd>;
+///
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default, Debug)]
+pub struct SentriedTransaction(Vec<SentriedCmd>);
+
+impl Deref for SentriedTransaction {
+    type Target = Vec<SentriedCmd>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<Vec<SentriedCmd>> for SentriedTransaction {
+    fn from(vec: Vec<SentriedCmd>) -> Self {
+        SentriedTransaction(vec)
+    }
+}
 
 ///
 pub type ExpectedVersion = u64;
@@ -384,8 +420,6 @@ pub type ExpectedVersion = u64;
 pub type SentriedKey = (Key, ExpectedVersion);
 ///
 pub type SentriedKvPair = (KvPair, ExpectedVersion);
-///
-pub type SentriedTransaction = Vec<SentriedCmd>;
 
 /// Common methods for NonSentried flavours.
 impl<P: AccessListTrait> MapBase<P, NonSentried> {
