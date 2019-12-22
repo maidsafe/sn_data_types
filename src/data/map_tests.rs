@@ -7,10 +7,8 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-//use crate::map::*;
 use crate::data::{
-    MapCmd, PublicSentriedMap, PrivateSentriedMap,
-    SentriedMapCmd, PublicMap, PrivateMap,
+    MapCmd, PrivateMap, PrivateSentriedMap, PublicMap, PublicSentriedMap, SentriedMapCmd,
 };
 use crate::{EntryError, Error, XorName};
 use unwrap::{unwrap, unwrap_err};

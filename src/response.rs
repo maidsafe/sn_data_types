@@ -8,10 +8,10 @@
 // Software.
 
 use crate::{
-    errors::ErrorDebug, AccessList, AppPermissions, BlobData, Coins, Error, ExpectedVersions, Key, Keys,
-    MapData, MapEntries, MapKeyHistories, MapValues, Owner, PrivateAccessList, PrivateUserAccess,
-    PublicAccessList, PublicKey, PublicUserAccess, Result, SequenceData, SequenceEntry, Signature,
-    Transaction, Value, Values,
+    errors::ErrorDebug, AccessList, AppPermissions, BlobData, Coins, Error, ExpectedVersions, Key,
+    Keys, MapData, MapEntries, MapKeyHistories, MapValues, Owner, PrivateAccessList,
+    PrivateUserAccess, PublicAccessList, PublicKey, PublicUserAccess, Result, SequenceData,
+    SequenceEntry, Signature, Transaction, Value, Values,
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, convert::TryFrom, fmt};

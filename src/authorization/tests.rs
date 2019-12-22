@@ -9,7 +9,6 @@
 
 use crate::authorization::access_control::*;
 use crate::data::*;
-use crate::sequence::*;
 use crate::shared_data::{Owner, User, Version};
 use crate::{Error, PublicKey, XorName};
 use std::collections::BTreeMap;
@@ -42,8 +41,7 @@ fn set_sequence_access_list() {
 
     // Verify that the access_list are part of the history.
     assert_eq!(
-        unwrap!(data.access_list_history_range(Version::FromStart(0), Version::FromEnd(0),))
-            .len(),
+        unwrap!(data.access_list_history_range(Version::FromStart(0), Version::FromEnd(0),)).len(),
         1
     );
 
@@ -62,8 +60,7 @@ fn set_sequence_access_list() {
 
     // Verify that the history of access_list remains unchanged.
     assert_eq!(
-        unwrap!(data.access_list_history_range(Version::FromStart(0), Version::FromEnd(0),))
-            .len(),
+        unwrap!(data.access_list_history_range(Version::FromStart(0), Version::FromEnd(0),)).len(),
         1
     );
 }
@@ -409,8 +406,7 @@ fn set_map_access_list() {
 
     // Verify that the access_list are part of the history.
     assert_eq!(
-        unwrap!(data.access_list_history_range(Version::FromStart(0), Version::FromEnd(0),))
-            .len(),
+        unwrap!(data.access_list_history_range(Version::FromStart(0), Version::FromEnd(0),)).len(),
         1
     );
     let access_list = PrivateAccessList {
@@ -428,8 +424,7 @@ fn set_map_access_list() {
 
     // Verify that the history of access_list remains unchanged.
     assert_eq!(
-        unwrap!(data.access_list_history_range(Version::FromStart(0), Version::FromEnd(0),))
-            .len(),
+        unwrap!(data.access_list_history_range(Version::FromStart(0), Version::FromEnd(0),)).len(),
         1
     );
 }
@@ -741,11 +736,7 @@ fn assert_map_read_permitted(data: &MapData, public_key: PublicKey, permitted: b
     assert_eq!(data.is_allowed(AccessType::Read, public_key), permitted);
 }
 
-fn assert_modify_map_access_list_permitted(
-    data: &MapData,
-    public_key: PublicKey,
-    permitted: bool,
-) {
+fn assert_modify_map_access_list_permitted(data: &MapData, public_key: PublicKey, permitted: bool) {
     assert_eq!(
         data.is_allowed(AccessType::ModifyPermissions, public_key),
         permitted

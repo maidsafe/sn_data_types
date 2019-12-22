@@ -25,20 +25,17 @@
     unused_qualifications,
     unused_results
 )]
-
 // FIXME - write docs
 #![allow(missing_docs)]
 
 mod authorization;
-mod blob;
 mod coins;
+mod data;
 mod errors;
 mod identity;
-mod data;
 mod public_key;
 mod request;
 mod response;
-mod sequence;
 mod shared_data;
 mod transaction;
 mod utils;
@@ -47,11 +44,13 @@ pub use authorization::access_control::{
     AccessList, AccessType, PrivateAccessList, PrivateUserAccess, PublicAccessList,
     PublicUserAccess,
 };
-pub use blob::{
-    Address as BlobAddress, BlobData, Kind as BlobKind, PrivateBlob, PublicBlob,
-    MAX_BLOB_SIZE_IN_BYTES,
-};
 pub use coins::{Coins, MAX_COINS_VALUE};
+pub use data::{
+    AppendOperation, BlobAddress, BlobData, BlobKind, MapCmd, MapData, MapEntries, MapKeyHistories,
+    MapTransaction, MapValue, MapValues, PrivateBlob, PrivateSentriedSequence, PrivateSequence,
+    PublicBlob, PublicSentriedSequence, PublicSequence, SentriedMapCmd, SentryOption, SequenceData,
+    SequenceEntry, SequenceValues, MAX_BLOB_SIZE_IN_BYTES,
+};
 pub use errors::{EntryError, Error, Result};
 pub use identity::{
     app::{FullId as AppFullId, PublicId as AppPublicId},
@@ -59,17 +58,9 @@ pub use identity::{
     node::{FullId as NodeFullId, PublicId as NodePublicId},
     PublicId,
 };
-pub use data::{
-    MapCmd, MapData, MapEntries, MapKeyHistories, MapTransaction, MapValue, MapValues,
-    SentriedMapCmd, SentryOption,
-};
 pub use public_key::{PublicKey, Signature};
 pub use request::{LoginPacket, Request, MAX_LOGIN_PACKET_BYTES};
 pub use response::Response;
-pub use sequence::{
-    AppendOperation, PrivateSentriedSequence, PrivateSequence, PublicSentriedSequence,
-    PublicSequence, SequenceData, SequenceEntry, SequenceValues,
-};
 pub use sha3::Sha3_512 as Ed25519Digest;
 pub use shared_data::{
     Address, ExpectedVersions, Key, Keys, Kind, Owner, User, Value, Values, Version,
