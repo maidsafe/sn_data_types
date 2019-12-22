@@ -20,6 +20,8 @@ use tiny_keccak;
 /// Maximum allowed size for a serialised blob (ID) to grow to
 pub const MAX_BLOB_SIZE_IN_BYTES: u64 = 1024 * 1024 + 10 * 1024;
 
+/// PrivateBlob: an immutable chunk of data which can be deleted. Can only be fetched
+/// by the listed owner.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone)]
 pub struct PrivateBlob {
     /// Address.
@@ -27,7 +29,7 @@ pub struct PrivateBlob {
     /// Contained data.
     value: Vec<u8>,
     /// Contains a set of owners of this data. DataHandlers enforce that a DELETE or OWNED-GET type
-    /// of request is coming from the MaidManager Authority of the owners.
+    /// of request is coming from the ClientHandler of the owners.
     owner: PublicKey,
 }
 
@@ -106,18 +108,18 @@ impl Debug for PrivateBlob {
     }
 }
 
-/// An immutable chunk of data.
-///
-/// Note that the `name` member is omitted when serialising `Blob` and is calculated from
-/// the `value` when deserialising.
+/// An immutable chunk of data which cannot be deleted.
 #[derive(Hash, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct PublicBlob {
+    /// Network address. Omitted when serialising and calculated from the `value` when
+    /// deserialising.
     address: Address,
+    /// Contained data.
     value: Vec<u8>,
 }
 
 impl PublicBlob {
-    /// Creates a new instance of `ImmutableData`
+    /// Creates a new instance of `PublicBlob`
     pub fn new(value: Vec<u8>) -> Self {
         Self {
             address: Address::Public(XorName(tiny_keccak::sha3_256(&value))),
@@ -175,37 +177,47 @@ impl Debug for PublicBlob {
     }
 }
 
+/// The Kind determines if a blob is public or private.
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Kind {
+    /// Denotes a blob as private.
     Private,
+    /// Denotes a blob as public.
     Public,
 }
 
 impl Kind {
+    /// Returns true if public.
     pub fn is_public(self) -> bool {
         self == Kind::Public
     }
 
+    /// Returns true if private.
     pub fn is_private(self) -> bool {
         !self.is_public()
     }
 
     /// Creates `Kind` from a `public` flag.
     pub fn from_flag(public: bool) -> Self {
-        match public {
-            true => Kind::Public,
-            false => Kind::Private,
+        if public {
+            Kind::Public
+        } else {
+            Kind::Private
         }
     }
 }
 
+/// A blob address, where public and private are two different address spaces.
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Address {
+    /// Describes an address in the private namespace.
     Private(XorName),
+    /// Describes an address in the public namespace.
     Public(XorName),
 }
 
 impl Address {
+    /// Constructs an `Address` given `kind` and `name`.
     pub fn from_kind(kind: Kind, name: XorName) -> Self {
         match kind {
             Kind::Public => Address::Public(name),
@@ -213,6 +225,7 @@ impl Address {
         }
     }
 
+    /// Returns the kind.
     pub fn kind(&self) -> Kind {
         match self {
             Address::Private(_) => Kind::Private,
@@ -220,16 +233,19 @@ impl Address {
         }
     }
 
+    /// Returns the name.
     pub fn name(&self) -> &XorName {
         match self {
             Address::Private(ref name) | Address::Public(ref name) => name,
         }
     }
 
+    /// Returns true if public.
     pub fn is_public(&self) -> bool {
         self.kind().is_public()
     }
 
+    /// Returns true if private.
     pub fn is_private(&self) -> bool {
         self.kind().is_private()
     }
@@ -248,11 +264,14 @@ impl Address {
 /// Object storing an blob variant.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum BlobData {
+    /// Private blob.
     Private(PrivateBlob),
+    /// Public blob.
     Public(PublicBlob),
 }
 
 impl BlobData {
+    /// Returns the address.
     pub fn address(&self) -> &Address {
         match self {
             BlobData::Private(data) => data.address(),
@@ -260,22 +279,27 @@ impl BlobData {
         }
     }
 
+    /// Returns the name.
     pub fn name(&self) -> &XorName {
         self.address().name()
     }
 
+    /// Returns the kind.
     pub fn kind(&self) -> Kind {
         self.address().kind()
     }
 
+    /// Returns true if public.
     pub fn is_public(&self) -> bool {
         self.kind().is_public()
     }
 
+    /// Returns true if private.
     pub fn is_private(&self) -> bool {
         self.kind().is_private()
     }
 
+    /// Returns the value.
     pub fn value(&self) -> &Vec<u8> {
         match self {
             BlobData::Private(data) => data.value(),
@@ -283,6 +307,7 @@ impl BlobData {
         }
     }
 
+    /// Returns `true` if the size is valid.
     pub fn valid_size(&self) -> bool {
         match self {
             BlobData::Private(data) => data.valid_size(),
@@ -290,6 +315,7 @@ impl BlobData {
         }
     }
 
+    /// Returns size of this data after serialisation.
     pub fn serialised_size(&self) -> u64 {
         match self {
             BlobData::Private(data) => data.serialised_size(),

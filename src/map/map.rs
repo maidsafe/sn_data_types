@@ -7,7 +7,7 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::access_control::{
+use crate::authorization::access_control::{
     AccessListTrait, AccessType, PrivateAccessList, PrivateUserAccess, PublicAccessList,
     PublicUserAccess,
 };

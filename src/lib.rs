@@ -12,33 +12,12 @@
     html_favicon_url = "https://maidsafe.net/img/favicon.ico",
     test(attr(forbid(warnings)))
 )]
-#![forbid(
-    exceeding_bitshifts,
-    mutable_transmutes,
-    no_mangle_const_items,
-    unknown_crate_types,
-    warnings
-)]
-#![deny(
-    bad_style,
-    deprecated,
-    improper_ctypes,
-    missing_docs,
-    non_shorthand_field_patterns,
-    overflowing_literals,
-    plugin_as_library,
-    stable_features,
-    unconditional_recursion,
-    unknown_lints,
-    unsafe_code,
-    unused_allocation,
-    unused_attributes,
-    unused_comparisons,
-    unused_features,
-    unused_parens,
-    while_true
-)]
+// For explanation of lint checks, run `rustc -W help`.
+#![forbid(unsafe_code)]
 #![warn(
+    // TODO: add missing debug implementations for structs?
+    // missing_debug_implementations,
+    missing_docs,
     trivial_casts,
     trivial_numeric_casts,
     unused_extern_crates,
@@ -46,16 +25,11 @@
     unused_qualifications,
     unused_results
 )]
-#![allow(
-    box_pointers,
-    missing_copy_implementations,
-    missing_debug_implementations,
-    variant_size_differences
-)]
+
 // FIXME - write docs
 #![allow(missing_docs)]
 
-mod access_control;
+mod authorization;
 mod blob;
 mod coins;
 mod errors;
@@ -69,7 +43,7 @@ mod shared_data;
 mod transaction;
 mod utils;
 
-pub use access_control::{
+pub use authorization::access_control::{
     AccessList, AccessType, PrivateAccessList, PrivateUserAccess, PublicAccessList,
     PublicUserAccess,
 };
@@ -195,7 +169,7 @@ impl Data {
             // === Map Write ===
             //
             PutMap(_) => false, // todo
-            CommitMapTx { address: _, tx } => match tx {
+            CommitMapTx { tx, .. } => match tx {
                 MapTransaction::Commit(ref option) => self.is_tx_allowed(option, user, false),
                 MapTransaction::HardCommit(ref option) => self.is_tx_allowed(option, user, true),
             },
@@ -262,20 +236,16 @@ impl Data {
                             }
                         }
                         MapCmd::Update(_) => {
-                            if hard_erasure {
-                                if !self.is_allowed(AccessType::HardUpdate, user) {
-                                    return false;
-                                }
+                            if hard_erasure && !self.is_allowed(AccessType::HardUpdate, user) {
+                                return false;
                             }
                             if !self.is_allowed(AccessType::Update, user) {
                                 return false;
                             }
                         }
                         MapCmd::Delete(_) => {
-                            if hard_erasure {
-                                if !self.is_allowed(AccessType::HardDelete, user) {
-                                    return false;
-                                }
+                            if hard_erasure && !self.is_allowed(AccessType::HardDelete, user) {
+                                return false;
                             }
                             if !self.is_allowed(AccessType::Delete, user) {
                                 return false;
@@ -293,20 +263,16 @@ impl Data {
                             }
                         }
                         SentriedMapCmd::Update { .. } => {
-                            if hard_erasure {
-                                if !self.is_allowed(AccessType::HardUpdate, user) {
-                                    return false;
-                                }
+                            if hard_erasure && !self.is_allowed(AccessType::HardUpdate, user) {
+                                return false;
                             }
                             if !self.is_allowed(AccessType::Update, user) {
                                 return false;
                             }
                         }
                         SentriedMapCmd::Delete { .. } => {
-                            if hard_erasure {
-                                if !self.is_allowed(AccessType::HardDelete, user) {
-                                    return false;
-                                }
+                            if hard_erasure && !self.is_allowed(AccessType::HardDelete, user) {
+                                return false;
                             }
                             if !self.is_allowed(AccessType::Delete, user) {
                                 return false;

@@ -9,7 +9,7 @@
 
 // #![allow(dead_code)] // for the draft PR only
 
-use crate::access_control::{
+use crate::authorization::access_control::{
     AccessListTrait, AccessType, PrivateAccessList, PrivateUserAccess, PublicAccessList,
     PublicUserAccess,
 };

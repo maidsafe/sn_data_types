@@ -8,6 +8,7 @@
 // Software.
 
 pub mod access_control;
+#[cfg(test)]
 mod tests;
 pub use access_control::{
     AccessList, AccessListTrait, AccessType, PrivateAccessList, PrivateUserAccess,
