@@ -254,7 +254,7 @@ impl Data {
     fn is_tx_allowed(&self, option: &SentryOption, user: PublicKey, hard_erasure: bool) -> bool {
         match option {
             SentryOption::AnyVersion(tx) => {
-                for cmd in tx {
+                for cmd in tx.get() {
                     match cmd {
                         MapCmd::Insert(_) => {
                             if !self.is_allowed(AccessType::Insert, user) {
@@ -285,7 +285,7 @@ impl Data {
                 }
             }
             SentryOption::ExpectVersion(tx) => {
-                for cmd in tx {
+                for cmd in tx.get() {
                     match cmd {
                         SentriedMapCmd::Insert { .. } => {
                             if !self.is_allowed(AccessType::Insert, user) {

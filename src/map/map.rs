@@ -21,27 +21,39 @@ use std::{
     collections::{btree_map::Entry, BTreeMap, BTreeSet},
     fmt::{self, Debug, Formatter},
     mem,
+    ops::Deref,
 };
 
+/// Public Map with concurrency control.
 pub type PublicSentriedMap = MapBase<PublicAccessList, Sentried>;
+/// Public Map.
 pub type PublicMap = MapBase<PublicAccessList, NonSentried>;
+/// Private Map with concurrency control.
 pub type PrivateSentriedMap = MapBase<PrivateAccessList, Sentried>;
+/// Private Map.
 pub type PrivateMap = MapBase<PrivateAccessList, NonSentried>;
+/// All the keys in the map, with all their versions of values.
 pub type DataHistories = BTreeMap<Key, Vec<StoredValue>>;
+/// A vector of data entries.
 pub type DataEntries = Vec<DataEntry>;
 
+/// A representation of a key and its value - current or at some version.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default, Debug)]
 pub struct DataEntry {
+    /// Key
     pub key: Key,
+    /// Value
     pub value: Value,
 }
 
 impl DataEntry {
+    /// Returns a new instance of a data entry.
     pub fn new(key: Key, value: Value) -> Self {
         Self { key, value }
     }
 }
 
+///
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
 pub struct MapBase<C, S> {
     address: Address,
@@ -62,17 +74,15 @@ where
     C: AccessListTrait,
     S: Copy,
 {
+    /// Returns true if the provided access type is allowed for the specific user (identified y their public key).
     pub fn is_allowed(&self, user: PublicKey, access: AccessType) -> bool {
-        match self.owner_at(Version::FromEnd(1)) {
-            Some(owner) => {
-                if owner.public_key == user {
-                    return true;
-                }
+        if let Some(owner) = self.owner_at(Version::FromEnd(1)) {
+            if owner.public_key == user {
+                return true;
             }
-            None => (),
         }
         match self.access_list_at(Version::FromEnd(1)) {
-            Some(access_list) => access_list.is_allowed(&user, &access),
+            Some(access_list) => access_list.is_allowed(&user, access),
             None => false,
         }
     }
@@ -115,6 +125,7 @@ where
         self.access_list.len() as u64
     }
 
+    /// Returns expected versions of data, owner and access list.
     pub fn versions(&self) -> ExpectedVersions {
         ExpectedVersions::new(
             self.expected_data_version().unwrap_or_default(),
@@ -215,10 +226,11 @@ where
 
     /// Return all keys.
     pub fn get_keys(&self) -> Keys {
+        // return borrowed or copied here?
         self.data
             .iter()
             .filter_map(move |(key, values)| match values.last() {
-                Some(StoredValue::Value(_)) => Some(key.to_vec()),
+                Some(StoredValue::Value(_)) => Some(key.get().into()),
                 _ => None,
             })
             .collect()
@@ -229,7 +241,7 @@ where
         &self.data
     }
 
-    // Returns the history of a specified key.
+    /// Returns the history of a specified key.
     pub fn key_history(&self, key: &Key) -> Option<&StoredValues> {
         match self.data.get(key) {
             Some(history) => Some(history),
@@ -265,7 +277,7 @@ where
     /// Get history of owners within the range of versions specified.
     pub fn owner_history_range(&self, start: Version, end: Version) -> Option<Vec<Owner>> {
         let range = to_absolute_range(start, end, self.owners.len())?;
-        Some(self.owners[range].iter().map(|c| *c).collect())
+        Some(self.owners[range].iter().copied().collect())
     }
 
     /// Get access list at version.
@@ -282,7 +294,7 @@ where
     /// Get history of access list within the range of versions specified.
     pub fn access_list_history_range(&self, start: Version, end: Version) -> Option<Vec<C>> {
         let range = to_absolute_range(start, end, self.access_list.len())?;
-        Some(self.access_list[range].iter().map(|c| c.clone()).collect())
+        Some(self.access_list[range].to_vec())
     }
 
     /// Set owner.
@@ -325,6 +337,7 @@ where
     }
 }
 
+/// Indicates Map mutations that will pass regardless of version.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
 pub enum Cmd {
     /// Inserts a new entry
@@ -335,6 +348,7 @@ pub enum Cmd {
     Delete(Key),
 }
 
+/// Indicates Map mutations with concurrency control.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
 pub enum SentriedCmd {
     /// Inserts a new entry
@@ -345,24 +359,79 @@ pub enum SentriedCmd {
     Delete(SentriedKey),
 }
 
+/// Indicates whether the transaction can perform permanent deletion or not.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub enum MapTransaction {
+    /// Only soft deletes possible.
     Commit(SentryOption),
+    /// Allows hard-deletes.
     HardCommit(SentryOption),
 }
 
+/// Indicates whether the transaction is carried out with concurrency control or not.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
 pub enum SentryOption {
+    /// No concurrency control.
     AnyVersion(Transaction),
+    /// Optimistic concurrency.
     ExpectVersion(SentriedTransaction),
 }
 
-pub type Transaction = Vec<Cmd>;
+// pub type Transaction = Vec<Cmd>;
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default, Debug)]
+pub struct Transaction(Vec<Cmd>);
 
+impl Transaction {
+    pub fn get(&self) -> &Vec<Cmd> {
+        &self.0
+    }
+}
+
+impl Deref for Transaction {
+    type Target = Vec<Cmd>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<Vec<Cmd>> for Transaction {
+    fn from(vec: Vec<Cmd>) -> Self {
+        Transaction(vec)
+    }
+}
+
+// pub type SentriedTransaction = Vec<SentriedCmd>;
+///
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default, Debug)]
+pub struct SentriedTransaction(Vec<SentriedCmd>);
+
+impl SentriedTransaction {
+    pub fn get(&self) -> &Vec<SentriedCmd> {
+        &self.0
+    }
+}
+
+impl Deref for SentriedTransaction {
+    type Target = Vec<SentriedCmd>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<Vec<SentriedCmd>> for SentriedTransaction {
+    fn from(vec: Vec<SentriedCmd>) -> Self {
+        SentriedTransaction(vec)
+    }
+}
+
+///
 pub type ExpectedVersion = u64;
+///
 pub type SentriedKey = (Key, ExpectedVersion);
+///
 pub type SentriedKvPair = (KvPair, ExpectedVersion);
-pub type SentriedTransaction = Vec<SentriedCmd>;
 
 /// Common methods for NonSentried flavours.
 impl<P: AccessListTrait> MapBase<P, NonSentried> {
@@ -372,7 +441,7 @@ impl<P: AccessListTrait> MapBase<P, NonSentried> {
     /// error will be returned.
     pub fn commit(&mut self, tx: &Transaction) -> Result<()> {
         // Deconstruct tx into inserts, updates, and deletes
-        let operations: Operations = tx.into_iter().fold(
+        let operations: Operations = tx.iter().fold(
             Default::default(),
             |(mut insert, mut update, mut delete), cmd| {
                 match cmd {
@@ -413,11 +482,11 @@ impl<P: AccessListTrait> MapBase<P, NonSentried> {
                             );
                         }
                         Some(StoredValue::Tombstone()) => {
-                            let _ = history.push(StoredValue::Value(val));
+                            history.push(StoredValue::Value(val));
                             // todo: fix From impl
                         }
                         None => {
-                            let _ = history.push(StoredValue::Value(val));
+                            history.push(StoredValue::Value(val));
                             // todo: fix From impl
                         }
                     }
@@ -434,7 +503,7 @@ impl<P: AccessListTrait> MapBase<P, NonSentried> {
                     let history = entry.get_mut();
                     match history.last() {
                         Some(StoredValue::Value(_)) => {
-                            let _ = history.push(StoredValue::Value(val));
+                            history.push(StoredValue::Value(val));
                             // todo: fix From impl
                         }
                         Some(StoredValue::Tombstone()) => {
@@ -455,7 +524,7 @@ impl<P: AccessListTrait> MapBase<P, NonSentried> {
                     let history = entry.get_mut();
                     match history.last() {
                         Some(StoredValue::Value(_)) => {
-                            let _ = history.push(StoredValue::Tombstone());
+                            history.push(StoredValue::Tombstone());
                         }
                         Some(StoredValue::Tombstone()) => {
                             let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
@@ -486,7 +555,7 @@ impl<P: AccessListTrait> MapBase<P, Sentried> {
     /// error will be returned.
     pub fn commit(&mut self, tx: &SentriedTransaction) -> Result<()> {
         // Deconstruct tx into inserts, updates, and deletes
-        let operations: SentriedOperations = tx.into_iter().fold(
+        let operations: SentriedOperations = tx.iter().fold(
             Default::default(),
             |(mut insert, mut update, mut delete), cmd| {
                 match cmd {
@@ -558,7 +627,7 @@ impl<P: AccessListTrait> MapBase<P, Sentried> {
                             let history = entry.get_mut();
                             let expected_version = history.len() as u64;
                             if version == expected_version {
-                                let _ = history.push(StoredValue::Value(val));
+                                history.push(StoredValue::Value(val));
                             } else {
                                 let _ = errors.insert(
                                     entry.key().clone(),
@@ -586,7 +655,7 @@ impl<P: AccessListTrait> MapBase<P, Sentried> {
                         Some(StoredValue::Value(_)) => {
                             let expected_version = history.len() as u64;
                             if version == expected_version {
-                                let _ = history.push(StoredValue::Tombstone());
+                                history.push(StoredValue::Tombstone());
                             } else {
                                 let _ = errors.insert(
                                     entry.key().clone(),
@@ -623,16 +692,21 @@ type SentriedOperations = (
     BTreeSet<SentriedKey>,
 );
 
+/// A stored value indicates data or deleted data in case of Tombstone variant.
 #[derive(Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum StoredValue {
+    /// The actual data under a key.
     Value(Value),
+    /// Represents a deleted current value of a map key.
     Tombstone(),
 }
 
+/// A vector of stored values.
 pub type StoredValues = Vec<StoredValue>;
 
 /// Public + Sentried
 impl MapBase<PublicAccessList, Sentried> {
+    /// Returns new instance of private MapBase flavour with concurrency control.
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::PublicSentried { name, tag },
@@ -653,6 +727,7 @@ impl Debug for MapBase<PublicAccessList, Sentried> {
 
 /// Public + NonSentried
 impl MapBase<PublicAccessList, NonSentried> {
+    /// Returns new instance of public MapBase flavour.
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::Public { name, tag },
@@ -673,6 +748,7 @@ impl Debug for MapBase<PublicAccessList, NonSentried> {
 
 /// Private + Sentried
 impl MapBase<PrivateAccessList, Sentried> {
+    /// Returns new instance of private MapBase flavour with concurrency control.
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::PrivateSentried { name, tag },
@@ -690,7 +766,7 @@ impl MapBase<PrivateAccessList, Sentried> {
     /// error will be returned.
     pub fn hard_commit(&mut self, tx: &SentriedTransaction) -> Result<()> {
         // Deconstruct tx into inserts, updates, and deletes
-        let operations: SentriedOperations = tx.into_iter().fold(
+        let operations: SentriedOperations = tx.iter().fold(
             Default::default(),
             |(mut insert, mut update, mut delete), cmd| {
                 match cmd {
@@ -733,7 +809,7 @@ impl MapBase<PrivateAccessList, Sentried> {
                         }
                         Some(StoredValue::Tombstone()) => {
                             if version == history.len() as u64 {
-                                let _ = history.push(StoredValue::Value(val));
+                                history.push(StoredValue::Value(val));
                             } else {
                                 let _ = errors.insert(
                                     key,
@@ -773,7 +849,7 @@ impl MapBase<PrivateAccessList, Sentried> {
                                     &mut history.last(),
                                     Some(&StoredValue::Tombstone()),
                                 ); // remove old value, as to properly owerwrite on update, but keep the Version, as to increment history length (i.e. version)
-                                let _ = history.push(StoredValue::Value(val));
+                                history.push(StoredValue::Value(val));
                             } else {
                                 let _ = errors.insert(
                                     entry.key().clone(),
@@ -808,7 +884,7 @@ impl MapBase<PrivateAccessList, Sentried> {
                                     &mut history.last(),
                                     Some(&StoredValue::Tombstone()),
                                 ); // remove old value, as to properly delete, but keep the Version, as to increment history length (i.e. version)
-                                let _ = history.push(StoredValue::Tombstone());
+                                history.push(StoredValue::Tombstone());
                             } else {
                                 let _ = errors.insert(
                                     entry.key().clone(),
@@ -848,6 +924,7 @@ impl Debug for MapBase<PrivateAccessList, Sentried> {
 
 /// Private + NonSentried
 impl MapBase<PrivateAccessList, NonSentried> {
+    /// Returns new instance of private MapBase flavour.
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::Private { name, tag },
@@ -865,7 +942,7 @@ impl MapBase<PrivateAccessList, NonSentried> {
     /// error will be returned.
     pub fn hard_commit(&mut self, tx: &Transaction) -> Result<()> {
         // Deconstruct tx into inserts, updates, and deletes
-        let operations: Operations = tx.into_iter().fold(
+        let operations: Operations = tx.iter().fold(
             Default::default(),
             |(mut insert, mut update, mut delete), cmd| {
                 match cmd {
@@ -907,7 +984,7 @@ impl MapBase<PrivateAccessList, NonSentried> {
                             );
                         }
                         Some(StoredValue::Tombstone()) => {
-                            let _ = history.push(StoredValue::Value(val));
+                            history.push(StoredValue::Value(val));
                         }
                         None => {
                             panic!("This would be a bug! We are not supposed to store empty vecs!")
@@ -929,7 +1006,7 @@ impl MapBase<PrivateAccessList, NonSentried> {
                         Some(StoredValue::Value(_)) => {
                             let _old_value =
                                 mem::replace(&mut history.last(), Some(&StoredValue::Tombstone())); // remove old value, as to properly owerwrite on update, but keep the Version, as to increment history length (i.e. version)
-                            let _ = history.push(StoredValue::Value(val));
+                            history.push(StoredValue::Value(val));
                         }
                         Some(StoredValue::Tombstone()) => {
                             let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
@@ -954,7 +1031,7 @@ impl MapBase<PrivateAccessList, NonSentried> {
                         Some(StoredValue::Value(_)) => {
                             let _old_value =
                                 mem::replace(&mut history.last(), Some(&StoredValue::Tombstone())); // remove old value, as to properly delete, but keep the Version, as to increment history length (i.e. version)
-                            let _ = history.push(StoredValue::Tombstone());
+                            history.push(StoredValue::Tombstone());
                         }
                         Some(StoredValue::Tombstone()) => {
                             let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
@@ -988,13 +1065,18 @@ impl Debug for MapBase<PrivateAccessList, NonSentried> {
 /// Object storing a Map variant.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum MapData {
+    /// Public instance with concurrency control.
     PublicSentried(PublicSentriedMap),
+    /// Public instance.
     Public(PublicMap),
+    /// Private instance with concurrency control.
     PrivateSentried(PrivateSentriedMap),
+    /// Private instance.
     Private(PrivateMap),
 }
 
 impl MapData {
+    /// Returns true if the provided access type is allowed for the specific user (identified y their public key).
     pub fn is_allowed(&self, access: AccessType, user: PublicKey) -> bool {
         use AccessType::*;
         use MapData::*;
@@ -1030,6 +1112,7 @@ impl MapData {
         }
     }
 
+    /// Returns the address.
     pub fn address(&self) -> &Address {
         use MapData::*;
         match self {
@@ -1040,30 +1123,37 @@ impl MapData {
         }
     }
 
+    /// Returns the kind.
     pub fn kind(&self) -> Kind {
         self.address().kind()
     }
 
+    /// Returns the xor name.
     pub fn name(&self) -> &XorName {
         self.address().name()
     }
 
+    /// Returns the tag type.
     pub fn tag(&self) -> u64 {
         self.address().tag()
     }
 
+    /// Returns true if this instance is public.
     pub fn is_public(&self) -> bool {
         self.kind().is_public()
     }
 
+    /// Returns true if this instance is private.
     pub fn is_private(&self) -> bool {
         self.kind().is_private()
     }
 
+    /// Returns true if this instance employs concurrency control.
     pub fn is_sentried(&self) -> bool {
         self.kind().is_sentried()
     }
 
+    /// Returns true if the provided user (identified by their public key) is the current owner.
     pub fn is_owner(&self, user: PublicKey) -> bool {
         use MapData::*;
         match self {
@@ -1074,6 +1164,7 @@ impl MapData {
         }
     }
 
+    /// Returns expected version of the instance data.
     pub fn expected_data_version(&self) -> u64 {
         use MapData::*;
         match self {
@@ -1084,6 +1175,7 @@ impl MapData {
         }
     }
 
+    /// Returns expected version of the instance access list.
     pub fn expected_access_list_version(&self) -> u64 {
         use MapData::*;
         match self {
@@ -1094,6 +1186,7 @@ impl MapData {
         }
     }
 
+    /// Returns expected version of the instance owner.
     pub fn expected_owners_version(&self) -> u64 {
         use MapData::*;
         match self {
@@ -1104,6 +1197,7 @@ impl MapData {
         }
     }
 
+    /// Returns expected versions of data, owner and access list.
     pub fn versions(&self) -> ExpectedVersions {
         use MapData::*;
         match self {
@@ -1114,7 +1208,7 @@ impl MapData {
         }
     }
 
-    // Returns the value of the key.
+    /// Returns the value of the key.
     pub fn get_value(&self, key: &Key) -> Option<&Value> {
         use MapData::*;
         match self {
@@ -1125,7 +1219,7 @@ impl MapData {
         }
     }
 
-    // Returns the value of the key, at a specific version of the key.
+    /// Returns the value of the key, at a specific version of the key.
     pub fn get_value_at(&self, key: &Key, version: Version) -> Option<&Value> {
         use MapData::*;
         match self {
@@ -1136,7 +1230,7 @@ impl MapData {
         }
     }
 
-    // Returns all key value pairs.
+    /// Returns all key value pairs.
     pub fn data_entries(&self) -> DataEntries {
         use MapData::*;
         match self {
@@ -1147,7 +1241,7 @@ impl MapData {
         }
     }
 
-    // Returns all values.
+    /// Returns all values.
     pub fn get_values(&self) -> Values {
         use MapData::*;
         match self {
@@ -1158,7 +1252,7 @@ impl MapData {
         }
     }
 
-    // Returns all keys.
+    /// Returns all keys.
     pub fn get_keys(&self) -> Keys {
         use MapData::*;
         match self {
@@ -1169,7 +1263,7 @@ impl MapData {
         }
     }
 
-    // Returns the history of a specified key.
+    /// Returns the history of a specified key.
     pub fn key_history(&self, key: &Key) -> Option<&StoredValues> {
         use MapData::*;
         match self {
@@ -1202,6 +1296,7 @@ impl MapData {
         }
     }
 
+    /// Returns the owner at a specific version of owners.
     pub fn owner_at(&self, version: impl Into<Version>) -> Option<&Owner> {
         use MapData::*;
         match self {
@@ -1236,6 +1331,7 @@ impl MapData {
         result.ok_or(Error::NoSuchEntry)
     }
 
+    /// Returns a specific user's access list of a public instance at a specific version.
     pub fn public_user_access_at(
         &self,
         user: User,
@@ -1248,6 +1344,7 @@ impl MapData {
             .ok_or(Error::NoSuchEntry)
     }
 
+    /// Returns a specific user's access list of a private instance at a specific version.
     pub fn private_user_access_at(
         &self,
         user: PublicKey,
@@ -1260,6 +1357,7 @@ impl MapData {
             .ok_or(Error::NoSuchEntry)
     }
 
+    /// Returns the access list of a public instance at a specific version.
     pub fn public_access_list_at(&self, version: impl Into<Version>) -> Result<&PublicAccessList> {
         use MapData::*;
         let access_list = match self {
@@ -1270,6 +1368,7 @@ impl MapData {
         access_list.ok_or(Error::NoSuchEntry)
     }
 
+    /// Returns the access list of a private instance at a specific version.
     pub fn private_access_list_at(
         &self,
         version: impl Into<Version>,
@@ -1335,6 +1434,7 @@ impl MapData {
         result.ok_or(Error::NoSuchEntry)
     }
 
+    /// Returns a shell without the data of the instance, as of a specific data version.
     pub fn shell(&self, version: impl Into<Version>) -> Result<Self> {
         use MapData::*;
         match self {
@@ -1345,6 +1445,7 @@ impl MapData {
         }
     }
 
+    /// Sets a new owner.
     pub fn set_owner(&mut self, owner: Owner, expected_version: u64) -> Result<()> {
         use MapData::*;
         match self {
@@ -1355,6 +1456,7 @@ impl MapData {
         }
     }
 
+    /// Sets a new access list of a private instance.
     pub fn set_private_access_list(
         &mut self,
         access_list: &PrivateAccessList,
@@ -1368,6 +1470,7 @@ impl MapData {
         }
     }
 
+    /// Sets a new access list of a public instance.
     pub fn set_public_access_list(
         &mut self,
         access_list: &PublicAccessList,

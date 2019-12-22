@@ -8,7 +8,7 @@
 // Software.
 
 use crate::{
-    errors::ErrorDebug, AccessList, AppPermissions, BlobData, Coins, Error, ExpectedVersions, Keys,
+    errors::ErrorDebug, AccessList, AppPermissions, BlobData, Coins, Error, ExpectedVersions, Key, Keys,
     MapData, MapEntries, MapKeyHistories, MapValues, Owner, PrivateAccessList, PrivateUserAccess,
     PublicAccessList, PublicKey, PublicUserAccess, Result, SequenceData, SequenceEntry, Signature,
     Transaction, Value, Values,
@@ -126,7 +126,8 @@ try_from!(BlobData, GetBlob);
 try_from!(MapData, GetMap, GetMapShell);
 try_from!(u64, GetMapVersion);
 try_from!(MapEntries, GetMapEntries);
-try_from!(Vec<Vec<u8>>, GetMapKeys, GetMapValues, GetSequenceRange); // Values and Keys are Vec<Vec<u8>>
+try_from!(Vec<Key>, GetMapKeys);
+try_from!(Vec<Vec<u8>>, GetMapValues, GetSequenceRange); // Values and Keys are Vec<Vec<u8>>
 try_from!(Value, GetMapValue, GetSequenceValue);
 try_from!(SequenceData, GetSequence, GetSequenceShell);
 try_from!(Owner, GetMapOwner, GetSequenceOwner);
