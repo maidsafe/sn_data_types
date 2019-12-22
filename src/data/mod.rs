@@ -8,7 +8,8 @@
 // Software.
 
 pub mod map;
-mod tests;
+#[cfg(test)]
+mod map_tests;
 pub use map::{
     Cmd as MapCmd, DataEntries as MapEntries, DataHistories as MapKeyHistories, MapData,
     MapTransaction, PrivateMap, PrivateSentriedMap, PublicMap, PublicSentriedMap,

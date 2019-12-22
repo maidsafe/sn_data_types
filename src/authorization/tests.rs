@@ -8,7 +8,7 @@
 // Software.
 
 use crate::authorization::access_control::*;
-use crate::map::*;
+use crate::data::*;
 use crate::sequence::*;
 use crate::shared_data::{Owner, User, Version};
 use crate::{Error, PublicKey, XorName};

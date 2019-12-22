@@ -34,7 +34,7 @@ mod blob;
 mod coins;
 mod errors;
 mod identity;
-mod map;
+mod data;
 mod public_key;
 mod request;
 mod response;
@@ -59,7 +59,7 @@ pub use identity::{
     node::{FullId as NodeFullId, PublicId as NodePublicId},
     PublicId,
 };
-pub use map::{
+pub use data::{
     MapCmd, MapData, MapEntries, MapKeyHistories, MapTransaction, MapValue, MapValues,
     SentriedMapCmd, SentryOption,
 };
