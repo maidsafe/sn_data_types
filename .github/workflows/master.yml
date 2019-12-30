@@ -34,7 +34,7 @@ jobs:
       # Generate Cargo.lock, needed for the cache.
       - uses: actions-rs/cargo@v1
         with:
-          command: update
+          command: generate-lockfile
       # Cache.
       - name: Cache cargo registry
         uses: actions/cache@v1
@@ -69,12 +69,26 @@ jobs:
         run: |
           commit_message=$(git log --format=%B -n 1 ${{ github.sha }})
           echo "::set-output name=commit_message::$commit_message"
+      - shell: bash
+        id: versioning
+        run: |
+          version=$(grep "^version" < Cargo.toml | head -n 1 | awk '{ print $3 }' | sed 's/\"//g')
+          echo "Current version: $version"
+          echo "::set-output name=version::$version"
       - uses: actions-rs/toolchain@v1
         if: startsWith(steps.commit_message.outputs.commit_message, 'Version change')
         with:
           profile: minimal
           toolchain: stable
           override: true
+      # Set the tag.
+      - name: Push version tag
+        if: startsWith(steps.commit_message.outputs.commit_message, 'Version change')
+        uses: anothrNick/github-tag-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CUSTOM_TAG: ${{ steps.versioning.outputs.version }}
+      # Publish to crates.io.
       - uses: actions-rs/cargo@v1
         if: startsWith(steps.commit_message.outputs.commit_message, 'Version change')
         with:
