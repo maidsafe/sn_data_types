@@ -377,7 +377,7 @@ impl Debug for SequenceBase<PrivateAccessList, NonSentried> {
 
 /// Object storing a Sequence variant.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
-pub enum SequenceData {
+pub enum Sequence {
     /// Public instance with concurrency control.
     PublicSentried(PublicSentriedSequence),
     /// Public instance.
@@ -388,11 +388,11 @@ pub enum SequenceData {
     Private(PrivateSequence),
 }
 
-impl SequenceData {
+impl Sequence {
     /// Returns true if the provided access type is allowed for the specific user (identified y their public key).
     pub fn is_allowed(&self, access: AccessType, user: PublicKey) -> bool {
         use AccessType::*;
-        use SequenceData::*;
+        use Sequence::*;
         // Public flavours automatically allows all reads.
         match (self, access) {
             (PublicSentried(_), Read) | (Public(_), Read) => return true,
@@ -420,7 +420,7 @@ impl SequenceData {
 
     /// Returns the address.
     pub fn address(&self) -> &Address {
-        use SequenceData::*;
+        use Sequence::*;
         match self {
             PublicSentried(data) => data.address(),
             Public(data) => data.address(),
@@ -461,7 +461,7 @@ impl SequenceData {
 
     /// Returns true if the provided user (identified by their public key) is the current owner.
     pub fn is_owner(&self, user: PublicKey) -> bool {
-        use SequenceData::*;
+        use Sequence::*;
         match self {
             PublicSentried(data) => data.is_owner(user),
             Public(data) => data.is_owner(user),
@@ -472,7 +472,7 @@ impl SequenceData {
 
     /// Returns expected version of the instance data.
     pub fn expected_data_version(&self) -> u64 {
-        use SequenceData::*;
+        use Sequence::*;
         match self {
             PublicSentried(data) => data.expected_data_version(),
             Public(data) => data.expected_data_version(),
@@ -483,7 +483,7 @@ impl SequenceData {
 
     /// Returns expected version of the instance access list.
     pub fn expected_access_list_version(&self) -> u64 {
-        use SequenceData::*;
+        use Sequence::*;
         match self {
             PublicSentried(data) => data.expected_access_list_version(),
             Public(data) => data.expected_access_list_version(),
@@ -494,7 +494,7 @@ impl SequenceData {
 
     /// Returns expected version of the instance owner.
     pub fn expected_owners_version(&self) -> u64 {
-        use SequenceData::*;
+        use Sequence::*;
         match self {
             PublicSentried(data) => data.expected_owners_version(),
             Public(data) => data.expected_owners_version(),
@@ -505,7 +505,7 @@ impl SequenceData {
 
     /// Returns expected versions of data, owner and access list.
     pub fn versions(&self) -> ExpectedVersions {
-        use SequenceData::*;
+        use Sequence::*;
         match self {
             PublicSentried(data) => data.versions(),
             Public(data) => data.versions(),
@@ -516,7 +516,7 @@ impl SequenceData {
 
     /// Returns the data at a specific version.
     pub fn get(&self, version: Version) -> Option<&Value> {
-        use SequenceData::*;
+        use Sequence::*;
         match self {
             PublicSentried(data) => data.get(version),
             Public(data) => data.get(version),
@@ -527,7 +527,7 @@ impl SequenceData {
 
     /// Returns the current data entry.
     pub fn current_data_entry(&self) -> Option<DataEntry> {
-        use SequenceData::*;
+        use Sequence::*;
         match self {
             PublicSentried(data) => data.current_data_entry(),
             Public(data) => data.current_data_entry(),
@@ -538,7 +538,7 @@ impl SequenceData {
 
     /// Returns a range in the history of data.
     pub fn in_range(&self, start: Version, end: Version) -> Option<Values> {
-        use SequenceData::*;
+        use Sequence::*;
         match self {
             PublicSentried(data) => data.in_range(start, end),
             Public(data) => data.in_range(start, end),
@@ -549,7 +549,7 @@ impl SequenceData {
 
     /// Returns the owner at a specific version of owners.
     pub fn owner_at(&self, version: impl Into<Version>) -> Option<&Owner> {
-        use SequenceData::*;
+        use Sequence::*;
         match self {
             PublicSentried(data) => data.owner_at(version),
             Public(data) => data.owner_at(version),
@@ -560,7 +560,7 @@ impl SequenceData {
 
     /// Returns history of all owners
     pub fn owner_history(&self) -> Result<Vec<Owner>> {
-        use SequenceData::*;
+        use Sequence::*;
         let result = match self {
             PublicSentried(data) => Some(data.owner_history()),
             Public(data) => Some(data.owner_history()),
@@ -572,7 +572,7 @@ impl SequenceData {
 
     /// Get history of owners within the range of versions specified.
     pub fn owner_history_range(&self, start: Version, end: Version) -> Result<Vec<Owner>> {
-        use SequenceData::*;
+        use Sequence::*;
         let result = match self {
             PublicSentried(data) => data.owner_history_range(start, end),
             Public(data) => data.owner_history_range(start, end),
@@ -610,7 +610,7 @@ impl SequenceData {
 
     /// Returns the access list of a public instance at a specific version.
     pub fn public_access_list_at(&self, version: impl Into<Version>) -> Result<&PublicAccessList> {
-        use SequenceData::*;
+        use Sequence::*;
         let access_list = match self {
             PublicSentried(data) => data.access_list_at(version),
             Public(data) => data.access_list_at(version),
@@ -624,7 +624,7 @@ impl SequenceData {
         &self,
         version: impl Into<Version>,
     ) -> Result<&PrivateAccessList> {
-        use SequenceData::*;
+        use Sequence::*;
         let access_list = match self {
             PrivateSentried(data) => data.access_list_at(version),
             Private(data) => data.access_list_at(version),
@@ -635,7 +635,7 @@ impl SequenceData {
 
     /// Returns history of all access list states
     pub fn public_access_list_history(&self) -> Result<Vec<PublicAccessList>> {
-        use SequenceData::*;
+        use Sequence::*;
         let result = match self {
             PublicSentried(data) => Some(data.access_list_history()),
             Public(data) => Some(data.access_list_history()),
@@ -646,7 +646,7 @@ impl SequenceData {
 
     /// Returns history of all access list states
     pub fn private_access_list_history(&self) -> Result<Vec<PrivateAccessList>> {
-        use SequenceData::*;
+        use Sequence::*;
         let result = match self {
             PrivateSentried(data) => Some(data.access_list_history()),
             Private(data) => Some(data.access_list_history()),
@@ -661,7 +661,7 @@ impl SequenceData {
         start: Version,
         end: Version,
     ) -> Result<Vec<PublicAccessList>> {
-        use SequenceData::*;
+        use Sequence::*;
         let result = match self {
             PublicSentried(data) => data.access_list_history_range(start, end),
             Public(data) => data.access_list_history_range(start, end),
@@ -676,7 +676,7 @@ impl SequenceData {
         start: Version,
         end: Version,
     ) -> Result<Vec<PrivateAccessList>> {
-        use SequenceData::*;
+        use Sequence::*;
         let result = match self {
             PrivateSentried(data) => data.access_list_history_range(start, end),
             Private(data) => data.access_list_history_range(start, end),
@@ -687,7 +687,7 @@ impl SequenceData {
 
     /// Returns a shell without the data of the instance, as of a specific data version.
     pub fn shell(&self, version: impl Into<Version>) -> Result<Self> {
-        use SequenceData::*;
+        use Sequence::*;
         match self {
             PublicSentried(adata) => adata.shell(version).map(PublicSentried),
             Public(adata) => adata.shell(version).map(Public),
@@ -698,7 +698,7 @@ impl SequenceData {
 
     /// Sets a new owner.
     pub fn set_owner(&mut self, owner: Owner, expected_version: u64) -> Result<()> {
-        use SequenceData::*;
+        use Sequence::*;
         match self {
             PublicSentried(adata) => adata.set_owner(owner, expected_version),
             Public(adata) => adata.set_owner(owner, expected_version),
@@ -713,7 +713,7 @@ impl SequenceData {
         access_list: &PrivateAccessList,
         expected_version: u64,
     ) -> Result<()> {
-        use SequenceData::*;
+        use Sequence::*;
         match self {
             Private(data) => data.set_access_list(access_list, expected_version),
             PrivateSentried(data) => data.set_access_list(access_list, expected_version),
@@ -727,7 +727,7 @@ impl SequenceData {
         access_list: &PublicAccessList,
         expected_version: u64,
     ) -> Result<()> {
-        use SequenceData::*;
+        use Sequence::*;
         match self {
             Public(data) => data.set_access_list(access_list, expected_version),
             PublicSentried(data) => data.set_access_list(access_list, expected_version),
@@ -737,7 +737,7 @@ impl SequenceData {
 
     /// Appends values.
     pub fn append(&mut self, operation: &AppendOperation) -> Result<()> {
-        use SequenceData::*;
+        use Sequence::*;
         match self {
             PrivateSentried(sequence) => match operation.expected_version {
                 Some(expected_version) => {
@@ -763,26 +763,26 @@ impl SequenceData {
     }
 }
 
-impl From<PublicSentriedSequence> for SequenceData {
+impl From<PublicSentriedSequence> for Sequence {
     fn from(data: PublicSentriedSequence) -> Self {
-        SequenceData::PublicSentried(data)
+        Sequence::PublicSentried(data)
     }
 }
 
-impl From<PublicSequence> for SequenceData {
+impl From<PublicSequence> for Sequence {
     fn from(data: PublicSequence) -> Self {
-        SequenceData::Public(data)
+        Sequence::Public(data)
     }
 }
 
-impl From<PrivateSentriedSequence> for SequenceData {
+impl From<PrivateSentriedSequence> for Sequence {
     fn from(data: PrivateSentriedSequence) -> Self {
-        SequenceData::PrivateSentried(data)
+        Sequence::PrivateSentried(data)
     }
 }
 
-impl From<PrivateSequence> for SequenceData {
+impl From<PrivateSequence> for Sequence {
     fn from(data: PrivateSequence) -> Self {
-        SequenceData::Private(data)
+        Sequence::Private(data)
     }
 }

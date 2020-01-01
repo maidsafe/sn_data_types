@@ -11,8 +11,8 @@ mod login_packet;
 
 pub use self::login_packet::{LoginPacket, MAX_LOGIN_PACKET_BYTES};
 use crate::{
-    Address, AppPermissions, AppendOperation, BlobAddress, BlobData, Coins, Error, Key, MapData,
-    MapTransaction, Owner, PrivateAccessList, PublicAccessList, PublicKey, Response, SequenceData,
+    Address, AppPermissions, AppendOperation, Blob, BlobAddress, Coins, Error, Key, Map,
+    MapTransaction, Owner, PrivateAccessList, PublicAccessList, PublicKey, Response, Sequence,
     TransactionId, User, Version, XorName,
 };
 use serde::{Deserialize, Serialize};
@@ -219,7 +219,7 @@ pub enum Request {
     ///
     /// ==== Data ====
     ///
-    PutMap(MapData),
+    PutMap(Map),
     DeletePrivateMap(Address),
     CommitMapTx {
         address: Address,
@@ -254,7 +254,7 @@ pub enum Request {
     /// ==== Data ====
     ///
     /// Put a new Sequence onto the network.
-    PutSequence(SequenceData),
+    PutSequence(Sequence),
     /// Delete private `Sequence`.
     /// This operation MUST return an error if applied to published Sequence. Only the current
     /// owner(s) can perform this action.
@@ -292,7 +292,7 @@ pub enum Request {
     ///
     /// --- Blob Write ---
     ///
-    PutBlob(BlobData),
+    PutBlob(Blob),
     DeletePrivateBlob(BlobAddress),
     /// ---- Currency Read ----
     /// Get a default balance // when no other differntiation is yet designed

@@ -17,16 +17,15 @@ pub mod sequence;
 #[cfg(test)]
 mod sequence_tests;
 pub use blob::{
-    Address as BlobAddress, BlobData, Kind as BlobKind, PrivateBlob, PublicBlob,
-    MAX_BLOB_SIZE_IN_BYTES,
+    Address as BlobAddress, Blob, Kind as BlobKind, PrivateBlob, PublicBlob, MAX_BLOB_SIZE_IN_BYTES,
 };
 pub use map::{
-    Cmd as MapCmd, DataEntries as MapEntries, DataHistories as MapKeyHistories, MapData,
+    Cmd as MapCmd, DataEntries as MapEntries, DataHistories as MapKeyHistories, Map,
     MapTransaction, PrivateMap, PrivateSentriedMap, PublicMap, PublicSentriedMap,
     SentriedCmd as SentriedMapCmd, SentryOption, StoredValue as MapValue,
     StoredValues as MapValues,
 };
 pub use sequence::{
     AppendOperation, DataEntry as SequenceEntry, PrivateSentriedSequence, PrivateSequence,
-    PublicSentriedSequence, PublicSequence, SequenceBase, SequenceData, Values as SequenceValues,
+    PublicSentriedSequence, PublicSequence, Sequence, SequenceBase, Values as SequenceValues,
 };

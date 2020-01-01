@@ -46,9 +46,9 @@ pub use authorization::access_control::{
 };
 pub use coins::{Coins, MAX_COINS_VALUE};
 pub use data::{
-    AppendOperation, BlobAddress, BlobData, BlobKind, MapCmd, MapData, MapEntries, MapKeyHistories,
+    AppendOperation, Blob, BlobAddress, BlobKind, Map, MapCmd, MapEntries, MapKeyHistories,
     MapTransaction, MapValue, MapValues, PrivateBlob, PrivateSentriedSequence, PrivateSequence,
-    PublicBlob, PublicSentriedSequence, PublicSequence, SentriedMapCmd, SentryOption, SequenceData,
+    PublicBlob, PublicSentriedSequence, PublicSequence, SentriedMapCmd, SentryOption, Sequence,
     SequenceEntry, SequenceValues, MAX_BLOB_SIZE_IN_BYTES,
 };
 pub use errors::{EntryError, Error, Result};
@@ -79,9 +79,9 @@ use std::fmt::{self, Debug, Display, Formatter};
 
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Data {
-    Blob(BlobData),
-    Map(MapData),
-    Sequence(SequenceData),
+    Blob(Blob),
+    Map(Map),
+    Sequence(Sequence),
 }
 
 impl Data {
@@ -200,8 +200,8 @@ impl Data {
     fn is_owner(&self, user: PublicKey) -> bool {
         match *self {
             Data::Blob(ref data) => match data {
-                BlobData::Public(_) => false,
-                BlobData::Private(private) => private.is_owner(user),
+                Blob::Public(_) => false,
+                Blob::Private(private) => private.is_owner(user),
             },
             Data::Map(ref data) => data.is_owner(user),
             Data::Sequence(ref data) => data.is_owner(user),
@@ -277,20 +277,20 @@ impl Data {
     }
 }
 
-impl From<BlobData> for Data {
-    fn from(data: BlobData) -> Self {
+impl From<Blob> for Data {
+    fn from(data: Blob) -> Self {
         Data::Blob(data)
     }
 }
 
-impl From<MapData> for Data {
-    fn from(data: MapData) -> Self {
+impl From<Map> for Data {
+    fn from(data: Map) -> Self {
         Data::Map(data)
     }
 }
 
-impl From<SequenceData> for Data {
-    fn from(data: SequenceData) -> Self {
+impl From<Sequence> for Data {
+    fn from(data: Sequence) -> Self {
         Data::Sequence(data)
     }
 }

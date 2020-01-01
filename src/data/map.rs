@@ -1064,7 +1064,7 @@ impl Debug for MapBase<PrivateAccessList, NonSentried> {
 
 /// Object storing a Map variant.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
-pub enum MapData {
+pub enum Map {
     /// Public instance with concurrency control.
     PublicSentried(PublicSentriedMap),
     /// Public instance.
@@ -1075,11 +1075,11 @@ pub enum MapData {
     Private(PrivateMap),
 }
 
-impl MapData {
+impl Map {
     /// Returns true if the provided access type is allowed for the specific user (identified y their public key).
     pub fn is_allowed(&self, access: AccessType, user: PublicKey) -> bool {
         use AccessType::*;
-        use MapData::*;
+        use Map::*;
         // Public flavours automatically allows all reads.
         match (self, access) {
             (PublicSentried(_), Read) | (Public(_), Read) => return true,
@@ -1114,7 +1114,7 @@ impl MapData {
 
     /// Returns the address.
     pub fn address(&self) -> &Address {
-        use MapData::*;
+        use Map::*;
         match self {
             PublicSentried(data) => data.address(),
             Public(data) => data.address(),
@@ -1155,7 +1155,7 @@ impl MapData {
 
     /// Returns true if the provided user (identified by their public key) is the current owner.
     pub fn is_owner(&self, user: PublicKey) -> bool {
-        use MapData::*;
+        use Map::*;
         match self {
             PublicSentried(data) => data.is_owner(user),
             Public(data) => data.is_owner(user),
@@ -1166,7 +1166,7 @@ impl MapData {
 
     /// Returns expected version of the instance data.
     pub fn expected_data_version(&self) -> u64 {
-        use MapData::*;
+        use Map::*;
         match self {
             PublicSentried(data) => data.expected_data_version().unwrap_or_default(),
             Public(data) => data.expected_data_version().unwrap_or_default(),
@@ -1177,7 +1177,7 @@ impl MapData {
 
     /// Returns expected version of the instance access list.
     pub fn expected_access_list_version(&self) -> u64 {
-        use MapData::*;
+        use Map::*;
         match self {
             PublicSentried(data) => data.expected_access_list_version(),
             Public(data) => data.expected_access_list_version(),
@@ -1188,7 +1188,7 @@ impl MapData {
 
     /// Returns expected version of the instance owner.
     pub fn expected_owners_version(&self) -> u64 {
-        use MapData::*;
+        use Map::*;
         match self {
             PublicSentried(data) => data.expected_owners_version(),
             Public(data) => data.expected_owners_version(),
@@ -1199,7 +1199,7 @@ impl MapData {
 
     /// Returns expected versions of data, owner and access list.
     pub fn versions(&self) -> ExpectedVersions {
-        use MapData::*;
+        use Map::*;
         match self {
             PublicSentried(data) => data.versions(),
             Public(data) => data.versions(),
@@ -1210,7 +1210,7 @@ impl MapData {
 
     /// Returns the value of the key.
     pub fn get_value(&self, key: &Key) -> Option<&Value> {
-        use MapData::*;
+        use Map::*;
         match self {
             PublicSentried(data) => data.get_value(key),
             Public(data) => data.get_value(key),
@@ -1221,7 +1221,7 @@ impl MapData {
 
     /// Returns the value of the key, at a specific version of the key.
     pub fn get_value_at(&self, key: &Key, version: Version) -> Option<&Value> {
-        use MapData::*;
+        use Map::*;
         match self {
             PublicSentried(data) => data.get_value_at(key, version),
             Public(data) => data.get_value_at(key, version),
@@ -1232,7 +1232,7 @@ impl MapData {
 
     /// Returns all key value pairs.
     pub fn data_entries(&self) -> DataEntries {
-        use MapData::*;
+        use Map::*;
         match self {
             PublicSentried(data) => data.data_entries(),
             Public(data) => data.data_entries(),
@@ -1243,7 +1243,7 @@ impl MapData {
 
     /// Returns all values.
     pub fn get_values(&self) -> Values {
-        use MapData::*;
+        use Map::*;
         match self {
             PublicSentried(data) => data.get_values(),
             Public(data) => data.get_values(),
@@ -1254,7 +1254,7 @@ impl MapData {
 
     /// Returns all keys.
     pub fn get_keys(&self) -> Keys {
-        use MapData::*;
+        use Map::*;
         match self {
             PublicSentried(data) => data.get_keys(),
             Public(data) => data.get_keys(),
@@ -1265,7 +1265,7 @@ impl MapData {
 
     /// Returns the history of a specified key.
     pub fn key_history(&self, key: &Key) -> Option<&StoredValues> {
-        use MapData::*;
+        use Map::*;
         match self {
             PublicSentried(data) => data.key_history(key),
             Public(data) => data.key_history(key),
@@ -1276,7 +1276,7 @@ impl MapData {
 
     /// Returns a range in the history of a specified key.
     pub fn key_history_range(&self, key: &Key, from: Version, to: Version) -> Option<StoredValues> {
-        use MapData::*;
+        use Map::*;
         match self {
             PublicSentried(data) => data.key_history_range(key, from, to),
             Public(data) => data.key_history_range(key, from, to),
@@ -1287,7 +1287,7 @@ impl MapData {
 
     /// Returns history for all keys
     pub fn key_histories(&self) -> &DataHistories {
-        use MapData::*;
+        use Map::*;
         match self {
             PublicSentried(data) => data.key_histories(),
             Public(data) => data.key_histories(),
@@ -1298,7 +1298,7 @@ impl MapData {
 
     /// Returns the owner at a specific version of owners.
     pub fn owner_at(&self, version: impl Into<Version>) -> Option<&Owner> {
-        use MapData::*;
+        use Map::*;
         match self {
             PublicSentried(data) => data.owner_at(version),
             Public(data) => data.owner_at(version),
@@ -1309,7 +1309,7 @@ impl MapData {
 
     /// Returns history of all owners
     pub fn owner_history(&self) -> Result<Vec<Owner>> {
-        use MapData::*;
+        use Map::*;
         let result = match self {
             PublicSentried(data) => Some(data.owner_history()),
             Public(data) => Some(data.owner_history()),
@@ -1321,7 +1321,7 @@ impl MapData {
 
     /// Get history of owners within the range of versions specified.
     pub fn owner_history_range(&self, start: Version, end: Version) -> Result<Vec<Owner>> {
-        use MapData::*;
+        use Map::*;
         let result = match self {
             PublicSentried(data) => data.owner_history_range(start, end),
             Public(data) => data.owner_history_range(start, end),
@@ -1359,7 +1359,7 @@ impl MapData {
 
     /// Returns the access list of a public instance at a specific version.
     pub fn public_access_list_at(&self, version: impl Into<Version>) -> Result<&PublicAccessList> {
-        use MapData::*;
+        use Map::*;
         let access_list = match self {
             PublicSentried(data) => data.access_list_at(version),
             Public(data) => data.access_list_at(version),
@@ -1373,7 +1373,7 @@ impl MapData {
         &self,
         version: impl Into<Version>,
     ) -> Result<&PrivateAccessList> {
-        use MapData::*;
+        use Map::*;
         let access_list = match self {
             PrivateSentried(data) => data.access_list_at(version),
             Private(data) => data.access_list_at(version),
@@ -1384,7 +1384,7 @@ impl MapData {
 
     /// Returns history of all access list states
     pub fn public_access_list_history(&self) -> Result<Vec<PublicAccessList>> {
-        use MapData::*;
+        use Map::*;
         let result = match self {
             PublicSentried(data) => Some(data.access_list_history()),
             Public(data) => Some(data.access_list_history()),
@@ -1395,7 +1395,7 @@ impl MapData {
 
     /// Returns history of all access list states
     pub fn private_access_list_history(&self) -> Result<Vec<PrivateAccessList>> {
-        use MapData::*;
+        use Map::*;
         let result = match self {
             PrivateSentried(data) => Some(data.access_list_history()),
             Private(data) => Some(data.access_list_history()),
@@ -1410,7 +1410,7 @@ impl MapData {
         start: Version,
         end: Version,
     ) -> Result<Vec<PublicAccessList>> {
-        use MapData::*;
+        use Map::*;
         let result = match self {
             PublicSentried(data) => data.access_list_history_range(start, end),
             Public(data) => data.access_list_history_range(start, end),
@@ -1425,7 +1425,7 @@ impl MapData {
         start: Version,
         end: Version,
     ) -> Result<Vec<PrivateAccessList>> {
-        use MapData::*;
+        use Map::*;
         let result = match self {
             PrivateSentried(data) => data.access_list_history_range(start, end),
             Private(data) => data.access_list_history_range(start, end),
@@ -1436,7 +1436,7 @@ impl MapData {
 
     /// Returns a shell without the data of the instance, as of a specific data version.
     pub fn shell(&self, version: impl Into<Version>) -> Result<Self> {
-        use MapData::*;
+        use Map::*;
         match self {
             PublicSentried(map) => map.shell(version).map(PublicSentried),
             Public(map) => map.shell(version).map(Public),
@@ -1447,7 +1447,7 @@ impl MapData {
 
     /// Sets a new owner.
     pub fn set_owner(&mut self, owner: Owner, expected_version: u64) -> Result<()> {
-        use MapData::*;
+        use Map::*;
         match self {
             PublicSentried(adata) => adata.set_owner(owner, expected_version),
             Public(adata) => adata.set_owner(owner, expected_version),
@@ -1462,7 +1462,7 @@ impl MapData {
         access_list: &PrivateAccessList,
         expected_version: u64,
     ) -> Result<()> {
-        use MapData::*;
+        use Map::*;
         match self {
             Private(data) => data.set_access_list(access_list, expected_version),
             PrivateSentried(data) => data.set_access_list(access_list, expected_version),
@@ -1476,7 +1476,7 @@ impl MapData {
         access_list: &PublicAccessList,
         expected_version: u64,
     ) -> Result<()> {
-        use MapData::*;
+        use Map::*;
         match self {
             Public(data) => data.set_access_list(access_list, expected_version),
             PublicSentried(data) => data.set_access_list(access_list, expected_version),
@@ -1486,7 +1486,7 @@ impl MapData {
 
     /// Commits transaction.
     pub fn commit(&mut self, tx: &MapTransaction) -> Result<()> {
-        use MapData::*;
+        use Map::*;
         use MapTransaction::*;
         use SentryOption::*;
         match self {
@@ -1536,26 +1536,26 @@ impl MapData {
     }
 }
 
-impl From<PublicSentriedMap> for MapData {
+impl From<PublicSentriedMap> for Map {
     fn from(data: PublicSentriedMap) -> Self {
-        MapData::PublicSentried(data)
+        Map::PublicSentried(data)
     }
 }
 
-impl From<PublicMap> for MapData {
+impl From<PublicMap> for Map {
     fn from(data: PublicMap) -> Self {
-        MapData::Public(data)
+        Map::Public(data)
     }
 }
 
-impl From<PrivateSentriedMap> for MapData {
+impl From<PrivateSentriedMap> for Map {
     fn from(data: PrivateSentriedMap) -> Self {
-        MapData::PrivateSentried(data)
+        Map::PrivateSentried(data)
     }
 }
 
-impl From<PrivateMap> for MapData {
+impl From<PrivateMap> for Map {
     fn from(data: PrivateMap) -> Self {
-        MapData::Private(data)
+        Map::Private(data)
     }
 }

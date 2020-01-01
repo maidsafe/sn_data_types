@@ -8,10 +8,10 @@
 // Software.
 
 use crate::{
-    errors::ErrorDebug, AccessList, AppPermissions, BlobData, Coins, Error, ExpectedVersions, Key,
-    Keys, MapData, MapEntries, MapKeyHistories, MapValues, Owner, PrivateAccessList,
-    PrivateUserAccess, PublicAccessList, PublicKey, PublicUserAccess, Result, SequenceData,
-    SequenceEntry, Signature, Transaction, Value, Values,
+    errors::ErrorDebug, AccessList, AppPermissions, Blob, Coins, Error, ExpectedVersions, Key,
+    Keys, Map, MapEntries, MapKeyHistories, MapValues, Owner, PrivateAccessList, PrivateUserAccess,
+    PublicAccessList, PublicKey, PublicUserAccess, Result, Sequence, SequenceEntry, Signature,
+    Transaction, Value, Values,
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, convert::TryFrom, fmt};
@@ -23,12 +23,12 @@ pub enum Response {
     //
     // ===== Blob =====
     //
-    GetBlob(Result<BlobData>),
+    GetBlob(Result<Blob>),
     //
     // ===== Map =====
     //
-    GetMap(Result<MapData>),
-    GetMapShell(Result<MapData>),
+    GetMap(Result<Map>),
+    GetMapShell(Result<Map>),
     GetMapVersion(Result<u64>),
     GetMapExpectedVersions(Result<ExpectedVersions>),
     GetMapValue(Result<Value>),   // The value of a key
@@ -56,8 +56,8 @@ pub enum Response {
     //
     // ===== Sequence =====
     //
-    GetSequence(Result<SequenceData>),
-    GetSequenceShell(Result<SequenceData>),
+    GetSequence(Result<Sequence>),
+    GetSequenceShell(Result<Sequence>),
     GetSequenceOwner(Result<Owner>),
     GetSequenceOwnerAt(Result<Owner>),
     GetSequenceOwnerHistory(Result<Vec<Owner>>),
@@ -122,14 +122,14 @@ macro_rules! try_from {
 }
 
 // todo: add missing try_from!:s
-try_from!(BlobData, GetBlob);
-try_from!(MapData, GetMap, GetMapShell);
+try_from!(Blob, GetBlob);
+try_from!(Map, GetMap, GetMapShell);
 try_from!(u64, GetMapVersion);
 try_from!(MapEntries, GetMapEntries);
 try_from!(Vec<Key>, GetMapKeys);
 try_from!(Vec<Vec<u8>>, GetMapValues, GetSequenceRange); // Values and Keys are Vec<Vec<u8>>
 try_from!(Value, GetMapValue, GetSequenceValue);
-try_from!(SequenceData, GetSequence, GetSequenceShell);
+try_from!(Sequence, GetSequence, GetSequenceShell);
 try_from!(Owner, GetMapOwner, GetSequenceOwner);
 try_from!(
     ExpectedVersions,

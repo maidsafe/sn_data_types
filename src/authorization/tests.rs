@@ -172,7 +172,7 @@ fn can_retrieve_sequence_access_list() {
     // public
     let mut data = PublicSequence::new(rand::random(), 20);
     unwrap!(data.set_access_list(&public_access_list, 0));
-    let data = SequenceData::from(data);
+    let data = Sequence::from(data);
 
     assert_eq!(data.public_access_list_at(0), Ok(&public_access_list));
     assert_eq!(data.private_access_list_at(0), Err(Error::InvalidOperation));
@@ -193,7 +193,7 @@ fn can_retrieve_sequence_access_list() {
     // public, sentried
     let mut data = PublicSentriedSequence::new(rand::random(), 20);
     unwrap!(data.set_access_list(&public_access_list, 0));
-    let data = SequenceData::from(data);
+    let data = Sequence::from(data);
 
     assert_eq!(data.public_access_list_at(0), Ok(&public_access_list));
     assert_eq!(data.private_access_list_at(0), Err(Error::InvalidOperation));
@@ -214,7 +214,7 @@ fn can_retrieve_sequence_access_list() {
     // Private
     let mut data = PrivateSequence::new(rand::random(), 20);
     unwrap!(data.set_access_list(&private_access_list, 0));
-    let data = SequenceData::from(data);
+    let data = Sequence::from(data);
 
     assert_eq!(data.private_access_list_at(0), Ok(&private_access_list));
     assert_eq!(data.public_access_list_at(0), Err(Error::InvalidOperation));
@@ -235,7 +235,7 @@ fn can_retrieve_sequence_access_list() {
     // Private, seq
     let mut data = PrivateSentriedSequence::new(rand::random(), 20);
     unwrap!(data.set_access_list(&private_access_list, 0));
-    let data = SequenceData::from(data);
+    let data = Sequence::from(data);
 
     assert_eq!(data.private_access_list_at(0), Ok(&private_access_list));
     assert_eq!(data.public_access_list_at(0), Err(Error::InvalidOperation));
@@ -262,7 +262,7 @@ fn validates_public_sequence_access_list() {
     let mut sequence = PublicSentriedSequence::new(XorName([1; 32]), 100);
 
     // no owner
-    let data = SequenceData::from(sequence.clone());
+    let data = Sequence::from(sequence.clone());
     assert_eq!(data.is_allowed(AccessType::Append, public_key_0), false);
     // data is Public - read always allowed
     assert_sequence_read_permitted(&data, public_key_0, true);
@@ -276,7 +276,7 @@ fn validates_public_sequence_access_list() {
         },
         0,
     ));
-    let data = SequenceData::from(sequence.clone());
+    let data = Sequence::from(sequence.clone());
 
     assert_eq!(data.is_allowed(AccessType::Append, public_key_0), true);
     assert_eq!(data.is_allowed(AccessType::Append, public_key_1), false);
@@ -301,7 +301,7 @@ fn validates_public_sequence_access_list() {
         .access_list
         .insert(User::Specific(public_key_1), PublicUserAccess::new(set));
     unwrap!(sequence.set_access_list(&access_list, 0));
-    let data = SequenceData::from(sequence);
+    let data = Sequence::from(sequence);
 
     // existing key fallback
     assert_eq!(data.is_allowed(AccessType::Append, public_key_1), true);
@@ -324,7 +324,7 @@ fn validates_private_sequence_access_list() {
     let mut sequence = PrivateSentriedSequence::new(XorName([1; 32]), 100);
 
     // no owner
-    let data = SequenceData::from(sequence.clone());
+    let data = Sequence::from(sequence.clone());
     assert_sequence_read_permitted(&data, public_key_0, false);
 
     // no access
@@ -336,7 +336,7 @@ fn validates_private_sequence_access_list() {
         },
         0,
     ));
-    let data = SequenceData::from(sequence.clone());
+    let data = Sequence::from(sequence.clone());
 
     assert_sequence_read_permitted(&data, public_key_0, true);
     assert_sequence_read_permitted(&data, public_key_1, false);
@@ -355,7 +355,7 @@ fn validates_private_sequence_access_list() {
         .access_list
         .insert(public_key_1, PrivateUserAccess::new(set));
     unwrap!(sequence.set_access_list(&access_list, 0));
-    let data = SequenceData::from(sequence);
+    let data = Sequence::from(sequence);
 
     // existing key
     assert_sequence_read_permitted(&data, public_key_1, true);
@@ -368,12 +368,12 @@ fn validates_private_sequence_access_list() {
     assert_modify_sequence_access_list_permitted(&data, public_key_2, false);
 }
 
-fn assert_sequence_read_permitted(data: &SequenceData, public_key: PublicKey, permitted: bool) {
+fn assert_sequence_read_permitted(data: &Sequence, public_key: PublicKey, permitted: bool) {
     assert_eq!(data.is_allowed(AccessType::Read, public_key), permitted);
 }
 
 fn assert_modify_sequence_access_list_permitted(
-    data: &SequenceData,
+    data: &Sequence,
     public_key: PublicKey,
     permitted: bool,
 ) {
@@ -536,7 +536,7 @@ fn can_retrieve_map_access_list() {
     // public
     let mut data = PublicMap::new(rand::random(), 20);
     unwrap!(data.set_access_list(&public_access_list, 0));
-    let data = MapData::from(data);
+    let data = Map::from(data);
 
     assert_eq!(data.public_access_list_at(0), Ok(&public_access_list));
     assert_eq!(data.private_access_list_at(0), Err(Error::InvalidOperation));
@@ -557,7 +557,7 @@ fn can_retrieve_map_access_list() {
     // public, sentried
     let mut data = PublicSentriedMap::new(rand::random(), 20);
     unwrap!(data.set_access_list(&public_access_list, 0));
-    let data = MapData::from(data);
+    let data = Map::from(data);
 
     assert_eq!(data.public_access_list_at(0), Ok(&public_access_list));
     assert_eq!(data.private_access_list_at(0), Err(Error::InvalidOperation));
@@ -578,7 +578,7 @@ fn can_retrieve_map_access_list() {
     // Private
     let mut data = PrivateMap::new(rand::random(), 20);
     unwrap!(data.set_access_list(&private_access_list, 0));
-    let data = MapData::from(data);
+    let data = Map::from(data);
 
     assert_eq!(data.private_access_list_at(0), Ok(&private_access_list));
     assert_eq!(data.public_access_list_at(0), Err(Error::InvalidOperation));
@@ -599,7 +599,7 @@ fn can_retrieve_map_access_list() {
     // Private, sentried
     let mut data = PrivateSentriedMap::new(rand::random(), 20);
     unwrap!(data.set_access_list(&private_access_list, 0));
-    let data = MapData::from(data);
+    let data = Map::from(data);
 
     assert_eq!(data.private_access_list_at(0), Ok(&private_access_list));
     assert_eq!(data.public_access_list_at(0), Err(Error::InvalidOperation));
@@ -626,7 +626,7 @@ fn validates_public_map_access_list() {
     let mut map = PublicSentriedMap::new(XorName([1; 32]), 100);
 
     // no owner
-    let data = MapData::from(map.clone());
+    let data = Map::from(map.clone());
     assert_eq!(data.is_allowed(AccessType::Insert, public_key_0), false);
     // data is Public - read always allowed
     assert_map_read_permitted(&data, public_key_0, true);
@@ -640,7 +640,7 @@ fn validates_public_map_access_list() {
         },
         0,
     ));
-    let data = MapData::from(map.clone());
+    let data = Map::from(map.clone());
 
     assert_eq!(data.is_allowed(AccessType::Insert, public_key_0), true);
     assert_eq!(data.is_allowed(AccessType::Insert, public_key_1), false);
@@ -665,7 +665,7 @@ fn validates_public_map_access_list() {
         .access_list
         .insert(User::Specific(public_key_1), PublicUserAccess::new(set));
     unwrap!(map.set_access_list(&access_list, 0));
-    let data = MapData::from(map);
+    let data = Map::from(map);
 
     // existing key fallback
     assert_eq!(data.is_allowed(AccessType::Insert, public_key_1), true);
@@ -688,7 +688,7 @@ fn validates_private_map_access_list() {
     let mut map = PrivateSentriedMap::new(XorName([1; 32]), 100);
 
     // no owner
-    let data = MapData::from(map.clone());
+    let data = Map::from(map.clone());
     assert_map_read_permitted(&data, public_key_0, false);
 
     // no access_list
@@ -700,7 +700,7 @@ fn validates_private_map_access_list() {
         },
         0,
     ));
-    let data = MapData::from(map.clone());
+    let data = Map::from(map.clone());
 
     assert_map_read_permitted(&data, public_key_0, true);
     assert_map_read_permitted(&data, public_key_1, false);
@@ -719,7 +719,7 @@ fn validates_private_map_access_list() {
         .access_list
         .insert(public_key_1, PrivateUserAccess::new(set));
     unwrap!(map.set_access_list(&access_list, 0));
-    let data = MapData::from(map);
+    let data = Map::from(map);
 
     // existing key
     assert_map_read_permitted(&data, public_key_1, true);
@@ -732,11 +732,11 @@ fn validates_private_map_access_list() {
     assert_modify_map_access_list_permitted(&data, public_key_2, false);
 }
 
-fn assert_map_read_permitted(data: &MapData, public_key: PublicKey, permitted: bool) {
+fn assert_map_read_permitted(data: &Map, public_key: PublicKey, permitted: bool) {
     assert_eq!(data.is_allowed(AccessType::Read, public_key), permitted);
 }
 
-fn assert_modify_map_access_list_permitted(data: &MapData, public_key: PublicKey, permitted: bool) {
+fn assert_modify_map_access_list_permitted(data: &Map, public_key: PublicKey, permitted: bool) {
     assert_eq!(
         data.is_allowed(AccessType::ModifyPermissions, public_key),
         permitted

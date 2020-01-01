@@ -77,7 +77,7 @@ impl PrivateBlob {
         self.value.len()
     }
 
-    /// Returns size of this BlobData after serialisation.
+    /// Returns size of this Blob after serialisation.
     pub fn serialised_size(&self) -> u64 {
         serialized_size(self).unwrap_or(u64::MAX)
     }
@@ -147,7 +147,7 @@ impl PublicBlob {
         self.value.len()
     }
 
-    /// Returns size of this BlobData after serialisation.
+    /// Returns size of this Blob after serialisation.
     pub fn serialised_size(&self) -> u64 {
         serialized_size(self).unwrap_or(u64::MAX)
     }
@@ -263,19 +263,19 @@ impl Address {
 
 /// Object storing an blob variant.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
-pub enum BlobData {
+pub enum Blob {
     /// Private blob.
     Private(PrivateBlob),
     /// Public blob.
     Public(PublicBlob),
 }
 
-impl BlobData {
+impl Blob {
     /// Returns the address.
     pub fn address(&self) -> &Address {
         match self {
-            BlobData::Private(data) => data.address(),
-            BlobData::Public(data) => data.address(),
+            Blob::Private(data) => data.address(),
+            Blob::Public(data) => data.address(),
         }
     }
 
@@ -302,36 +302,36 @@ impl BlobData {
     /// Returns the value.
     pub fn value(&self) -> &Vec<u8> {
         match self {
-            BlobData::Private(data) => data.value(),
-            BlobData::Public(data) => data.value(),
+            Blob::Private(data) => data.value(),
+            Blob::Public(data) => data.value(),
         }
     }
 
     /// Returns `true` if the size is valid.
     pub fn valid_size(&self) -> bool {
         match self {
-            BlobData::Private(data) => data.valid_size(),
-            BlobData::Public(data) => data.valid_size(),
+            Blob::Private(data) => data.valid_size(),
+            Blob::Public(data) => data.valid_size(),
         }
     }
 
     /// Returns size of this data after serialisation.
     pub fn serialised_size(&self) -> u64 {
         match self {
-            BlobData::Private(data) => data.serialised_size(),
-            BlobData::Public(data) => data.serialised_size(),
+            Blob::Private(data) => data.serialised_size(),
+            Blob::Public(data) => data.serialised_size(),
         }
     }
 }
 
-impl From<PrivateBlob> for BlobData {
+impl From<PrivateBlob> for Blob {
     fn from(data: PrivateBlob) -> Self {
-        BlobData::Private(data)
+        Blob::Private(data)
     }
 }
 
-impl From<PublicBlob> for BlobData {
+impl From<PublicBlob> for Blob {
     fn from(data: PublicBlob) -> Self {
-        BlobData::Public(data)
+        Blob::Public(data)
     }
 }
