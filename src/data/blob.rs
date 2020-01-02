@@ -17,18 +17,19 @@ use std::{
 };
 use tiny_keccak;
 
-/// Maximum allowed size for a serialised blob (ID) to grow to
+/// Maximum allowed size for a serialised blob (ID) to grow to.
 pub const MAX_BLOB_SIZE_IN_BYTES: u64 = 1024 * 1024 + 10 * 1024;
 
 /// PrivateBlob: an immutable chunk of data which can be deleted. Can only be fetched
 /// by the listed owner.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone)]
 pub struct PrivateBlob {
-    /// Address.
+    /// Network address. Omitted when serialising and calculated from the `value` when
+    /// deserialising.
     address: Address,
     /// Contained data.
     value: Vec<u8>,
-    /// Contains a set of owners of this data. DataHandlers enforce that a DELETE or OWNED-GET type
+    /// Contains a owner of this data. DataHandlers enforce that a DELETE or OWNED-GET type
     /// of request is coming from the ClientHandler of the owners.
     owner: PublicKey,
 }
@@ -52,12 +53,12 @@ impl PrivateBlob {
         &self.value
     }
 
-    /// Returns the set of owners.
+    /// Returns the owner.
     pub fn is_owner(&self, user: PublicKey) -> bool {
         self.owner == user
     }
 
-    /// Returns the set of owners.
+    /// Returns the owner.
     pub fn owner(&self) -> &PublicKey {
         &self.owner
     }
@@ -82,8 +83,8 @@ impl PrivateBlob {
         serialized_size(self).unwrap_or(u64::MAX)
     }
 
-    /// Return true if the size is valid
-    pub fn valid_size(&self) -> bool {
+    /// Returns true if the size is valid
+    pub fn has_valid_size(&self) -> bool {
         self.serialised_size() <= MAX_BLOB_SIZE_IN_BYTES
     }
 }
@@ -152,8 +153,8 @@ impl PublicBlob {
         serialized_size(self).unwrap_or(u64::MAX)
     }
 
-    /// Return true if the size is valid
-    pub fn valid_size(&self) -> bool {
+    /// Returns true if the size is valid
+    pub fn has_valid_size(&self) -> bool {
         self.serialised_size() <= MAX_BLOB_SIZE_IN_BYTES
     }
 }
@@ -177,7 +178,7 @@ impl Debug for PublicBlob {
     }
 }
 
-/// The Kind determines if a blob is public or private.
+/// The Kind indicates whether a Blob is Public or Private.
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Kind {
     /// Denotes a blob as private.
@@ -207,7 +208,7 @@ impl Kind {
     }
 }
 
-/// A blob address, where public and private are two different address spaces.
+/// A Blob address, where public and private are two different address spaces.
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Address {
     /// Describes an address in the private namespace.
@@ -255,13 +256,13 @@ impl Address {
         utils::encode(&self)
     }
 
-    /// Create from z-base-32 encoded string.
+    /// Creates from z-base-32 encoded string.
     pub fn decode_from_zbase32<T: Decodable>(encoded: T) -> Result<Self, Error> {
         utils::decode(encoded)
     }
 }
 
-/// Object storing an blob variant.
+/// Object storing a Blob variant.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Blob {
     /// Private blob.
@@ -308,10 +309,10 @@ impl Blob {
     }
 
     /// Returns `true` if the size is valid.
-    pub fn valid_size(&self) -> bool {
+    pub fn has_valid_size(&self) -> bool {
         match self {
-            Blob::Private(data) => data.valid_size(),
-            Blob::Public(data) => data.valid_size(),
+            Blob::Private(data) => data.has_valid_size(),
+            Blob::Public(data) => data.has_valid_size(),
         }
     }
 
