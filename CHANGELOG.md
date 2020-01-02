@@ -1,5 +1,13 @@
 # safe-nd - Change Log
 
+## [0.7.0]
+
+- Change the Client<->Node handshake protocol: it replaces a one-purpose `Challenge` enum with a more extensive pair of enums, `HandshakeRequest` and `HandshakeResponse`.
+- Fix pedantic clippy errors.
+
+## [0.6.1]
+- Implement `From` trait for `id::client::FullId` to allow conversion from supported key types.
+
 ## [0.6.0]
 
 - Change CI to GitHub Actions.

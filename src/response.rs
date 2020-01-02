@@ -253,7 +253,7 @@ mod tests {
         let m_data = MData::Unseq(UnseqMutableData::new_with_data(
             *i_data.name(),
             1,
-            data.clone(),
+            data,
             BTreeMap::new(),
             owners,
         ));

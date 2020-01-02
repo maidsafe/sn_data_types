@@ -7,12 +7,16 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
+use crate::keys::BlsKeypair;
 use crate::{utils, Ed25519Digest, Error, Keypair, PublicKey, Signature, XorName};
+use ed25519_dalek::Keypair as Ed25519Keypair;
 use multibase::Decodable;
 use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{self, Debug, Display, Formatter};
-use threshold_crypto::SecretKeyShare as BlsSecretKeyShare;
+use threshold_crypto::{
+    serde_impl::SerdeSecret, SecretKey as BlsSecretKey, SecretKeyShare as BlsSecretKeyShare,
+};
 
 /// A struct holding a keypair variant and the corresponding public ID for a network Client.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -67,6 +71,41 @@ impl FullId {
     /// Returns the public ID.
     pub fn public_id(&self) -> &PublicId {
         &self.public_id
+    }
+}
+
+impl From<BlsSecretKey> for FullId {
+    fn from(bls_sk: BlsSecretKey) -> Self {
+        let public = bls_sk.public_key();
+        let keypair = Keypair::Bls(BlsKeypair {
+            secret: SerdeSecret(bls_sk),
+            public,
+        });
+        let public_key = keypair.public_key();
+        let public_id = PublicId {
+            name: public_key.into(),
+            public_key,
+        };
+        Self { keypair, public_id }
+    }
+}
+
+impl From<Ed25519Keypair> for FullId {
+    fn from(ed25519_keypair: Ed25519Keypair) -> Self {
+        let keypair = Keypair::Ed25519(ed25519_keypair);
+        let public_key = keypair.public_key();
+        let public_id = PublicId {
+            name: public_key.into(),
+            public_key,
+        };
+        Self { keypair, public_id }
+    }
+}
+
+// This is required so we can have `impl Into<FullId>` as a function parameter
+impl From<BlsSecretKeyShare> for FullId {
+    fn from(bls_secret_key_share: BlsSecretKeyShare) -> Self {
+        Self::new_bls_share(bls_secret_key_share)
     }
 }
 

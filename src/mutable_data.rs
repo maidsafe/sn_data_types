@@ -40,7 +40,7 @@ use std::{
 /// MutableData that is unpublished on the network. This data can only be fetched by the owner or
 /// those in the permissions fields with `Permission::Read` access.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
-pub struct SeqMutableData {
+pub struct SeqData {
     /// Network address.
     address: Address,
     /// Key-Value semantics.
@@ -55,7 +55,7 @@ pub struct SeqMutableData {
     owner: PublicKey,
 }
 
-impl Debug for SeqMutableData {
+impl Debug for SeqData {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "SeqMutableData {:?}", self.name())
     }
@@ -64,7 +64,7 @@ impl Debug for SeqMutableData {
 /// MutableData that is unpublished on the network. This data can only be fetched by the owner or
 /// those in the permissions fields with `Permission::Read` access.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
-pub struct UnseqMutableData {
+pub struct UnseqData {
     /// Network address.
     address: Address,
     /// Key-Value semantics.
@@ -79,7 +79,7 @@ pub struct UnseqMutableData {
     owner: PublicKey,
 }
 
-impl Debug for UnseqMutableData {
+impl Debug for UnseqData {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "UnseqMutableData {:?}", self.name())
     }
@@ -380,10 +380,10 @@ macro_rules! impl_mutable_data {
     };
 }
 
-impl_mutable_data!(SeqMutableData);
-impl_mutable_data!(UnseqMutableData);
+impl_mutable_data!(SeqData);
+impl_mutable_data!(UnseqData);
 
-impl UnseqMutableData {
+impl UnseqData {
     /// Creates a new unsequenced MutableData.
     pub fn new(name: XorName, tag: u64, owner: PublicKey) -> Self {
         Self {
@@ -517,7 +517,7 @@ impl UnseqMutableData {
 }
 
 /// Implements functions for sequenced MutableData.
-impl SeqMutableData {
+impl SeqData {
     /// Creates a new sequenced MutableData.
     pub fn new(name: XorName, tag: u64, owner: PublicKey) -> Self {
         Self {
@@ -767,9 +767,9 @@ impl Address {
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Data {
     /// Sequenced MutableData.
-    Seq(SeqMutableData),
+    Seq(SeqData),
     /// Unsequenced MutableData.
-    Unseq(UnseqMutableData),
+    Unseq(UnseqData),
 }
 
 impl Data {
@@ -910,14 +910,14 @@ impl Data {
     }
 }
 
-impl From<SeqMutableData> for Data {
-    fn from(data: SeqMutableData) -> Self {
+impl From<SeqData> for Data {
+    fn from(data: SeqData) -> Self {
         Data::Seq(data)
     }
 }
 
-impl From<UnseqMutableData> for Data {
-    fn from(data: UnseqMutableData) -> Self {
+impl From<UnseqData> for Data {
+    fn from(data: UnseqData) -> Self {
         Data::Unseq(data)
     }
 }

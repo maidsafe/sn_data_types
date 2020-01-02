@@ -21,7 +21,7 @@ use std::fmt;
 
 /// The type of a `Request`.
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
-pub enum RequestType {
+pub enum Type {
     /// Request is a Get for public data.
     PublicGet,
     /// Request is a Get for private data.
@@ -289,8 +289,8 @@ pub enum Request {
 }
 
 impl Request {
-    /// Get the `RequestType` of this `Request`.
-    pub fn get_type(&self) -> RequestType {
+    /// Get the `Type` of this `Request`.
+    pub fn get_type(&self) -> Type {
         use Request::*;
 
         match *self {
@@ -298,9 +298,9 @@ impl Request {
 
             GetIData(address) => {
                 if address.is_pub() {
-                    RequestType::PublicGet
+                    Type::PublicGet
                 } else {
-                    RequestType::PrivateGet
+                    Type::PrivateGet
                 }
             }
 
@@ -317,9 +317,9 @@ impl Request {
             | GetUnpubADataUserPermissions { address, .. }
             | GetADataOwners { address, .. } => {
                 if address.is_pub() {
-                    RequestType::PublicGet
+                    Type::PublicGet
                 } else {
-                    RequestType::PrivateGet
+                    Type::PrivateGet
                 }
             }
 
@@ -333,14 +333,14 @@ impl Request {
             | ListMDataKeys(_)
             | ListMDataValues(_)
             | ListMDataPermissions(_)
-                | ListMDataUserPermissions { .. } => RequestType::PrivateGet,
+                | ListMDataUserPermissions { .. } => Type::PrivateGet,
 
             // Coins
             GetBalance |
             // Login packet
             GetLoginPacket(..) |
             // Client (Owner) to SrcElders
-            ListAuthKeysAndVersion => RequestType::PrivateGet,
+            ListAuthKeysAndVersion => Type::PrivateGet,
 
             // Transaction
 
@@ -348,7 +348,7 @@ impl Request {
             TransferCoins { .. } | CreateBalance { .. } |
             // Login Packet
             CreateLoginPacketFor { .. } => {
-                RequestType::Transaction
+                Type::Transaction
             }
 
             // Mutation
@@ -375,7 +375,7 @@ impl Request {
             UpdateLoginPacket { .. } |
             // Client (Owner) to SrcElders
             InsAuthKey { .. } |
-            DelAuthKey { .. } => RequestType::Mutation,
+            DelAuthKey { .. } => Type::Mutation,
         }
     }
 
