@@ -326,59 +326,71 @@ impl fmt::Debug for Response {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use crate::{PublicBlob, UnseqMutableData};
-//     use std::convert::{TryFrom, TryInto};
-//     use unwrap::{unwrap, unwrap_err};
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{Address, AppendOperation, PrivateSequence, PublicChunk};
+    use std::convert::{TryFrom, TryInto};
+    use unwrap::{unwrap, unwrap_err};
 
-//     #[test]
-//     fn debug_format() {
-//         let response = Response::Mutation(Ok(()));
-//         assert_eq!(format!("{:?}", response), "Response::Mutation(Success)");
-//         use crate::Error;
-//         let errored_response = Response::GetSequenceShell(Err(Error::AccessDenied));
-//         assert_eq!(
-//             format!("{:?}", errored_response),
-//             "Response::GetSequenceShell(AccessDenied)"
-//         );
-//     }
+    #[test]
+    fn debug_format() {
+        let response = Response::Mutation(Ok(()));
+        assert_eq!(format!("{:?}", response), "Response::Mutation(Success)");
+        use crate::Error;
+        let errored_response = Response::GetSequenceShell(Err(Error::AccessDenied));
+        assert_eq!(
+            format!("{:?}", errored_response),
+            "Response::GetSequenceShell(AccessDenied)"
+        );
+    }
 
-//     #[test]
-//     fn try_from() {
-//         use Response::*;
+    #[test]
+    fn try_from() {
+        use Response::*;
 
-//         let i_data = Blob::Pub(PublicBlob::new(vec![1, 3, 1, 4]));
-//         let e = Error::AccessDenied;
-//         assert_eq!(i_data, unwrap!(GetBlob(Ok(i_data.clone())).try_into()));
-//         assert_eq!(
-//             TryFromError::Response(e.clone()),
-//             unwrap_err!(Blob::try_from(GetBlob(Err(e.clone()))))
-//         );
-//         assert_eq!(
-//             TryFromError::WrongType,
-//             unwrap_err!(Blob::try_from(Mutation(Ok(()))))
-//         );
+        let i_data = Chunk::Public(PublicChunk::new(vec![1, 3, 1, 4]));
+        let e = Error::AccessDenied;
+        assert_eq!(i_data, unwrap!(GetChunk(Ok(i_data.clone())).try_into()));
+        assert_eq!(
+            TryFromError::Response(e.clone()),
+            unwrap_err!(Chunk::try_from(GetChunk(Err(e.clone()))))
+        );
+        assert_eq!(
+            TryFromError::WrongType,
+            unwrap_err!(Chunk::try_from(Mutation(Ok(()))))
+        );
 
-//         let mut data = BTreeMap::new();
-//         let _ = data.insert(vec![1], vec![10]);
-//         let owners = PublicKey::Bls(threshold_crypto::SecretKey::random().public_key());
-//         let m_data = Map::Unseq(UnseqMutableData::new_with_data(
-//             *i_data.name(),
-//             1,
-//             data.clone(),
-//             BTreeMap::new(),
-//             owners,
-//         ));
-//         assert_eq!(m_data, unwrap!(GetMap(Ok(m_data.clone())).try_into()));
-//         assert_eq!(
-//             TryFromError::Response(e.clone()),
-//             unwrap_err!(Map::try_from(GetMap(Err(e))))
-//         );
-//         assert_eq!(
-//             TryFromError::WrongType,
-//             unwrap_err!(Map::try_from(Mutation(Ok(()))))
-//         );
-//     }
-// }
+        let mut data = BTreeMap::new();
+        let _ = data.insert(vec![1], vec![10]);
+        let owner = Owner {
+            public_key: PublicKey::Bls(threshold_crypto::SecretKey::random().public_key()),
+            expected_data_version: 0,
+            expected_access_list_version: 1,
+        };
+        let mut sequence = Sequence::Private(PrivateSequence::new(*i_data.name(), 1));
+
+        let _ = sequence.set_owner(owner, 0);
+        let _ = sequence.append(&AppendOperation::new(
+            Address::Private {
+                name: *i_data.name(),
+                tag: 1,
+            },
+            vec![vec![0]],
+            Some(0),
+        ));
+
+        assert_eq!(
+            sequence,
+            unwrap!(GetSequence(Ok(sequence.clone())).try_into())
+        );
+        assert_eq!(
+            TryFromError::Response(e.clone()),
+            unwrap_err!(Sequence::try_from(GetSequence(Err(e))))
+        );
+        assert_eq!(
+            TryFromError::WrongType,
+            unwrap_err!(Sequence::try_from(Mutation(Ok(()))))
+        );
+    }
+}
