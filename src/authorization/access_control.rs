@@ -114,11 +114,7 @@ impl PublicUserAccess {
     pub fn is_allowed(&self, access: AccessType) -> Option<bool> {
         match access {
             AccessType::Read => Some(true), // It's Public data, so it's always allowed to read it.
-            _ => match self.status.get(&access) {
-                Some(true) => Some(true),
-                Some(false) => Some(false),
-                None => None,
-            },
+            _ => self.status.get(&access).map(|allowed| *allowed),
         }
     }
 }
@@ -146,10 +142,10 @@ impl PrivateAccessList {
 
 impl AccessListTrait for PrivateAccessList {
     fn is_allowed(&self, user: &PublicKey, access: AccessType) -> bool {
-        match self.access_list.get(user) {
-            Some(access_status) => access_status.clone().is_allowed(access),
-            None => false,
-        }
+        self.access_list
+            .get(user)
+            .map(|access_status| access_status.is_allowed(access))
+            .unwrap_or(false)
     }
 
     fn expected_data_version(&self) -> u64 {
@@ -172,14 +168,10 @@ pub struct PublicAccessList {
 
 impl PublicAccessList {
     fn is_allowed_(&self, user: &User, access: AccessType) -> Option<bool> {
-        match self.access_list.get(user) {
-            Some(status) => match status.clone().is_allowed(access) {
-                Some(true) => Some(true),
-                Some(false) => Some(false),
-                None => None,
-            },
-            _ => None,
-        }
+        self.access_list
+            .get(user)
+            .map(|access_status| access_status.is_allowed(access))
+            .unwrap_or(None)
     }
 
     pub fn access_list(&self) -> &BTreeMap<User, PublicUserAccess> {
