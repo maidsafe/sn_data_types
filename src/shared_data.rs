@@ -57,7 +57,7 @@ pub enum User {
 }
 
 /// The current version is defined as the last entry in the vector.
-pub const CURRENT_VERSION: Version = Version::FromEnd(0);
+pub const CURRENT_VERSION: Version = Version::FromEnd(1); // Shouldn't last entry be accessed with 0 ?
 
 #[derive(Copy, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum Version {
