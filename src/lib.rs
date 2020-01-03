@@ -30,9 +30,9 @@
 
 mod append_only_data;
 mod coins;
+mod data;
 mod errors;
 mod identity;
-mod immutable_data;
 mod keys;
 mod mutable_data;
 mod request;
@@ -51,16 +51,13 @@ pub use append_only_data::{
     UnseqAppendOnly, User as ADataUser,
 };
 pub use coins::{Coins, MAX_COINS_VALUE};
+pub use data::{Blob, BlobAddress, BlobKind, PrivateBlob, PublicBlob, MAX_BLOB_SIZE_IN_BYTES};
 pub use errors::{EntryError, Error, Result};
 pub use identity::{
     app::{FullId as AppFullId, PublicId as AppPublicId},
     client::{FullId as ClientFullId, PublicId as ClientPublicId},
     node::{FullId as NodeFullId, PublicId as NodePublicId},
     PublicId,
-};
-pub use immutable_data::{
-    Address as IDataAddress, Data as IData, Kind as IDataKind, PubData as PubImmutableData,
-    UnpubData as UnpubImmutableData, MAX_IMMUTABLE_DATA_SIZE_IN_BYTES,
 };
 pub use keys::{BlsKeypair, BlsKeypairShare, Keypair, PublicKey, Signature};
 pub use mutable_data::{
@@ -92,8 +89,8 @@ use std::{
 /// Object storing a data variant.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Data {
-    /// ImmutableData.
-    Immutable(IData),
+    /// Blob.
+    Blob(Blob),
     /// MutableData.
     Mutable(MData),
     /// AppendOnlyData.
@@ -104,7 +101,7 @@ impl Data {
     /// Returns true if published.
     pub fn is_pub(&self) -> bool {
         match *self {
-            Self::Immutable(ref idata) => idata.is_pub(),
+            Self::Blob(ref blob) => blob.is_public(),
             Self::Mutable(_) => false,
             Self::AppendOnly(ref adata) => adata.is_pub(),
         }
@@ -116,9 +113,9 @@ impl Data {
     }
 }
 
-impl From<IData> for Data {
-    fn from(data: IData) -> Self {
-        Self::Immutable(data)
+impl From<Blob> for Data {
+    fn from(data: Blob) -> Self {
+        Self::Blob(data)
     }
 }
 

@@ -9,8 +9,8 @@
 
 use crate::{
     errors::ErrorDebug, AData, ADataEntries, ADataEntry, ADataIndices, ADataOwner,
-    ADataPermissions, ADataPubPermissionSet, ADataUnpubPermissionSet, AppPermissions, Coins, Error,
-    IData, MData, MDataEntries, MDataPermissionSet, MDataValue, MDataValues, PublicKey, Result,
+    ADataPermissions, ADataPubPermissionSet, ADataUnpubPermissionSet, AppPermissions, Blob, Coins,
+    Error, MData, MDataEntries, MDataPermissionSet, MDataValue, MDataValues, PublicKey, Result,
     Signature, Transaction,
 };
 use serde::{Deserialize, Serialize};
@@ -25,10 +25,10 @@ use std::{
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub enum Response {
     //
-    // ===== Immutable Data =====
+    // ===== Blob =====
     //
-    /// Get ImmutableData.
-    GetIData(Result<IData>),
+    /// Get Blob.
+    GetBlob(Result<Blob>),
     //
     // ===== Mutable Data =====
     //
@@ -124,7 +124,7 @@ macro_rules! try_from {
     };
 }
 
-try_from!(IData, GetIData);
+try_from!(Blob, GetBlob);
 try_from!(MData, GetMData, GetMDataShell);
 try_from!(u64, GetMDataVersion);
 try_from!(MDataEntries, ListMDataEntries);
@@ -156,8 +156,8 @@ impl fmt::Debug for Response {
         use Response::*;
 
         match self {
-            // IData
-            GetIData(res) => write!(f, "Response::GetIData({:?})", ErrorDebug(res)),
+            // Blob
+            GetBlob(res) => write!(f, "Response::GetBlob({:?})", ErrorDebug(res)),
             // MData
             GetMData(res) => write!(f, "Response::GetMData({:?})", ErrorDebug(res)),
             GetMDataShell(res) => write!(f, "Response::GetMDataShell({:?})", ErrorDebug(res)),
@@ -215,7 +215,7 @@ impl fmt::Debug for Response {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{PubImmutableData, UnseqMutableData};
+    use crate::{PublicBlob, UnseqMutableData};
     use std::convert::{TryFrom, TryInto};
     use unwrap::{unwrap, unwrap_err};
 
@@ -235,16 +235,16 @@ mod tests {
     fn try_from() {
         use Response::*;
 
-        let i_data = IData::Pub(PubImmutableData::new(vec![1, 3, 1, 4]));
+        let i_data = Blob::Public(PublicBlob::new(vec![1, 3, 1, 4]));
         let e = Error::AccessDenied;
-        assert_eq!(i_data, unwrap!(GetIData(Ok(i_data.clone())).try_into()));
+        assert_eq!(i_data, unwrap!(GetBlob(Ok(i_data.clone())).try_into()));
         assert_eq!(
             TryFromError::Response(e.clone()),
-            unwrap_err!(IData::try_from(GetIData(Err(e.clone()))))
+            unwrap_err!(Blob::try_from(GetBlob(Err(e.clone()))))
         );
         assert_eq!(
             TryFromError::WrongType,
-            unwrap_err!(IData::try_from(Mutation(Ok(()))))
+            unwrap_err!(Blob::try_from(Mutation(Ok(()))))
         );
 
         let mut data = BTreeMap::new();

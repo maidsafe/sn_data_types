@@ -12,7 +12,7 @@ mod login_packet;
 pub use self::login_packet::{LoginPacket, MAX_LOGIN_PACKET_BYTES};
 use crate::{
     AData, ADataAddress, ADataAppendOperation, ADataIndex, ADataOwner, ADataPubPermissions,
-    ADataUnpubPermissions, ADataUser, AppPermissions, Coins, Error, IData, IDataAddress, MData,
+    ADataUnpubPermissions, ADataUser, AppPermissions, Blob, BlobAddress, Coins, Error, MData,
     MDataAddress, MDataEntryActions, MDataPermissionSet, PublicKey, Response, TransactionId,
     XorName,
 };
@@ -37,14 +37,14 @@ pub enum Type {
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub enum Request {
     //
-    // ===== Immutable Data =====
+    // ===== Blob =====
     //
-    /// Put ImmutableData.
-    PutIData(IData),
-    /// Get ImmutableData.
-    GetIData(IDataAddress),
-    /// Delete unpublished ImmutableData.
-    DeleteUnpubIData(IDataAddress),
+    /// Put Blob
+    PutBlob(Blob),
+    /// Get Blob.
+    GetBlob(BlobAddress),
+    /// Delete Private Blob.
+    DeletePrivateBlob(BlobAddress),
     //
     // ===== Mutable Data =====
     //
@@ -294,10 +294,10 @@ impl Request {
         use Request::*;
 
         match *self {
-            // IData requests
+            // Blob requests
 
-            GetIData(address) => {
-                if address.is_pub() {
+            GetBlob(address) => {
+                if address.is_public() {
                     Type::PublicGet
                 } else {
                     Type::PrivateGet
@@ -353,9 +353,9 @@ impl Request {
 
             // Mutation
 
-            // IData
-            PutIData(_) |
-            DeleteUnpubIData(_) |
+            // Blob
+            PutBlob(_) |
+            DeletePrivateBlob(_) |
             // MData
             PutMData(_) |
             DeleteMData(_) |
@@ -385,8 +385,8 @@ impl Request {
         use Request::*;
 
         match *self {
-            // IData
-            GetIData(_) => Response::GetIData(Err(error)),
+            // Blob
+            GetBlob(_) => Response::GetBlob(Err(error)),
             // MData
             GetMData(_) => Response::GetMData(Err(error)),
             GetMDataValue { .. } => Response::GetMDataValue(Err(error)),
@@ -426,9 +426,9 @@ impl Request {
 
             // Mutation
 
-            // IData
-            PutIData(_) |
-            DeleteUnpubIData(_) |
+            // Blob
+            PutBlob(_) |
+            DeletePrivateBlob(_) |
             // MData
             PutMData(_) |
             DeleteMData(_) |
@@ -462,10 +462,10 @@ impl fmt::Debug for Request {
             formatter,
             "Request::{}",
             match *self {
-                // IData
-                PutIData(_) => "PutIData",
-                GetIData(_) => "GetIData",
-                DeleteUnpubIData(_) => "DeleteUnpubIData",
+                // Blob
+                PutBlob(_) => "PutBlob",
+                GetBlob(_) => "GetBlob",
+                DeletePrivateBlob(_) => "DeletePrivateBlob",
                 // MData
                 PutMData(_) => "PutMData",
                 GetMData(_) => "GetMData",
