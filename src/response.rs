@@ -9,7 +9,7 @@
 
 use crate::{
     errors::ErrorDebug, AData, ADataEntries, ADataEntry, ADataIndices, ADataOwner,
-    ADataPermissions, ADataPubPermissionSet, ADataUnpubPermissionSet, AppPermissions, Blob, Coins,
+    ADataPermissions, ADataPubPermissionSet, ADataUnpubPermissionSet, AppPermissions, Chunk, Coins,
     Error, MData, MDataEntries, MDataPermissionSet, MDataValue, MDataValues, PublicKey, Result,
     Signature, Transaction,
 };
@@ -27,8 +27,8 @@ pub enum Response {
     //
     // ===== Blob =====
     //
-    /// Get Blob.
-    GetBlob(Result<Blob>),
+    /// Get Chunk.
+    GetChunk(Result<Chunk>),
     //
     // ===== Mutable Data =====
     //
@@ -124,7 +124,7 @@ macro_rules! try_from {
     };
 }
 
-try_from!(Blob, GetBlob);
+try_from!(Chunk, GetChunk);
 try_from!(MData, GetMData, GetMDataShell);
 try_from!(u64, GetMDataVersion);
 try_from!(MDataEntries, ListMDataEntries);
@@ -157,7 +157,7 @@ impl fmt::Debug for Response {
 
         match self {
             // Blob
-            GetBlob(res) => write!(f, "Response::GetBlob({:?})", ErrorDebug(res)),
+            GetChunk(res) => write!(f, "Response::GetChunk({:?})", ErrorDebug(res)),
             // MData
             GetMData(res) => write!(f, "Response::GetMData({:?})", ErrorDebug(res)),
             GetMDataShell(res) => write!(f, "Response::GetMDataShell({:?})", ErrorDebug(res)),
@@ -215,7 +215,7 @@ impl fmt::Debug for Response {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{PublicBlob, UnseqMutableData};
+    use crate::{PublicChunk, UnseqMutableData};
     use std::convert::{TryFrom, TryInto};
     use unwrap::{unwrap, unwrap_err};
 
@@ -235,16 +235,16 @@ mod tests {
     fn try_from() {
         use Response::*;
 
-        let i_data = Blob::Public(PublicBlob::new(vec![1, 3, 1, 4]));
+        let i_data = Chunk::Public(PublicChunk::new(vec![1, 3, 1, 4]));
         let e = Error::AccessDenied;
-        assert_eq!(i_data, unwrap!(GetBlob(Ok(i_data.clone())).try_into()));
+        assert_eq!(i_data, unwrap!(GetChunk(Ok(i_data.clone())).try_into()));
         assert_eq!(
             TryFromError::Response(e.clone()),
-            unwrap_err!(Blob::try_from(GetBlob(Err(e.clone()))))
+            unwrap_err!(Chunk::try_from(GetChunk(Err(e.clone()))))
         );
         assert_eq!(
             TryFromError::WrongType,
-            unwrap_err!(Blob::try_from(Mutation(Ok(()))))
+            unwrap_err!(Chunk::try_from(Mutation(Ok(()))))
         );
 
         let mut data = BTreeMap::new();

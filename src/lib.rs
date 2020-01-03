@@ -51,7 +51,9 @@ pub use append_only_data::{
     UnseqAppendOnly, User as ADataUser,
 };
 pub use coins::{Coins, MAX_COINS_VALUE};
-pub use data::{Blob, BlobAddress, BlobKind, PrivateBlob, PublicBlob, MAX_BLOB_SIZE_IN_BYTES};
+pub use data::{
+    Chunk, ChunkAddress, ChunkKind, PrivateChunk, PublicChunk, MAX_CHUNK_SIZE_IN_BYTES,
+};
 pub use errors::{EntryError, Error, Result};
 pub use identity::{
     app::{FullId as AppFullId, PublicId as AppPublicId},
@@ -90,7 +92,7 @@ use std::{
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Data {
     /// Blob.
-    Blob(Blob),
+    Blob(Chunk),
     /// MutableData.
     Mutable(MData),
     /// AppendOnlyData.
@@ -101,7 +103,7 @@ impl Data {
     /// Returns true if published.
     pub fn is_pub(&self) -> bool {
         match *self {
-            Self::Blob(ref blob) => blob.is_public(),
+            Self::Blob(ref chunk) => chunk.is_public(),
             Self::Mutable(_) => false,
             Self::AppendOnly(ref adata) => adata.is_pub(),
         }
@@ -113,8 +115,8 @@ impl Data {
     }
 }
 
-impl From<Blob> for Data {
-    fn from(data: Blob) -> Self {
+impl From<Chunk> for Data {
+    fn from(data: Chunk) -> Self {
         Self::Blob(data)
     }
 }

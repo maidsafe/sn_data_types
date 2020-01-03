@@ -11,5 +11,6 @@ pub mod blob;
 #[cfg(test)]
 mod blob_tests;
 pub use blob::{
-    Address as BlobAddress, Blob, Kind as BlobKind, PrivateBlob, PublicBlob, MAX_BLOB_SIZE_IN_BYTES,
+    Address as ChunkAddress, Chunk, Kind as ChunkKind, PrivateChunk, PublicChunk,
+    MAX_CHUNK_SIZE_IN_BYTES,
 };

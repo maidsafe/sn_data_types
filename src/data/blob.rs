@@ -17,13 +17,13 @@ use std::{
 };
 use tiny_keccak;
 
-/// Maximum allowed size for a serialised blob (ID) to grow to.
-pub const MAX_BLOB_SIZE_IN_BYTES: u64 = 1024 * 1024 + 10 * 1024;
+/// Maximum allowed size for a serialised Chunk (ID) to grow to.
+pub const MAX_CHUNK_SIZE_IN_BYTES: u64 = 1024 * 1024 + 10 * 1024;
 
-/// PrivateBlob: an immutable chunk of data which can be deleted. Can only be fetched
+/// PrivateChunk: an immutable chunk of data which can be deleted. Can only be fetched
 /// by the listed owner.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone)]
-pub struct PrivateBlob {
+pub struct PrivateChunk {
     /// Network address. Omitted when serialising and calculated from the `value` when
     /// deserialising.
     address: Address,
@@ -34,8 +34,8 @@ pub struct PrivateBlob {
     owner: PublicKey,
 }
 
-impl PrivateBlob {
-    /// Creates a new instance of `PrivateBlob`
+impl PrivateChunk {
+    /// Creates a new instance of `PrivateChunk`
     pub fn new(value: Vec<u8>, owner: PublicKey) -> Self {
         let hash_of_value = tiny_keccak::sha3_256(&value);
         let serialised_contents = utils::serialise(&(hash_of_value, &owner));
@@ -78,40 +78,40 @@ impl PrivateBlob {
         self.value.len()
     }
 
-    /// Returns size of this Blob after serialisation.
+    /// Returns size of this Chunk after serialisation.
     pub fn serialised_size(&self) -> u64 {
         serialized_size(self).unwrap_or(u64::MAX)
     }
 
     /// Returns true if the size is valid
     pub fn has_valid_size(&self) -> bool {
-        self.serialised_size() <= MAX_BLOB_SIZE_IN_BYTES
+        self.serialised_size() <= MAX_CHUNK_SIZE_IN_BYTES
     }
 }
 
-impl Serialize for PrivateBlob {
+impl Serialize for PrivateChunk {
     fn serialize<S: Serializer>(&self, serialiser: S) -> Result<S::Ok, S::Error> {
         (&self.value, &self.owner).serialize(serialiser)
     }
 }
 
-impl<'de> Deserialize<'de> for PrivateBlob {
+impl<'de> Deserialize<'de> for PrivateChunk {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let (value, owner): (Vec<u8>, PublicKey) = Deserialize::deserialize(deserializer)?;
-        Ok(PrivateBlob::new(value, owner))
+        Ok(PrivateChunk::new(value, owner))
     }
 }
 
-impl Debug for PrivateBlob {
+impl Debug for PrivateChunk {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         // TODO: Output owners?
-        write!(formatter, "PrivateBlob {:?}", self.name())
+        write!(formatter, "PrivateChunk {:?}", self.name())
     }
 }
 
 /// An immutable chunk of data which cannot be deleted.
 #[derive(Hash, Clone, Eq, PartialEq, Ord, PartialOrd)]
-pub struct PublicBlob {
+pub struct PublicChunk {
     /// Network address. Omitted when serialising and calculated from the `value` when
     /// deserialising.
     address: Address,
@@ -119,8 +119,8 @@ pub struct PublicBlob {
     value: Vec<u8>,
 }
 
-impl PublicBlob {
-    /// Creates a new instance of `PublicBlob`
+impl PublicChunk {
+    /// Creates a new instance of `PublicChunk`
     pub fn new(value: Vec<u8>) -> Self {
         Self {
             address: Address::Public(XorName(tiny_keccak::sha3_256(&value))),
@@ -148,42 +148,42 @@ impl PublicBlob {
         self.value.len()
     }
 
-    /// Returns size of this Blob after serialisation.
+    /// Returns size of this Chunk after serialisation.
     pub fn serialised_size(&self) -> u64 {
         serialized_size(self).unwrap_or(u64::MAX)
     }
 
     /// Returns true if the size is valid
     pub fn has_valid_size(&self) -> bool {
-        self.serialised_size() <= MAX_BLOB_SIZE_IN_BYTES
+        self.serialised_size() <= MAX_CHUNK_SIZE_IN_BYTES
     }
 }
 
-impl Serialize for PublicBlob {
+impl Serialize for PublicChunk {
     fn serialize<S: Serializer>(&self, serialiser: S) -> Result<S::Ok, S::Error> {
         self.value.serialize(serialiser)
     }
 }
 
-impl<'de> Deserialize<'de> for PublicBlob {
+impl<'de> Deserialize<'de> for PublicChunk {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let value: Vec<u8> = Deserialize::deserialize(deserializer)?;
-        Ok(PublicBlob::new(value))
+        Ok(PublicChunk::new(value))
     }
 }
 
-impl Debug for PublicBlob {
+impl Debug for PublicChunk {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "PublicBlob {:?}", self.name())
+        write!(formatter, "PublicChunk {:?}", self.name())
     }
 }
 
-/// The Kind indicates whether a Blob is Public or Private.
+/// The Kind indicates whether a Chunk is Public or Private.
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Kind {
-    /// Denotes a blob as private.
+    /// Denotes a Chunk as private.
     Private,
-    /// Denotes a blob as public.
+    /// Denotes a Chunk as public.
     Public,
 }
 
@@ -208,7 +208,7 @@ impl Kind {
     }
 }
 
-/// A Blob address, where public and private are two different address spaces.
+/// A Chunk address, where public and private are two different address spaces.
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Address {
     /// Describes an address in the private namespace.
@@ -262,21 +262,21 @@ impl Address {
     }
 }
 
-/// Object storing a Blob variant.
+/// Object storing a Chunk variant.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
-pub enum Blob {
-    /// Private blob.
-    Private(PrivateBlob),
-    /// Public blob.
-    Public(PublicBlob),
+pub enum Chunk {
+    /// Private Chunk.
+    Private(PrivateChunk),
+    /// Public Chunk.
+    Public(PublicChunk),
 }
 
-impl Blob {
+impl Chunk {
     /// Returns the address.
     pub fn address(&self) -> &Address {
         match self {
-            Blob::Private(data) => data.address(),
-            Blob::Public(data) => data.address(),
+            Chunk::Private(data) => data.address(),
+            Chunk::Public(data) => data.address(),
         }
     }
 
@@ -303,36 +303,36 @@ impl Blob {
     /// Returns the value.
     pub fn value(&self) -> &Vec<u8> {
         match self {
-            Blob::Private(data) => data.value(),
-            Blob::Public(data) => data.value(),
+            Chunk::Private(data) => data.value(),
+            Chunk::Public(data) => data.value(),
         }
     }
 
     /// Returns `true` if the size is valid.
     pub fn has_valid_size(&self) -> bool {
         match self {
-            Blob::Private(data) => data.has_valid_size(),
-            Blob::Public(data) => data.has_valid_size(),
+            Chunk::Private(data) => data.has_valid_size(),
+            Chunk::Public(data) => data.has_valid_size(),
         }
     }
 
     /// Returns size of this data after serialisation.
     pub fn serialised_size(&self) -> u64 {
         match self {
-            Blob::Private(data) => data.serialised_size(),
-            Blob::Public(data) => data.serialised_size(),
+            Chunk::Private(data) => data.serialised_size(),
+            Chunk::Public(data) => data.serialised_size(),
         }
     }
 }
 
-impl From<PrivateBlob> for Blob {
-    fn from(data: PrivateBlob) -> Self {
-        Blob::Private(data)
+impl From<PrivateChunk> for Chunk {
+    fn from(data: PrivateChunk) -> Self {
+        Chunk::Private(data)
     }
 }
 
-impl From<PublicBlob> for Blob {
-    fn from(data: PublicBlob) -> Self {
-        Blob::Public(data)
+impl From<PublicChunk> for Chunk {
+    fn from(data: PublicChunk) -> Self {
+        Chunk::Public(data)
     }
 }

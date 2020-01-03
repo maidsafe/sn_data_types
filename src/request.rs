@@ -12,7 +12,7 @@ mod login_packet;
 pub use self::login_packet::{LoginPacket, MAX_LOGIN_PACKET_BYTES};
 use crate::{
     AData, ADataAddress, ADataAppendOperation, ADataIndex, ADataOwner, ADataPubPermissions,
-    ADataUnpubPermissions, ADataUser, AppPermissions, Blob, BlobAddress, Coins, Error, MData,
+    ADataUnpubPermissions, ADataUser, AppPermissions, Chunk, ChunkAddress, Coins, Error, MData,
     MDataAddress, MDataEntryActions, MDataPermissionSet, PublicKey, Response, TransactionId,
     XorName,
 };
@@ -39,12 +39,12 @@ pub enum Request {
     //
     // ===== Blob =====
     //
-    /// Put Blob
-    PutBlob(Blob),
-    /// Get Blob.
-    GetBlob(BlobAddress),
-    /// Delete Private Blob.
-    DeletePrivateBlob(BlobAddress),
+    /// Put Chunk
+    PutChunk(Chunk),
+    /// Get Chunk.
+    GetChunk(ChunkAddress),
+    /// Delete Private Chunk.
+    DeletePrivateChunk(ChunkAddress),
     //
     // ===== Mutable Data =====
     //
@@ -296,7 +296,7 @@ impl Request {
         match *self {
             // Blob requests
 
-            GetBlob(address) => {
+            GetChunk(address) => {
                 if address.is_public() {
                     Type::PublicGet
                 } else {
@@ -354,8 +354,8 @@ impl Request {
             // Mutation
 
             // Blob
-            PutBlob(_) |
-            DeletePrivateBlob(_) |
+            PutChunk(_) |
+            DeletePrivateChunk(_) |
             // MData
             PutMData(_) |
             DeleteMData(_) |
@@ -386,7 +386,7 @@ impl Request {
 
         match *self {
             // Blob
-            GetBlob(_) => Response::GetBlob(Err(error)),
+            GetChunk(_) => Response::GetChunk(Err(error)),
             // MData
             GetMData(_) => Response::GetMData(Err(error)),
             GetMDataValue { .. } => Response::GetMDataValue(Err(error)),
@@ -427,8 +427,8 @@ impl Request {
             // Mutation
 
             // Blob
-            PutBlob(_) |
-            DeletePrivateBlob(_) |
+            PutChunk(_) |
+            DeletePrivateChunk(_) |
             // MData
             PutMData(_) |
             DeleteMData(_) |
@@ -463,9 +463,9 @@ impl fmt::Debug for Request {
             "Request::{}",
             match *self {
                 // Blob
-                PutBlob(_) => "PutBlob",
-                GetBlob(_) => "GetBlob",
-                DeletePrivateBlob(_) => "DeletePrivateBlob",
+                PutChunk(_) => "PutChunk",
+                GetChunk(_) => "GetChunk",
+                DeletePrivateChunk(_) => "DeletePrivateChunk",
                 // MData
                 PutMData(_) => "PutMData",
                 GetMData(_) => "GetMData",
