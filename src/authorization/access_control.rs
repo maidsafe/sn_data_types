@@ -189,14 +189,9 @@ impl PublicAccessList {
 
 impl AccessListTrait for PublicAccessList {
     fn is_allowed(&self, user: &PublicKey, access: AccessType) -> bool {
-        match self.is_allowed_(&User::Specific(*user), access) {
-            Some(true) => true,
-            Some(false) => false,
-            None => match self.is_allowed_(&User::Anyone, access) {
-                Some(true) => true,
-                _ => false,
-            },
-        }
+        self.is_allowed_(&User::Specific(*user), access)
+            .or_else(|| self.is_allowed_(&User::Anyone, access))
+            .unwrap_or(false)
     }
 
     fn expected_data_version(&self) -> u64 {
