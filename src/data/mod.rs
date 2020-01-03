@@ -8,16 +8,19 @@
 // Software.
 
 pub mod blob;
+pub mod map;
+pub mod sequence;
+
 #[cfg(test)]
 mod blob_tests;
-pub mod map;
 #[cfg(test)]
 mod map_tests;
-pub mod sequence;
 #[cfg(test)]
 mod sequence_tests;
+
 pub use blob::{
-    Address as BlobAddress, Blob, Kind as BlobKind, PrivateBlob, PublicBlob, MAX_BLOB_SIZE_IN_BYTES,
+    Address as ChunkAddress, Chunk, Kind as ChunkKind, PrivateChunk, PublicChunk,
+    MAX_CHUNK_SIZE_IN_BYTES,
 };
 pub use map::{
     Cmd as MapCmd, DataEntries as MapEntries, DataHistories as MapKeyHistories, Map,

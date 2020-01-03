@@ -8,7 +8,7 @@
 // Software.
 
 use super::super::{utils, PublicKey, XorName};
-use crate::data::{BlobAddress, PrivateBlob, PublicBlob};
+use crate::data::{ChunkAddress, PrivateChunk, PublicChunk};
 use bincode::deserialize as deserialise;
 use hex::encode;
 use rand::{self, Rng, SeedableRng};
@@ -25,10 +25,10 @@ fn deterministic_name() {
     let owner1 = PublicKey::Bls(SecretKey::random().public_key());
     let owner2 = PublicKey::Bls(SecretKey::random().public_key());
 
-    let idata1 = PrivateBlob::new(data1.clone(), owner1);
-    let idata2 = PrivateBlob::new(data1, owner2);
-    let idata3 = PrivateBlob::new(data2.clone(), owner1);
-    let idata3_clone = PrivateBlob::new(data2, owner1);
+    let idata1 = PrivateChunk::new(data1.clone(), owner1);
+    let idata2 = PrivateChunk::new(data1, owner2);
+    let idata3 = PrivateChunk::new(data2.clone(), owner1);
+    let idata3_clone = PrivateChunk::new(data2, owner1);
 
     assert_eq!(idata3, idata3_clone);
 
@@ -40,11 +40,11 @@ fn deterministic_name() {
 #[test]
 fn deterministic_test() {
     let value = "immutable data value".to_owned().into_bytes();
-    let blob = PublicBlob::new(value);
-    let blob_name = encode(blob.name().0.as_ref());
+    let chunk = PublicChunk::new(value);
+    let chunk_name = encode(chunk.name().0.as_ref());
     let expected_name = "fac2869677ee06277633c37ac7e8e5c655f3d652f707c7a79fab930d584a3016";
 
-    assert_eq!(&expected_name, &blob_name);
+    assert_eq!(&expected_name, &chunk_name);
 }
 
 #[test]
@@ -52,10 +52,10 @@ fn serialisation() {
     let mut rng = get_rng();
     let len = rng.gen_range(1, 10_000);
     let value = iter::repeat_with(|| rng.gen()).take(len).collect();
-    let blob = PublicBlob::new(value);
-    let serialised = utils::serialise(&blob);
+    let chunk = PublicChunk::new(value);
+    let serialised = utils::serialise(&chunk);
     let parsed = unwrap!(deserialise(&serialised));
-    assert_eq!(blob, parsed);
+    assert_eq!(chunk, parsed);
 }
 
 fn get_rng() -> XorShiftRng {
@@ -80,10 +80,10 @@ fn get_rng() -> XorShiftRng {
 }
 
 #[test]
-fn zbase32_encode_decode_blob_address() {
+fn zbase32_encode_decode_chunk_address() {
     let name = XorName(rand::random());
-    let address = BlobAddress::Public(name);
+    let address = ChunkAddress::Public(name);
     let encoded = address.encode_to_zbase32();
-    let decoded = unwrap!(BlobAddress::decode_from_zbase32(&encoded));
+    let decoded = unwrap!(ChunkAddress::decode_from_zbase32(&encoded));
     assert_eq!(address, decoded);
 }

@@ -8,7 +8,7 @@
 // Software.
 
 use crate::{
-    errors::ErrorDebug, AccessList, AppPermissions, Blob, Coins, Error, ExpectedVersions, Key,
+    errors::ErrorDebug, AccessList, AppPermissions, Chunk, Coins, Error, ExpectedVersions, Key,
     Keys, Map, MapEntries, MapKeyHistories, MapValues, Owner, PrivateAccessList, PrivateUserAccess,
     PublicAccessList, PublicKey, PublicUserAccess, Result, Sequence, SequenceEntry, Signature,
     Transaction, Value, Values,
@@ -23,7 +23,7 @@ pub enum Response {
     //
     // ===== Blob =====
     //
-    GetBlob(Result<Blob>),
+    GetChunk(Result<Chunk>),
     //
     // ===== Map =====
     //
@@ -122,7 +122,7 @@ macro_rules! try_from {
 }
 
 // todo: add missing try_from!:s
-try_from!(Blob, GetBlob);
+try_from!(Chunk, GetChunk);
 try_from!(Map, GetMap, GetMapShell);
 try_from!(u64, GetMapVersion);
 try_from!(MapEntries, GetMapEntries);
@@ -162,7 +162,7 @@ impl fmt::Debug for Response {
         use Response::*;
         match self {
             // Blob
-            GetBlob(res) => write!(f, "Response::GetBlob({:?})", ErrorDebug(res)),
+            GetChunk(res) => write!(f, "Response::GetChunk({:?})", ErrorDebug(res)),
             // Map
             GetMap(res) => write!(f, "Response::GetMap({:?})", ErrorDebug(res)),
             GetMapShell(res) => write!(f, "Response::GetMapShell({:?})", ErrorDebug(res)),

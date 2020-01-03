@@ -46,10 +46,10 @@ pub use authorization::access_control::{
 };
 pub use coins::{Coins, MAX_COINS_VALUE};
 pub use data::{
-    AppendOperation, Blob, BlobAddress, BlobKind, Map, MapCmd, MapEntries, MapKeyHistories,
-    MapTransaction, MapValue, MapValues, PrivateBlob, PrivateSentriedSequence, PrivateSequence,
-    PublicBlob, PublicSentriedSequence, PublicSequence, SentriedMapCmd, SentryOption, Sequence,
-    SequenceEntry, SequenceValues, MAX_BLOB_SIZE_IN_BYTES,
+    AppendOperation, Chunk, ChunkAddress, ChunkKind, Map, MapCmd, MapEntries, MapKeyHistories,
+    MapTransaction, MapValue, MapValues, PrivateChunk, PrivateSentriedSequence, PrivateSequence,
+    PublicChunk, PublicSentriedSequence, PublicSequence, SentriedMapCmd, SentryOption, Sequence,
+    SequenceEntry, SequenceValues, MAX_CHUNK_SIZE_IN_BYTES,
 };
 pub use errors::{EntryError, Error, Result};
 pub use identity::{
@@ -78,18 +78,18 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{self, Debug, Display, Formatter};
 
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
-pub enum Data {
-    Blob(Blob),
+pub enum DataType {
+    Blob(Chunk),
     Map(Map),
     Sequence(Sequence),
 }
 
-impl Data {
+impl DataType {
     pub fn is_public(&self) -> bool {
         match *self {
-            Data::Blob(ref data) => data.is_public(),
-            Data::Map(ref data) => data.is_public(),
-            Data::Sequence(ref data) => data.is_public(),
+            DataType::Blob(ref data) => data.is_public(),
+            DataType::Map(ref data) => data.is_public(),
+            DataType::Sequence(ref data) => data.is_public(),
         }
     }
 
@@ -151,7 +151,7 @@ impl Data {
             //
             // === Blob Read ===
             //
-            GetBlob(_) => self.is_allowed(AccessType::Read, user),
+            GetChunk(_) => self.is_allowed(AccessType::Read, user),
             //
             // === Reads not supposed to be handled here ===
             //
@@ -180,8 +180,8 @@ impl Data {
             //
             // === Blob Write ===
             //
-            PutBlob(_) => false, // todo
-            DeletePrivateBlob(_) => self.is_owner(user),
+            PutChunk(_) => false, // todo
+            DeletePrivateChunk(_) => self.is_owner(user),
             //
             // === Currency Write ===
             //
@@ -199,20 +199,20 @@ impl Data {
 
     fn is_owner(&self, user: PublicKey) -> bool {
         match *self {
-            Data::Blob(ref data) => match data {
-                Blob::Public(_) => false,
-                Blob::Private(private) => private.is_owner(user),
+            DataType::Blob(ref data) => match data {
+                Chunk::Public(_) => false,
+                Chunk::Private(private) => private.is_owner(user),
             },
-            Data::Map(ref data) => data.is_owner(user),
-            Data::Sequence(ref data) => data.is_owner(user),
+            DataType::Map(ref data) => data.is_owner(user),
+            DataType::Sequence(ref data) => data.is_owner(user),
         }
     }
 
     fn is_allowed(&self, access: AccessType, user: PublicKey) -> bool {
         match *self {
-            Data::Blob(_) => true, // todo
-            Data::Map(ref data) => data.is_allowed(access, user),
-            Data::Sequence(ref data) => data.is_allowed(access, user),
+            DataType::Blob(_) => true, // todo
+            DataType::Map(ref data) => data.is_allowed(access, user),
+            DataType::Sequence(ref data) => data.is_allowed(access, user),
         }
     }
 
@@ -277,21 +277,21 @@ impl Data {
     }
 }
 
-impl From<Blob> for Data {
-    fn from(data: Blob) -> Self {
-        Data::Blob(data)
+impl From<Chunk> for DataType {
+    fn from(data: Chunk) -> Self {
+        DataType::Blob(data)
     }
 }
 
-impl From<Map> for Data {
+impl From<Map> for DataType {
     fn from(data: Map) -> Self {
-        Data::Map(data)
+        DataType::Map(data)
     }
 }
 
-impl From<Sequence> for Data {
+impl From<Sequence> for DataType {
     fn from(data: Sequence) -> Self {
-        Data::Sequence(data)
+        DataType::Sequence(data)
     }
 }
 

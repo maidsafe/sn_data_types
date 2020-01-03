@@ -11,7 +11,7 @@ mod login_packet;
 
 pub use self::login_packet::{LoginPacket, MAX_LOGIN_PACKET_BYTES};
 use crate::{
-    Address, AppPermissions, AppendOperation, Blob, BlobAddress, Coins, Error, Key, Map,
+    Address, AppPermissions, AppendOperation, Chunk, ChunkAddress, Coins, Error, Key, Map,
     MapTransaction, Owner, PrivateAccessList, PublicAccessList, PublicKey, Response, Sequence,
     TransactionId, User, Version, XorName,
 };
@@ -288,12 +288,12 @@ pub enum Request {
     ///
     /// --- Blob Read ---
     ///
-    GetBlob(BlobAddress),
+    GetChunk(ChunkAddress),
     ///
     /// --- Blob Write ---
     ///
-    PutBlob(Blob),
-    DeletePrivateBlob(BlobAddress),
+    PutChunk(Chunk),
+    DeletePrivateChunk(ChunkAddress),
     /// ---- Currency Read ----
     /// Get a default balance // when no other differntiation is yet designed
     GetBalance,
@@ -361,7 +361,7 @@ impl Request {
     pub fn error_response(&self, error: Error) -> Response {
         use Request::*;
         match &*self {
-            GetBlob(_) => Response::GetBlob(Err(error)),
+            GetChunk(_) => Response::GetChunk(Err(error)),
             GetBalance => Response::GetBalance(Err(error)),
             GetMap(_) => Response::GetMap(Err(error)),
             GetMapAccessList(_) => Response::GetMapAccessList(Err(error)),
@@ -449,7 +449,7 @@ impl Request {
             GetPrivateSequenceUserPermissionsAt { .. } => {
                 Response::GetPrivateSequenceUserPermissionsAt(Err(error))
             }
-            PutBlob(_) | DeletePrivateBlob(_) => Response::Mutation(Err(error)),
+            PutChunk(_) | DeletePrivateChunk(_) => Response::Mutation(Err(error)),
                 TransferCoins { .. } | CreateBalance { .. } => {
                     Response::Transaction(Err(error))
                 }
@@ -483,7 +483,7 @@ impl fmt::Debug for Request {
             formatter,
             "{}",
             match &*self {
-                GetBlob(_) => "BlobReadRequest::GetBlob",
+                GetChunk(_) => "ChunkReadRequest::GetChunk",
                 GetBalance => "CurrencyReadRequest::GetBalance",
                 GetMap(_) => "MapReadRequest::GetMap",
                 GetMapAccessList(_) => "MapReadRequest::GetMapAccessList",
@@ -567,8 +567,8 @@ impl fmt::Debug for Request {
                 GetPrivateSequenceUserPermissionsAt { .. } => {
                     "SequenceReadRequest::GetPrivateSequenceUserPermissionsAt"
                 }
-                PutBlob(_) => "BlobWriteRequest::PutBlob",
-                DeletePrivateBlob(_) => "BlobWriteRequest::DeletePrivateBlob",
+                PutChunk(_) => "ChunkWriteRequest::PutChunk",
+                DeletePrivateChunk(_) => "ChunkWriteRequest::DeletePrivateChunk",
                 TransferCoins { .. } => "CurrencyWriteRequest::TransferCoins",
                 CreateBalance { .. } => "CurrencyWriteRequest::CreateBalance",
                 PutMap(_) => "MapWriteRequest::PutMap",
