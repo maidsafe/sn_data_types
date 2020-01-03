@@ -13,7 +13,7 @@ use crate::authorization::access_control::{
 };
 use crate::shared_data::{
     to_absolute_range, to_absolute_version, Address, ExpectedVersions, Key, Keys, Kind, KvPair,
-    NonSentried, Owner, Sentried, User, Value, Values, Version,
+    NonSentried, Owner, Sentried, User, Value, Values, Version, CURRENT_VERSION,
 };
 use crate::{EntryError, Error, PublicKey, Result, XorName};
 use serde::{Deserialize, Serialize};
@@ -76,12 +76,12 @@ where
 {
     /// Returns true if the provided access type is allowed for the specific user (identified y their public key).
     pub fn is_allowed(&self, user: PublicKey, access: AccessType) -> bool {
-        if let Some(owner) = self.owner_at(Version::FromEnd(1)) {
+        if let Some(owner) = self.owner_at(CURRENT_VERSION) {
             if owner.public_key == user {
                 return true;
             }
         }
-        match self.access_list_at(Version::FromEnd(1)) {
+        match self.access_list_at(CURRENT_VERSION) {
             Some(access_list) => access_list.is_allowed(&user, access),
             None => false,
         }
@@ -104,7 +104,7 @@ where
 
     /// Returns true if the user is the current owner, false if not.
     pub fn is_owner(&self, user: PublicKey) -> bool {
-        match self.owner_at(Version::FromEnd(1)) {
+        match self.owner_at(CURRENT_VERSION) {
             Some(owner) => user == owner.public_key,
             _ => false,
         }

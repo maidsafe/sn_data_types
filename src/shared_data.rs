@@ -56,6 +56,9 @@ pub enum User {
     Specific(PublicKey),
 }
 
+/// The current version is defined as the last entry in the vector.
+pub const CURRENT_VERSION: Version = Version::FromEnd(0);
+
 #[derive(Copy, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum Version {
     FromStart(u64), // Absolute index
