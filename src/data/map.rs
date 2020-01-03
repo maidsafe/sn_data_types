@@ -442,20 +442,28 @@ impl<P: AccessListTrait> MapBase<P, NonSentried> {
     pub fn commit(&mut self, tx: &Transaction) -> Result<()> {
         // Deconstruct tx into inserts, updates, and deletes
         let operations: Operations = tx.iter().fold(
-            Default::default(),
-            |(mut insert, mut update, mut delete), cmd| {
+            Operations {
+                insert: Default::default(),
+                update: Default::default(),
+                delete: Default::default(),
+            },
+            |mut op, cmd| {
                 match cmd {
                     Cmd::Insert(kv_pair) => {
-                        let _ = insert.insert(kv_pair.clone());
+                        let _ = op.insert.insert(kv_pair.clone());
                     }
                     Cmd::Update(kv_pair) => {
-                        let _ = update.insert(kv_pair.clone());
+                        let _ = op.update.insert(kv_pair.clone());
                     }
                     Cmd::Delete(key) => {
-                        let _ = delete.insert(key.clone());
+                        let _ = op.delete.insert(key.clone());
                     }
                 };
-                (insert, update, delete)
+                Operations {
+                    insert: op.insert,
+                    update: op.update,
+                    delete: op.delete,
+                }
             },
         );
 
@@ -463,14 +471,13 @@ impl<P: AccessListTrait> MapBase<P, NonSentried> {
     }
 
     fn apply(&mut self, tx: Operations) -> Result<()> {
-        let (insert, update, delete) = tx;
-        if insert.is_empty() && update.is_empty() && delete.is_empty() {
+        if tx.insert.is_empty() && tx.update.is_empty() && tx.delete.is_empty() {
             return Err(Error::InvalidOperation);
         }
         let mut new_data = self.data.clone();
         let mut errors = BTreeMap::new();
 
-        for (key, val) in insert {
+        for (key, val) in tx.insert {
             match new_data.entry(key) {
                 Entry::Occupied(mut entry) => {
                     let history = entry.get_mut();
@@ -497,7 +504,7 @@ impl<P: AccessListTrait> MapBase<P, NonSentried> {
             }
         }
 
-        for (key, val) in update {
+        for (key, val) in tx.update {
             match new_data.entry(key) {
                 Entry::Occupied(mut entry) => {
                     let history = entry.get_mut();
@@ -518,7 +525,7 @@ impl<P: AccessListTrait> MapBase<P, NonSentried> {
             }
         }
 
-        for key in delete {
+        for key in tx.delete {
             match new_data.entry(key.clone()) {
                 Entry::Occupied(mut entry) => {
                     let history = entry.get_mut();
@@ -556,20 +563,28 @@ impl<P: AccessListTrait> MapBase<P, Sentried> {
     pub fn commit(&mut self, tx: &SentriedTransaction) -> Result<()> {
         // Deconstruct tx into inserts, updates, and deletes
         let operations: SentriedOperations = tx.iter().fold(
-            Default::default(),
-            |(mut insert, mut update, mut delete), cmd| {
+            SentriedOperations {
+                insert: Default::default(),
+                update: Default::default(),
+                delete: Default::default(),
+            },
+            |mut op, cmd| {
                 match cmd {
                     SentriedCmd::Insert(sentried_kvpair) => {
-                        let _ = insert.insert(sentried_kvpair.clone());
+                        let _ = op.insert.insert(sentried_kvpair.clone());
                     }
                     SentriedCmd::Update(sentried_kvpair) => {
-                        let _ = update.insert(sentried_kvpair.clone());
+                        let _ = op.update.insert(sentried_kvpair.clone());
                     }
                     SentriedCmd::Delete(sentried_key) => {
-                        let _ = delete.insert(sentried_key.clone());
+                        let _ = op.delete.insert(sentried_key.clone());
                     }
                 };
-                (insert, update, delete)
+                SentriedOperations {
+                    insert: op.insert,
+                    update: op.update,
+                    delete: op.delete,
+                }
             },
         );
 
@@ -577,15 +592,14 @@ impl<P: AccessListTrait> MapBase<P, Sentried> {
     }
 
     fn apply(&mut self, tx: SentriedOperations) -> Result<()> {
-        let (insert, update, delete) = tx;
-        let op_count = insert.len() + update.len() + delete.len();
+        let op_count = tx.insert.len() + tx.update.len() + tx.delete.len();
         if op_count == 0 {
             return Err(Error::InvalidOperation);
         }
         let mut new_data = self.data.clone();
         let mut errors = BTreeMap::new();
 
-        for ((key, val), version) in insert {
+        for ((key, val), version) in tx.insert {
             match new_data.entry(key) {
                 Entry::Occupied(mut entry) => match entry.get().last() {
                     Some(value) => match value {
@@ -619,7 +633,7 @@ impl<P: AccessListTrait> MapBase<P, Sentried> {
             }
         }
 
-        for ((key, val), version) in update {
+        for ((key, val), version) in tx.update {
             match new_data.entry(key) {
                 Entry::Occupied(mut entry) => {
                     match entry.get().last() {
@@ -647,7 +661,7 @@ impl<P: AccessListTrait> MapBase<P, Sentried> {
             }
         }
 
-        for (key, version) in delete {
+        for (key, version) in tx.delete {
             match new_data.entry(key.clone()) {
                 Entry::Occupied(mut entry) => {
                     let history = entry.get_mut();
@@ -685,12 +699,16 @@ impl<P: AccessListTrait> MapBase<P, Sentried> {
     }
 }
 
-type Operations = (BTreeSet<KvPair>, BTreeSet<KvPair>, BTreeSet<Key>);
-type SentriedOperations = (
-    BTreeSet<SentriedKvPair>,
-    BTreeSet<SentriedKvPair>,
-    BTreeSet<SentriedKey>,
-);
+struct Operations {
+    insert: BTreeSet<KvPair>,
+    update: BTreeSet<KvPair>,
+    delete: BTreeSet<Key>,
+}
+struct SentriedOperations {
+    insert: BTreeSet<SentriedKvPair>,
+    update: BTreeSet<SentriedKvPair>,
+    delete: BTreeSet<SentriedKey>,
+}
 
 /// A stored value indicates data or deleted data in case of Tombstone variant.
 #[derive(Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -767,36 +785,43 @@ impl MapBase<PrivateAccessList, Sentried> {
     pub fn hard_commit(&mut self, tx: &SentriedTransaction) -> Result<()> {
         // Deconstruct tx into inserts, updates, and deletes
         let operations: SentriedOperations = tx.iter().fold(
-            Default::default(),
-            |(mut insert, mut update, mut delete), cmd| {
+            SentriedOperations {
+                insert: Default::default(),
+                update: Default::default(),
+                delete: Default::default(),
+            },
+            |mut op, cmd| {
                 match cmd {
                     SentriedCmd::Insert(sentried_kvpair) => {
-                        let _ = insert.insert(sentried_kvpair.clone());
+                        let _ = op.insert.insert(sentried_kvpair.clone());
                     }
                     SentriedCmd::Update(sentried_kvpair) => {
-                        let _ = update.insert(sentried_kvpair.clone());
+                        let _ = op.update.insert(sentried_kvpair.clone());
                     }
                     SentriedCmd::Delete(sentried_key) => {
-                        let _ = delete.insert(sentried_key.clone());
+                        let _ = op.delete.insert(sentried_key.clone());
                     }
                 };
-                (insert, update, delete)
+                SentriedOperations {
+                    insert: op.insert,
+                    update: op.update,
+                    delete: op.delete,
+                }
             },
         );
 
         self.hard_apply(operations)
     }
 
-    fn hard_apply(&mut self, operations: SentriedOperations) -> Result<()> {
-        let (insert, update, delete) = operations;
-        let op_count = insert.len() + update.len() + delete.len();
+    fn hard_apply(&mut self, op: SentriedOperations) -> Result<()> {
+        let op_count = op.insert.len() + op.update.len() + op.delete.len();
         if op_count == 0 {
             return Err(Error::InvalidOperation);
         }
         let mut new_data = self.data.clone();
         let mut errors = BTreeMap::new();
 
-        for ((key, val), version) in insert {
+        for ((key, val), version) in op.insert {
             match new_data.entry(key.clone()) {
                 Entry::Occupied(mut entry) => {
                     let history = entry.get_mut();
@@ -837,7 +862,7 @@ impl MapBase<PrivateAccessList, Sentried> {
         }
 
         // overwrites old data, while also incrementing version
-        for ((key, val), version) in update {
+        for ((key, val), version) in op.update {
             match new_data.entry(key) {
                 Entry::Occupied(mut entry) => {
                     let history = entry.get_mut();
@@ -872,7 +897,7 @@ impl MapBase<PrivateAccessList, Sentried> {
         }
 
         // removes old data, while also incrementing version
-        for (key, version) in delete {
+        for (key, version) in op.delete {
             match new_data.entry(key.clone()) {
                 Entry::Occupied(mut entry) => {
                     let history = entry.get_mut();
@@ -943,36 +968,43 @@ impl MapBase<PrivateAccessList, NonSentried> {
     pub fn hard_commit(&mut self, tx: &Transaction) -> Result<()> {
         // Deconstruct tx into inserts, updates, and deletes
         let operations: Operations = tx.iter().fold(
-            Default::default(),
-            |(mut insert, mut update, mut delete), cmd| {
+            Operations {
+                insert: Default::default(),
+                update: Default::default(),
+                delete: Default::default(),
+            },
+            |mut op, cmd| {
                 match cmd {
                     Cmd::Insert(kv_pair) => {
-                        let _ = insert.insert(kv_pair.clone());
+                        let _ = op.insert.insert(kv_pair.clone());
                     }
                     Cmd::Update(kv_pair) => {
-                        let _ = update.insert(kv_pair.clone());
+                        let _ = op.update.insert(kv_pair.clone());
                     }
                     Cmd::Delete(key) => {
-                        let _ = delete.insert(key.clone());
+                        let _ = op.delete.insert(key.clone());
                     }
                 };
-                (insert, update, delete)
+                Operations {
+                    insert: op.insert,
+                    update: op.update,
+                    delete: op.delete,
+                }
             },
         );
 
         self.hard_apply(operations)
     }
 
-    fn hard_apply(&mut self, operations: Operations) -> Result<()> {
-        let (insert, update, delete) = operations;
-        let op_count = insert.len() + update.len() + delete.len();
+    fn hard_apply(&mut self, op: Operations) -> Result<()> {
+        let op_count = op.insert.len() + op.update.len() + op.delete.len();
         if op_count == 0 {
             return Err(Error::InvalidOperation);
         }
         let mut new_data = self.data.clone();
         let mut errors = BTreeMap::new();
 
-        for (key, val) in insert {
+        for (key, val) in op.insert {
             match new_data.entry(key.clone()) {
                 Entry::Occupied(mut entry) => {
                     let history = entry.get_mut();
@@ -998,7 +1030,7 @@ impl MapBase<PrivateAccessList, NonSentried> {
         }
 
         // hard-updates old data
-        for (key, val) in update {
+        for (key, val) in op.update {
             match new_data.entry(key) {
                 Entry::Occupied(mut entry) => {
                     let history = entry.get_mut();
@@ -1023,7 +1055,7 @@ impl MapBase<PrivateAccessList, NonSentried> {
         }
 
         // hard-deletes old data
-        for key in delete {
+        for key in op.delete {
             match new_data.entry(key.clone()) {
                 Entry::Occupied(mut entry) => {
                     let history = entry.get_mut();
