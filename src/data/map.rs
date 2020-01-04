@@ -1107,6 +1107,18 @@ pub enum Map {
     Private(PrivateMap),
 }
 
+// Execute $expr on the current variant of $self.
+macro_rules! state_dispatch {
+    ($self:expr, $state:pat => $expr:expr) => {
+        match $self {
+            Map::PublicSentried($state) => $expr,
+            Map::Public($state) => $expr,
+            Map::PrivateSentried($state) => $expr,
+            Map::Private($state) => $expr,
+        }
+    };
+}
+
 impl Map {
     /// Returns true if the provided access type is allowed for the specific user (identified y their public key).
     pub fn is_allowed(&self, access: AccessType, user: PublicKey) -> bool {
@@ -1146,13 +1158,7 @@ impl Map {
 
     /// Returns the address.
     pub fn address(&self) -> &Address {
-        use Map::*;
-        match self {
-            PublicSentried(data) => data.address(),
-            Public(data) => data.address(),
-            PrivateSentried(data) => data.address(),
-            Private(data) => data.address(),
-        }
+        state_dispatch!(self, ref state => state.address())
     }
 
     /// Returns the kind.
@@ -1187,180 +1193,83 @@ impl Map {
 
     /// Returns true if the provided user (identified by their public key) is the current owner.
     pub fn is_owner(&self, user: PublicKey) -> bool {
-        use Map::*;
-        match self {
-            PublicSentried(data) => data.is_owner(user),
-            Public(data) => data.is_owner(user),
-            PrivateSentried(data) => data.is_owner(user),
-            Private(data) => data.is_owner(user),
-        }
+        state_dispatch!(self, ref state => state.is_owner(user))
     }
 
     /// Returns expected version of the instance data.
     pub fn expected_data_version(&self) -> u64 {
-        use Map::*;
-        match self {
-            PublicSentried(data) => data.expected_data_version().unwrap_or_default(),
-            Public(data) => data.expected_data_version().unwrap_or_default(),
-            PrivateSentried(data) => data.expected_data_version().unwrap_or_default(),
-            Private(data) => data.expected_data_version().unwrap_or_default(),
-        }
+        state_dispatch!(self, ref state => state.expected_data_version().unwrap_or_default())
     }
 
     /// Returns expected version of the instance access list.
     pub fn expected_access_list_version(&self) -> u64 {
-        use Map::*;
-        match self {
-            PublicSentried(data) => data.expected_access_list_version(),
-            Public(data) => data.expected_access_list_version(),
-            PrivateSentried(data) => data.expected_access_list_version(),
-            Private(data) => data.expected_access_list_version(),
-        }
+        state_dispatch!(self, ref state => state.expected_access_list_version())
     }
 
     /// Returns expected version of the instance owner.
     pub fn expected_owners_version(&self) -> u64 {
-        use Map::*;
-        match self {
-            PublicSentried(data) => data.expected_owners_version(),
-            Public(data) => data.expected_owners_version(),
-            PrivateSentried(data) => data.expected_owners_version(),
-            Private(data) => data.expected_owners_version(),
-        }
+        state_dispatch!(self, ref state => state.expected_owners_version())
     }
 
     /// Returns expected versions of data, owner and access list.
     pub fn versions(&self) -> ExpectedVersions {
-        use Map::*;
-        match self {
-            PublicSentried(data) => data.versions(),
-            Public(data) => data.versions(),
-            PrivateSentried(data) => data.versions(),
-            Private(data) => data.versions(),
-        }
+        state_dispatch!(self, ref state => state.versions())
     }
 
     /// Returns the value of the key.
     pub fn get_value(&self, key: &Key) -> Option<&Value> {
-        use Map::*;
-        match self {
-            PublicSentried(data) => data.get_value(key),
-            Public(data) => data.get_value(key),
-            PrivateSentried(data) => data.get_value(key),
-            Private(data) => data.get_value(key),
-        }
+        state_dispatch!(self, ref state => state.get_value(key))
     }
 
     /// Returns the value of the key, at a specific version of the key.
     pub fn get_value_at(&self, key: &Key, version: Version) -> Option<&Value> {
-        use Map::*;
-        match self {
-            PublicSentried(data) => data.get_value_at(key, version),
-            Public(data) => data.get_value_at(key, version),
-            PrivateSentried(data) => data.get_value_at(key, version),
-            Private(data) => data.get_value_at(key, version),
-        }
+        state_dispatch!(self, ref state => state.get_value_at(key, version))
     }
 
     /// Returns all key value pairs.
     pub fn data_entries(&self) -> DataEntries {
-        use Map::*;
-        match self {
-            PublicSentried(data) => data.data_entries(),
-            Public(data) => data.data_entries(),
-            PrivateSentried(data) => data.data_entries(),
-            Private(data) => data.data_entries(),
-        }
+        state_dispatch!(self, ref state => state.data_entries())
     }
 
     /// Returns all values.
     pub fn get_values(&self) -> Values {
-        use Map::*;
-        match self {
-            PublicSentried(data) => data.get_values(),
-            Public(data) => data.get_values(),
-            PrivateSentried(data) => data.get_values(),
-            Private(data) => data.get_values(),
-        }
+        state_dispatch!(self, ref state => state.get_values())
     }
 
     /// Returns all keys.
     pub fn get_keys(&self) -> Keys {
-        use Map::*;
-        match self {
-            PublicSentried(data) => data.get_keys(),
-            Public(data) => data.get_keys(),
-            PrivateSentried(data) => data.get_keys(),
-            Private(data) => data.get_keys(),
-        }
+        state_dispatch!(self, ref state => state.get_keys())
     }
 
     /// Returns the history of a specified key.
     pub fn key_history(&self, key: &Key) -> Option<&StoredValues> {
-        use Map::*;
-        match self {
-            PublicSentried(data) => data.key_history(key),
-            Public(data) => data.key_history(key),
-            PrivateSentried(data) => data.key_history(key),
-            Private(data) => data.key_history(key),
-        }
+        state_dispatch!(self, ref state => state.key_history(key))
     }
 
     /// Returns a range in the history of a specified key.
     pub fn key_history_range(&self, key: &Key, from: Version, to: Version) -> Option<StoredValues> {
-        use Map::*;
-        match self {
-            PublicSentried(data) => data.key_history_range(key, from, to),
-            Public(data) => data.key_history_range(key, from, to),
-            PrivateSentried(data) => data.key_history_range(key, from, to),
-            Private(data) => data.key_history_range(key, from, to),
-        }
+        state_dispatch!(self, ref state => state.key_history_range(key, from, to))
     }
 
     /// Returns history for all keys
     pub fn key_histories(&self) -> &DataHistories {
-        use Map::*;
-        match self {
-            PublicSentried(data) => data.key_histories(),
-            Public(data) => data.key_histories(),
-            PrivateSentried(data) => data.key_histories(),
-            Private(data) => data.key_histories(),
-        }
+        state_dispatch!(self, ref state => state.key_histories())
     }
 
     /// Returns the owner at a specific version of owners.
     pub fn owner_at(&self, version: impl Into<Version>) -> Option<&Owner> {
-        use Map::*;
-        match self {
-            PublicSentried(data) => data.owner_at(version),
-            Public(data) => data.owner_at(version),
-            PrivateSentried(data) => data.owner_at(version),
-            Private(data) => data.owner_at(version),
-        }
+        state_dispatch!(self, ref state => state.owner_at(version))
     }
 
     /// Returns history of all owners
     pub fn owner_history(&self) -> Result<Vec<Owner>> {
-        use Map::*;
-        let result = match self {
-            PublicSentried(data) => Some(data.owner_history()),
-            Public(data) => Some(data.owner_history()),
-            PrivateSentried(data) => Some(data.owner_history()),
-            Private(data) => Some(data.owner_history()),
-        };
-        result.ok_or(Error::NoSuchEntry)
+        state_dispatch!(self, ref state => Some(state.owner_history())).ok_or(Error::NoSuchEntry)
     }
 
     /// Get history of owners within the range of versions specified.
     pub fn owner_history_range(&self, start: Version, end: Version) -> Result<Vec<Owner>> {
-        use Map::*;
-        let result = match self {
-            PublicSentried(data) => data.owner_history_range(start, end),
-            Public(data) => data.owner_history_range(start, end),
-            PrivateSentried(data) => data.owner_history_range(start, end),
-            Private(data) => data.owner_history_range(start, end),
-        };
-        result.ok_or(Error::NoSuchEntry)
+        state_dispatch!(self, ref state => state.owner_history_range(start, end))
+            .ok_or(Error::NoSuchEntry)
     }
 
     /// Returns a specific user's access list of a public instance at a specific version.
@@ -1479,13 +1388,7 @@ impl Map {
 
     /// Sets a new owner.
     pub fn set_owner(&mut self, owner: Owner, expected_version: u64) -> Result<()> {
-        use Map::*;
-        match self {
-            PublicSentried(adata) => adata.set_owner(owner, expected_version),
-            Public(adata) => adata.set_owner(owner, expected_version),
-            PrivateSentried(adata) => adata.set_owner(owner, expected_version),
-            Private(adata) => adata.set_owner(owner, expected_version),
-        }
+        state_dispatch!(self, ref mut state => state.set_owner(owner, expected_version))
     }
 
     /// Sets a new access list of a private instance.
