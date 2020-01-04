@@ -12,8 +12,8 @@ use crate::authorization::access_control::{
     PublicUserAccess,
 };
 use crate::shared_data::{
-    to_absolute_range, to_absolute_version, Address, ExpectedVersions, Key, Keys, Kind, KvPair,
-    NonSentried, Owner, Sentried, User, Value, Values, Version, CURRENT_VERSION,
+    to_absolute_range, to_absolute_version, Address, ExpectedVersions, Key, KeyValuePair, Keys,
+    Kind, NonSentried, Owner, Sentried, User, Value, Values, Version, CURRENT_VERSION,
 };
 use crate::{EntryError, Error, PublicKey, Result, XorName};
 use serde::{Deserialize, Serialize};
@@ -341,9 +341,9 @@ where
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
 pub enum Cmd {
     /// Inserts a new entry
-    Insert(KvPair),
+    Insert(KeyValuePair),
     /// Updates an entry with a new value
-    Update(KvPair),
+    Update(KeyValuePair),
     /// Deletes an entry
     Delete(Key),
 }
@@ -352,9 +352,9 @@ pub enum Cmd {
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
 pub enum SentriedCmd {
     /// Inserts a new entry
-    Insert(SentriedKvPair),
+    Insert(SentriedKeyValuePair),
     /// Updates an entry with a new value
-    Update(SentriedKvPair),
+    Update(SentriedKeyValuePair),
     /// Deletes an entry
     Delete(SentriedKey),
 }
@@ -431,7 +431,7 @@ pub type ExpectedVersion = u64;
 ///
 pub type SentriedKey = (Key, ExpectedVersion);
 ///
-pub type SentriedKvPair = (KvPair, ExpectedVersion);
+pub type SentriedKeyValuePair = (KeyValuePair, ExpectedVersion);
 
 /// Common methods for NonSentried flavours.
 impl<P: AccessListTrait> MapBase<P, NonSentried> {
@@ -570,11 +570,11 @@ impl<P: AccessListTrait> MapBase<P, Sentried> {
             },
             |mut op, cmd| {
                 match cmd {
-                    SentriedCmd::Insert(sentried_kvpair) => {
-                        let _ = op.insert.insert(sentried_kvpair.clone());
+                    SentriedCmd::Insert(sentried_key_value_pair) => {
+                        let _ = op.insert.insert(sentried_key_value_pair.clone());
                     }
-                    SentriedCmd::Update(sentried_kvpair) => {
-                        let _ = op.update.insert(sentried_kvpair.clone());
+                    SentriedCmd::Update(sentried_key_value_pair) => {
+                        let _ = op.update.insert(sentried_key_value_pair.clone());
                     }
                     SentriedCmd::Delete(sentried_key) => {
                         let _ = op.delete.insert(sentried_key.clone());
@@ -700,13 +700,13 @@ impl<P: AccessListTrait> MapBase<P, Sentried> {
 }
 
 struct Operations {
-    insert: BTreeSet<KvPair>,
-    update: BTreeSet<KvPair>,
+    insert: BTreeSet<KeyValuePair>,
+    update: BTreeSet<KeyValuePair>,
     delete: BTreeSet<Key>,
 }
 struct SentriedOperations {
-    insert: BTreeSet<SentriedKvPair>,
-    update: BTreeSet<SentriedKvPair>,
+    insert: BTreeSet<SentriedKeyValuePair>,
+    update: BTreeSet<SentriedKeyValuePair>,
     delete: BTreeSet<SentriedKey>,
 }
 
@@ -792,11 +792,11 @@ impl MapBase<PrivateAccessList, Sentried> {
             },
             |mut op, cmd| {
                 match cmd {
-                    SentriedCmd::Insert(sentried_kvpair) => {
-                        let _ = op.insert.insert(sentried_kvpair.clone());
+                    SentriedCmd::Insert(sentried_key_value_pair) => {
+                        let _ = op.insert.insert(sentried_key_value_pair.clone());
                     }
-                    SentriedCmd::Update(sentried_kvpair) => {
-                        let _ = op.update.insert(sentried_kvpair.clone());
+                    SentriedCmd::Update(sentried_key_value_pair) => {
+                        let _ = op.update.insert(sentried_key_value_pair.clone());
                     }
                     SentriedCmd::Delete(sentried_key) => {
                         let _ = op.delete.insert(sentried_key.clone());

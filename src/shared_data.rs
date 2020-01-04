@@ -38,7 +38,7 @@ impl From<Vec<u8>> for Key {
 
 // pub type Key = Vec<u8>;
 pub type Value = Vec<u8>;
-pub type KvPair = (Key, Value);
+pub type KeyValuePair = (Key, Value);
 pub type Values = Vec<Value>;
 pub type Keys = Vec<Key>;
 
