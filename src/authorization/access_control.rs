@@ -114,7 +114,7 @@ impl PublicUserAccess {
     pub fn is_allowed(&self, access: AccessType) -> Option<bool> {
         match access {
             AccessType::Read => Some(true), // It's Public data, so it's always allowed to read it.
-            _ => self.status.get(&access).map(|allowed| *allowed),
+            _ => self.status.get(&access).copied(),
         }
     }
 }
