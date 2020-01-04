@@ -388,6 +388,18 @@ pub enum Sequence {
     Private(PrivateSequence),
 }
 
+// Execute $expr on the current variant of $self.
+macro_rules! state_dispatch {
+    ($self:expr, $state:pat => $expr:expr) => {
+        match $self {
+            Sequence::PublicSentried($state) => $expr,
+            Sequence::Public($state) => $expr,
+            Sequence::PrivateSentried($state) => $expr,
+            Sequence::Private($state) => $expr,
+        }
+    };
+}
+
 impl Sequence {
     /// Returns true if the provided access type is allowed for the specific user (identified y their public key).
     pub fn is_allowed(&self, access: AccessType, user: PublicKey) -> bool {
@@ -420,13 +432,7 @@ impl Sequence {
 
     /// Returns the address.
     pub fn address(&self) -> &Address {
-        use Sequence::*;
-        match self {
-            PublicSentried(data) => data.address(),
-            Public(data) => data.address(),
-            PrivateSentried(data) => data.address(),
-            Private(data) => data.address(),
-        }
+        state_dispatch!(self, ref state => state.address())
     }
 
     /// Returns the kind.
@@ -461,125 +467,58 @@ impl Sequence {
 
     /// Returns true if the provided user (identified by their public key) is the current owner.
     pub fn is_owner(&self, user: PublicKey) -> bool {
-        use Sequence::*;
-        match self {
-            PublicSentried(data) => data.is_owner(user),
-            Public(data) => data.is_owner(user),
-            PrivateSentried(data) => data.is_owner(user),
-            Private(data) => data.is_owner(user),
-        }
+        state_dispatch!(self, ref state => state.is_owner(user))
     }
 
     /// Returns expected version of the instance data.
     pub fn expected_data_version(&self) -> u64 {
-        use Sequence::*;
-        match self {
-            PublicSentried(data) => data.expected_data_version(),
-            Public(data) => data.expected_data_version(),
-            PrivateSentried(data) => data.expected_data_version(),
-            Private(data) => data.expected_data_version(),
-        }
+        state_dispatch!(self, ref state => state.expected_data_version())
     }
 
     /// Returns expected version of the instance access list.
     pub fn expected_access_list_version(&self) -> u64 {
-        use Sequence::*;
-        match self {
-            PublicSentried(data) => data.expected_access_list_version(),
-            Public(data) => data.expected_access_list_version(),
-            PrivateSentried(data) => data.expected_access_list_version(),
-            Private(data) => data.expected_access_list_version(),
-        }
+        state_dispatch!(self, ref state => state.expected_access_list_version())
     }
 
     /// Returns expected version of the instance owner.
     pub fn expected_owners_version(&self) -> u64 {
-        use Sequence::*;
-        match self {
-            PublicSentried(data) => data.expected_owners_version(),
-            Public(data) => data.expected_owners_version(),
-            PrivateSentried(data) => data.expected_owners_version(),
-            Private(data) => data.expected_owners_version(),
-        }
+        state_dispatch!(self, ref state => state.expected_owners_version())
     }
 
     /// Returns expected versions of data, owner and access list.
     pub fn versions(&self) -> ExpectedVersions {
-        use Sequence::*;
-        match self {
-            PublicSentried(data) => data.versions(),
-            Public(data) => data.versions(),
-            PrivateSentried(data) => data.versions(),
-            Private(data) => data.versions(),
-        }
+        state_dispatch!(self, ref state => state.versions())
     }
 
     /// Returns the data at a specific version.
     pub fn get(&self, version: Version) -> Option<&Value> {
-        use Sequence::*;
-        match self {
-            PublicSentried(data) => data.get(version),
-            Public(data) => data.get(version),
-            PrivateSentried(data) => data.get(version),
-            Private(data) => data.get(version),
-        }
+        state_dispatch!(self, ref state => state.get(version))
     }
 
     /// Returns the current data entry.
     pub fn current_data_entry(&self) -> Option<DataEntry> {
-        use Sequence::*;
-        match self {
-            PublicSentried(data) => data.current_data_entry(),
-            Public(data) => data.current_data_entry(),
-            PrivateSentried(data) => data.current_data_entry(),
-            Private(data) => data.current_data_entry(),
-        }
+        state_dispatch!(self, ref state => state.current_data_entry())
     }
 
     /// Returns a range in the history of data.
     pub fn in_range(&self, start: Version, end: Version) -> Option<Values> {
-        use Sequence::*;
-        match self {
-            PublicSentried(data) => data.in_range(start, end),
-            Public(data) => data.in_range(start, end),
-            PrivateSentried(data) => data.in_range(start, end),
-            Private(data) => data.in_range(start, end),
-        }
+        state_dispatch!(self, ref state => state.in_range(start, end))
     }
 
     /// Returns the owner at a specific version of owners.
     pub fn owner_at(&self, version: impl Into<Version>) -> Option<&Owner> {
-        use Sequence::*;
-        match self {
-            PublicSentried(data) => data.owner_at(version),
-            Public(data) => data.owner_at(version),
-            PrivateSentried(data) => data.owner_at(version),
-            Private(data) => data.owner_at(version),
-        }
+        state_dispatch!(self, ref state => state.owner_at(version))
     }
 
     /// Returns history of all owners
     pub fn owner_history(&self) -> Result<Vec<Owner>> {
-        use Sequence::*;
-        let result = match self {
-            PublicSentried(data) => Some(data.owner_history()),
-            Public(data) => Some(data.owner_history()),
-            PrivateSentried(data) => Some(data.owner_history()),
-            Private(data) => Some(data.owner_history()),
-        };
-        result.ok_or(Error::NoSuchEntry)
+        state_dispatch!(self, ref state => Some(state.owner_history())).ok_or(Error::NoSuchEntry)
     }
 
     /// Get history of owners within the range of versions specified.
     pub fn owner_history_range(&self, start: Version, end: Version) -> Result<Vec<Owner>> {
-        use Sequence::*;
-        let result = match self {
-            PublicSentried(data) => data.owner_history_range(start, end),
-            Public(data) => data.owner_history_range(start, end),
-            PrivateSentried(data) => data.owner_history_range(start, end),
-            Private(data) => data.owner_history_range(start, end),
-        };
-        result.ok_or(Error::NoSuchEntry)
+        state_dispatch!(self, ref state => state.owner_history_range(start, end))
+            .ok_or(Error::NoSuchEntry)
     }
 
     /// Returns a specific user's access list of a public instance at a specific version.
@@ -698,13 +637,7 @@ impl Sequence {
 
     /// Sets a new owner.
     pub fn set_owner(&mut self, owner: Owner, expected_version: u64) -> Result<()> {
-        use Sequence::*;
-        match self {
-            PublicSentried(adata) => adata.set_owner(owner, expected_version),
-            Public(adata) => adata.set_owner(owner, expected_version),
-            PrivateSentried(adata) => adata.set_owner(owner, expected_version),
-            Private(adata) => adata.set_owner(owner, expected_version),
-        }
+        state_dispatch!(self, ref mut state => state.set_owner(owner, expected_version))
     }
 
     /// Sets a new access list of a private instance.
