@@ -13,6 +13,7 @@ use crate::{
     IData, MData, MDataEntries, MDataPermissionSet, MDataValue, MDataValues, PublicKey, Result,
     Signature, Transaction,
 };
+use routing::OrderedConnectionInfo;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -95,6 +96,11 @@ pub enum Response {
     //
     /// Return a success or failure status for a mutation operation.
     Mutation(Result<()>),
+    //
+    // ===== Netwrok =====
+    //
+    /// Returns a list of vaults' connection infos.
+    ConnectionInfoResponse(Result<Vec<OrderedConnectionInfo>>),
 }
 
 /// Error type for an attempted conversion from `Response` to a type implementing
@@ -208,6 +214,10 @@ impl fmt::Debug for Response {
             }
             // Mutation
             Mutation(res) => write!(f, "Response::Mutation({:?})", ErrorDebug(res)),
+            // Network
+            ConnectionInfoResponse(res) => {
+                write!(f, "Response::ConnectionInfoResponse({:?})", ErrorDebug(res))
+            }
         }
     }
 }

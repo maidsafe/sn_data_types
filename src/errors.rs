@@ -96,6 +96,8 @@ pub enum Error {
     BalanceExists,
     /// Expected data size exceeded.
     ExceededSize,
+    /// Any network related failure.
+    NetworkFailure,
 }
 
 impl<T: Into<String>> From<T> for Error {
@@ -154,6 +156,7 @@ impl Display for Error {
             Error::BalanceExists => write!(f, "Balance already exists"),
             Error::DuplicateMessageId => write!(f, "MessageId already exists"),
             Error::ExceededSize => write!(f, "Size of the structure exceeds the limit"),
+            Error::NetworkFailure => write!(f, "Encounted network failure"),
         }
     }
 }
@@ -191,6 +194,7 @@ impl error::Error for Error {
             Error::BalanceExists => "Balance already exists",
             Error::DuplicateMessageId => "MessageId already exists",
             Error::ExceededSize => "Exceeded the size limit",
+            Error::NetworkFailure => "Encounted network failure",
         }
     }
 }

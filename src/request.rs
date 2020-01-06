@@ -286,6 +286,11 @@ pub enum Request {
         /// Incremented version
         version: u64,
     },
+    //
+    // ===== Netwrok =====
+    //
+    /// Request vault's connection infos
+    ConnectionInfoRequest,
 }
 
 impl Request {
@@ -376,6 +381,8 @@ impl Request {
             // Client (Owner) to SrcElders
             InsAuthKey { .. } |
             DelAuthKey { .. } => Type::Mutation,
+            // Network
+            ConnectionInfoRequest => Type::PrivateGet,
         }
     }
 
@@ -449,6 +456,8 @@ impl Request {
             // Client (Owner) to SrcElders
             InsAuthKey { .. } |
             DelAuthKey { .. } => Response::Mutation(Err(error)),
+            // Network
+            ConnectionInfoRequest => Response::ConnectionInfoResponse(Err(error)),
 
         }
     }
@@ -512,6 +521,8 @@ impl fmt::Debug for Request {
                 ListAuthKeysAndVersion => "ListAuthKeysAndVersion",
                 InsAuthKey { .. } => "InsAuthKey",
                 DelAuthKey { .. } => "DelAuthKey",
+                // Network
+                ConnectionInfoRequest => "ConnectionInfoRequest",
             }
         )
     }

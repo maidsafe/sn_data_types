@@ -16,6 +16,7 @@ ed25519-dalek = "~0.9.1"
 hex_fmt = "~0.3.0"
 multibase = "~0.6.0"
 rand = "~0.6"
+routing = { git = "https://github.com/maidsafe/routing.git", branch = "fleming" }
 serde = { version = "~1.0.97", features = ["derive"] }
 sha3 = "~0.8.2"
 threshold_crypto = "~0.3.2"
