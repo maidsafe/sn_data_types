@@ -7,7 +7,7 @@ license = "MIT OR BSD-3-Clause"
 name = "safe-nd"
 readme = "README.md"
 repository = "https://github.com/maidsafe/safe-nd"
-version = "0.7.0"
+version = "0.7.1"
 
 [dependencies]
 # Ensure bincode version is identical to that in SAFE Client Libs and SAFE Vault.

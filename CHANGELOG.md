@@ -1,5 +1,9 @@
 # safe-nd - Change Log
 
+## [0.7.1]
+
+- Add `version` and `set_version` methods to `SeqEntryAction`.
+
 ## [0.7.0]
 
 - Change the Client<->Node handshake protocol: it replaces a one-purpose `Challenge` enum with a more extensive pair of enums, `HandshakeRequest` and `HandshakeResponse`.
