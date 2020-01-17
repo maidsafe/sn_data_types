@@ -67,7 +67,7 @@ jobs:
       - shell: bash
         id: commit_message
         run: |
-          commit_message=$(git log --format=%B -n 1 ${{ github.sha }})
+          commit_message=$(git log --no-merges --format=%B -n 1 ${{ github.sha }})
           echo "::set-output name=commit_message::$commit_message"
       - shell: bash
         id: versioning
