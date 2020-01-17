@@ -19,10 +19,15 @@ use crate::{Error, PublicKey, Result, XorName};
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Debug, Formatter};
 
+/// The alias type for a Public Sequence with concurrency control.
 pub type PublicGuardedSequence = SequenceBase<PublicAccessList, Guarded>;
+/// The alias type for a Public Sequence.
 pub type PublicSequence = SequenceBase<PublicAccessList, NonGuarded>;
+/// The alias type for a Private Sequence with concurrency control.
 pub type PrivateGuardedSequence = SequenceBase<PrivateAccessList, Guarded>;
+/// The alias type for a Private Sequence.
 pub type PrivateSequence = SequenceBase<PrivateAccessList, NonGuarded>;
+/// The alias type for a list of values.
 pub type Values = Vec<Value>;
 
 /// A representation of data at some version.
@@ -243,8 +248,11 @@ where
     }
 }
 
+/// A struct used to append values
+/// to a Sequence instance at a specific address.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
 pub struct AppendOperation {
+    /// The address of the Sequence instance.
     pub address: Address,
     values: Values,
     expected_version: Option<ExpectedVersion>,
