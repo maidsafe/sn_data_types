@@ -1,4 +1,4 @@
-// Copyright 2019 MaidSafe.net limited.
+// Copyright 2020 MaidSafe.net limited.
 //
 // This SAFE Network Software is licensed to you under the MIT license <LICENSE-MIT
 // https://opensource.org/licenses/MIT> or the Modified BSD license <LICENSE-BSD
@@ -11,10 +11,9 @@ mod login_packet;
 
 pub use self::login_packet::{LoginPacket, MAX_LOGIN_PACKET_BYTES};
 use crate::{
-    AData, ADataAddress, ADataAppendOperation, ADataIndex, ADataOwner, ADataPubPermissions,
-    ADataUnpubPermissions, ADataUser, AppPermissions, Coins, Error, IData, IDataAddress, MData,
-    MDataAddress, MDataEntryActions, MDataPermissionSet, PublicKey, Response, TransactionId,
-    XorName,
+    Address, AppPermissions, AppendOperation, Coins, Error, IData, IDataAddress, MData,
+    MDataAddress, MDataEntryActions, MDataPermissionSet, Owner, PrivateAccessList,
+    PublicAccessList, PublicKey, Response, Sequence, TransactionId, User, Version, XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -107,122 +106,181 @@ pub enum Request {
         /// Mutation actions to perform.
         actions: MDataEntryActions,
     },
-    //
-    // ===== Append Only Data =====
-    //
-    /// Put a new AppendOnlyData onto the network.
-    PutAData(AData),
-    /// Get AppendOnlyData from the network.
-    GetAData(ADataAddress),
-    /// Get AppendOnlyData shell at a certain point in history (`data_index` refers to the list of
-    /// data).
-    GetADataShell {
-        /// AppendOnlyData address.
-        address: ADataAddress,
-        /// Index of the data at which to get the shell.
-        data_index: ADataIndex,
-    },
-    /// Delete an unpublished `AppendOnlyData`.
     ///
-    /// This operation MUST return an error if applied to published AppendOnlyData. Only the current
-    /// owner(s) can perform this action.
-    DeleteAData(ADataAddress),
-    /// Get a range of entries from an AppendOnlyData object on the network.
-    GetADataRange {
-        /// AppendOnlyData address.
-        address: ADataAddress,
+    /// ---- Sequence Read -----
+    ///
+    /// ==== Data ====
+    ///
+    /// Get Sequence from the network.
+    GetSequence(Address),
+    /// Get expected versions: data, owners, permissions.
+    GetSequenceExpectedVersions(Address),
+    /// Get `Sequence` shell at a certain point in history (`data_version` refers to the list
+    /// of data).
+    GetSequenceShell {
+        /// The address of the instance.
+        address: Address,
+        /// The data version of the instance. // todo: specific_data_version
+        expected_data_version: Version,
+    },
+    /// Get an entry at the current version.
+    GetSequenceCurrentEntry(Address),
+    /// Get a range of entries from an Sequence object on the network.
+    GetSequenceRange {
+        /// The address of the instance.
+        address: Address,
         /// Range of entries to fetch.
         ///
         /// For example, get 10 last entries:
-        /// range: (Index::FromEnd(10), Index::FromEnd(0))
+        /// range: (Version::FromEnd(10), Version::FromEnd(0))
         ///
         /// Get all entries:
-        /// range: (Index::FromStart(0), Index::FromEnd(0))
+        /// range: (Version::FromStart(0), Version::FromEnd(0))
         ///
         /// Get first 5 entries:
-        /// range: (Index::FromStart(0), Index::FromStart(5))
-        range: (ADataIndex, ADataIndex),
+        /// range: (Version::FromStart(0), Version::FromStart(5))
+        range: (Version, Version),
     },
-    /// Get AppendOnlyData value.
-    GetADataValue {
-        /// AppendOnlyData address.
-        address: ADataAddress,
-        /// Key to get.
-        key: Vec<u8>,
+    /// Get a Sequence value as of a specific version.
+    GetSequenceValue {
+        /// The address of the instance.
+        address: Address,
+        /// The data version of the instance.
+        version: Version,
     },
-    /// Get current indices: data, owners, permissions.
-    GetADataIndices(ADataAddress),
-    /// Get an entry with the current index.
-    GetADataLastEntry(ADataAddress),
-    /// List all permissions at the provided index.
-    GetADataPermissions {
-        /// AppendOnlyData address.
-        address: ADataAddress,
-        /// Permissions index.
-        permissions_index: ADataIndex,
+    ///
+    /// ==== Owners ====
+    ///
+    /// Get Sequence current owner.
+    GetSequenceOwner(Address),
+    /// Get Sequence owner as of version.
+    GetSequenceOwnerAt {
+        /// The address of the instance.
+        address: Address,
+        /// The owner version of the instance.
+        version: Version,
     },
-    /// Get published permissions for a specified user(s).
-    GetPubADataUserPermissions {
-        /// AppendOnlyData address.
-        address: ADataAddress,
-        /// Permissions index.
-        permissions_index: ADataIndex,
-        /// User to get permissions for.
-        user: ADataUser,
+    /// Returns the history of owners.
+    GetSequenceOwnerHistory(Address),
+    /// Returns a range of the history of owners.
+    GetSequenceOwnerHistoryRange {
+        /// The address of the instance.
+        address: Address,
+        /// The owner version range start.
+        start: Version,
+        /// The owner version range end.
+        end: Version,
     },
-    /// Get unpublished permissions for a specified user(s).
-    GetUnpubADataUserPermissions {
-        /// AppendOnlyData address.
-        address: ADataAddress,
-        /// Permissions index.
-        permissions_index: ADataIndex,
-        /// User to get permissions for.
+    ///
+    /// ==== Permissions ====
+    ///
+    GetSequenceAccessList(Address),
+    /// Get Sequence access list as of version.
+    GetSequenceAccessListAt {
+        /// The address of the instance.
+        address: Address,
+        /// The access list version of the instance.
+        version: Version,
+    },
+    /// Returns the history of access lists for a public instance.
+    GetPublicSequenceAccessListHistory(Address),
+    /// Returns the history of access lists for a private instance.
+    GetPrivateSequenceAccessListHistory(Address),
+    /// Returns a range of the history of access lists for a public instance.
+    GetPublicSequenceAccessListHistoryRange {
+        /// The address of the instance.
+        address: Address,
+        /// The access list version range start.
+        start: Version,
+        /// The access list version range end.
+        end: Version,
+    },
+    /// Returns a range of the history of access lists for a private instance.
+    GetPrivateSequenceAccessListHistoryRange {
+        /// The address of the instance.
+        address: Address,
+        /// The access list version range start.
+        start: Version,
+        /// The access list version range end.
+        end: Version,
+    },
+    /// Get Sequence permissions for a specified user(s).
+    GetPublicSequenceUserPermissions {
+        /// The address of the instance.
+        address: Address,
+        /// The user category variant.
+        user: User,
+    },
+    /// Get Sequence permissions for a specified public key.
+    GetPrivateSequenceUserPermissions {
+        /// The address of the instance.
+        address: Address,
+        /// The public key of the specific user.
+        user: PublicKey,
+    },
+    /// Get Sequence permissions for a specified user(s), as of version.
+    GetPublicSequenceUserPermissionsAt {
+        /// The address of the instance.
+        address: Address,
+        /// The access list version of the instance.
+        version: Version,
+        /// The user category variant.
+        user: User,
+    },
+    /// Get Sequence permissions for a specified public key, as of version.
+    GetPrivateSequenceUserPermissionsAt {
+        /// The address of the instance.
+        address: Address,
+        /// The access list version of the instance.
+        version: Version,
+        /// The public key of the specific user.
         public_key: PublicKey,
     },
-    /// Get owners at the provided index.
-    GetADataOwners {
-        /// AppendOnlyData address.
-        address: ADataAddress,
-        /// Onwers index.
-        owners_index: ADataIndex,
+    /// ---- Sequence Write ----
+    ///
+    /// ==== Data ====
+    ///
+    /// Put a new Sequence onto the network.
+    PutSequence(Sequence),
+    /// Delete private `Sequence`.
+    /// This operation MUST return an error if applied to published Sequence. Only the current
+    /// owner(s) can perform this action.
+    DeletePrivateSequence(Address),
+    /// Append to a Sequence instance.
+    Append(AppendOperation),
+    ///
+    /// ==== Owners ====
+    ///
+    /// Set owner. Only the current owner(s) can perform this action.
+    SetSequenceOwner {
+        /// The address of the instance.
+        address: Address,
+        /// The owner of the instance.
+        owner: Owner,
+        /// The expected owner version.
+        expected_version: u64,
     },
-    /// Add a new published `permissions` entry.
-    AddPubADataPermissions {
-        /// AppendOnlyData address.
-        address: ADataAddress,
-        /// Published permissions.
-        permissions: ADataPubPermissions,
-        /// Index to add to.
-        permissions_index: u64,
+    ///
+    /// ==== Permissions ====
+    ///
+    /// Set access list.
+    SetPublicSequenceAccessList {
+        /// The address of the instance.
+        address: Address,
+        /// The new access list.
+        access_list: PublicAccessList,
+        /// The expected access list version.
+        expected_version: u64,
     },
-    /// Add a new unpublished `permissions` entry.
-    AddUnpubADataPermissions {
-        /// AppendOnlyData address.
-        address: ADataAddress,
-        /// Unpublished permissions.
-        permissions: ADataUnpubPermissions,
-        /// Index to add to.
-        permissions_index: u64,
+    /// Set access list.
+    SetPrivateSequenceAccessList {
+        /// The address of the instance.
+        address: Address,
+        /// The new access list.
+        access_list: PrivateAccessList,
+        /// The expected access list version.
+        expected_version: u64,
     },
-    /// Add a new `owners` entry. Only the current owner(s) can perform this action.
-    SetADataOwner {
-        /// AppendOnlyData address.
-        address: ADataAddress,
-        /// New owner.
-        owner: ADataOwner,
-        /// Owners index.
-        owners_index: u64,
-    },
-    /// Append sequenced AppendOnlyData at the given index.
-    AppendSeq {
-        /// Entries to append.
-        append: ADataAppendOperation,
-        /// Index.
-        index: u64,
-    },
-    /// Append unsequenced AppendOnlyData.
-    AppendUnseq(ADataAppendOperation),
-    //
     // ===== Coins =====
     //
     /// Balance transfer.
@@ -304,19 +362,28 @@ impl Request {
                 }
             }
 
-            // AData requests
-
-            GetAData(address)
-            | GetADataShell { address, .. }
-            | GetADataRange { address, .. }
-            | GetADataValue { address, .. }
-            | GetADataIndices(address)
-            | GetADataLastEntry(address)
-            | GetADataPermissions { address, .. }
-            | GetPubADataUserPermissions { address, .. }
-            | GetUnpubADataUserPermissions { address, .. }
-            | GetADataOwners { address, .. } => {
-                if address.is_pub() {
+            // Sequence requests
+            GetSequence(address) |
+            GetSequenceShell { address, .. } |
+            GetSequenceValue { address, .. } |
+            GetSequenceRange { address, .. } |
+            GetSequenceExpectedVersions(address) |
+            GetSequenceCurrentEntry(address) |
+            GetSequenceOwner(address) |
+            GetSequenceOwnerAt { address, .. } |
+            GetSequenceOwnerHistory(address) |
+            GetSequenceOwnerHistoryRange { address, .. } |
+            GetSequenceAccessList(address) |
+            GetSequenceAccessListAt { address, .. } |
+            GetPublicSequenceAccessListHistory(address) |
+            GetPrivateSequenceAccessListHistory(address) |
+            GetPublicSequenceAccessListHistoryRange { address, .. } |
+            GetPrivateSequenceAccessListHistoryRange { address, .. } |
+            GetPublicSequenceUserPermissions { address, .. } |
+            GetPrivateSequenceUserPermissions { address, .. } |
+            GetPublicSequenceUserPermissionsAt { address, .. } |
+            GetPrivateSequenceUserPermissionsAt { address, .. } => {
+                if address.is_public() {
                     Type::PublicGet
                 } else {
                     Type::PrivateGet
@@ -362,14 +429,13 @@ impl Request {
             SetMDataUserPermissions { .. } |
             DelMDataUserPermissions { .. } |
             MutateMDataEntries { .. } |
-            // AData
-            PutAData(_) |
-            DeleteAData(_) |
-            AddPubADataPermissions { .. } |
-            AddUnpubADataPermissions { .. } |
-            SetADataOwner { .. } |
-            AppendSeq { .. } |
-            AppendUnseq(_) |
+            // Sequence
+            PutSequence(_)
+            | DeletePrivateSequence(_)
+            | SetSequenceOwner { .. }
+            | SetPublicSequenceAccessList { .. }
+            | SetPrivateSequenceAccessList { .. }
+            | Append(_) |
             // Login Packet
             CreateLoginPacket { .. } |
             UpdateLoginPacket { .. } |
@@ -397,19 +463,47 @@ impl Request {
             ListMDataValues(_) => Response::ListMDataValues(Err(error)),
             ListMDataPermissions(_) => Response::ListMDataPermissions(Err(error)),
             ListMDataUserPermissions { .. } => Response::ListMDataUserPermissions(Err(error)),
-            // AData
-            GetAData(_) => Response::GetAData(Err(error)),
-            GetADataShell { .. } => Response::GetADataShell(Err(error)),
-            GetADataValue { .. } => Response::GetADataValue(Err(error)),
-            GetADataRange { .. } => Response::GetADataRange(Err(error)),
-            GetADataIndices(_) => Response::GetADataIndices(Err(error)),
-            GetADataLastEntry(_) => Response::GetADataLastEntry(Err(error)),
-            GetADataPermissions { .. } => Response::GetADataPermissions(Err(error)),
-            GetPubADataUserPermissions { .. } => Response::GetPubADataUserPermissions(Err(error)),
-            GetUnpubADataUserPermissions { .. } => {
-                Response::GetUnpubADataUserPermissions(Err(error))
+            // Sequence
+            GetSequence(_) => Response::GetSequence(Err(error)),
+            GetSequenceShell { .. } => Response::GetSequenceShell(Err(error)),
+            GetSequenceValue { .. } => Response::GetSequenceValue(Err(error)),
+            GetSequenceRange { .. } => Response::GetSequenceRange(Err(error)),
+            GetSequenceExpectedVersions(_) => {
+                Response::GetSequenceExpectedVersions(Err(error))
             }
-            GetADataOwners { .. } => Response::GetADataOwners(Err(error)),
+            GetSequenceCurrentEntry(_) => Response::GetSequenceCurrentEntry(Err(error)),
+            GetSequenceOwner(_) => Response::GetSequenceOwner(Err(error)),
+            GetSequenceOwnerAt { .. } => Response::GetSequenceOwnerAt(Err(error)),
+            GetSequenceOwnerHistory(_) => Response::GetSequenceOwnerHistory(Err(error)),
+            GetSequenceOwnerHistoryRange { .. } => {
+                Response::GetSequenceOwnerHistoryRange(Err(error))
+            }
+            GetSequenceAccessList { .. } => Response::GetSequenceAccessList(Err(error)),
+            GetSequenceAccessListAt { .. } => Response::GetSequenceAccessListAt(Err(error)),
+            GetPublicSequenceAccessListHistory(_) => {
+                Response::GetPublicSequenceAccessListHistory(Err(error))
+            }
+            GetPrivateSequenceAccessListHistory(_) => {
+                Response::GetPrivateSequenceAccessListHistory(Err(error))
+            }
+            GetPublicSequenceAccessListHistoryRange { .. } => {
+                Response::GetPublicSequenceAccessListHistoryRange(Err(error))
+            }
+            GetPrivateSequenceAccessListHistoryRange { .. } => {
+                Response::GetPrivateSequenceAccessListHistoryRange(Err(error))
+            }
+            GetPublicSequenceUserPermissions { .. } => {
+                Response::GetPublicSequenceUserPermissions(Err(error))
+            }
+            GetPrivateSequenceUserPermissions { .. } => {
+                Response::GetPrivateSequenceUserPermissions(Err(error))
+            }
+            GetPublicSequenceUserPermissionsAt { .. } => {
+                Response::GetPublicSequenceUserPermissionsAt(Err(error))
+            }
+            GetPrivateSequenceUserPermissionsAt { .. } => {
+                Response::GetPrivateSequenceUserPermissionsAt(Err(error))
+            }
             // Coins
             GetBalance => Response::GetBalance(Err(error)),
             // Login Packet
@@ -435,14 +529,13 @@ impl Request {
             SetMDataUserPermissions { .. } |
             DelMDataUserPermissions { .. } |
             MutateMDataEntries { .. } |
-            // AData
-            PutAData(_) |
-            DeleteAData(_) |
-            AddPubADataPermissions { .. } |
-            AddUnpubADataPermissions { .. } |
-            SetADataOwner { .. } |
-            AppendSeq { .. } |
-            AppendUnseq(_) |
+            // Sequence
+            PutSequence(_)
+            | DeletePrivateSequence(_)
+            | SetSequenceOwner { .. }
+            | SetPublicSequenceAccessList { .. }
+            | SetPrivateSequenceAccessList { .. }
+            | Append(_) |
             // Login Packet
             CreateLoginPacket { .. } |
             UpdateLoginPacket { .. } |
@@ -481,24 +574,56 @@ impl fmt::Debug for Request {
                 ListMDataPermissions(_) => "ListMDataPermissions",
                 ListMDataUserPermissions { .. } => "ListMDataUserPermissions",
                 MutateMDataEntries { .. } => "MutateMDataEntries",
-                // AData
-                PutAData(_) => "PutAData",
-                GetAData(_) => "GetAData",
-                GetADataShell { .. } => "GetADataShell",
-                GetADataValue { .. } => "GetADataValue ",
-                DeleteAData(_) => "DeleteAData",
-                GetADataRange { .. } => "GetADataRange",
-                GetADataIndices(_) => "GetADataIndices",
-                GetADataLastEntry(_) => "GetADataLastEntry",
-                GetADataPermissions { .. } => "GetADataPermissions",
-                GetPubADataUserPermissions { .. } => "GetPubADataUserPermissions",
-                GetUnpubADataUserPermissions { .. } => "GetUnpubADataUserPermissions",
-                GetADataOwners { .. } => "GetADataOwners",
-                AddPubADataPermissions { .. } => "AddPubADataPermissions",
-                AddUnpubADataPermissions { .. } => "AddUnpubADataPermissions",
-                SetADataOwner { .. } => "SetADataOwner",
-                AppendSeq { .. } => "AppendSeq",
-                AppendUnseq(_) => "AppendUnseq",
+                GetSequence(_) => "SequenceReadRequest::GetSequence",
+                GetSequenceShell { .. } => "SequenceReadRequest::GetSequenceShell",
+                GetSequenceValue { .. } => "SequenceReadRequest::GetSequenceValue",
+                GetSequenceRange { .. } => "SequenceReadRequest::GetSequenceRange",
+                GetSequenceExpectedVersions(_) => {
+                    "SequenceReadRequest::GetSequenceExpectedVersions"
+                }
+                GetSequenceCurrentEntry(_) => "SequenceReadRequest::GetSequenceCurrentEntry",
+                GetSequenceOwner(_) => "SequenceReadRequest::GetSequenceOwner",
+                GetSequenceOwnerAt { .. } => "SequenceReadRequest::GetSequenceOwnerAt",
+                GetSequenceOwnerHistory(_) => "SequenceReadRequest::GetSequenceOwnerHistory",
+                GetSequenceOwnerHistoryRange { .. } => {
+                    "SequenceReadRequest::GetSequenceOwnerHistoryRange"
+                }
+                GetSequenceAccessList { .. } => "SequenceReadRequest::GetSequenceAccessList",
+                GetSequenceAccessListAt { .. } => "SequenceReadRequest::GetSequenceAccessListAt",
+                GetPublicSequenceAccessListHistory(_) => {
+                    "SequenceReadRequest::GetPublicSequenceAccessListHistory"
+                }
+                GetPrivateSequenceAccessListHistory(_) => {
+                    "SequenceReadRequest::GetPrivateSequenceAccessListHistory"
+                }
+                GetPublicSequenceAccessListHistoryRange { .. } => {
+                    "SequenceReadRequest::GetPublicSequenceAccessListHistoryRange"
+                }
+                GetPrivateSequenceAccessListHistoryRange { .. } => {
+                    "SequenceReadRequest::GetPrivateSequenceAccessListHistoryRange"
+                }
+                GetPublicSequenceUserPermissions { .. } => {
+                    "SequenceReadRequest::GetPublicSequenceUserPermissions"
+                }
+                GetPrivateSequenceUserPermissions { .. } => {
+                    "SequenceReadRequest::GetPrivateSequenceUserPermissions"
+                }
+                GetPublicSequenceUserPermissionsAt { .. } => {
+                    "SequenceReadRequest::GetPublicSequenceUserPermissionsAt"
+                }
+                GetPrivateSequenceUserPermissionsAt { .. } => {
+                    "SequenceReadRequest::GetPrivateSequenceUserPermissionsAt"
+                }
+                PutSequence(_) => "SequenceWriteRequest::PutSequence",
+                DeletePrivateSequence(_) => "SequenceWriteRequest::DeletePrivateSequence",
+                SetSequenceOwner { .. } => "SequenceWriteRequest::SetSequenceOwner",
+                SetPublicSequenceAccessList { .. } => {
+                    "SequenceWriteRequest::SetPublicSequenceAccessList"
+                }
+                SetPrivateSequenceAccessList { .. } => {
+                    "SequenceWriteRequest::SetPrivateSequenceAccessList"
+                }
+                Append(_) => "SequenceWriteRequest::Append",
                 // Coins
                 TransferCoins { .. } => "TransferCoins",
                 GetBalance => "GetBalance",

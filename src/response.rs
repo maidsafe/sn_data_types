@@ -1,4 +1,4 @@
-// Copyright 2019 MaidSafe.net limited.
+// Copyright 2020 MaidSafe.net limited.
 //
 // This SAFE Network Software is licensed to you under the MIT license <LICENSE-MIT
 // https://opensource.org/licenses/MIT> or the Modified BSD license <LICENSE-BSD
@@ -8,10 +8,10 @@
 // Software.
 
 use crate::{
-    errors::ErrorDebug, AData, ADataEntries, ADataEntry, ADataIndices, ADataOwner,
-    ADataPermissions, ADataPubPermissionSet, ADataUnpubPermissionSet, AppPermissions, Coins, Error,
-    IData, MData, MDataEntries, MDataPermissionSet, MDataValue, MDataValues, PublicKey, Result,
-    Signature, Transaction,
+    errors::ErrorDebug, AccessList, AppPermissions, Coins, Error, ExpectedVersions, IData, MData,
+    MDataEntries, MDataPermissionSet, MDataValue, MDataValues, Owner, PrivateAccessList,
+    PrivateUserAccess, PublicAccessList, PublicKey, PublicUserAccess, Result, Sequence,
+    SequenceEntry, Signature, Transaction, Value, Values,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -51,28 +51,48 @@ pub enum Response {
     /// Get MutableData value.
     GetMDataValue(Result<MDataValue>),
     //
-    // ===== Append Only Data =====
+    // ===== Sequence =====
     //
-    /// Get AppendOnlyData.
-    GetAData(Result<AData>),
-    /// Get AppendOnlyData shell.
-    GetADataShell(Result<AData>),
-    /// Get AppendOnlyData owners.
-    GetADataOwners(Result<ADataOwner>),
-    /// Get AppendOnlyData.
-    GetADataRange(Result<ADataEntries>),
-    /// Get AppendOnlyData value.
-    GetADataValue(Result<Vec<u8>>),
-    /// Get AppendOnlyData indices.
-    GetADataIndices(Result<ADataIndices>),
-    /// Get AppendOnlyData last entry.
-    GetADataLastEntry(Result<ADataEntry>),
-    /// List all AppendOnlyData permissions at the provided index.
-    GetADataPermissions(Result<ADataPermissions>),
-    /// Get published AppendOnlyData permissions for a user.
-    GetPubADataUserPermissions(Result<ADataPubPermissionSet>),
-    /// Get unpublished AppendOnlyData permissions for a user..
-    GetUnpubADataUserPermissions(Result<ADataUnpubPermissionSet>),
+    /// Get a Sequence.
+    GetSequence(Result<Sequence>),
+    /// Get a Sequence shell.
+    GetSequenceShell(Result<Sequence>),
+    /// Get a Sequence owner.
+    GetSequenceOwner(Result<Owner>),
+    /// Get a Sequence owner as of a specific version.
+    GetSequenceOwnerAt(Result<Owner>),
+    /// Get a Sequence owner history.
+    GetSequenceOwnerHistory(Result<Vec<Owner>>),
+    /// Get a Sequence owner history range.
+    GetSequenceOwnerHistoryRange(Result<Vec<Owner>>),
+    /// Get a range of values from a Sequence.
+    GetSequenceRange(Result<Values>),
+    /// Get a value at a specific version from a Sequence.
+    GetSequenceValue(Result<Value>),
+    /// Get expected versions of a Sequence.
+    GetSequenceExpectedVersions(Result<ExpectedVersions>),
+    /// Get current entry (value and version) from a Sequence.
+    GetSequenceCurrentEntry(Result<SequenceEntry>),
+    /// Get a Sequence access list.
+    GetSequenceAccessList(Result<AccessList>),
+    /// Get a Sequence access list as of a specific version.
+    GetSequenceAccessListAt(Result<AccessList>),
+    /// Get a public Sequence access list history.
+    GetPublicSequenceAccessListHistory(Result<Vec<PublicAccessList>>),
+    /// Get a public Sequence access list history range.
+    GetPublicSequenceAccessListHistoryRange(Result<Vec<PublicAccessList>>),
+    /// Get a private Sequence access list history.
+    GetPrivateSequenceAccessListHistory(Result<Vec<PrivateAccessList>>),
+    /// Get a private Sequence access list history range.
+    GetPrivateSequenceAccessListHistoryRange(Result<Vec<PrivateAccessList>>),
+    /// Get a public Sequence user permissions.
+    GetPublicSequenceUserPermissions(Result<PublicUserAccess>),
+    /// Get a private Sequence user permissions.
+    GetPrivateSequenceUserPermissions(Result<PrivateUserAccess>),
+    /// Get a public Sequence user permissions as of a specific version.
+    GetPublicSequenceUserPermissionsAt(Result<PublicUserAccess>),
+    /// Get a private Sequence user permissions as of a specific version.
+    GetPrivateSequenceUserPermissionsAt(Result<PrivateUserAccess>),
     //
     // ===== Coins =====
     //
@@ -133,15 +153,15 @@ try_from!(MDataValues, ListMDataValues);
 try_from!(MDataPermissionSet, ListMDataUserPermissions);
 try_from!(BTreeMap<PublicKey, MDataPermissionSet>, ListMDataPermissions);
 try_from!(MDataValue, GetMDataValue);
-try_from!(Vec<u8>, GetADataValue);
-try_from!(AData, GetAData, GetADataShell);
-try_from!(ADataOwner, GetADataOwners);
-try_from!(ADataEntries, GetADataRange);
-try_from!(ADataIndices, GetADataIndices);
-try_from!(ADataEntry, GetADataLastEntry);
-try_from!(ADataPermissions, GetADataPermissions);
-try_from!(ADataPubPermissionSet, GetPubADataUserPermissions);
-try_from!(ADataUnpubPermissionSet, GetUnpubADataUserPermissions);
+try_from!(Vec<Vec<u8>>, GetSequenceRange); // Values and Keys are Vec<Vec<u8>>
+try_from!(Value, GetSequenceValue);
+try_from!(Sequence, GetSequence, GetSequenceShell);
+try_from!(Owner, GetSequenceOwner);
+try_from!(ExpectedVersions, GetSequenceExpectedVersions);
+try_from!(SequenceEntry, GetSequenceCurrentEntry);
+try_from!(AccessList, GetSequenceAccessList);
+try_from!(PublicUserAccess, GetPublicSequenceUserPermissions);
+try_from!(PrivateUserAccess, GetPrivateSequenceUserPermissions);
 try_from!(Coins, GetBalance);
 try_from!(Transaction, Transaction);
 try_from!(
@@ -174,29 +194,81 @@ impl fmt::Debug for Response {
                 ErrorDebug(res)
             ),
             GetMDataValue(res) => write!(f, "Response::GetMDataValue({:?})", ErrorDebug(res)),
-            // AData
-            GetAData(res) => write!(f, "Response::GetAData({:?})", ErrorDebug(res)),
-            GetADataValue(res) => write!(f, "Response::GetADataValue({:?})", ErrorDebug(res)),
-            GetADataRange(res) => write!(f, "Response::GetADataRange({:?})", ErrorDebug(res)),
-            GetADataIndices(res) => write!(f, "Response::GetADataIndices({:?})", ErrorDebug(res)),
-            GetADataLastEntry(res) => {
-                write!(f, "Response::GetADataLastEntry({:?})", ErrorDebug(res))
+            // Sequence
+            GetSequence(res) => write!(f, "Response::GetSequence({:?})", ErrorDebug(res)),
+            GetSequenceShell(res) => write!(f, "Response::GetSequenceShell({:?})", ErrorDebug(res)),
+            GetSequenceValue(res) => write!(f, "Response::GetSequenceValue({:?})", ErrorDebug(res)),
+            GetSequenceRange(res) => write!(f, "Response::GetSequenceRange({:?})", ErrorDebug(res)),
+            GetSequenceExpectedVersions(res) => {
+                write!(f, "Response::GetExpectedVersions({:?})", ErrorDebug(res))
             }
-            GetADataPermissions(res) => {
-                write!(f, "Response::GetADataPermissions({:?})", ErrorDebug(res))
-            }
-            GetPubADataUserPermissions(res) => write!(
+            GetSequenceCurrentEntry(res) => write!(
                 f,
-                "Response::GetPubADataUserPermissions({:?})",
+                "Response::GetSequenceCurrentEntry({:?})",
                 ErrorDebug(res)
             ),
-            GetUnpubADataUserPermissions(res) => write!(
+            GetSequenceOwner(res) => write!(f, "Response::GetSequenceOwner({:?})", ErrorDebug(res)),
+            GetSequenceOwnerAt(res) => {
+                write!(f, "Response::GetSequenceOwnerAt({:?})", ErrorDebug(res))
+            }
+            GetSequenceOwnerHistory(res) => write!(
                 f,
-                "Response::GetUnpubADataUserPermissions({:?})",
+                "Response::GetSequenceOwnerHistory({:?})",
                 ErrorDebug(res)
             ),
-            GetADataShell(res) => write!(f, "Response::GetADataShell({:?})", ErrorDebug(res)),
-            GetADataOwners(res) => write!(f, "Response::GetADataOwners({:?})", ErrorDebug(res)),
+            GetSequenceOwnerHistoryRange(res) => write!(
+                f,
+                "Response::GetSequenceOwnerHistoryRange({:?})",
+                ErrorDebug(res)
+            ),
+            GetSequenceAccessList(res) => {
+                write!(f, "Response::GetSequenceAccessList({:?})", ErrorDebug(res))
+            }
+            GetSequenceAccessListAt(res) => write!(
+                f,
+                "Response::GetSequenceAccessListAt({:?})",
+                ErrorDebug(res)
+            ),
+            GetPublicSequenceAccessListHistory(res) => write!(
+                f,
+                "Response::GetPublicSequenceAccessListHistory({:?})",
+                ErrorDebug(res)
+            ),
+            GetPublicSequenceAccessListHistoryRange(res) => write!(
+                f,
+                "Response::GetPublicSequenceAccessListHistoryRange({:?})",
+                ErrorDebug(res)
+            ),
+            GetPrivateSequenceAccessListHistory(res) => write!(
+                f,
+                "Response::GetPrivateSequenceAccessListHistory({:?})",
+                ErrorDebug(res)
+            ),
+            GetPrivateSequenceAccessListHistoryRange(res) => write!(
+                f,
+                "Response::GetPrivateSequenceAccessListHistoryRange({:?})",
+                ErrorDebug(res)
+            ),
+            GetPublicSequenceUserPermissions(res) => write!(
+                f,
+                "Response::GetPublicSequenceUserPermissions({:?})",
+                ErrorDebug(res)
+            ),
+            GetPrivateSequenceUserPermissions(res) => write!(
+                f,
+                "Response::GetPrivateSequenceUserPermissions({:?})",
+                ErrorDebug(res)
+            ),
+            GetPublicSequenceUserPermissionsAt(res) => write!(
+                f,
+                "Response::GetPublicSequenceUserPermissionsAt({:?})",
+                ErrorDebug(res)
+            ),
+            GetPrivateSequenceUserPermissionsAt(res) => write!(
+                f,
+                "Response::GetPrivateSequenceUserPermissionsAt({:?})",
+                ErrorDebug(res)
+            ),
             // Coins
             GetBalance(res) => write!(f, "Response::GetBalance({:?})", ErrorDebug(res)),
             Transaction(res) => write!(f, "Response::Transaction({:?})", ErrorDebug(res)),
@@ -224,10 +296,10 @@ mod tests {
         let response = Response::Mutation(Ok(()));
         assert_eq!(format!("{:?}", response), "Response::Mutation(Success)");
         use crate::Error;
-        let errored_response = Response::GetADataShell(Err(Error::AccessDenied));
+        let errored_response = Response::GetSequenceShell(Err(Error::AccessDenied));
         assert_eq!(
             format!("{:?}", errored_response),
-            "Response::GetADataShell(AccessDenied)"
+            "Response::GetSequenceShell(AccessDenied)"
         );
     }
 

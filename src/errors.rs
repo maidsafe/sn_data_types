@@ -1,4 +1,4 @@
-// Copyright 2019 MaidSafe.net limited.
+// Copyright 2020 MaidSafe.net limited.
 //
 // This SAFE Network Software is licensed to you under the MIT license <LICENSE-MIT
 // https://opensource.org/licenses/MIT> or the Modified BSD license <LICENSE-BSD
@@ -7,7 +7,6 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::ADataEntries;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
@@ -53,8 +52,8 @@ pub enum Error {
     InvalidEntryActions(BTreeMap<Vec<u8>, EntryError>),
     /// Key does not exist
     NoSuchKey,
-    /// The key(s) of the entry or entries contained in this error already exist
-    KeysExist(ADataEntries),
+    // /// The key(s) of the entry or entries contained in this error already exist
+    // KeysExist(ADataEntries),
     /// Duplicate Entries in this push
     DuplicateEntryKeys,
     /// The list of owner keys is invalid
@@ -118,7 +117,7 @@ impl Display for Error {
                 write!(f, "Entry actions are invalid: {:?}", errors)
             }
             Error::NoSuchKey => write!(f, "Key does not exists"),
-            Error::KeysExist(_) => write!(f, "Key(s) already exists"),
+            //Error::KeysExist(_) => write!(f, "Key(s) already exists"),
             Error::DuplicateEntryKeys => write!(f, "Duplicate keys in this push"),
             Error::InvalidOwners => write!(f, "The list of owner keys is invalid"),
             Error::InvalidOperation => write!(f, "Requested operation is not allowed"),
@@ -170,7 +169,7 @@ impl error::Error for Error {
             Error::TooManyEntries => "Too many entries",
             Error::InvalidEntryActions(_) => "Invalid entry actions",
             Error::NoSuchKey => "No such key",
-            Error::KeysExist(_) => "Key(s) already exist",
+            //Error::KeysExist(_) => "Key(s) already exist",
             Error::DuplicateEntryKeys => "Duplicate keys in this push",
             Error::InvalidOwners => "Invalid owners",
             Error::InvalidSuccessor(_) => "Invalid data successor",
