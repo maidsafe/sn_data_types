@@ -12,8 +12,8 @@ use crate::data::access_control::{
     PublicUserAccess,
 };
 use crate::shared_types::{
-    to_absolute_range, to_absolute_version, Address, ExpectedVersions, Guarded, Kind, NonGuarded,
-    Owner, User, Value, Version, CURRENT_VERSION,
+    to_absolute_range, to_absolute_version, Address, ExpectedVersions, Flavour, Guarded,
+    NonGuarded, Owner, User, Value, Version, CURRENT_VERSION,
 };
 use crate::{Error, PublicKey, Result, XorName};
 use serde::{Deserialize, Serialize};
@@ -441,9 +441,9 @@ impl Sequence {
         state_dispatch!(self, ref state => state.address())
     }
 
-    /// Returns the kind.
-    pub fn kind(&self) -> Kind {
-        self.address().kind()
+    /// Returns the data type flavour.
+    pub fn flavour(&self) -> Flavour {
+        self.address().flavour()
     }
 
     /// Returns the xor name.
@@ -458,17 +458,17 @@ impl Sequence {
 
     /// Returns true if this instance is public.
     pub fn is_public(&self) -> bool {
-        self.kind().is_public()
+        self.flavour().is_public()
     }
 
     /// Returns true if this instance is private.
     pub fn is_private(&self) -> bool {
-        self.kind().is_private()
+        self.flavour().is_private()
     }
 
     /// Returns true if this instance employs concurrency control.
     pub fn is_guarded(&self) -> bool {
-        self.kind().is_guarded()
+        self.flavour().is_guarded()
     }
 
     /// Returns true if the provided user (identified by their public key) is the current owner.

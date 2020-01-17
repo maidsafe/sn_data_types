@@ -132,7 +132,7 @@ pub struct Owner {
 
 /// The flavour of the data type.
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
-pub enum Kind {
+pub enum Flavour {
     /// Public and with concurrency control.
     PublicGuarded,
     /// Public means data is perpetual.
@@ -143,10 +143,10 @@ pub enum Kind {
     Private,
 }
 
-impl Kind {
+impl Flavour {
     /// Returns true if the data type is public.
     pub fn is_public(self) -> bool {
-        self == Kind::PublicGuarded || self == Kind::Public
+        self == Flavour::PublicGuarded || self == Flavour::Public
     }
 
     /// Returns true if the data type is private.
@@ -157,16 +157,16 @@ impl Kind {
     /// Returns true if the data type
     /// is guarded, i.e. implements concurrency control.
     pub fn is_guarded(self) -> bool {
-        self == Kind::PublicGuarded || self == Kind::PrivateGuarded
+        self == Flavour::PublicGuarded || self == Flavour::PrivateGuarded
     }
 
-    /// Creates `Kind` from `public` and `guarded` flags.
+    /// Creates `Flavour` from `public` and `guarded` flags.
     pub fn from_flags(public: bool, guarded: bool) -> Self {
         match (public, guarded) {
-            (true, true) => Kind::PublicGuarded,
-            (true, false) => Kind::Public,
-            (false, true) => Kind::PrivateGuarded,
-            (false, false) => Kind::Private,
+            (true, true) => Flavour::PublicGuarded,
+            (true, false) => Flavour::Public,
+            (false, true) => Flavour::PrivateGuarded,
+            (false, false) => Flavour::Private,
         }
     }
 }
@@ -213,23 +213,23 @@ pub enum Address {
 }
 
 impl Address {
-    /// Returns an Address instance for the specified flavour.
-    pub fn from_kind(kind: Kind, name: XorName, tag: u64) -> Self {
-        match kind {
-            Kind::PublicGuarded => Address::PublicGuarded { name, tag },
-            Kind::Public => Address::Public { name, tag },
-            Kind::PrivateGuarded => Address::PrivateGuarded { name, tag },
-            Kind::Private => Address::Private { name, tag },
+    /// Returns an Address instance for the specified data type flavour.
+    pub fn from_flavour(flavour: Flavour, name: XorName, tag: u64) -> Self {
+        match flavour {
+            Flavour::PublicGuarded => Address::PublicGuarded { name, tag },
+            Flavour::Public => Address::Public { name, tag },
+            Flavour::PrivateGuarded => Address::PrivateGuarded { name, tag },
+            Flavour::Private => Address::Private { name, tag },
         }
     }
 
-    /// Returns the flavour that this address space represents.
-    pub fn kind(&self) -> Kind {
+    /// Returns the flavour of data type that this address space represents.
+    pub fn flavour(&self) -> Flavour {
         match self {
-            Address::PublicGuarded { .. } => Kind::PublicGuarded,
-            Address::Public { .. } => Kind::Public,
-            Address::PrivateGuarded { .. } => Kind::PrivateGuarded,
-            Address::Private { .. } => Kind::Private,
+            Address::PublicGuarded { .. } => Flavour::PublicGuarded,
+            Address::Public { .. } => Flavour::Public,
+            Address::PrivateGuarded { .. } => Flavour::PrivateGuarded,
+            Address::Private { .. } => Flavour::Private,
         }
     }
 
@@ -256,18 +256,18 @@ impl Address {
 
     /// Returns true if the address is for a public data type.
     pub fn is_public(&self) -> bool {
-        self.kind().is_public()
+        self.flavour().is_public()
     }
 
     /// Returns true if the address is for a private data type.
     pub fn is_private(&self) -> bool {
-        self.kind().is_private()
+        self.flavour().is_private()
     }
 
     /// Returns true if the address is for a guarded data type,
     /// i.e. a data type implementing concurrency control.
     pub fn is_guarded(&self) -> bool {
-        self.kind().is_guarded()
+        self.flavour().is_guarded()
     }
 
     /// Returns the Address serialised and encoded in z-base-32.

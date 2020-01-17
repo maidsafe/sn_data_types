@@ -86,7 +86,7 @@ pub use request::{LoginPacket, Request, Type as RequestType, MAX_LOGIN_PACKET_BY
 pub use response::{Response, TryFromError};
 pub use sha3::Sha3_512 as Ed25519Digest;
 pub use shared_types::{
-    Address, ExpectedVersions, Key, Keys, Kind, Owner, User, Value, Values, Version,
+    Address, ExpectedVersions, Flavour, Key, Keys, Owner, User, Value, Values, Version,
 };
 pub use utils::verify_signature;
 
