@@ -30,6 +30,7 @@
 
 mod append_only_data;
 mod coins;
+mod data;
 mod errors;
 mod identity;
 mod immutable_data;
@@ -37,6 +38,7 @@ mod keys;
 mod mutable_data;
 mod request;
 mod response;
+mod shared_types;
 mod utils;
 
 pub use append_only_data::{
@@ -51,6 +53,14 @@ pub use append_only_data::{
     UnseqAppendOnly, User as ADataUser,
 };
 pub use coins::{Coins, MAX_COINS_VALUE};
+pub use data::access_control::{
+    AccessList, AccessType, PrivateAccessList, PrivateUserAccess, PublicAccessList,
+    PublicUserAccess,
+};
+pub use data::{
+    AppendOperation, PrivateGuardedSequence, PrivateSequence, PublicGuardedSequence,
+    PublicSequence, Sequence, SequenceEntry, SequenceValues,
+};
 pub use errors::{EntryError, Error, Result};
 pub use identity::{
     app::{FullId as AppFullId, PublicId as AppPublicId},
@@ -75,6 +85,9 @@ pub use mutable_data::{
 pub use request::{LoginPacket, Request, Type as RequestType, MAX_LOGIN_PACKET_BYTES};
 pub use response::{Response, TryFromError};
 pub use sha3::Sha3_512 as Ed25519Digest;
+pub use shared_types::{
+    Address, ExpectedVersions, Key, Keys, Kind, Owner, User, Value, Values, Version,
+};
 pub use utils::verify_signature;
 
 use hex_fmt::HexFmt;
