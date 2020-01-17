@@ -83,27 +83,27 @@ impl From<PublicUserAccess> for UserAccess {
 /// The access configuration to Private data, for a User.
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub struct PrivateUserAccess {
-    status: BTreeMap<AccessType, bool>,
+    config: BTreeMap<AccessType, bool>,
 }
 
 /// The access configuration to Public data, for a User.
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub struct PublicUserAccess {
-    status: BTreeMap<AccessType, bool>,
+    config: BTreeMap<AccessType, bool>,
 }
 
 impl PrivateUserAccess {
     /// The ctor can be instantiated with
     /// an access configuration.
-    pub fn new(status: BTreeMap<AccessType, bool>) -> Self {
-        PrivateUserAccess { status }
+    pub fn new(config: BTreeMap<AccessType, bool>) -> Self {
+        PrivateUserAccess { config }
     }
 
     /// Determines if a specific access is
     /// allowed according to this user access
     /// configuration.
     pub fn is_allowed(&self, access: AccessType) -> bool {
-        match self.status.get(&access) {
+        match self.config.get(&access) {
             Some(true) => true,
             _ => false,
         }
@@ -113,9 +113,9 @@ impl PrivateUserAccess {
 impl PublicUserAccess {
     /// The ctor can be instantiated with
     /// an access configuration.
-    pub fn new(status: BTreeMap<AccessType, bool>) -> Self {
+    pub fn new(config: BTreeMap<AccessType, bool>) -> Self {
         // todo: filter out Queries
-        PublicUserAccess { status }
+        PublicUserAccess { config }
     }
 
     /// Returns `Some(true)` if `access` is allowed and `Some(false)` if it's not.
@@ -123,7 +123,7 @@ impl PublicUserAccess {
     pub fn is_allowed(&self, access: AccessType) -> Option<bool> {
         match access {
             AccessType::Read => Some(true), // It's Public data, so it's always allowed to read it.
-            _ => self.status.get(&access).copied(),
+            _ => self.config.get(&access).copied(),
         }
     }
 }
@@ -142,9 +142,9 @@ pub trait AccessListTrait: Clone + Eq + Ord + Hash + Serialize + DeserializeOwne
 pub struct PrivateAccessList {
     /// The list of users and their access configuration.
     pub access_list: BTreeMap<PublicKey, PrivateUserAccess>,
-    /// The expected index of the data at the time this grant status change is to become valid.
+    /// The expected index of the data at the time this grant config change is to become valid.
     pub expected_data_version: u64,
-    /// The expected index of the owners at the time this grant status is to become valid.
+    /// The expected index of the owners at the time this grant config is to become valid.
     pub expected_owners_version: u64,
 }
 
@@ -159,7 +159,7 @@ impl AccessListTrait for PrivateAccessList {
     fn is_allowed(&self, user: &PublicKey, access: AccessType) -> bool {
         self.access_list
             .get(user)
-            .map(|access_status| access_status.is_allowed(access))
+            .map(|access_config| access_config.is_allowed(access))
             .unwrap_or(false)
     }
 
@@ -180,9 +180,9 @@ impl AccessListTrait for PrivateAccessList {
 pub struct PublicAccessList {
     /// The list of users and their access configuration.
     pub access_list: BTreeMap<User, PublicUserAccess>,
-    /// The expected index of the data at the time this grant status change is to become valid.
+    /// The expected index of the data at the time this grant config change is to become valid.
     pub expected_data_version: u64,
-    /// The expected index of the owners at the time this grant status change is to become valid.
+    /// The expected index of the owners at the time this grant config change is to become valid.
     pub expected_owners_version: u64,
 }
 
@@ -190,7 +190,7 @@ impl PublicAccessList {
     fn is_allowed_(&self, user: &User, access: AccessType) -> Option<bool> {
         self.access_list
             .get(user)
-            .map(|access_status| access_status.is_allowed(access))
+            .map(|access_config| access_config.is_allowed(access))
             .unwrap_or(None)
     }
 
