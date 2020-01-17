@@ -37,9 +37,16 @@ pub enum AccessType {
     ModifyPermissions,
 }
 
+/// An AccessList consists of a list of users and their
+/// corresponding access configuration, as of a specific
+/// version of the data and the owners.
+/// The two flavours of data types have different
+/// variants of AccessList.
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub enum AccessList {
+    /// Denotes the public variant of an AccessList.
     Public(PublicAccessList),
+    /// Denotes the private variant of an AccessList.
     Private(PrivateAccessList),
 }
 
@@ -73,25 +80,28 @@ impl From<PublicUserAccess> for UserAccess {
     }
 }
 
+/// The access configuration to Private data, for a User.
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub struct PrivateUserAccess {
     status: BTreeMap<AccessType, bool>,
 }
 
+/// The access configuration to Public data, for a User.
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub struct PublicUserAccess {
     status: BTreeMap<AccessType, bool>,
 }
 
 impl PrivateUserAccess {
+    /// The ctor can be instantiated with
+    /// an access configuration.
     pub fn new(status: BTreeMap<AccessType, bool>) -> Self {
         PrivateUserAccess { status }
     }
 
-    pub fn set(&mut self, status: BTreeMap<AccessType, bool>) {
-        self.status = status;
-    }
-
+    /// Determines if a specific access is
+    /// allowed according to this user access
+    /// configuration.
     pub fn is_allowed(&self, access: AccessType) -> bool {
         match self.status.get(&access) {
             Some(true) => true,
@@ -101,12 +111,11 @@ impl PrivateUserAccess {
 }
 
 impl PublicUserAccess {
+    /// The ctor can be instantiated with
+    /// an access configuration.
     pub fn new(status: BTreeMap<AccessType, bool>) -> Self {
+        // todo: filter out Queries
         PublicUserAccess { status }
-    }
-
-    pub fn set(&mut self, status: BTreeMap<AccessType, bool>) {
-        self.status = status; // todo: filter out Queries
     }
 
     /// Returns `Some(true)` if `access` is allowed and `Some(false)` if it's not.
@@ -125,8 +134,13 @@ pub trait AccessListTrait: Clone + Eq + Ord + Hash + Serialize + DeserializeOwne
     fn expected_owners_version(&self) -> u64;
 }
 
+/// AccessList for Private data.
+/// An AccessList consists of a list of users and their
+/// corresponding access configuration, as of a specific
+/// version of the data and the owners.
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub struct PrivateAccessList {
+    /// The list of users and their access configuration.
     pub access_list: BTreeMap<PublicKey, PrivateUserAccess>,
     /// The expected index of the data at the time this grant status change is to become valid.
     pub expected_data_version: u64,
@@ -135,6 +149,7 @@ pub struct PrivateAccessList {
 }
 
 impl PrivateAccessList {
+    /// Returns the list of users and their access configuration.
     pub fn access_list(&self) -> &BTreeMap<PublicKey, PrivateUserAccess> {
         &self.access_list
     }
@@ -157,8 +172,13 @@ impl AccessListTrait for PrivateAccessList {
     }
 }
 
+/// AccessList for Public data.
+/// An AccessList consists of a list of users and their
+/// corresponding access configuration, as of a specific
+/// version of the data and the owners.
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub struct PublicAccessList {
+    /// The list of users and their access configuration.
     pub access_list: BTreeMap<User, PublicUserAccess>,
     /// The expected index of the data at the time this grant status change is to become valid.
     pub expected_data_version: u64,
@@ -174,6 +194,7 @@ impl PublicAccessList {
             .unwrap_or(None)
     }
 
+    /// Returns the list of users and their access configuration.
     pub fn access_list(&self) -> &BTreeMap<User, PublicUserAccess> {
         &self.access_list
     }
