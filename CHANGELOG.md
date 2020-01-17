@@ -1,5 +1,9 @@
 # safe-nd - Change Log
 
+## [0.7.2]
+
+- Fix GitHub actions crate.io release, with `git log --no-merges`
+
 ## [0.7.1]
 
 - Add `version` and `set_version` methods to `SeqEntryAction`.
