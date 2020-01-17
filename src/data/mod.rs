@@ -7,17 +7,16 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
+pub mod access_control;
 pub mod blob;
 pub mod map;
 pub mod sequence;
+mod tests;
 
-#[cfg(test)]
-mod blob_tests;
-#[cfg(test)]
-mod map_tests;
-#[cfg(test)]
-mod sequence_tests;
-
+pub use access_control::{
+    AccessList, AccessType, PrivateAccessList, PrivateUserAccess, PublicAccessList,
+    PublicUserAccess,
+};
 pub use blob::{
     Address as ChunkAddress, Chunk, Kind as ChunkKind, PrivateChunk, PublicChunk,
     MAX_CHUNK_SIZE_IN_BYTES,

@@ -7,9 +7,9 @@
 // specific language governing access_list and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::authorization::access_control::*;
+use crate::data::access_control::*;
 use crate::data::*;
-use crate::shared_data::{Owner, User, Version};
+use crate::shared_types::{Owner, User, Version};
 use crate::{Error, PublicKey, XorName};
 use std::collections::BTreeMap;
 use threshold_crypto::SecretKey;

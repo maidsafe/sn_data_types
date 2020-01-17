@@ -28,7 +28,6 @@
 // FIXME - write docs
 #![allow(missing_docs)]
 
-mod authorization;
 mod coins;
 mod data;
 mod errors;
@@ -36,15 +35,15 @@ mod identity;
 mod public_key;
 mod request;
 mod response;
-mod shared_data;
+mod shared_types;
 mod transaction;
 mod utils;
 
-pub use authorization::access_control::{
+pub use coins::{Coins, MAX_COINS_VALUE};
+pub use data::access_control::{
     AccessList, AccessType, PrivateAccessList, PrivateUserAccess, PublicAccessList,
     PublicUserAccess,
 };
-pub use coins::{Coins, MAX_COINS_VALUE};
 pub use data::{
     AppendOperation, Chunk, ChunkAddress, ChunkKind, GuardedMapCmd, Map, MapCmd, MapEntries,
     MapKeyHistories, MapTransaction, MapValue, MapValues, PrivateChunk, PrivateGuardedSequence,
@@ -62,7 +61,7 @@ pub use public_key::{PublicKey, Signature};
 pub use request::{LoginPacket, Request, MAX_LOGIN_PACKET_BYTES};
 pub use response::Response;
 pub use sha3::Sha3_512 as Ed25519Digest;
-pub use shared_data::{
+pub use shared_types::{
     Address, ExpectedVersions, Key, Keys, Kind, Owner, User, Value, Values, Version,
 };
 pub use transaction::{Transaction, TransactionId};

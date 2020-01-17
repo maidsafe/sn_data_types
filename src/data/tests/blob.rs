@@ -7,7 +7,7 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use super::super::{utils, PublicKey, XorName};
+use super::super::super::{utils, PublicKey, XorName};
 use crate::data::{ChunkAddress, PrivateChunk, PublicChunk};
 use bincode::deserialize as deserialise;
 use hex::encode;

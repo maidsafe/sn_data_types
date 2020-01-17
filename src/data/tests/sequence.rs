@@ -8,7 +8,7 @@
 // Software.
 
 use crate::data::{PrivateGuardedSequence, PrivateSequence, PublicGuardedSequence};
-use crate::shared_data::Version;
+use crate::shared_types::Version;
 use crate::XorName;
 use unwrap::unwrap;
 

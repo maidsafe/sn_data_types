@@ -7,10 +7,11 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-pub mod access_control;
 #[cfg(test)]
-mod tests;
-pub use access_control::{
-    AccessList, AccessListTrait, AccessType, PrivateAccessList, PrivateUserAccess,
-    PublicAccessList, PublicUserAccess, UserAccess,
-};
+mod access_control;
+#[cfg(test)]
+mod blob;
+#[cfg(test)]
+mod map;
+#[cfg(test)]
+mod sequence;
