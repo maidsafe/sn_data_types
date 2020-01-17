@@ -7,14 +7,14 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::data::{PrivateSentriedSequence, PrivateSequence, PublicSentriedSequence};
+use crate::data::{PrivateGuardedSequence, PrivateSequence, PublicGuardedSequence};
 use crate::shared_data::Version;
 use crate::XorName;
 use unwrap::unwrap;
 
 #[test]
-fn append_sentried_data() {
-    let mut data = PublicSentriedSequence::new(XorName([1; 32]), 10000);
+fn append_guarded_data() {
+    let mut data = PublicGuardedSequence::new(XorName([1; 32]), 10000);
     unwrap!(data.append(vec![b"hello".to_vec(), b"world".to_vec()], 0));
 }
 
@@ -34,8 +34,8 @@ fn append_private_data() {
 }
 
 #[test]
-fn append_private_sentried_data() {
-    let mut data = PrivateSentriedSequence::new(XorName(rand::random()), 10);
+fn append_private_guarded_data() {
+    let mut data = PrivateGuardedSequence::new(XorName(rand::random()), 10);
 
     // Assert that the values are appended.
     let values1 = vec![
@@ -49,7 +49,7 @@ fn append_private_sentried_data() {
 
 #[test]
 fn in_range() {
-    let mut data = PublicSentriedSequence::new(rand::random(), 10);
+    let mut data = PublicGuardedSequence::new(rand::random(), 10);
     let values = vec![
         b"key0".to_vec(),
         b"value0".to_vec(),

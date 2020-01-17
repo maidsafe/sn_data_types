@@ -12,8 +12,8 @@ use crate::authorization::access_control::{
     PublicUserAccess,
 };
 use crate::shared_data::{
-    to_absolute_range, to_absolute_version, Address, ExpectedVersions, Key, KeyValuePair, Keys,
-    Kind, NonSentried, Owner, Sentried, User, Value, Values, Version, CURRENT_VERSION,
+    to_absolute_range, to_absolute_version, Address, ExpectedVersions, Guarded, Key, KeyValuePair,
+    Keys, Kind, NonGuarded, Owner, User, Value, Values, Version, CURRENT_VERSION,
 };
 use crate::{EntryError, Error, PublicKey, Result, XorName};
 use serde::{Deserialize, Serialize};
@@ -25,13 +25,13 @@ use std::{
 };
 
 /// Public Map with concurrency control.
-pub type PublicSentriedMap = MapBase<PublicAccessList, Sentried>;
+pub type PublicGuardedMap = MapBase<PublicAccessList, Guarded>;
 /// Public Map.
-pub type PublicMap = MapBase<PublicAccessList, NonSentried>;
+pub type PublicMap = MapBase<PublicAccessList, NonGuarded>;
 /// Private Map with concurrency control.
-pub type PrivateSentriedMap = MapBase<PrivateAccessList, Sentried>;
+pub type PrivateGuardedMap = MapBase<PrivateAccessList, Guarded>;
 /// Private Map.
-pub type PrivateMap = MapBase<PrivateAccessList, NonSentried>;
+pub type PrivateMap = MapBase<PrivateAccessList, NonGuarded>;
 /// All the keys in the map, with all their versions of values.
 pub type DataHistories = BTreeMap<Key, Vec<StoredValue>>;
 /// A vector of data entries.
@@ -350,13 +350,13 @@ pub enum Cmd {
 
 /// Indicates Map mutations with concurrency control.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
-pub enum SentriedCmd {
+pub enum GuardedCmd {
     /// Inserts a new entry
-    Insert(SentriedKeyValuePair),
+    Insert(GuardedKeyValuePair),
     /// Updates an entry with a new value
-    Update(SentriedKeyValuePair),
+    Update(GuardedKeyValuePair),
     /// Deletes an entry
-    Delete(SentriedKey),
+    Delete(GuardedKey),
 }
 
 /// Indicates whether the transaction can perform permanent deletion or not.
@@ -374,7 +374,7 @@ pub enum SentryOption {
     /// No concurrency control.
     AnyVersion(Transaction),
     /// Optimistic concurrency.
-    ExpectVersion(SentriedTransaction),
+    ExpectVersion(GuardedTransaction),
 }
 
 // pub type Transaction = Vec<Cmd>;
@@ -401,40 +401,40 @@ impl From<Vec<Cmd>> for Transaction {
     }
 }
 
-// pub type SentriedTransaction = Vec<SentriedCmd>;
+// pub type GuardedTransaction = Vec<GuardedCmd>;
 ///
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default, Debug)]
-pub struct SentriedTransaction(Vec<SentriedCmd>);
+pub struct GuardedTransaction(Vec<GuardedCmd>);
 
-impl SentriedTransaction {
-    pub fn get(&self) -> &Vec<SentriedCmd> {
+impl GuardedTransaction {
+    pub fn get(&self) -> &Vec<GuardedCmd> {
         &self.0
     }
 }
 
-impl Deref for SentriedTransaction {
-    type Target = Vec<SentriedCmd>;
+impl Deref for GuardedTransaction {
+    type Target = Vec<GuardedCmd>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl From<Vec<SentriedCmd>> for SentriedTransaction {
-    fn from(vec: Vec<SentriedCmd>) -> Self {
-        SentriedTransaction(vec)
+impl From<Vec<GuardedCmd>> for GuardedTransaction {
+    fn from(vec: Vec<GuardedCmd>) -> Self {
+        GuardedTransaction(vec)
     }
 }
 
 ///
 pub type ExpectedVersion = u64;
 ///
-pub type SentriedKey = (Key, ExpectedVersion);
+pub type GuardedKey = (Key, ExpectedVersion);
 ///
-pub type SentriedKeyValuePair = (KeyValuePair, ExpectedVersion);
+pub type GuardedKeyValuePair = (KeyValuePair, ExpectedVersion);
 
-/// Common methods for NonSentried flavours.
-impl<P: AccessListTrait> MapBase<P, NonSentried> {
+/// Common methods for NonGuarded flavours.
+impl<P: AccessListTrait> MapBase<P, NonGuarded> {
     /// Commit transaction.
     ///
     /// If the specified `expected_version` does not equal the entries count in data, an
@@ -554,33 +554,33 @@ impl<P: AccessListTrait> MapBase<P, NonSentried> {
     }
 }
 
-/// Common methods for Sentried flavours.
-impl<P: AccessListTrait> MapBase<P, Sentried> {
+/// Common methods for Guarded flavours.
+impl<P: AccessListTrait> MapBase<P, Guarded> {
     /// Commit transaction.
     ///
     /// If the specified `expected_version` does not equal the entries count in data, an
     /// error will be returned.
-    pub fn commit(&mut self, tx: &SentriedTransaction) -> Result<()> {
+    pub fn commit(&mut self, tx: &GuardedTransaction) -> Result<()> {
         // Deconstruct tx into inserts, updates, and deletes
-        let operations: SentriedOperations = tx.iter().fold(
-            SentriedOperations {
+        let operations: GuardedOperations = tx.iter().fold(
+            GuardedOperations {
                 insert: Default::default(),
                 update: Default::default(),
                 delete: Default::default(),
             },
             |mut op, cmd| {
                 match cmd {
-                    SentriedCmd::Insert(sentried_key_value_pair) => {
-                        let _ = op.insert.insert(sentried_key_value_pair.clone());
+                    GuardedCmd::Insert(guarded_key_value_pair) => {
+                        let _ = op.insert.insert(guarded_key_value_pair.clone());
                     }
-                    SentriedCmd::Update(sentried_key_value_pair) => {
-                        let _ = op.update.insert(sentried_key_value_pair.clone());
+                    GuardedCmd::Update(guarded_key_value_pair) => {
+                        let _ = op.update.insert(guarded_key_value_pair.clone());
                     }
-                    SentriedCmd::Delete(sentried_key) => {
-                        let _ = op.delete.insert(sentried_key.clone());
+                    GuardedCmd::Delete(guarded_key) => {
+                        let _ = op.delete.insert(guarded_key.clone());
                     }
                 };
-                SentriedOperations {
+                GuardedOperations {
                     insert: op.insert,
                     update: op.update,
                     delete: op.delete,
@@ -591,7 +591,7 @@ impl<P: AccessListTrait> MapBase<P, Sentried> {
         self.apply(operations)
     }
 
-    fn apply(&mut self, tx: SentriedOperations) -> Result<()> {
+    fn apply(&mut self, tx: GuardedOperations) -> Result<()> {
         let op_count = tx.insert.len() + tx.update.len() + tx.delete.len();
         if op_count == 0 {
             return Err(Error::InvalidOperation);
@@ -704,10 +704,10 @@ struct Operations {
     update: BTreeSet<KeyValuePair>,
     delete: BTreeSet<Key>,
 }
-struct SentriedOperations {
-    insert: BTreeSet<SentriedKeyValuePair>,
-    update: BTreeSet<SentriedKeyValuePair>,
-    delete: BTreeSet<SentriedKey>,
+struct GuardedOperations {
+    insert: BTreeSet<GuardedKeyValuePair>,
+    update: BTreeSet<GuardedKeyValuePair>,
+    delete: BTreeSet<GuardedKey>,
 }
 
 /// A stored value indicates data or deleted data in case of Tombstone variant.
@@ -722,29 +722,29 @@ pub enum StoredValue {
 /// A vector of stored values.
 pub type StoredValues = Vec<StoredValue>;
 
-/// Public + Sentried
-impl MapBase<PublicAccessList, Sentried> {
+/// Public + Guarded
+impl MapBase<PublicAccessList, Guarded> {
     /// Returns new instance of private MapBase flavour with concurrency control.
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
-            address: Address::PublicSentried { name, tag },
+            address: Address::PublicGuarded { name, tag },
             data: BTreeMap::new(),
             access_list: Vec::new(),
             owners: Vec::new(),
             version: Some(0),
-            _flavour: Sentried,
+            _flavour: Guarded,
         }
     }
 }
 
-impl Debug for MapBase<PublicAccessList, Sentried> {
+impl Debug for MapBase<PublicAccessList, Guarded> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "PublicSentriedMap {:?}", self.name())
+        write!(formatter, "PublicGuardedMap {:?}", self.name())
     }
 }
 
-/// Public + NonSentried
-impl MapBase<PublicAccessList, NonSentried> {
+/// Public + NonGuarded
+impl MapBase<PublicAccessList, NonGuarded> {
     /// Returns new instance of public MapBase flavour.
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
@@ -753,28 +753,28 @@ impl MapBase<PublicAccessList, NonSentried> {
             access_list: Vec::new(),
             owners: Vec::new(),
             version: None,
-            _flavour: NonSentried,
+            _flavour: NonGuarded,
         }
     }
 }
 
-impl Debug for MapBase<PublicAccessList, NonSentried> {
+impl Debug for MapBase<PublicAccessList, NonGuarded> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PublicMap {:?}", self.name())
     }
 }
 
-/// Private + Sentried
-impl MapBase<PrivateAccessList, Sentried> {
+/// Private + Guarded
+impl MapBase<PrivateAccessList, Guarded> {
     /// Returns new instance of private MapBase flavour with concurrency control.
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
-            address: Address::PrivateSentried { name, tag },
+            address: Address::PrivateGuarded { name, tag },
             data: BTreeMap::new(),
             access_list: Vec::new(),
             owners: Vec::new(),
             version: Some(0),
-            _flavour: Sentried,
+            _flavour: Guarded,
         }
     }
 
@@ -782,27 +782,27 @@ impl MapBase<PrivateAccessList, Sentried> {
     ///
     /// If the specified `expected_version` does not equal the entries count in data, an
     /// error will be returned.
-    pub fn hard_commit(&mut self, tx: &SentriedTransaction) -> Result<()> {
+    pub fn hard_commit(&mut self, tx: &GuardedTransaction) -> Result<()> {
         // Deconstruct tx into inserts, updates, and deletes
-        let operations: SentriedOperations = tx.iter().fold(
-            SentriedOperations {
+        let operations: GuardedOperations = tx.iter().fold(
+            GuardedOperations {
                 insert: Default::default(),
                 update: Default::default(),
                 delete: Default::default(),
             },
             |mut op, cmd| {
                 match cmd {
-                    SentriedCmd::Insert(sentried_key_value_pair) => {
-                        let _ = op.insert.insert(sentried_key_value_pair.clone());
+                    GuardedCmd::Insert(guarded_key_value_pair) => {
+                        let _ = op.insert.insert(guarded_key_value_pair.clone());
                     }
-                    SentriedCmd::Update(sentried_key_value_pair) => {
-                        let _ = op.update.insert(sentried_key_value_pair.clone());
+                    GuardedCmd::Update(guarded_key_value_pair) => {
+                        let _ = op.update.insert(guarded_key_value_pair.clone());
                     }
-                    SentriedCmd::Delete(sentried_key) => {
-                        let _ = op.delete.insert(sentried_key.clone());
+                    GuardedCmd::Delete(guarded_key) => {
+                        let _ = op.delete.insert(guarded_key.clone());
                     }
                 };
-                SentriedOperations {
+                GuardedOperations {
                     insert: op.insert,
                     update: op.update,
                     delete: op.delete,
@@ -813,7 +813,7 @@ impl MapBase<PrivateAccessList, Sentried> {
         self.hard_apply(operations)
     }
 
-    fn hard_apply(&mut self, op: SentriedOperations) -> Result<()> {
+    fn hard_apply(&mut self, op: GuardedOperations) -> Result<()> {
         let op_count = op.insert.len() + op.update.len() + op.delete.len();
         if op_count == 0 {
             return Err(Error::InvalidOperation);
@@ -941,14 +941,14 @@ impl MapBase<PrivateAccessList, Sentried> {
     }
 }
 
-impl Debug for MapBase<PrivateAccessList, Sentried> {
+impl Debug for MapBase<PrivateAccessList, Guarded> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "PrivateSentriedMap {:?}", self.name())
+        write!(formatter, "PrivateGuardedMap {:?}", self.name())
     }
 }
 
-/// Private + NonSentried
-impl MapBase<PrivateAccessList, NonSentried> {
+/// Private + NonGuarded
+impl MapBase<PrivateAccessList, NonGuarded> {
     /// Returns new instance of private MapBase flavour.
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
@@ -957,7 +957,7 @@ impl MapBase<PrivateAccessList, NonSentried> {
             access_list: Vec::new(),
             owners: Vec::new(),
             version: None,
-            _flavour: NonSentried,
+            _flavour: NonGuarded,
         }
     }
 
@@ -1088,7 +1088,7 @@ impl MapBase<PrivateAccessList, NonSentried> {
     }
 }
 
-impl Debug for MapBase<PrivateAccessList, NonSentried> {
+impl Debug for MapBase<PrivateAccessList, NonGuarded> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PrivateMap {:?}", self.name())
     }
@@ -1098,11 +1098,11 @@ impl Debug for MapBase<PrivateAccessList, NonSentried> {
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Map {
     /// Public instance with concurrency control.
-    PublicSentried(PublicSentriedMap),
+    PublicGuarded(PublicGuardedMap),
     /// Public instance.
     Public(PublicMap),
     /// Private instance with concurrency control.
-    PrivateSentried(PrivateSentriedMap),
+    PrivateGuarded(PrivateGuardedMap),
     /// Private instance.
     Private(PrivateMap),
 }
@@ -1111,9 +1111,9 @@ pub enum Map {
 macro_rules! state_dispatch {
     ($self:expr, $state:pat => $expr:expr) => {
         match $self {
-            Map::PublicSentried($state) => $expr,
+            Map::PublicGuarded($state) => $expr,
             Map::Public($state) => $expr,
-            Map::PrivateSentried($state) => $expr,
+            Map::PrivateGuarded($state) => $expr,
             Map::Private($state) => $expr,
         }
     };
@@ -1126,31 +1126,31 @@ impl Map {
         use Map::*;
         // Public flavours automatically allows all reads.
         match (self, access) {
-            (PublicSentried(_), Read) | (Public(_), Read) => return true,
+            (PublicGuarded(_), Read) | (Public(_), Read) => return true,
             _ => (),
         }
         match (self, access) {
-            (PublicSentried(data), Insert)
-            | (PublicSentried(data), Update)
-            | (PublicSentried(data), Delete)
-            | (PublicSentried(data), ModifyPermissions) => data.is_allowed(user, access),
+            (PublicGuarded(data), Insert)
+            | (PublicGuarded(data), Update)
+            | (PublicGuarded(data), Delete)
+            | (PublicGuarded(data), ModifyPermissions) => data.is_allowed(user, access),
             (Public(data), Insert)
             | (Public(data), Update)
             | (Public(data), Delete)
             | (Public(data), ModifyPermissions) => data.is_allowed(user, access),
-            (PrivateSentried(data), Insert)
-            | (PrivateSentried(data), Update)
-            | (PrivateSentried(data), Delete)
-            | (PrivateSentried(data), HardUpdate)
-            | (PrivateSentried(data), HardDelete)
-            | (PrivateSentried(data), ModifyPermissions) => data.is_allowed(user, access),
+            (PrivateGuarded(data), Insert)
+            | (PrivateGuarded(data), Update)
+            | (PrivateGuarded(data), Delete)
+            | (PrivateGuarded(data), HardUpdate)
+            | (PrivateGuarded(data), HardDelete)
+            | (PrivateGuarded(data), ModifyPermissions) => data.is_allowed(user, access),
             (Private(data), Insert)
             | (Private(data), Update)
             | (Private(data), Delete)
             | (Private(data), HardUpdate)
             | (Private(data), HardDelete)
             | (Private(data), ModifyPermissions) => data.is_allowed(user, access),
-            (PrivateSentried(data), Read) => data.is_allowed(user, access),
+            (PrivateGuarded(data), Read) => data.is_allowed(user, access),
             (Private(data), Read) => data.is_allowed(user, access),
             _ => false,
         }
@@ -1187,8 +1187,8 @@ impl Map {
     }
 
     /// Returns true if this instance employs concurrency control.
-    pub fn is_sentried(&self) -> bool {
-        self.kind().is_sentried()
+    pub fn is_guarded(&self) -> bool {
+        self.kind().is_guarded()
     }
 
     /// Returns true if the provided user (identified by their public key) is the current owner.
@@ -1302,7 +1302,7 @@ impl Map {
     pub fn public_access_list_at(&self, version: impl Into<Version>) -> Result<&PublicAccessList> {
         use Map::*;
         let access_list = match self {
-            PublicSentried(data) => data.access_list_at(version),
+            PublicGuarded(data) => data.access_list_at(version),
             Public(data) => data.access_list_at(version),
             _ => return Err(Error::InvalidOperation),
         };
@@ -1316,7 +1316,7 @@ impl Map {
     ) -> Result<&PrivateAccessList> {
         use Map::*;
         let access_list = match self {
-            PrivateSentried(data) => data.access_list_at(version),
+            PrivateGuarded(data) => data.access_list_at(version),
             Private(data) => data.access_list_at(version),
             _ => return Err(Error::InvalidOperation),
         };
@@ -1327,7 +1327,7 @@ impl Map {
     pub fn public_access_list_history(&self) -> Result<Vec<PublicAccessList>> {
         use Map::*;
         let result = match self {
-            PublicSentried(data) => Some(data.access_list_history()),
+            PublicGuarded(data) => Some(data.access_list_history()),
             Public(data) => Some(data.access_list_history()),
             _ => return Err(Error::InvalidOperation),
         };
@@ -1338,7 +1338,7 @@ impl Map {
     pub fn private_access_list_history(&self) -> Result<Vec<PrivateAccessList>> {
         use Map::*;
         let result = match self {
-            PrivateSentried(data) => Some(data.access_list_history()),
+            PrivateGuarded(data) => Some(data.access_list_history()),
             Private(data) => Some(data.access_list_history()),
             _ => return Err(Error::InvalidOperation),
         };
@@ -1353,7 +1353,7 @@ impl Map {
     ) -> Result<Vec<PublicAccessList>> {
         use Map::*;
         let result = match self {
-            PublicSentried(data) => data.access_list_history_range(start, end),
+            PublicGuarded(data) => data.access_list_history_range(start, end),
             Public(data) => data.access_list_history_range(start, end),
             _ => return Err(Error::InvalidOperation),
         };
@@ -1368,7 +1368,7 @@ impl Map {
     ) -> Result<Vec<PrivateAccessList>> {
         use Map::*;
         let result = match self {
-            PrivateSentried(data) => data.access_list_history_range(start, end),
+            PrivateGuarded(data) => data.access_list_history_range(start, end),
             Private(data) => data.access_list_history_range(start, end),
             _ => return Err(Error::InvalidOperation),
         };
@@ -1379,9 +1379,9 @@ impl Map {
     pub fn shell(&self, version: impl Into<Version>) -> Result<Self> {
         use Map::*;
         match self {
-            PublicSentried(map) => map.shell(version).map(PublicSentried),
+            PublicGuarded(map) => map.shell(version).map(PublicGuarded),
             Public(map) => map.shell(version).map(Public),
-            PrivateSentried(map) => map.shell(version).map(PrivateSentried),
+            PrivateGuarded(map) => map.shell(version).map(PrivateGuarded),
             Private(map) => map.shell(version).map(Private),
         }
     }
@@ -1400,7 +1400,7 @@ impl Map {
         use Map::*;
         match self {
             Private(data) => data.set_access_list(access_list, expected_version),
-            PrivateSentried(data) => data.set_access_list(access_list, expected_version),
+            PrivateGuarded(data) => data.set_access_list(access_list, expected_version),
             _ => Err(Error::InvalidOperation),
         }
     }
@@ -1414,7 +1414,7 @@ impl Map {
         use Map::*;
         match self {
             Public(data) => data.set_access_list(access_list, expected_version),
-            PublicSentried(data) => data.set_access_list(access_list, expected_version),
+            PublicGuarded(data) => data.set_access_list(access_list, expected_version),
             _ => Err(Error::InvalidOperation),
         }
     }
@@ -1425,7 +1425,7 @@ impl Map {
         use MapTransaction::*;
         use SentryOption::*;
         match self {
-            PrivateSentried(map) => match tx {
+            PrivateGuarded(map) => match tx {
                 Commit(options) => {
                     if let ExpectVersion(stx) = options {
                         return map.commit(stx);
@@ -1449,7 +1449,7 @@ impl Map {
                     }
                 }
             },
-            PublicSentried(map) => match tx {
+            PublicGuarded(map) => match tx {
                 Commit(options) => {
                     if let ExpectVersion(stx) = options {
                         return map.commit(stx);
@@ -1471,9 +1471,9 @@ impl Map {
     }
 }
 
-impl From<PublicSentriedMap> for Map {
-    fn from(data: PublicSentriedMap) -> Self {
-        Map::PublicSentried(data)
+impl From<PublicGuardedMap> for Map {
+    fn from(data: PublicGuardedMap) -> Self {
+        Map::PublicGuarded(data)
     }
 }
 
@@ -1483,9 +1483,9 @@ impl From<PublicMap> for Map {
     }
 }
 
-impl From<PrivateSentriedMap> for Map {
-    fn from(data: PrivateSentriedMap) -> Self {
-        Map::PrivateSentried(data)
+impl From<PrivateGuardedMap> for Map {
+    fn from(data: PrivateGuardedMap) -> Self {
+        Map::PrivateGuarded(data)
     }
 }
 

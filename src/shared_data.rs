@@ -36,19 +36,18 @@ impl From<Vec<u8>> for Key {
     }
 }
 
-// pub type Key = Vec<u8>;
 pub type Value = Vec<u8>;
 pub type KeyValuePair = (Key, Value);
 pub type Values = Vec<Value>;
 pub type Keys = Vec<Key>;
 
-/// Marker for sentried data.
+/// Marker for Guarded data.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
-pub struct Sentried;
+pub struct Guarded;
 
-/// Marker for non-sentried data.
+/// Marker for non-Guarded data.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
-pub struct NonSentried;
+pub struct NonGuarded;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
 pub enum User {
@@ -116,31 +115,31 @@ pub struct Owner {
 
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Kind {
-    PublicSentried,
+    PublicGuarded,
     Public,
-    PrivateSentried,
+    PrivateGuarded,
     Private,
 }
 
 impl Kind {
     pub fn is_public(self) -> bool {
-        self == Kind::PublicSentried || self == Kind::Public
+        self == Kind::PublicGuarded || self == Kind::Public
     }
 
     pub fn is_private(self) -> bool {
         !self.is_public()
     }
 
-    pub fn is_sentried(self) -> bool {
-        self == Kind::PublicSentried || self == Kind::PrivateSentried
+    pub fn is_guarded(self) -> bool {
+        self == Kind::PublicGuarded || self == Kind::PrivateGuarded
     }
 
-    /// Creates `Kind` from `public` and `sentried` flags.
-    pub fn from_flags(public: bool, sentried: bool) -> Self {
-        match (public, sentried) {
-            (true, true) => Kind::PublicSentried,
+    /// Creates `Kind` from `public` and `guarded` flags.
+    pub fn from_flags(public: bool, guarded: bool) -> Self {
+        match (public, guarded) {
+            (true, true) => Kind::PublicGuarded,
             (true, false) => Kind::Public,
-            (false, true) => Kind::PrivateSentried,
+            (false, true) => Kind::PrivateGuarded,
             (false, false) => Kind::Private,
         }
     }
@@ -154,45 +153,45 @@ pub enum DataAddress {
 
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Address {
-    PublicSentried { name: XorName, tag: u64 },
+    PublicGuarded { name: XorName, tag: u64 },
     Public { name: XorName, tag: u64 },
-    PrivateSentried { name: XorName, tag: u64 },
+    PrivateGuarded { name: XorName, tag: u64 },
     Private { name: XorName, tag: u64 },
 }
 
 impl Address {
     pub fn from_kind(kind: Kind, name: XorName, tag: u64) -> Self {
         match kind {
-            Kind::PublicSentried => Address::PublicSentried { name, tag },
+            Kind::PublicGuarded => Address::PublicGuarded { name, tag },
             Kind::Public => Address::Public { name, tag },
-            Kind::PrivateSentried => Address::PrivateSentried { name, tag },
+            Kind::PrivateGuarded => Address::PrivateGuarded { name, tag },
             Kind::Private => Address::Private { name, tag },
         }
     }
 
     pub fn kind(&self) -> Kind {
         match self {
-            Address::PublicSentried { .. } => Kind::PublicSentried,
+            Address::PublicGuarded { .. } => Kind::PublicGuarded,
             Address::Public { .. } => Kind::Public,
-            Address::PrivateSentried { .. } => Kind::PrivateSentried,
+            Address::PrivateGuarded { .. } => Kind::PrivateGuarded,
             Address::Private { .. } => Kind::Private,
         }
     }
 
     pub fn name(&self) -> &XorName {
         match self {
-            Address::PublicSentried { ref name, .. }
+            Address::PublicGuarded { ref name, .. }
             | Address::Public { ref name, .. }
-            | Address::PrivateSentried { ref name, .. }
+            | Address::PrivateGuarded { ref name, .. }
             | Address::Private { ref name, .. } => name,
         }
     }
 
     pub fn tag(&self) -> u64 {
         match self {
-            Address::PublicSentried { tag, .. }
+            Address::PublicGuarded { tag, .. }
             | Address::Public { tag, .. }
-            | Address::PrivateSentried { tag, .. }
+            | Address::PrivateGuarded { tag, .. }
             | Address::Private { tag, .. } => *tag,
         }
     }
@@ -205,8 +204,8 @@ impl Address {
         self.kind().is_private()
     }
 
-    pub fn is_sentried(&self) -> bool {
-        self.kind().is_sentried()
+    pub fn is_guarded(&self) -> bool {
+        self.kind().is_guarded()
     }
 
     /// Returns the Address serialised and encoded in z-base-32.

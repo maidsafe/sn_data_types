@@ -46,9 +46,9 @@ pub use authorization::access_control::{
 };
 pub use coins::{Coins, MAX_COINS_VALUE};
 pub use data::{
-    AppendOperation, Chunk, ChunkAddress, ChunkKind, Map, MapCmd, MapEntries, MapKeyHistories,
-    MapTransaction, MapValue, MapValues, PrivateChunk, PrivateSentriedSequence, PrivateSequence,
-    PublicChunk, PublicSentriedSequence, PublicSequence, SentriedMapCmd, SentryOption, Sequence,
+    AppendOperation, Chunk, ChunkAddress, ChunkKind, GuardedMapCmd, Map, MapCmd, MapEntries,
+    MapKeyHistories, MapTransaction, MapValue, MapValues, PrivateChunk, PrivateGuardedSequence,
+    PrivateSequence, PublicChunk, PublicGuardedSequence, PublicSequence, SentryOption, Sequence,
     SequenceEntry, SequenceValues, MAX_CHUNK_SIZE_IN_BYTES,
 };
 pub use errors::{EntryError, Error, Result};
@@ -248,12 +248,12 @@ impl DataType {
             SentryOption::ExpectVersion(tx) => {
                 for cmd in tx.get() {
                     match cmd {
-                        SentriedMapCmd::Insert { .. } => {
+                        GuardedMapCmd::Insert { .. } => {
                             if !self.is_allowed(AccessType::Insert, user) {
                                 return false;
                             }
                         }
-                        SentriedMapCmd::Update { .. } => {
+                        GuardedMapCmd::Update { .. } => {
                             if hard_erasure && !self.is_allowed(AccessType::HardUpdate, user) {
                                 return false;
                             }
@@ -261,7 +261,7 @@ impl DataType {
                                 return false;
                             }
                         }
-                        SentriedMapCmd::Delete { .. } => {
+                        GuardedMapCmd::Delete { .. } => {
                             if hard_erasure && !self.is_allowed(AccessType::HardDelete, user) {
                                 return false;
                             }
@@ -427,7 +427,7 @@ mod test {
     #[test]
     fn zbase32_encodes_and_decodes_data_address() {
         let name = XorName(rand::random());
-        let address = Address::PrivateSentried { name, tag: 15000 };
+        let address = Address::PrivateGuarded { name, tag: 15000 };
         let encoded = address.encode_to_zbase32();
         let decoded = unwrap!(Address::decode_from_zbase32(&encoded));
         assert_eq!(address, decoded);

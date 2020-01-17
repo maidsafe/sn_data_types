@@ -23,12 +23,11 @@ pub use blob::{
     MAX_CHUNK_SIZE_IN_BYTES,
 };
 pub use map::{
-    Cmd as MapCmd, DataEntries as MapEntries, DataHistories as MapKeyHistories, Map,
-    MapTransaction, PrivateMap, PrivateSentriedMap, PublicMap, PublicSentriedMap,
-    SentriedCmd as SentriedMapCmd, SentryOption, StoredValue as MapValue,
-    StoredValues as MapValues,
+    Cmd as MapCmd, DataEntries as MapEntries, DataHistories as MapKeyHistories,
+    GuardedCmd as GuardedMapCmd, Map, MapTransaction, PrivateGuardedMap, PrivateMap,
+    PublicGuardedMap, PublicMap, SentryOption, StoredValue as MapValue, StoredValues as MapValues,
 };
 pub use sequence::{
-    AppendOperation, DataEntry as SequenceEntry, PrivateSentriedSequence, PrivateSequence,
-    PublicSentriedSequence, PublicSequence, Sequence, SequenceBase, Values as SequenceValues,
+    AppendOperation, DataEntry as SequenceEntry, PrivateGuardedSequence, PrivateSequence,
+    PublicGuardedSequence, PublicSequence, Sequence, SequenceBase, Values as SequenceValues,
 };

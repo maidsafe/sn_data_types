@@ -25,7 +25,7 @@ fn gen_public_key() -> PublicKey {
 
 #[test]
 fn set_sequence_access_list() {
-    let mut data = PrivateSentriedSequence::new(XorName([1; 32]), 10000);
+    let mut data = PrivateGuardedSequence::new(XorName([1; 32]), 10000);
     let access_list = PrivateAccessList {
         access_list: BTreeMap::new(),
         expected_data_version: 0,
@@ -69,7 +69,7 @@ fn set_sequence_access_list() {
 fn set_sequence_owners() {
     let owner_pk = gen_public_key();
 
-    let mut data = PrivateSentriedSequence::new(XorName([1; 32]), 10000);
+    let mut data = PrivateGuardedSequence::new(XorName([1; 32]), 10000);
 
     // Set the first owner with correct ExpectedVersions - should pass.
     let res = data.set_owner(
@@ -119,7 +119,7 @@ fn gets_sequence_shell() {
     let owner_pk = gen_public_key();
     let owner_pk1 = gen_public_key();
 
-    let mut data = PrivateSentriedSequence::new(XorName([1; 32]), 10000);
+    let mut data = PrivateGuardedSequence::new(XorName([1; 32]), 10000);
 
     let _ = data.set_owner(
         Owner {
@@ -190,8 +190,8 @@ fn can_retrieve_sequence_access_list() {
         Err(Error::NoSuchEntry)
     );
 
-    // public, sentried
-    let mut data = PublicSentriedSequence::new(rand::random(), 20);
+    // public, Guarded
+    let mut data = PublicGuardedSequence::new(rand::random(), 20);
     unwrap!(data.set_access_list(&public_access_list, 0));
     let data = Sequence::from(data);
 
@@ -233,7 +233,7 @@ fn can_retrieve_sequence_access_list() {
     );
 
     // Private, seq
-    let mut data = PrivateSentriedSequence::new(rand::random(), 20);
+    let mut data = PrivateGuardedSequence::new(rand::random(), 20);
     unwrap!(data.set_access_list(&private_access_list, 0));
     let data = Sequence::from(data);
 
@@ -259,7 +259,7 @@ fn validates_public_sequence_access_list() {
     let public_key_0 = gen_public_key();
     let public_key_1 = gen_public_key();
     let public_key_2 = gen_public_key();
-    let mut sequence = PublicSentriedSequence::new(XorName([1; 32]), 100);
+    let mut sequence = PublicGuardedSequence::new(XorName([1; 32]), 100);
 
     // no owner
     let data = Sequence::from(sequence.clone());
@@ -321,7 +321,7 @@ fn validates_private_sequence_access_list() {
     let public_key_0 = gen_public_key();
     let public_key_1 = gen_public_key();
     let public_key_2 = gen_public_key();
-    let mut sequence = PrivateSentriedSequence::new(XorName([1; 32]), 100);
+    let mut sequence = PrivateGuardedSequence::new(XorName([1; 32]), 100);
 
     // no owner
     let data = Sequence::from(sequence.clone());
@@ -389,7 +389,7 @@ fn assert_modify_sequence_access_list_permitted(
 
 #[test]
 fn set_map_access_list() {
-    let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
+    let mut data = PrivateGuardedMap::new(XorName([1; 32]), 10000);
     let access_list = PrivateAccessList {
         access_list: BTreeMap::new(),
         expected_data_version: 0,
@@ -433,7 +433,7 @@ fn set_map_access_list() {
 fn set_map_owner() {
     let owner_pk = gen_public_key();
 
-    let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
+    let mut data = PrivateGuardedMap::new(XorName([1; 32]), 10000);
 
     // Set the first owner with correct ExpectedVersions - should pass.
     let res = data.set_owner(
@@ -483,7 +483,7 @@ fn gets_map_shell() {
     let owner_pk = gen_public_key();
     let owner_pk1 = gen_public_key();
 
-    let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
+    let mut data = PrivateGuardedMap::new(XorName([1; 32]), 10000);
 
     let _ = data.set_owner(
         Owner {
@@ -554,8 +554,8 @@ fn can_retrieve_map_access_list() {
         Err(Error::NoSuchEntry)
     );
 
-    // public, sentried
-    let mut data = PublicSentriedMap::new(rand::random(), 20);
+    // public, Guarded
+    let mut data = PublicGuardedMap::new(rand::random(), 20);
     unwrap!(data.set_access_list(&public_access_list, 0));
     let data = Map::from(data);
 
@@ -596,8 +596,8 @@ fn can_retrieve_map_access_list() {
         Err(Error::NoSuchEntry)
     );
 
-    // Private, sentried
-    let mut data = PrivateSentriedMap::new(rand::random(), 20);
+    // Private, Guarded
+    let mut data = PrivateGuardedMap::new(rand::random(), 20);
     unwrap!(data.set_access_list(&private_access_list, 0));
     let data = Map::from(data);
 
@@ -623,7 +623,7 @@ fn validates_public_map_access_list() {
     let public_key_0 = gen_public_key();
     let public_key_1 = gen_public_key();
     let public_key_2 = gen_public_key();
-    let mut map = PublicSentriedMap::new(XorName([1; 32]), 100);
+    let mut map = PublicGuardedMap::new(XorName([1; 32]), 100);
 
     // no owner
     let data = Map::from(map.clone());
@@ -685,7 +685,7 @@ fn validates_private_map_access_list() {
     let public_key_0 = gen_public_key();
     let public_key_1 = gen_public_key();
     let public_key_2 = gen_public_key();
-    let mut map = PrivateSentriedMap::new(XorName([1; 32]), 100);
+    let mut map = PrivateGuardedMap::new(XorName([1; 32]), 100);
 
     // no owner
     let data = Map::from(map.clone());

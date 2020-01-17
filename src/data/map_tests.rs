@@ -8,24 +8,24 @@
 // Software.
 
 use crate::data::{
-    MapCmd, PrivateMap, PrivateSentriedMap, PublicMap, PublicSentriedMap, SentriedMapCmd,
+    GuardedMapCmd, MapCmd, PrivateGuardedMap, PrivateMap, PublicGuardedMap, PublicMap,
 };
 use crate::{EntryError, Error, XorName};
 use unwrap::{unwrap, unwrap_err};
 
 #[test]
 fn insert() {
-    let mut data = PublicSentriedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = SentriedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let insert_1 = SentriedMapCmd::Insert(((vec![1].into(), vec![0]), 0));
-    let insert_2 = SentriedMapCmd::Insert(((vec![2].into(), vec![0]), 0));
+    let mut data = PublicGuardedMap::new(XorName([1; 32]), 10000);
+    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
+    let insert_1 = GuardedMapCmd::Insert(((vec![1].into(), vec![0]), 0));
+    let insert_2 = GuardedMapCmd::Insert(((vec![2].into(), vec![0]), 0));
     let tx = vec![insert_0, insert_1, insert_2];
     unwrap!(data.commit(&tx.into()));
 
-    let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = SentriedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let insert_1 = SentriedMapCmd::Insert(((vec![1].into(), vec![0]), 0));
-    let insert_2 = SentriedMapCmd::Insert(((vec![2].into(), vec![0]), 0));
+    let mut data = PrivateGuardedMap::new(XorName([1; 32]), 10000);
+    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
+    let insert_1 = GuardedMapCmd::Insert(((vec![1].into(), vec![0]), 0));
+    let insert_2 = GuardedMapCmd::Insert(((vec![2].into(), vec![0]), 0));
     let tx = vec![insert_0, insert_1, insert_2];
     unwrap!(data.commit(&tx.into()));
 
@@ -46,17 +46,17 @@ fn insert() {
 
 #[test]
 fn update() {
-    let mut data = PublicSentriedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = SentriedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let update_1 = SentriedMapCmd::Update(((vec![0].into(), vec![0]), 1));
-    let update_2 = SentriedMapCmd::Update(((vec![0].into(), vec![0]), 2));
+    let mut data = PublicGuardedMap::new(XorName([1; 32]), 10000);
+    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
+    let update_1 = GuardedMapCmd::Update(((vec![0].into(), vec![0]), 1));
+    let update_2 = GuardedMapCmd::Update(((vec![0].into(), vec![0]), 2));
     let tx = vec![insert_0, update_1, update_2];
     unwrap!(data.commit(&tx.into()));
 
-    let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = SentriedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let update_1 = SentriedMapCmd::Update(((vec![0].into(), vec![0]), 1));
-    let update_2 = SentriedMapCmd::Update(((vec![0].into(), vec![0]), 2));
+    let mut data = PrivateGuardedMap::new(XorName([1; 32]), 10000);
+    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
+    let update_1 = GuardedMapCmd::Update(((vec![0].into(), vec![0]), 1));
+    let update_2 = GuardedMapCmd::Update(((vec![0].into(), vec![0]), 2));
     let tx = vec![insert_0, update_1, update_2];
     unwrap!(data.commit(&tx.into()));
 
@@ -77,17 +77,17 @@ fn update() {
 
 #[test]
 fn delete() {
-    let mut data = PublicSentriedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = SentriedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let update_1 = SentriedMapCmd::Update(((vec![0].into(), vec![0]), 1));
-    let delete_2 = SentriedMapCmd::Delete((vec![0].into(), 2));
+    let mut data = PublicGuardedMap::new(XorName([1; 32]), 10000);
+    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
+    let update_1 = GuardedMapCmd::Update(((vec![0].into(), vec![0]), 1));
+    let delete_2 = GuardedMapCmd::Delete((vec![0].into(), 2));
     let tx = vec![insert_0, update_1, delete_2];
     unwrap!(data.commit(&tx.into()));
 
-    let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = SentriedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let update_1 = SentriedMapCmd::Update(((vec![0].into(), vec![0]), 1));
-    let delete_2 = SentriedMapCmd::Delete((vec![0].into(), 2));
+    let mut data = PrivateGuardedMap::new(XorName([1; 32]), 10000);
+    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
+    let update_1 = GuardedMapCmd::Update(((vec![0].into(), vec![0]), 1));
+    let delete_2 = GuardedMapCmd::Delete((vec![0].into(), 2));
     let tx = vec![insert_0, update_1, delete_2];
     unwrap!(data.commit(&tx.into()));
 
@@ -108,23 +108,23 @@ fn delete() {
 
 #[test]
 fn re_insert() {
-    let mut data = PublicSentriedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = SentriedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let update_1 = SentriedMapCmd::Update(((vec![0].into(), vec![0]), 1));
-    let delete_2 = SentriedMapCmd::Delete((vec![0].into(), 2));
+    let mut data = PublicGuardedMap::new(XorName([1; 32]), 10000);
+    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
+    let update_1 = GuardedMapCmd::Update(((vec![0].into(), vec![0]), 1));
+    let delete_2 = GuardedMapCmd::Delete((vec![0].into(), 2));
     let tx_0 = vec![insert_0, update_1, delete_2];
     unwrap!(data.commit(&tx_0.into()));
-    let insert_3 = SentriedMapCmd::Insert(((vec![0].into(), vec![0]), 3));
+    let insert_3 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 3));
     let tx_1 = vec![insert_3];
     unwrap!(data.commit(&tx_1.into()));
 
-    let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = SentriedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let update_1 = SentriedMapCmd::Update(((vec![0].into(), vec![0]), 1));
-    let delete_2 = SentriedMapCmd::Delete((vec![0].into(), 2));
+    let mut data = PrivateGuardedMap::new(XorName([1; 32]), 10000);
+    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
+    let update_1 = GuardedMapCmd::Update(((vec![0].into(), vec![0]), 1));
+    let delete_2 = GuardedMapCmd::Delete((vec![0].into(), 2));
     let tx_0 = vec![insert_0, update_1, delete_2];
     unwrap!(data.commit(&tx_0.into()));
-    let insert_3 = SentriedMapCmd::Insert(((vec![0].into(), vec![0]), 3));
+    let insert_3 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 3));
     let tx_1 = vec![insert_3];
     unwrap!(data.commit(&tx_1.into()));
 
@@ -151,11 +151,11 @@ fn re_insert() {
 
 #[test]
 fn insert_when_exists_fails() {
-    let mut data = PublicSentriedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = SentriedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
+    let mut data = PublicGuardedMap::new(XorName([1; 32]), 10000);
+    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
     let tx = vec![insert_0];
     unwrap!(data.commit(&tx.into()));
-    let insert_1 = SentriedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
+    let insert_1 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
     let tx = vec![insert_1];
     match unwrap_err!(data.commit(&tx.into())) {
         Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
@@ -165,11 +165,11 @@ fn insert_when_exists_fails() {
         _ => panic!(),
     }
 
-    let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = SentriedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
+    let mut data = PrivateGuardedMap::new(XorName([1; 32]), 10000);
+    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
     let tx = vec![insert_0];
     unwrap!(data.commit(&tx.into()));
-    let insert_1 = SentriedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
+    let insert_1 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
     let tx = vec![insert_1];
     match unwrap_err!(data.commit(&tx.into())) {
         Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
@@ -210,10 +210,10 @@ fn insert_when_exists_fails() {
 
 #[test]
 fn update_with_wrong_version_fails() {
-    let mut data = PublicSentriedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = SentriedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let update_1 = SentriedMapCmd::Update(((vec![0].into(), vec![0]), 1));
-    let update_2 = SentriedMapCmd::Update(((vec![0].into(), vec![0]), 3)); // <-- wrong version
+    let mut data = PublicGuardedMap::new(XorName([1; 32]), 10000);
+    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
+    let update_1 = GuardedMapCmd::Update(((vec![0].into(), vec![0]), 1));
+    let update_2 = GuardedMapCmd::Update(((vec![0].into(), vec![0]), 3)); // <-- wrong version
     let tx = vec![insert_0, update_1, update_2];
     match unwrap_err!(data.commit(&tx.into())) {
         Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
@@ -223,10 +223,10 @@ fn update_with_wrong_version_fails() {
         _ => panic!(),
     }
 
-    let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = SentriedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let update_1 = SentriedMapCmd::Update(((vec![0].into(), vec![0]), 1));
-    let update_2 = SentriedMapCmd::Update(((vec![0].into(), vec![0]), 3)); // <-- wrong version
+    let mut data = PrivateGuardedMap::new(XorName([1; 32]), 10000);
+    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
+    let update_1 = GuardedMapCmd::Update(((vec![0].into(), vec![0]), 1));
+    let update_2 = GuardedMapCmd::Update(((vec![0].into(), vec![0]), 3)); // <-- wrong version
     let tx = vec![insert_0, update_1, update_2];
     match unwrap_err!(data.commit(&tx.into())) {
         Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
@@ -239,9 +239,9 @@ fn update_with_wrong_version_fails() {
 
 #[test]
 fn delete_with_wrong_version_fails() {
-    let mut data = PublicSentriedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = SentriedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let delete_1 = SentriedMapCmd::Delete((vec![0].into(), 3)); // <-- wrong version
+    let mut data = PublicGuardedMap::new(XorName([1; 32]), 10000);
+    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
+    let delete_1 = GuardedMapCmd::Delete((vec![0].into(), 3)); // <-- wrong version
     let tx = vec![insert_0, delete_1];
     match unwrap_err!(data.commit(&tx.into())) {
         Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
@@ -251,9 +251,9 @@ fn delete_with_wrong_version_fails() {
         _ => panic!(),
     }
 
-    let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = SentriedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let delete_1 = SentriedMapCmd::Delete((vec![0].into(), 3)); // <-- wrong version
+    let mut data = PrivateGuardedMap::new(XorName([1; 32]), 10000);
+    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
+    let delete_1 = GuardedMapCmd::Delete((vec![0].into(), 3)); // <-- wrong version
     let tx = vec![insert_0, delete_1];
     match unwrap_err!(data.commit(&tx.into())) {
         Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
@@ -266,13 +266,13 @@ fn delete_with_wrong_version_fails() {
 
 #[test]
 fn re_insert_with_wrong_version_fails() {
-    // PublicSentriedMap
-    let mut data = PublicSentriedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = SentriedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let delete_1 = SentriedMapCmd::Delete((vec![0].into(), 1));
+    // PublicGuardedMap
+    let mut data = PublicGuardedMap::new(XorName([1; 32]), 10000);
+    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
+    let delete_1 = GuardedMapCmd::Delete((vec![0].into(), 1));
     let tx = vec![insert_0, delete_1];
     unwrap!(data.commit(&tx.into()));
-    let insert_2 = SentriedMapCmd::Insert(((vec![0].into(), vec![0]), 3)); // <-- wrong version
+    let insert_2 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 3)); // <-- wrong version
     let tx = vec![insert_2];
     match unwrap_err!(data.commit(&tx.into())) {
         Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
@@ -282,13 +282,13 @@ fn re_insert_with_wrong_version_fails() {
         _ => panic!(),
     }
 
-    // PrivateSentriedMap
-    let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = SentriedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let delete_1 = SentriedMapCmd::Delete((vec![0].into(), 1));
+    // PrivateGuardedMap
+    let mut data = PrivateGuardedMap::new(XorName([1; 32]), 10000);
+    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
+    let delete_1 = GuardedMapCmd::Delete((vec![0].into(), 1));
     let tx = vec![insert_0, delete_1];
     unwrap!(data.commit(&tx.into()));
-    let insert_2 = SentriedMapCmd::Insert(((vec![0].into(), vec![0]), 3)); // <-- wrong version
+    let insert_2 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 3)); // <-- wrong version
     let tx = vec![insert_2];
     match unwrap_err!(data.commit(&tx.into())) {
         Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
@@ -300,10 +300,10 @@ fn re_insert_with_wrong_version_fails() {
 }
 #[test]
 fn delete_or_update_nonexisting_fails() {
-    // PublicSentriedMap
-    let mut data = PublicSentriedMap::new(XorName([1; 32]), 10000);
+    // PublicGuardedMap
+    let mut data = PublicGuardedMap::new(XorName([1; 32]), 10000);
     // Delete
-    let delete_2 = SentriedMapCmd::Delete((vec![0].into(), 2));
+    let delete_2 = GuardedMapCmd::Delete((vec![0].into(), 2));
     let tx = vec![delete_2];
     match unwrap_err!(data.commit(&tx.into())) {
         Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
@@ -313,7 +313,7 @@ fn delete_or_update_nonexisting_fails() {
         _ => panic!(),
     }
     // Update
-    let update_3 = SentriedMapCmd::Update(((vec![0].into(), vec![0]), 3));
+    let update_3 = GuardedMapCmd::Update(((vec![0].into(), vec![0]), 3));
     let tx = vec![update_3];
     match unwrap_err!(data.commit(&tx.into())) {
         Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
@@ -323,10 +323,10 @@ fn delete_or_update_nonexisting_fails() {
         _ => panic!(),
     }
 
-    // PrivateSentriedMap
-    let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
+    // PrivateGuardedMap
+    let mut data = PrivateGuardedMap::new(XorName([1; 32]), 10000);
     // Delete
-    let delete_2 = SentriedMapCmd::Delete((vec![0].into(), 2));
+    let delete_2 = GuardedMapCmd::Delete((vec![0].into(), 2));
     let tx = vec![delete_2];
     match unwrap_err!(data.commit(&tx.into())) {
         Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
@@ -336,7 +336,7 @@ fn delete_or_update_nonexisting_fails() {
         _ => panic!(),
     }
     // Update
-    let update_3 = SentriedMapCmd::Update(((vec![0].into(), vec![0]), 3));
+    let update_3 = GuardedMapCmd::Update(((vec![0].into(), vec![0]), 3));
     let tx = vec![update_3];
     match unwrap_err!(data.commit(&tx.into())) {
         Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
@@ -395,14 +395,14 @@ fn delete_or_update_nonexisting_fails() {
 
 #[test]
 fn delete_or_update_deleted_fails() {
-    // PublicSentriedMap
-    let mut data = PublicSentriedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = SentriedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let delete_1 = SentriedMapCmd::Delete((vec![0].into(), 1));
+    // PublicGuardedMap
+    let mut data = PublicGuardedMap::new(XorName([1; 32]), 10000);
+    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
+    let delete_1 = GuardedMapCmd::Delete((vec![0].into(), 1));
     let tx = vec![insert_0, delete_1];
     unwrap!(data.commit(&tx.into()));
     // Delete
-    let delete_2 = SentriedMapCmd::Delete((vec![0].into(), 2));
+    let delete_2 = GuardedMapCmd::Delete((vec![0].into(), 2));
     let tx = vec![delete_2];
     match unwrap_err!(data.commit(&tx.into())) {
         Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
@@ -412,7 +412,7 @@ fn delete_or_update_deleted_fails() {
         _ => panic!(),
     }
     // Update
-    let update_3 = SentriedMapCmd::Update(((vec![0].into(), vec![0]), 3));
+    let update_3 = GuardedMapCmd::Update(((vec![0].into(), vec![0]), 3));
     let tx = vec![update_3];
     match unwrap_err!(data.commit(&tx.into())) {
         Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
@@ -422,14 +422,14 @@ fn delete_or_update_deleted_fails() {
         _ => panic!(),
     }
 
-    // PrivateSentriedMap
-    let mut data = PrivateSentriedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = SentriedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let delete_1 = SentriedMapCmd::Delete((vec![0].into(), 1));
+    // PrivateGuardedMap
+    let mut data = PrivateGuardedMap::new(XorName([1; 32]), 10000);
+    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
+    let delete_1 = GuardedMapCmd::Delete((vec![0].into(), 1));
     let tx = vec![insert_0, delete_1];
     unwrap!(data.commit(&tx.into()));
     // Delete
-    let delete_2 = SentriedMapCmd::Delete((vec![0].into(), 2));
+    let delete_2 = GuardedMapCmd::Delete((vec![0].into(), 2));
     let tx = vec![delete_2];
     match unwrap_err!(data.commit(&tx.into())) {
         Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
@@ -439,7 +439,7 @@ fn delete_or_update_deleted_fails() {
         _ => panic!(),
     }
     // Update
-    let update_3 = SentriedMapCmd::Update(((vec![0].into(), vec![0]), 3));
+    let update_3 = GuardedMapCmd::Update(((vec![0].into(), vec![0]), 3));
     let tx = vec![update_3];
     match unwrap_err!(data.commit(&tx.into())) {
         Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
