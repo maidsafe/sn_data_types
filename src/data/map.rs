@@ -12,8 +12,8 @@ use crate::data::access_control::{
     PublicUserAccess,
 };
 use crate::shared_types::{
-    to_absolute_range, to_absolute_version, Address, ExpectedVersions, Guarded, Key, KeyValuePair,
-    Keys, Kind, NonGuarded, Owner, User, Value, Values, Version, CURRENT_VERSION,
+    to_absolute_range, to_absolute_version, Address, ExpectedVersions, Key, KeyValuePair, Keys,
+    Kind, Owner, User, Value, Values, Version, CURRENT_VERSION,
 };
 use crate::{EntryError, Error, PublicKey, Result, XorName};
 use serde::{Deserialize, Serialize};
@@ -24,14 +24,11 @@ use std::{
     ops::Deref,
 };
 
-/// Public Map with concurrency control.
-pub type PublicGuardedMap = MapBase<PublicAccessList, Guarded>;
 /// Public Map.
-pub type PublicMap = MapBase<PublicAccessList, NonGuarded>;
-/// Private Map with concurrency control.
-pub type PrivateGuardedMap = MapBase<PrivateAccessList, Guarded>;
+pub type PublicMap = MapBase<PublicAccessList>;
 /// Private Map.
-pub type PrivateMap = MapBase<PrivateAccessList, NonGuarded>;
+pub type PrivateMap = MapBase<PrivateAccessList>;
+
 /// All the keys in the map, with all their versions of values.
 pub type DataHistories = BTreeMap<Key, Vec<StoredValue>>;
 /// A vector of data entries.
@@ -55,7 +52,7 @@ impl DataEntry {
 
 ///
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
-pub struct MapBase<C, S> {
+pub struct MapBase<C> {
     address: Address,
     data: DataHistories,
     access_list: Vec<C>,
@@ -64,15 +61,13 @@ pub struct MapBase<C, S> {
     owners: Vec<Owner>,
     /// Version should be increased for any changes to Map data entries,
     /// but not for permissions and owner changes.
-    version: Option<u64>,
-    _flavour: S,
+    version: u64,
 }
 
-/// Common methods for all `Map` flavours.
-impl<C, S> MapBase<C, S>
+/// Common methods both `Map` Scopes (Public | Private).
+impl<C> MapBase<C>
 where
     C: AccessListTrait,
-    S: Copy,
 {
     /// Returns true if the provided access type is allowed for the specific user (identified y their public key).
     pub fn is_allowed(&self, user: PublicKey, access: AccessType) -> bool {
@@ -111,7 +106,7 @@ where
     }
 
     /// Return the expected data version.
-    pub fn expected_data_version(&self) -> Option<u64> {
+    pub fn expected_data_version(&self) -> u64 {
         self.version
     }
 
@@ -128,7 +123,7 @@ where
     /// Returns expected versions of data, owner and access list.
     pub fn versions(&self) -> ExpectedVersions {
         ExpectedVersions::new(
-            self.expected_data_version().unwrap_or_default(),
+            self.expected_data_version(),
             self.expected_owners_version(),
             self.expected_access_list_version(),
         )
@@ -138,7 +133,7 @@ where
     pub fn shell(&self, expected_data_version: impl Into<Version>) -> Result<Self> {
         let expected_data_version = to_absolute_version(
             expected_data_version.into(),
-            self.expected_data_version().unwrap_or_default() as usize,
+            self.expected_data_version() as usize,
         )
         .ok_or(Error::NoSuchEntry)? as u64;
 
@@ -162,7 +157,6 @@ where
             access_list,
             owners,
             version: self.version,
-            _flavour: self._flavour,
         })
     }
 
@@ -299,10 +293,8 @@ where
 
     /// Set owner.
     pub fn set_owner(&mut self, owner: Owner, version: u64) -> Result<()> {
-        if owner.expected_data_version != self.expected_data_version().unwrap_or_default() {
-            return Err(Error::InvalidSuccessor(
-                self.expected_data_version().unwrap_or_default(),
-            ));
+        if owner.expected_data_version != self.expected_data_version() {
+            return Err(Error::InvalidSuccessor(self.expected_data_version()));
         }
         if owner.expected_access_list_version != self.expected_access_list_version() {
             return Err(Error::InvalidPermissionsSuccessor(
@@ -319,10 +311,8 @@ where
     /// Set access list.
     /// The `AccessList` struct needs to contain the correct expected versions.
     pub fn set_access_list(&mut self, access_list: &C, version: u64) -> Result<()> {
-        if access_list.expected_data_version() != self.expected_data_version().unwrap_or_default() {
-            return Err(Error::InvalidSuccessor(
-                self.expected_data_version().unwrap_or_default(),
-            ));
+        if access_list.expected_data_version() != self.expected_data_version() {
+            return Err(Error::InvalidSuccessor(self.expected_data_version()));
         }
         if access_list.expected_owners_version() != self.expected_owners_version() {
             return Err(Error::InvalidOwnersSuccessor(
@@ -337,26 +327,15 @@ where
     }
 }
 
-/// Indicates Map mutations that will pass regardless of version.
+/// Indicates Map mutations with concurrency control.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
 pub enum Cmd {
     /// Inserts a new entry
-    Insert(KeyValuePair),
+    Insert(MapKeyValuePair),
     /// Updates an entry with a new value
-    Update(KeyValuePair),
+    Update(MapKeyValuePair),
     /// Deletes an entry
-    Delete(Key),
-}
-
-/// Indicates Map mutations with concurrency control.
-#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
-pub enum GuardedCmd {
-    /// Inserts a new entry
-    Insert(GuardedKeyValuePair),
-    /// Updates an entry with a new value
-    Update(GuardedKeyValuePair),
-    /// Deletes an entry
-    Delete(GuardedKey),
+    Delete(MapKey),
 }
 
 /// Indicates whether the transaction can perform permanent deletion or not.
@@ -374,10 +353,10 @@ pub enum SentryOption {
     /// No concurrency control.
     AnyVersion(Transaction),
     /// Optimistic concurrency.
-    ExpectVersion(GuardedTransaction),
+    ExpectVersion(Transaction),
 }
 
-// pub type Transaction = Vec<Cmd>;
+///
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default, Debug)]
 pub struct Transaction(Vec<Cmd>);
 
@@ -401,40 +380,15 @@ impl From<Vec<Cmd>> for Transaction {
     }
 }
 
-// pub type GuardedTransaction = Vec<GuardedCmd>;
 ///
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default, Debug)]
-pub struct GuardedTransaction(Vec<GuardedCmd>);
-
-impl GuardedTransaction {
-    pub fn get(&self) -> &Vec<GuardedCmd> {
-        &self.0
-    }
-}
-
-impl Deref for GuardedTransaction {
-    type Target = Vec<GuardedCmd>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl From<Vec<GuardedCmd>> for GuardedTransaction {
-    fn from(vec: Vec<GuardedCmd>) -> Self {
-        GuardedTransaction(vec)
-    }
-}
-
+pub type ExpectedVersion = Option<u64>;
 ///
-pub type ExpectedVersion = u64;
+pub type MapKey = (Key, ExpectedVersion);
 ///
-pub type GuardedKey = (Key, ExpectedVersion);
-///
-pub type GuardedKeyValuePair = (KeyValuePair, ExpectedVersion);
+pub type MapKeyValuePair = (KeyValuePair, ExpectedVersion);
 
-/// Common methods for NonGuarded flavours.
-impl<P: AccessListTrait> MapBase<P, NonGuarded> {
+/// Common methods for both Map scopes.
+impl<P: AccessListTrait> MapBase<P> {
     /// Commit transaction.
     ///
     /// If the specified `expected_version` does not equal the entries count in data, an
@@ -449,11 +403,11 @@ impl<P: AccessListTrait> MapBase<P, NonGuarded> {
             },
             |mut op, cmd| {
                 match cmd {
-                    Cmd::Insert(kv_pair) => {
-                        let _ = op.insert.insert(kv_pair.clone());
+                    Cmd::Insert(key_value_pair) => {
+                        let _ = op.insert.insert(key_value_pair.clone());
                     }
-                    Cmd::Update(kv_pair) => {
-                        let _ = op.update.insert(kv_pair.clone());
+                    Cmd::Update(key_value_pair) => {
+                        let _ = op.update.insert(key_value_pair.clone());
                     }
                     Cmd::Delete(key) => {
                         let _ = op.delete.insert(key.clone());
@@ -471,127 +425,6 @@ impl<P: AccessListTrait> MapBase<P, NonGuarded> {
     }
 
     fn apply(&mut self, tx: Operations) -> Result<()> {
-        if tx.insert.is_empty() && tx.update.is_empty() && tx.delete.is_empty() {
-            return Err(Error::InvalidOperation);
-        }
-        let mut new_data = self.data.clone();
-        let mut errors = BTreeMap::new();
-
-        for (key, val) in tx.insert {
-            match new_data.entry(key) {
-                Entry::Occupied(mut entry) => {
-                    let history = entry.get_mut();
-                    match history.last() {
-                        Some(StoredValue::Value(_)) => {
-                            let _ = errors.insert(
-                                entry.key().clone(),
-                                EntryError::EntryExists(entry.get().len() as u64),
-                            );
-                        }
-                        Some(StoredValue::Tombstone()) => {
-                            history.push(StoredValue::Value(val));
-                            // todo: fix From impl
-                        }
-                        None => {
-                            history.push(StoredValue::Value(val));
-                            // todo: fix From impl
-                        }
-                    }
-                }
-                Entry::Vacant(entry) => {
-                    let _ = entry.insert(vec![StoredValue::Value(val)]); // todo: fix From impl
-                }
-            }
-        }
-
-        for (key, val) in tx.update {
-            match new_data.entry(key) {
-                Entry::Occupied(mut entry) => {
-                    let history = entry.get_mut();
-                    match history.last() {
-                        Some(StoredValue::Value(_)) => {
-                            history.push(StoredValue::Value(val));
-                            // todo: fix From impl
-                        }
-                        Some(StoredValue::Tombstone()) => {
-                            let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
-                        }
-                        None => panic!("This is a bug! We are not supposed to have stored None."), // should we panic here? Would like to return Error::NetworkOther(String)
-                    }
-                }
-                Entry::Vacant(entry) => {
-                    let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
-                }
-            }
-        }
-
-        for key in tx.delete {
-            match new_data.entry(key.clone()) {
-                Entry::Occupied(mut entry) => {
-                    let history = entry.get_mut();
-                    match history.last() {
-                        Some(StoredValue::Value(_)) => {
-                            history.push(StoredValue::Tombstone());
-                        }
-                        Some(StoredValue::Tombstone()) => {
-                            let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
-                        }
-                        None => panic!("This is a bug! We are not supposed to have stored None."), // should we panic here? Would like to return Error::NetworkOther(String)
-                    }
-                }
-                Entry::Vacant(entry) => {
-                    let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
-                }
-            }
-        }
-
-        if !errors.is_empty() {
-            return Err(Error::InvalidEntryActions(errors));
-        }
-
-        let _old_data = mem::replace(&mut self.data, new_data);
-        Ok(())
-    }
-}
-
-/// Common methods for Guarded flavours.
-impl<P: AccessListTrait> MapBase<P, Guarded> {
-    /// Commit transaction.
-    ///
-    /// If the specified `expected_version` does not equal the entries count in data, an
-    /// error will be returned.
-    pub fn commit(&mut self, tx: &GuardedTransaction) -> Result<()> {
-        // Deconstruct tx into inserts, updates, and deletes
-        let operations: GuardedOperations = tx.iter().fold(
-            GuardedOperations {
-                insert: Default::default(),
-                update: Default::default(),
-                delete: Default::default(),
-            },
-            |mut op, cmd| {
-                match cmd {
-                    GuardedCmd::Insert(guarded_key_value_pair) => {
-                        let _ = op.insert.insert(guarded_key_value_pair.clone());
-                    }
-                    GuardedCmd::Update(guarded_key_value_pair) => {
-                        let _ = op.update.insert(guarded_key_value_pair.clone());
-                    }
-                    GuardedCmd::Delete(guarded_key) => {
-                        let _ = op.delete.insert(guarded_key.clone());
-                    }
-                };
-                GuardedOperations {
-                    insert: op.insert,
-                    update: op.update,
-                    delete: op.delete,
-                }
-            },
-        );
-
-        self.apply(operations)
-    }
-
-    fn apply(&mut self, tx: GuardedOperations) -> Result<()> {
         let op_count = tx.insert.len() + tx.update.len() + tx.delete.len();
         if op_count == 0 {
             return Err(Error::InvalidOperation);
@@ -603,17 +436,22 @@ impl<P: AccessListTrait> MapBase<P, Guarded> {
             match new_data.entry(key) {
                 Entry::Occupied(mut entry) => match entry.get().last() {
                     Some(value) => match value {
-                        StoredValue::Tombstone() => {
-                            let expected_version = entry.get().len() as u64;
-                            if version == expected_version {
+                        StoredValue::Tombstone() => match version {
+                            None => {
                                 let _ = &mut entry.get_mut().push(StoredValue::Value(val));
-                            } else {
-                                let _ = errors.insert(
-                                    entry.key().clone(),
-                                    EntryError::InvalidSuccessor(expected_version),
-                                );
                             }
-                        }
+                            Some(v) => {
+                                let expected_version = entry.get().len() as u64;
+                                if v == expected_version {
+                                    let _ = &mut entry.get_mut().push(StoredValue::Value(val));
+                                } else {
+                                    let _ = errors.insert(
+                                        entry.key().clone(),
+                                        EntryError::InvalidSuccessor(expected_version),
+                                    );
+                                }
+                            }
+                        },
                         StoredValue::Value(_) => {
                             let _ = errors.insert(
                                 entry.key().clone(),
@@ -623,13 +461,19 @@ impl<P: AccessListTrait> MapBase<P, Guarded> {
                     },
                     None => panic!("This is a bug! We are not supposed to have stored None."), // should we panic here? Would like to return Error::NetworkOther(String)
                 },
-                Entry::Vacant(entry) => {
-                    if version == 0 {
+                Entry::Vacant(entry) => match version {
+                    None => {
                         let _ = entry.insert(vec![StoredValue::Value(val)]);
-                    } else {
-                        let _ = errors.insert(entry.key().clone(), EntryError::InvalidSuccessor(0));
                     }
-                }
+                    Some(v) => {
+                        if v == 0 {
+                            let _ = entry.insert(vec![StoredValue::Value(val)]);
+                        } else {
+                            let _ =
+                                errors.insert(entry.key().clone(), EntryError::InvalidSuccessor(0));
+                        }
+                    }
+                },
             }
         }
 
@@ -639,14 +483,19 @@ impl<P: AccessListTrait> MapBase<P, Guarded> {
                     match entry.get().last() {
                         Some(StoredValue::Value(_)) => {
                             let history = entry.get_mut();
-                            let expected_version = history.len() as u64;
-                            if version == expected_version {
-                                history.push(StoredValue::Value(val));
-                            } else {
-                                let _ = errors.insert(
-                                    entry.key().clone(),
-                                    EntryError::InvalidSuccessor(expected_version),
-                                );
+                            match version {
+                                None => history.push(StoredValue::Value(val)),
+                                Some(v) => {
+                                    let expected_version = history.len() as u64;
+                                    if v == expected_version {
+                                        history.push(StoredValue::Value(val));
+                                    } else {
+                                        let _ = errors.insert(
+                                            entry.key().clone(),
+                                            EntryError::InvalidSuccessor(expected_version),
+                                        );
+                                    }
+                                }
                             }
                         }
                         Some(StoredValue::Tombstone()) => {
@@ -666,17 +515,20 @@ impl<P: AccessListTrait> MapBase<P, Guarded> {
                 Entry::Occupied(mut entry) => {
                     let history = entry.get_mut();
                     match history.last() {
-                        Some(StoredValue::Value(_)) => {
-                            let expected_version = history.len() as u64;
-                            if version == expected_version {
-                                history.push(StoredValue::Tombstone());
-                            } else {
-                                let _ = errors.insert(
-                                    entry.key().clone(),
-                                    EntryError::InvalidSuccessor(expected_version),
-                                );
+                        Some(StoredValue::Value(_)) => match version {
+                            None => history.push(StoredValue::Tombstone()),
+                            Some(v) => {
+                                let expected_version = history.len() as u64;
+                                if v == expected_version {
+                                    history.push(StoredValue::Tombstone());
+                                } else {
+                                    let _ = errors.insert(
+                                        entry.key().clone(),
+                                        EntryError::InvalidSuccessor(expected_version),
+                                    );
+                                }
                             }
-                        }
+                        },
                         Some(StoredValue::Tombstone()) => {
                             let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
                         }
@@ -693,21 +545,16 @@ impl<P: AccessListTrait> MapBase<P, Guarded> {
             return Err(Error::InvalidEntryActions(errors));
         }
 
-        self.version = Some(self.version.unwrap() + 1);
+        self.version += 1;
         let _old_data = mem::replace(&mut self.data, new_data);
         Ok(())
     }
 }
 
 struct Operations {
-    insert: BTreeSet<KeyValuePair>,
-    update: BTreeSet<KeyValuePair>,
-    delete: BTreeSet<Key>,
-}
-struct GuardedOperations {
-    insert: BTreeSet<GuardedKeyValuePair>,
-    update: BTreeSet<GuardedKeyValuePair>,
-    delete: BTreeSet<GuardedKey>,
+    insert: BTreeSet<MapKeyValuePair>,
+    update: BTreeSet<MapKeyValuePair>,
+    delete: BTreeSet<MapKey>,
 }
 
 /// A stored value indicates data or deleted data in case of Tombstone variant.
@@ -722,246 +569,40 @@ pub enum StoredValue {
 /// A vector of stored values.
 pub type StoredValues = Vec<StoredValue>;
 
-/// Public + Guarded
-impl MapBase<PublicAccessList, Guarded> {
+/// Public
+impl MapBase<PublicAccessList> {
     /// Returns new instance of private MapBase flavour with concurrency control.
-    pub fn new(name: XorName, tag: u64) -> Self {
-        Self {
-            address: Address::PublicGuarded { name, tag },
-            data: BTreeMap::new(),
-            access_list: Vec::new(),
-            owners: Vec::new(),
-            version: Some(0),
-            _flavour: Guarded,
-        }
-    }
-}
-
-impl Debug for MapBase<PublicAccessList, Guarded> {
-    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "PublicGuardedMap {:?}", self.name())
-    }
-}
-
-/// Public + NonGuarded
-impl MapBase<PublicAccessList, NonGuarded> {
-    /// Returns new instance of public MapBase flavour.
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::Public { name, tag },
             data: BTreeMap::new(),
             access_list: Vec::new(),
             owners: Vec::new(),
-            version: None,
-            _flavour: NonGuarded,
+            version: 0,
         }
     }
 }
 
-impl Debug for MapBase<PublicAccessList, NonGuarded> {
+impl Debug for MapBase<PublicAccessList> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PublicMap {:?}", self.name())
     }
 }
 
-/// Private + Guarded
-impl MapBase<PrivateAccessList, Guarded> {
+/// Private
+impl MapBase<PrivateAccessList> {
     /// Returns new instance of private MapBase flavour with concurrency control.
-    pub fn new(name: XorName, tag: u64) -> Self {
-        Self {
-            address: Address::PrivateGuarded { name, tag },
-            data: BTreeMap::new(),
-            access_list: Vec::new(),
-            owners: Vec::new(),
-            version: Some(0),
-            _flavour: Guarded,
-        }
-    }
-
-    /// Commit transaction.
-    ///
-    /// If the specified `expected_version` does not equal the entries count in data, an
-    /// error will be returned.
-    pub fn hard_commit(&mut self, tx: &GuardedTransaction) -> Result<()> {
-        // Deconstruct tx into inserts, updates, and deletes
-        let operations: GuardedOperations = tx.iter().fold(
-            GuardedOperations {
-                insert: Default::default(),
-                update: Default::default(),
-                delete: Default::default(),
-            },
-            |mut op, cmd| {
-                match cmd {
-                    GuardedCmd::Insert(guarded_key_value_pair) => {
-                        let _ = op.insert.insert(guarded_key_value_pair.clone());
-                    }
-                    GuardedCmd::Update(guarded_key_value_pair) => {
-                        let _ = op.update.insert(guarded_key_value_pair.clone());
-                    }
-                    GuardedCmd::Delete(guarded_key) => {
-                        let _ = op.delete.insert(guarded_key.clone());
-                    }
-                };
-                GuardedOperations {
-                    insert: op.insert,
-                    update: op.update,
-                    delete: op.delete,
-                }
-            },
-        );
-
-        self.hard_apply(operations)
-    }
-
-    fn hard_apply(&mut self, op: GuardedOperations) -> Result<()> {
-        let op_count = op.insert.len() + op.update.len() + op.delete.len();
-        if op_count == 0 {
-            return Err(Error::InvalidOperation);
-        }
-        let mut new_data = self.data.clone();
-        let mut errors = BTreeMap::new();
-
-        for ((key, val), version) in op.insert {
-            match new_data.entry(key.clone()) {
-                Entry::Occupied(mut entry) => {
-                    let history = entry.get_mut();
-                    match history.last() {
-                        Some(StoredValue::Value(_)) => {
-                            let _ = errors.insert(
-                                entry.key().clone(),
-                                EntryError::EntryExists(entry.get().len() as u64),
-                            );
-                        }
-                        Some(StoredValue::Tombstone()) => {
-                            if version == history.len() as u64 {
-                                history.push(StoredValue::Value(val));
-                            } else {
-                                let _ = errors.insert(
-                                    key,
-                                    EntryError::InvalidSuccessor(entry.get().len() as u64), // I assume we are here letting caller know what successor is expected
-                                );
-                            }
-                        }
-                        None => {
-                            panic!("This would be a bug! We are not supposed to store empty vecs!")
-                        }
-                    }
-                }
-                Entry::Vacant(entry) => {
-                    if version == 0 {
-                        // still make sure the val.version == 0
-                        let _ = entry.insert(vec![StoredValue::Value(val)]);
-                    } else {
-                        let _ = errors.insert(
-                            key,
-                            EntryError::InvalidSuccessor(0), // I assume we are here letting caller know what successor is expected
-                        );
-                    }
-                }
-            }
-        }
-
-        // overwrites old data, while also incrementing version
-        for ((key, val), version) in op.update {
-            match new_data.entry(key) {
-                Entry::Occupied(mut entry) => {
-                    let history = entry.get_mut();
-                    match history.last() {
-                        Some(StoredValue::Value(_)) => {
-                            let expected_version = history.len() as u64;
-                            if version == expected_version {
-                                let _old_value = mem::replace(
-                                    &mut history.last(),
-                                    Some(&StoredValue::Tombstone()),
-                                ); // remove old value, as to properly owerwrite on update, but keep the Version, as to increment history length (i.e. version)
-                                history.push(StoredValue::Value(val));
-                            } else {
-                                let _ = errors.insert(
-                                    entry.key().clone(),
-                                    EntryError::InvalidSuccessor(expected_version), // I assume we are here letting caller know what successor is expected
-                                );
-                            }
-                        }
-                        Some(StoredValue::Tombstone()) => {
-                            let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
-                        }
-                        None => {
-                            panic!("This would be a bug! We are not supposed to store empty vecs!")
-                        }
-                    }
-                }
-                Entry::Vacant(entry) => {
-                    let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
-                }
-            }
-        }
-
-        // removes old data, while also incrementing version
-        for (key, version) in op.delete {
-            match new_data.entry(key.clone()) {
-                Entry::Occupied(mut entry) => {
-                    let history = entry.get_mut();
-                    match history.last() {
-                        Some(StoredValue::Value(_)) => {
-                            let expected_version = history.len() as u64;
-                            if version == expected_version {
-                                let _old_value = mem::replace(
-                                    &mut history.last(),
-                                    Some(&StoredValue::Tombstone()),
-                                ); // remove old value, as to properly delete, but keep the Version, as to increment history length (i.e. version)
-                                history.push(StoredValue::Tombstone());
-                            } else {
-                                let _ = errors.insert(
-                                    entry.key().clone(),
-                                    EntryError::InvalidSuccessor(expected_version), // I assume we are here letting caller know what successor is expected
-                                );
-                            }
-                        }
-                        Some(StoredValue::Tombstone()) => {
-                            let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
-                        }
-                        None => {
-                            panic!("This would be a bug! We are not supposed to store empty vecs!")
-                        }
-                    }
-                }
-                Entry::Vacant(entry) => {
-                    let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
-                }
-            }
-        }
-
-        if !errors.is_empty() {
-            return Err(Error::InvalidEntryActions(errors));
-        }
-
-        self.version = Some(self.version.unwrap() + 1);
-        let _old_data = mem::replace(&mut self.data, new_data);
-        Ok(())
-    }
-}
-
-impl Debug for MapBase<PrivateAccessList, Guarded> {
-    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "PrivateGuardedMap {:?}", self.name())
-    }
-}
-
-/// Private + NonGuarded
-impl MapBase<PrivateAccessList, NonGuarded> {
-    /// Returns new instance of private MapBase flavour.
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::Private { name, tag },
             data: BTreeMap::new(),
             access_list: Vec::new(),
             owners: Vec::new(),
-            version: None,
-            _flavour: NonGuarded,
+            version: 0,
         }
     }
 
-    /// Commit transaction that potentially hard deletes data.
+    /// Commit transaction.
     ///
     /// If the specified `expected_version` does not equal the entries count in data, an
     /// error will be returned.
@@ -975,11 +616,11 @@ impl MapBase<PrivateAccessList, NonGuarded> {
             },
             |mut op, cmd| {
                 match cmd {
-                    Cmd::Insert(kv_pair) => {
-                        let _ = op.insert.insert(kv_pair.clone());
+                    Cmd::Insert(key_value_pair) => {
+                        let _ = op.insert.insert(key_value_pair.clone());
                     }
-                    Cmd::Update(kv_pair) => {
-                        let _ = op.update.insert(kv_pair.clone());
+                    Cmd::Update(key_value_pair) => {
+                        let _ = op.update.insert(key_value_pair.clone());
                     }
                     Cmd::Delete(key) => {
                         let _ = op.delete.insert(key.clone());
@@ -1004,7 +645,7 @@ impl MapBase<PrivateAccessList, NonGuarded> {
         let mut new_data = self.data.clone();
         let mut errors = BTreeMap::new();
 
-        for (key, val) in op.insert {
+        for ((key, val), version) in op.insert {
             match new_data.entry(key.clone()) {
                 Entry::Occupied(mut entry) => {
                     let history = entry.get_mut();
@@ -1016,7 +657,19 @@ impl MapBase<PrivateAccessList, NonGuarded> {
                             );
                         }
                         Some(StoredValue::Tombstone()) => {
-                            history.push(StoredValue::Value(val));
+                            match version {
+                                None => history.push(StoredValue::Value(val)),
+                                Some(v) => {
+                                    if v == history.len() as u64 {
+                                        history.push(StoredValue::Value(val));
+                                    } else {
+                                        let _ = errors.insert(
+                                            key,
+                                            EntryError::InvalidSuccessor(entry.get().len() as u64), // I assume we are here letting caller know what successor is expected
+                                        );
+                                    }
+                                }
+                            }
                         }
                         None => {
                             panic!("This would be a bug! We are not supposed to store empty vecs!")
@@ -1024,21 +677,57 @@ impl MapBase<PrivateAccessList, NonGuarded> {
                     }
                 }
                 Entry::Vacant(entry) => {
-                    let _ = entry.insert(vec![StoredValue::Value(val)]);
+                    match version {
+                        None => {
+                            let _ = entry.insert(vec![StoredValue::Value(val)]);
+                        }
+                        Some(v) => {
+                            if v == 0 {
+                                // still make sure the val.version == 0
+                                let _ = entry.insert(vec![StoredValue::Value(val)]);
+                            } else {
+                                let _ = errors.insert(
+                                    key,
+                                    EntryError::InvalidSuccessor(0), // I assume we are here letting caller know what successor is expected
+                                );
+                            }
+                        }
+                    }
                 }
             }
         }
 
-        // hard-updates old data
-        for (key, val) in op.update {
+        // overwrites old data, while also incrementing version
+        for ((key, val), version) in op.update {
             match new_data.entry(key) {
                 Entry::Occupied(mut entry) => {
                     let history = entry.get_mut();
                     match history.last() {
                         Some(StoredValue::Value(_)) => {
-                            let _old_value =
-                                mem::replace(&mut history.last(), Some(&StoredValue::Tombstone())); // remove old value, as to properly owerwrite on update, but keep the Version, as to increment history length (i.e. version)
-                            history.push(StoredValue::Value(val));
+                            match version {
+                                None => {
+                                    let _old_value = mem::replace(
+                                        &mut history.last(),
+                                        Some(&StoredValue::Tombstone()),
+                                    ); // remove old value, as to properly owerwrite on update, but keep the Version, as to increment history length (i.e. version)
+                                    history.push(StoredValue::Value(val));
+                                }
+                                Some(v) => {
+                                    let expected_version = history.len() as u64;
+                                    if v == expected_version {
+                                        let _old_value = mem::replace(
+                                            &mut history.last(),
+                                            Some(&StoredValue::Tombstone()),
+                                        ); // remove old value, as to properly owerwrite on update, but keep the Version, as to increment history length (i.e. version)
+                                        history.push(StoredValue::Value(val));
+                                    } else {
+                                        let _ = errors.insert(
+                                            entry.key().clone(),
+                                            EntryError::InvalidSuccessor(expected_version), // I assume we are here letting caller know what successor is expected
+                                        );
+                                    }
+                                }
+                            }
                         }
                         Some(StoredValue::Tombstone()) => {
                             let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
@@ -1054,16 +743,37 @@ impl MapBase<PrivateAccessList, NonGuarded> {
             }
         }
 
-        // hard-deletes old data
-        for key in op.delete {
+        // removes old data, while also incrementing version
+        for (key, version) in op.delete {
             match new_data.entry(key.clone()) {
                 Entry::Occupied(mut entry) => {
                     let history = entry.get_mut();
                     match history.last() {
                         Some(StoredValue::Value(_)) => {
-                            let _old_value =
-                                mem::replace(&mut history.last(), Some(&StoredValue::Tombstone())); // remove old value, as to properly delete, but keep the Version, as to increment history length (i.e. version)
-                            history.push(StoredValue::Tombstone());
+                            match version {
+                                None => {
+                                    let _old_value = mem::replace(
+                                        &mut history.last(),
+                                        Some(&StoredValue::Tombstone()),
+                                    ); // remove old value, as to properly delete, but keep the Version, as to increment history length (i.e. version)
+                                    history.push(StoredValue::Tombstone());
+                                }
+                                Some(v) => {
+                                    let expected_version = history.len() as u64;
+                                    if v == expected_version {
+                                        let _old_value = mem::replace(
+                                            &mut history.last(),
+                                            Some(&StoredValue::Tombstone()),
+                                        ); // remove old value, as to properly delete, but keep the Version, as to increment history length (i.e. version)
+                                        history.push(StoredValue::Tombstone());
+                                    } else {
+                                        let _ = errors.insert(
+                                            entry.key().clone(),
+                                            EntryError::InvalidSuccessor(expected_version), // I assume we are here letting caller know what successor is expected
+                                        );
+                                    }
+                                }
+                            }
                         }
                         Some(StoredValue::Tombstone()) => {
                             let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
@@ -1083,12 +793,13 @@ impl MapBase<PrivateAccessList, NonGuarded> {
             return Err(Error::InvalidEntryActions(errors));
         }
 
+        self.version += 1;
         let _old_data = mem::replace(&mut self.data, new_data);
         Ok(())
     }
 }
 
-impl Debug for MapBase<PrivateAccessList, NonGuarded> {
+impl Debug for MapBase<PrivateAccessList> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PrivateMap {:?}", self.name())
     }
@@ -1097,12 +808,8 @@ impl Debug for MapBase<PrivateAccessList, NonGuarded> {
 /// Object storing a Map variant.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Map {
-    /// Public instance with concurrency control.
-    PublicGuarded(PublicGuardedMap),
     /// Public instance.
     Public(PublicMap),
-    /// Private instance with concurrency control.
-    PrivateGuarded(PrivateGuardedMap),
     /// Private instance.
     Private(PrivateMap),
 }
@@ -1111,9 +818,7 @@ pub enum Map {
 macro_rules! state_dispatch {
     ($self:expr, $state:pat => $expr:expr) => {
         match $self {
-            Map::PublicGuarded($state) => $expr,
             Map::Public($state) => $expr,
-            Map::PrivateGuarded($state) => $expr,
             Map::Private($state) => $expr,
         }
     };
@@ -1125,32 +830,18 @@ impl Map {
         use AccessType::*;
         use Map::*;
         // Public flavours automatically allows all reads.
+        if let (Public(_), Read) = (self, access) { return true }
         match (self, access) {
-            (PublicGuarded(_), Read) | (Public(_), Read) => return true,
-            _ => (),
-        }
-        match (self, access) {
-            (PublicGuarded(data), Insert)
-            | (PublicGuarded(data), Update)
-            | (PublicGuarded(data), Delete)
-            | (PublicGuarded(data), ModifyPermissions) => data.is_allowed(user, access),
             (Public(data), Insert)
             | (Public(data), Update)
             | (Public(data), Delete)
             | (Public(data), ModifyPermissions) => data.is_allowed(user, access),
-            (PrivateGuarded(data), Insert)
-            | (PrivateGuarded(data), Update)
-            | (PrivateGuarded(data), Delete)
-            | (PrivateGuarded(data), HardUpdate)
-            | (PrivateGuarded(data), HardDelete)
-            | (PrivateGuarded(data), ModifyPermissions) => data.is_allowed(user, access),
             (Private(data), Insert)
             | (Private(data), Update)
             | (Private(data), Delete)
             | (Private(data), HardUpdate)
             | (Private(data), HardDelete)
             | (Private(data), ModifyPermissions) => data.is_allowed(user, access),
-            (PrivateGuarded(data), Read) => data.is_allowed(user, access),
             (Private(data), Read) => data.is_allowed(user, access),
             _ => false,
         }
@@ -1186,11 +877,6 @@ impl Map {
         self.kind().is_private()
     }
 
-    /// Returns true if this instance employs concurrency control.
-    pub fn is_guarded(&self) -> bool {
-        self.kind().is_guarded()
-    }
-
     /// Returns true if the provided user (identified by their public key) is the current owner.
     pub fn is_owner(&self, user: PublicKey) -> bool {
         state_dispatch!(self, ref state => state.is_owner(user))
@@ -1198,7 +884,7 @@ impl Map {
 
     /// Returns expected version of the instance data.
     pub fn expected_data_version(&self) -> u64 {
-        state_dispatch!(self, ref state => state.expected_data_version().unwrap_or_default())
+        state_dispatch!(self, ref state => state.expected_data_version())
     }
 
     /// Returns expected version of the instance access list.
@@ -1302,7 +988,6 @@ impl Map {
     pub fn public_access_list_at(&self, version: impl Into<Version>) -> Result<&PublicAccessList> {
         use Map::*;
         let access_list = match self {
-            PublicGuarded(data) => data.access_list_at(version),
             Public(data) => data.access_list_at(version),
             _ => return Err(Error::InvalidOperation),
         };
@@ -1316,7 +1001,6 @@ impl Map {
     ) -> Result<&PrivateAccessList> {
         use Map::*;
         let access_list = match self {
-            PrivateGuarded(data) => data.access_list_at(version),
             Private(data) => data.access_list_at(version),
             _ => return Err(Error::InvalidOperation),
         };
@@ -1327,7 +1011,6 @@ impl Map {
     pub fn public_access_list_history(&self) -> Result<Vec<PublicAccessList>> {
         use Map::*;
         let result = match self {
-            PublicGuarded(data) => Some(data.access_list_history()),
             Public(data) => Some(data.access_list_history()),
             _ => return Err(Error::InvalidOperation),
         };
@@ -1338,7 +1021,6 @@ impl Map {
     pub fn private_access_list_history(&self) -> Result<Vec<PrivateAccessList>> {
         use Map::*;
         let result = match self {
-            PrivateGuarded(data) => Some(data.access_list_history()),
             Private(data) => Some(data.access_list_history()),
             _ => return Err(Error::InvalidOperation),
         };
@@ -1353,7 +1035,6 @@ impl Map {
     ) -> Result<Vec<PublicAccessList>> {
         use Map::*;
         let result = match self {
-            PublicGuarded(data) => data.access_list_history_range(start, end),
             Public(data) => data.access_list_history_range(start, end),
             _ => return Err(Error::InvalidOperation),
         };
@@ -1368,7 +1049,6 @@ impl Map {
     ) -> Result<Vec<PrivateAccessList>> {
         use Map::*;
         let result = match self {
-            PrivateGuarded(data) => data.access_list_history_range(start, end),
             Private(data) => data.access_list_history_range(start, end),
             _ => return Err(Error::InvalidOperation),
         };
@@ -1379,9 +1059,7 @@ impl Map {
     pub fn shell(&self, version: impl Into<Version>) -> Result<Self> {
         use Map::*;
         match self {
-            PublicGuarded(map) => map.shell(version).map(PublicGuarded),
             Public(map) => map.shell(version).map(Public),
-            PrivateGuarded(map) => map.shell(version).map(PrivateGuarded),
             Private(map) => map.shell(version).map(Private),
         }
     }
@@ -1400,7 +1078,6 @@ impl Map {
         use Map::*;
         match self {
             Private(data) => data.set_access_list(access_list, expected_version),
-            PrivateGuarded(data) => data.set_access_list(access_list, expected_version),
             _ => Err(Error::InvalidOperation),
         }
     }
@@ -1414,7 +1091,6 @@ impl Map {
         use Map::*;
         match self {
             Public(data) => data.set_access_list(access_list, expected_version),
-            PublicGuarded(data) => data.set_access_list(access_list, expected_version),
             _ => Err(Error::InvalidOperation),
         }
     }
@@ -1425,40 +1101,29 @@ impl Map {
         use MapTransaction::*;
         use SentryOption::*;
         match self {
-            PrivateGuarded(map) => match tx {
+            Private(map) => match tx {
                 Commit(options) => {
                     if let ExpectVersion(stx) = options {
                         return map.commit(stx);
+                    }
+                    if let AnyVersion(tx) = options {
+                        return map.commit(tx);
                     }
                 }
                 HardCommit(options) => {
                     if let ExpectVersion(stx) = options {
                         return map.hard_commit(stx);
                     }
-                }
-            },
-            Private(map) => match tx {
-                Commit(options) => {
-                    if let AnyVersion(tx) = options {
-                        return map.commit(tx);
-                    }
-                }
-                HardCommit(options) => {
                     if let AnyVersion(tx) = options {
                         return map.hard_commit(tx);
                     }
                 }
             },
-            PublicGuarded(map) => match tx {
+            Public(map) => match tx {
                 Commit(options) => {
                     if let ExpectVersion(stx) = options {
                         return map.commit(stx);
                     }
-                }
-                _ => return Err(Error::InvalidOperation),
-            },
-            Public(map) => match tx {
-                Commit(options) => {
                     if let AnyVersion(tx) = options {
                         return map.commit(tx);
                     }
@@ -1471,21 +1136,9 @@ impl Map {
     }
 }
 
-impl From<PublicGuardedMap> for Map {
-    fn from(data: PublicGuardedMap) -> Self {
-        Map::PublicGuarded(data)
-    }
-}
-
 impl From<PublicMap> for Map {
     fn from(data: PublicMap) -> Self {
         Map::Public(data)
-    }
-}
-
-impl From<PrivateGuardedMap> for Map {
-    fn from(data: PrivateGuardedMap) -> Self {
-        Map::PrivateGuarded(data)
     }
 }
 

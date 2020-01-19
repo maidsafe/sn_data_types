@@ -7,183 +7,91 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::data::{
-    GuardedMapCmd, MapCmd, PrivateGuardedMap, PrivateMap, PublicGuardedMap, PublicMap,
-};
+use crate::data::{MapCmd, PrivateMap, PublicMap};
 use crate::{EntryError, Error, XorName};
 use unwrap::{unwrap, unwrap_err};
 
 #[test]
 fn insert() {
-    let mut data = PublicGuardedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let insert_1 = GuardedMapCmd::Insert(((vec![1].into(), vec![0]), 0));
-    let insert_2 = GuardedMapCmd::Insert(((vec![2].into(), vec![0]), 0));
-    let tx = vec![insert_0, insert_1, insert_2];
-    unwrap!(data.commit(&tx.into()));
-
-    let mut data = PrivateGuardedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let insert_1 = GuardedMapCmd::Insert(((vec![1].into(), vec![0]), 0));
-    let insert_2 = GuardedMapCmd::Insert(((vec![2].into(), vec![0]), 0));
-    let tx = vec![insert_0, insert_1, insert_2];
-    unwrap!(data.commit(&tx.into()));
-
     let mut data = PublicMap::new(XorName([1; 32]), 10000);
-    let insert_0 = MapCmd::Insert((vec![0].into(), vec![0]));
-    let insert_1 = MapCmd::Insert((vec![1].into(), vec![0]));
-    let insert_2 = MapCmd::Insert((vec![2].into(), vec![0]));
+    let insert_0 = MapCmd::Insert(((vec![0].into(), vec![0]), Some(0)));
+    let insert_1 = MapCmd::Insert(((vec![1].into(), vec![0]), Some(0)));
+    let insert_2 = MapCmd::Insert(((vec![2].into(), vec![0]), Some(0)));
     let tx = vec![insert_0, insert_1, insert_2];
     unwrap!(data.commit(&tx.into()));
 
     let mut data = PrivateMap::new(XorName([1; 32]), 10000);
-    let insert_0 = MapCmd::Insert((vec![0].into(), vec![0]));
-    let insert_1 = MapCmd::Insert((vec![1].into(), vec![0]));
-    let insert_2 = MapCmd::Insert((vec![2].into(), vec![0]));
+    let insert_0 = MapCmd::Insert(((vec![0].into(), vec![0]), Some(0)));
+    let insert_1 = MapCmd::Insert(((vec![1].into(), vec![0]), Some(0)));
+    let insert_2 = MapCmd::Insert(((vec![2].into(), vec![0]), Some(0)));
     let tx = vec![insert_0, insert_1, insert_2];
-    unwrap!(data.commit(&tx.into()))
+    unwrap!(data.commit(&tx.into()));
 }
 
 #[test]
 fn update() {
-    let mut data = PublicGuardedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let update_1 = GuardedMapCmd::Update(((vec![0].into(), vec![0]), 1));
-    let update_2 = GuardedMapCmd::Update(((vec![0].into(), vec![0]), 2));
-    let tx = vec![insert_0, update_1, update_2];
-    unwrap!(data.commit(&tx.into()));
-
-    let mut data = PrivateGuardedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let update_1 = GuardedMapCmd::Update(((vec![0].into(), vec![0]), 1));
-    let update_2 = GuardedMapCmd::Update(((vec![0].into(), vec![0]), 2));
-    let tx = vec![insert_0, update_1, update_2];
-    unwrap!(data.commit(&tx.into()));
-
     let mut data = PublicMap::new(XorName([1; 32]), 10000);
-    let insert_0 = MapCmd::Insert((vec![0].into(), vec![0]));
-    let update_1 = MapCmd::Update((vec![0].into(), vec![0]));
-    let update_2 = MapCmd::Update((vec![0].into(), vec![0]));
+    let insert_0 = MapCmd::Insert(((vec![0].into(), vec![0]), Some(0)));
+    let update_1 = MapCmd::Update(((vec![0].into(), vec![0]), Some(1)));
+    let update_2 = MapCmd::Update(((vec![0].into(), vec![0]), Some(2)));
     let tx = vec![insert_0, update_1, update_2];
     unwrap!(data.commit(&tx.into()));
 
     let mut data = PrivateMap::new(XorName([1; 32]), 10000);
-    let insert_0 = MapCmd::Insert((vec![0].into(), vec![0]));
-    let update_1 = MapCmd::Update((vec![0].into(), vec![0]));
-    let update_2 = MapCmd::Update((vec![0].into(), vec![0]));
+    let insert_0 = MapCmd::Insert(((vec![0].into(), vec![0]), Some(0)));
+    let update_1 = MapCmd::Update(((vec![0].into(), vec![0]), Some(1)));
+    let update_2 = MapCmd::Update(((vec![0].into(), vec![0]), Some(2)));
     let tx = vec![insert_0, update_1, update_2];
-    unwrap!(data.commit(&tx.into()))
+    unwrap!(data.commit(&tx.into()));
 }
 
 #[test]
 fn delete() {
-    let mut data = PublicGuardedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let update_1 = GuardedMapCmd::Update(((vec![0].into(), vec![0]), 1));
-    let delete_2 = GuardedMapCmd::Delete((vec![0].into(), 2));
-    let tx = vec![insert_0, update_1, delete_2];
-    unwrap!(data.commit(&tx.into()));
-
-    let mut data = PrivateGuardedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let update_1 = GuardedMapCmd::Update(((vec![0].into(), vec![0]), 1));
-    let delete_2 = GuardedMapCmd::Delete((vec![0].into(), 2));
-    let tx = vec![insert_0, update_1, delete_2];
-    unwrap!(data.commit(&tx.into()));
-
     let mut data = PublicMap::new(XorName([1; 32]), 10000);
-    let insert_0 = MapCmd::Insert((vec![0].into(), vec![0]));
-    let update_1 = MapCmd::Update((vec![0].into(), vec![0]));
-    let delete_2 = MapCmd::Delete(vec![0].into());
+    let insert_0 = MapCmd::Insert(((vec![0].into(), vec![0]), Some(0)));
+    let update_1 = MapCmd::Update(((vec![0].into(), vec![0]), Some(1)));
+    let delete_2 = MapCmd::Delete((vec![0].into(), Some(2)));
     let tx = vec![insert_0, update_1, delete_2];
     unwrap!(data.commit(&tx.into()));
 
     let mut data = PrivateMap::new(XorName([1; 32]), 10000);
-    let insert_0 = MapCmd::Insert((vec![0].into(), vec![0]));
-    let update_1 = MapCmd::Update((vec![0].into(), vec![0]));
-    let delete_2 = MapCmd::Delete(vec![0].into());
+    let insert_0 = MapCmd::Insert(((vec![0].into(), vec![0]), Some(0)));
+    let update_1 = MapCmd::Update(((vec![0].into(), vec![0]), Some(1)));
+    let delete_2 = MapCmd::Delete((vec![0].into(), Some(2)));
     let tx = vec![insert_0, update_1, delete_2];
-    unwrap!(data.commit(&tx.into()))
+    unwrap!(data.commit(&tx.into()));
 }
 
 #[test]
 fn re_insert() {
-    let mut data = PublicGuardedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let update_1 = GuardedMapCmd::Update(((vec![0].into(), vec![0]), 1));
-    let delete_2 = GuardedMapCmd::Delete((vec![0].into(), 2));
-    let tx_0 = vec![insert_0, update_1, delete_2];
-    unwrap!(data.commit(&tx_0.into()));
-    let insert_3 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 3));
-    let tx_1 = vec![insert_3];
-    unwrap!(data.commit(&tx_1.into()));
-
-    let mut data = PrivateGuardedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let update_1 = GuardedMapCmd::Update(((vec![0].into(), vec![0]), 1));
-    let delete_2 = GuardedMapCmd::Delete((vec![0].into(), 2));
-    let tx_0 = vec![insert_0, update_1, delete_2];
-    unwrap!(data.commit(&tx_0.into()));
-    let insert_3 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 3));
-    let tx_1 = vec![insert_3];
-    unwrap!(data.commit(&tx_1.into()));
-
     let mut data = PublicMap::new(XorName([1; 32]), 10000);
-    let insert_0 = MapCmd::Insert((vec![0].into(), vec![0]));
-    let update_1 = MapCmd::Update((vec![0].into(), vec![0]));
-    let delete_2 = MapCmd::Delete(vec![0].into());
+    let insert_0 = MapCmd::Insert(((vec![0].into(), vec![0]), Some(0)));
+    let update_1 = MapCmd::Update(((vec![0].into(), vec![0]), Some(1)));
+    let delete_2 = MapCmd::Delete((vec![0].into(), Some(2)));
     let tx_0 = vec![insert_0, update_1, delete_2];
     unwrap!(data.commit(&tx_0.into()));
-    let insert_3 = MapCmd::Insert((vec![0].into(), vec![0]));
+    let insert_3 = MapCmd::Insert(((vec![0].into(), vec![0]), Some(3)));
     let tx_1 = vec![insert_3];
     unwrap!(data.commit(&tx_1.into()));
 
     let mut data = PrivateMap::new(XorName([1; 32]), 10000);
-    let insert_0 = MapCmd::Insert((vec![0].into(), vec![0]));
-    let update_1 = MapCmd::Update((vec![0].into(), vec![0]));
-    let delete_2 = MapCmd::Delete(vec![0].into());
+    let insert_0 = MapCmd::Insert(((vec![0].into(), vec![0]), Some(0)));
+    let update_1 = MapCmd::Update(((vec![0].into(), vec![0]), Some(1)));
+    let delete_2 = MapCmd::Delete((vec![0].into(), Some(2)));
     let tx_0 = vec![insert_0, update_1, delete_2];
     unwrap!(data.commit(&tx_0.into()));
-    let insert_3 = MapCmd::Insert((vec![0].into(), vec![0]));
+    let insert_3 = MapCmd::Insert(((vec![0].into(), vec![0]), Some(3)));
     let tx_1 = vec![insert_3];
     unwrap!(data.commit(&tx_1.into()));
 }
 
 #[test]
 fn insert_when_exists_fails() {
-    let mut data = PublicGuardedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let tx = vec![insert_0];
-    unwrap!(data.commit(&tx.into()));
-    let insert_1 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let tx = vec![insert_1];
-    match unwrap_err!(data.commit(&tx.into())) {
-        Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
-            Some(error) => assert_eq!(EntryError::EntryExists(1), *error),
-            _ => panic!(),
-        },
-        _ => panic!(),
-    }
-
-    let mut data = PrivateGuardedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let tx = vec![insert_0];
-    unwrap!(data.commit(&tx.into()));
-    let insert_1 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let tx = vec![insert_1];
-    match unwrap_err!(data.commit(&tx.into())) {
-        Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
-            Some(error) => assert_eq!(EntryError::EntryExists(1), *error),
-            _ => panic!(),
-        },
-        _ => panic!(),
-    }
-
     let mut data = PublicMap::new(XorName([1; 32]), 10000);
-    let insert_0 = MapCmd::Insert((vec![0].into(), vec![0]));
+    let insert_0 = MapCmd::Insert(((vec![0].into(), vec![0]), Some(0)));
     let tx = vec![insert_0];
     unwrap!(data.commit(&tx.into()));
-    let insert_1 = MapCmd::Insert((vec![0].into(), vec![0]));
+    let insert_1 = MapCmd::Insert(((vec![0].into(), vec![0]), Some(0)));
     let tx = vec![insert_1];
     match unwrap_err!(data.commit(&tx.into())) {
         Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
@@ -194,10 +102,10 @@ fn insert_when_exists_fails() {
     }
 
     let mut data = PrivateMap::new(XorName([1; 32]), 10000);
-    let insert_0 = MapCmd::Insert((vec![0].into(), vec![0]));
+    let insert_0 = MapCmd::Insert(((vec![0].into(), vec![0]), Some(0)));
     let tx = vec![insert_0];
     unwrap!(data.commit(&tx.into()));
-    let insert_1 = MapCmd::Insert((vec![0].into(), vec![0]));
+    let insert_1 = MapCmd::Insert(((vec![0].into(), vec![0]), Some(0)));
     let tx = vec![insert_1];
     match unwrap_err!(data.commit(&tx.into())) {
         Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
@@ -210,10 +118,10 @@ fn insert_when_exists_fails() {
 
 #[test]
 fn update_with_wrong_version_fails() {
-    let mut data = PublicGuardedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let update_1 = GuardedMapCmd::Update(((vec![0].into(), vec![0]), 1));
-    let update_2 = GuardedMapCmd::Update(((vec![0].into(), vec![0]), 3)); // <-- wrong version
+    let mut data = PublicMap::new(XorName([1; 32]), 10000);
+    let insert_0 = MapCmd::Insert(((vec![0].into(), vec![0]), Some(0)));
+    let update_1 = MapCmd::Update(((vec![0].into(), vec![0]), Some(1)));
+    let update_2 = MapCmd::Update(((vec![0].into(), vec![0]), Some(3))); // <-- wrong version
     let tx = vec![insert_0, update_1, update_2];
     match unwrap_err!(data.commit(&tx.into())) {
         Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
@@ -223,10 +131,10 @@ fn update_with_wrong_version_fails() {
         _ => panic!(),
     }
 
-    let mut data = PrivateGuardedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let update_1 = GuardedMapCmd::Update(((vec![0].into(), vec![0]), 1));
-    let update_2 = GuardedMapCmd::Update(((vec![0].into(), vec![0]), 3)); // <-- wrong version
+    let mut data = PrivateMap::new(XorName([1; 32]), 10000);
+    let insert_0 = MapCmd::Insert(((vec![0].into(), vec![0]), Some(0)));
+    let update_1 = MapCmd::Update(((vec![0].into(), vec![0]), Some(1)));
+    let update_2 = MapCmd::Update(((vec![0].into(), vec![0]), Some(3))); // <-- wrong version
     let tx = vec![insert_0, update_1, update_2];
     match unwrap_err!(data.commit(&tx.into())) {
         Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
@@ -239,9 +147,9 @@ fn update_with_wrong_version_fails() {
 
 #[test]
 fn delete_with_wrong_version_fails() {
-    let mut data = PublicGuardedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let delete_1 = GuardedMapCmd::Delete((vec![0].into(), 3)); // <-- wrong version
+    let mut data = PublicMap::new(XorName([1; 32]), 10000);
+    let insert_0 = MapCmd::Insert(((vec![0].into(), vec![0]), Some(0)));
+    let delete_1 = MapCmd::Delete((vec![0].into(), Some(3))); // <-- wrong version
     let tx = vec![insert_0, delete_1];
     match unwrap_err!(data.commit(&tx.into())) {
         Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
@@ -251,9 +159,9 @@ fn delete_with_wrong_version_fails() {
         _ => panic!(),
     }
 
-    let mut data = PrivateGuardedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let delete_1 = GuardedMapCmd::Delete((vec![0].into(), 3)); // <-- wrong version
+    let mut data = PrivateMap::new(XorName([1; 32]), 10000);
+    let insert_0 = MapCmd::Insert(((vec![0].into(), vec![0]), Some(0)));
+    let delete_1 = MapCmd::Delete((vec![0].into(), Some(3))); // <-- wrong version
     let tx = vec![insert_0, delete_1];
     match unwrap_err!(data.commit(&tx.into())) {
         Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
@@ -266,13 +174,13 @@ fn delete_with_wrong_version_fails() {
 
 #[test]
 fn re_insert_with_wrong_version_fails() {
-    // PublicGuardedMap
-    let mut data = PublicGuardedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let delete_1 = GuardedMapCmd::Delete((vec![0].into(), 1));
+    // PublicMap
+    let mut data = PublicMap::new(XorName([1; 32]), 10000);
+    let insert_0 = MapCmd::Insert(((vec![0].into(), vec![0]), Some(0)));
+    let delete_1 = MapCmd::Delete((vec![0].into(), Some(1)));
     let tx = vec![insert_0, delete_1];
     unwrap!(data.commit(&tx.into()));
-    let insert_2 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 3)); // <-- wrong version
+    let insert_2 = MapCmd::Insert(((vec![0].into(), vec![0]), Some(3))); // <-- wrong version
     let tx = vec![insert_2];
     match unwrap_err!(data.commit(&tx.into())) {
         Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
@@ -282,13 +190,13 @@ fn re_insert_with_wrong_version_fails() {
         _ => panic!(),
     }
 
-    // PrivateGuardedMap
-    let mut data = PrivateGuardedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let delete_1 = GuardedMapCmd::Delete((vec![0].into(), 1));
+    // PrivateMap
+    let mut data = PrivateMap::new(XorName([1; 32]), 10000);
+    let insert_0 = MapCmd::Insert(((vec![0].into(), vec![0]), Some(0)));
+    let delete_1 = MapCmd::Delete((vec![0].into(), Some(1)));
     let tx = vec![insert_0, delete_1];
     unwrap!(data.commit(&tx.into()));
-    let insert_2 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 3)); // <-- wrong version
+    let insert_2 = MapCmd::Insert(((vec![0].into(), vec![0]), Some(3))); // <-- wrong version
     let tx = vec![insert_2];
     match unwrap_err!(data.commit(&tx.into())) {
         Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
@@ -300,56 +208,10 @@ fn re_insert_with_wrong_version_fails() {
 }
 #[test]
 fn delete_or_update_nonexisting_fails() {
-    // PublicGuardedMap
-    let mut data = PublicGuardedMap::new(XorName([1; 32]), 10000);
-    // Delete
-    let delete_2 = GuardedMapCmd::Delete((vec![0].into(), 2));
-    let tx = vec![delete_2];
-    match unwrap_err!(data.commit(&tx.into())) {
-        Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
-            Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
-            _ => panic!(),
-        },
-        _ => panic!(),
-    }
-    // Update
-    let update_3 = GuardedMapCmd::Update(((vec![0].into(), vec![0]), 3));
-    let tx = vec![update_3];
-    match unwrap_err!(data.commit(&tx.into())) {
-        Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
-            Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
-            _ => panic!(),
-        },
-        _ => panic!(),
-    }
-
-    // PrivateGuardedMap
-    let mut data = PrivateGuardedMap::new(XorName([1; 32]), 10000);
-    // Delete
-    let delete_2 = GuardedMapCmd::Delete((vec![0].into(), 2));
-    let tx = vec![delete_2];
-    match unwrap_err!(data.commit(&tx.into())) {
-        Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
-            Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
-            _ => panic!(),
-        },
-        _ => panic!(),
-    }
-    // Update
-    let update_3 = GuardedMapCmd::Update(((vec![0].into(), vec![0]), 3));
-    let tx = vec![update_3];
-    match unwrap_err!(data.commit(&tx.into())) {
-        Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
-            Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
-            _ => panic!(),
-        },
-        _ => panic!(),
-    }
-
     // PublicMap
     let mut data = PublicMap::new(XorName([1; 32]), 10000);
     // Delete
-    let delete_2 = MapCmd::Delete(vec![0].into());
+    let delete_2 = MapCmd::Delete((vec![0].into(), Some(2)));
     let tx = vec![delete_2];
     match unwrap_err!(data.commit(&tx.into())) {
         Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
@@ -359,7 +221,7 @@ fn delete_or_update_nonexisting_fails() {
         _ => panic!(),
     }
     // Update
-    let update_3 = MapCmd::Update((vec![0].into(), vec![0]));
+    let update_3 = MapCmd::Update(((vec![0].into(), vec![0]), Some(3)));
     let tx = vec![update_3];
     match unwrap_err!(data.commit(&tx.into())) {
         Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
@@ -372,7 +234,7 @@ fn delete_or_update_nonexisting_fails() {
     // PrivateMap
     let mut data = PrivateMap::new(XorName([1; 32]), 10000);
     // Delete
-    let delete_2 = MapCmd::Delete(vec![0].into());
+    let delete_2 = MapCmd::Delete((vec![0].into(), Some(2)));
     let tx = vec![delete_2];
     match unwrap_err!(data.commit(&tx.into())) {
         Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
@@ -382,7 +244,7 @@ fn delete_or_update_nonexisting_fails() {
         _ => panic!(),
     }
     // Update
-    let update_3 = MapCmd::Update((vec![0].into(), vec![0]));
+    let update_3 = MapCmd::Update(((vec![0].into(), vec![0]), Some(3)));
     let tx = vec![update_3];
     match unwrap_err!(data.commit(&tx.into())) {
         Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
@@ -395,68 +257,14 @@ fn delete_or_update_nonexisting_fails() {
 
 #[test]
 fn delete_or_update_deleted_fails() {
-    // PublicGuardedMap
-    let mut data = PublicGuardedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let delete_1 = GuardedMapCmd::Delete((vec![0].into(), 1));
-    let tx = vec![insert_0, delete_1];
-    unwrap!(data.commit(&tx.into()));
-    // Delete
-    let delete_2 = GuardedMapCmd::Delete((vec![0].into(), 2));
-    let tx = vec![delete_2];
-    match unwrap_err!(data.commit(&tx.into())) {
-        Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
-            Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
-            _ => panic!(),
-        },
-        _ => panic!(),
-    }
-    // Update
-    let update_3 = GuardedMapCmd::Update(((vec![0].into(), vec![0]), 3));
-    let tx = vec![update_3];
-    match unwrap_err!(data.commit(&tx.into())) {
-        Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
-            Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
-            _ => panic!(),
-        },
-        _ => panic!(),
-    }
-
-    // PrivateGuardedMap
-    let mut data = PrivateGuardedMap::new(XorName([1; 32]), 10000);
-    let insert_0 = GuardedMapCmd::Insert(((vec![0].into(), vec![0]), 0));
-    let delete_1 = GuardedMapCmd::Delete((vec![0].into(), 1));
-    let tx = vec![insert_0, delete_1];
-    unwrap!(data.commit(&tx.into()));
-    // Delete
-    let delete_2 = GuardedMapCmd::Delete((vec![0].into(), 2));
-    let tx = vec![delete_2];
-    match unwrap_err!(data.commit(&tx.into())) {
-        Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
-            Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
-            _ => panic!(),
-        },
-        _ => panic!(),
-    }
-    // Update
-    let update_3 = GuardedMapCmd::Update(((vec![0].into(), vec![0]), 3));
-    let tx = vec![update_3];
-    match unwrap_err!(data.commit(&tx.into())) {
-        Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
-            Some(error) => assert_eq!(EntryError::NoSuchEntry, *error),
-            _ => panic!(),
-        },
-        _ => panic!(),
-    }
-
     // PublicMap
     let mut data = PublicMap::new(XorName([1; 32]), 10000);
-    let insert_0 = MapCmd::Insert((vec![0].into(), vec![0]));
-    let delete_1 = MapCmd::Delete(vec![0].into());
+    let insert_0 = MapCmd::Insert(((vec![0].into(), vec![0]), Some(0)));
+    let delete_1 = MapCmd::Delete((vec![0].into(), Some(1)));
     let tx = vec![insert_0, delete_1];
     unwrap!(data.commit(&tx.into()));
     // Delete
-    let delete_2 = MapCmd::Delete(vec![0].into());
+    let delete_2 = MapCmd::Delete((vec![0].into(), Some(2)));
     let tx = vec![delete_2];
     match unwrap_err!(data.commit(&tx.into())) {
         Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
@@ -466,7 +274,7 @@ fn delete_or_update_deleted_fails() {
         _ => panic!(),
     }
     // Update
-    let update_3 = MapCmd::Update((vec![0].into(), vec![0]));
+    let update_3 = MapCmd::Update(((vec![0].into(), vec![0]), Some(3)));
     let tx = vec![update_3];
     match unwrap_err!(data.commit(&tx.into())) {
         Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
@@ -478,12 +286,12 @@ fn delete_or_update_deleted_fails() {
 
     // PrivateMap
     let mut data = PrivateMap::new(XorName([1; 32]), 10000);
-    let insert_0 = MapCmd::Insert((vec![0].into(), vec![0]));
-    let delete_1 = MapCmd::Delete(vec![0].into());
+    let insert_0 = MapCmd::Insert(((vec![0].into(), vec![0]), Some(0)));
+    let delete_1 = MapCmd::Delete((vec![0].into(), Some(1)));
     let tx = vec![insert_0, delete_1];
     unwrap!(data.commit(&tx.into()));
     // Delete
-    let delete_2 = MapCmd::Delete(vec![0].into());
+    let delete_2 = MapCmd::Delete((vec![0].into(), Some(2)));
     let tx = vec![delete_2];
     match unwrap_err!(data.commit(&tx.into())) {
         Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {
@@ -493,7 +301,7 @@ fn delete_or_update_deleted_fails() {
         _ => panic!(),
     }
     // Update
-    let update_3 = MapCmd::Update((vec![0].into(), vec![0]));
+    let update_3 = MapCmd::Update(((vec![0].into(), vec![0]), Some(3)));
     let tx = vec![update_3];
     match unwrap_err!(data.commit(&tx.into())) {
         Error::InvalidEntryActions(errors) => match errors.get(&vec![0].into()) {

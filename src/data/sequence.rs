@@ -14,17 +14,15 @@ use crate::data::access_control::{
     PublicUserAccess,
 };
 use crate::shared_types::{
-    to_absolute_range, to_absolute_version, Address, ExpectedVersions, Guarded, Kind, NonGuarded,
-    Owner, User, Value, Version, CURRENT_VERSION,
+    to_absolute_range, to_absolute_version, Address, ExpectedVersions, Kind, Owner, User, Value,
+    Version, CURRENT_VERSION,
 };
 use crate::{Error, PublicKey, Result, XorName};
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Debug, Formatter};
 
-pub type PublicGuardedSequence = SequenceBase<PublicAccessList, Guarded>;
-pub type PublicSequence = SequenceBase<PublicAccessList, NonGuarded>;
-pub type PrivateGuardedSequence = SequenceBase<PrivateAccessList, Guarded>;
-pub type PrivateSequence = SequenceBase<PrivateAccessList, NonGuarded>;
+pub type PublicSequence = SequenceBase<PublicAccessList>;
+pub type PrivateSequence = SequenceBase<PrivateAccessList>;
 pub type Values = Vec<Value>;
 
 /// A representation of data at some version.
@@ -44,21 +42,19 @@ impl DataEntry {
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
-pub struct SequenceBase<P, S> {
+pub struct SequenceBase<P> {
     address: Address,
     data: Values,
     access_list: Vec<P>,
     // This is the history of owners, with each entry representing an owner.  Each single owner
     // could represent an individual user, or a group of users, depending on the `PublicKey` type.
     owners: Vec<Owner>,
-    _flavour: S,
 }
 
-/// Common methods for all `Sequence` flavours.
-impl<C, S> SequenceBase<C, S>
+/// Common methods both `Sequence` Scopes (Public | Private).
+impl<C> SequenceBase<C>
 where
     C: AccessListTrait,
-    S: Copy,
 {
     /// Returns true if the provided access type is allowed for the specific user (identified y their public key).
     pub fn is_allowed(&self, user: PublicKey, access: AccessType) -> bool {
@@ -146,7 +142,6 @@ where
             data: Vec::new(),
             access_list,
             owners,
-            _flavour: self._flavour,
         })
     }
 
@@ -243,6 +238,21 @@ where
         self.access_list.push(access_list.clone()); // hmm... do we have to clone in situations like these?
         Ok(())
     }
+
+    /// Append new Values.
+    ///
+    /// If the specified `expected_version` does not equal the Values count in data, an
+    /// error will be returned.
+    pub fn append(&mut self, values: Values, expected_version: Option<u64>) -> Result<()> {
+        if let Some(version) = expected_version {
+            if version != self.data.len() as u64 {
+                return Err(Error::InvalidSuccessor(self.data.len() as u64));
+            }
+        }
+
+        self.data.extend(values);
+        Ok(())
+    }
 }
 
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
@@ -254,7 +264,7 @@ pub struct AppendOperation {
 
 impl AppendOperation {
     /// An operation to append values to a sequence instance at an address,
-    /// where an expected version needs to provided if the instance is Guarded.
+    /// where an expected version is optionally provided for concurrency control.
     pub fn new(
         address: Address,
         values: Values,
@@ -270,106 +280,39 @@ impl AppendOperation {
 
 pub type ExpectedVersion = u64;
 
-/// Common methods for NonGuarded flavours.
-impl<P: AccessListTrait> SequenceBase<P, NonGuarded> {
-    /// Append new Values.
-    pub fn append(&mut self, values: Values) -> Result<()> {
-        self.data.extend(values);
-        Ok(())
-    }
-}
-
-/// Common methods for Guarded flavours.
-impl<P: AccessListTrait> SequenceBase<P, Guarded> {
-    /// Append new Values.
-    ///
-    /// If the specified `expected_version` does not equal the Values count in data, an
-    /// error will be returned.
-    pub fn append(&mut self, values: Values, expected_version: u64) -> Result<()> {
-        if expected_version != self.data.len() as u64 {
-            return Err(Error::InvalidSuccessor(self.data.len() as u64));
-        }
-
-        self.data.extend(values);
-        Ok(())
-    }
-}
-
-/// Public + Guarded
-impl SequenceBase<PublicAccessList, Guarded> {
-    /// Returns new instance of public SequenceBase flavour with concurrency control.
-    pub fn new(name: XorName, tag: u64) -> Self {
-        Self {
-            address: Address::PublicGuarded { name, tag },
-            data: Vec::new(),
-            access_list: Vec::new(),
-            owners: Vec::new(),
-            _flavour: Guarded,
-        }
-    }
-}
-
-impl Debug for SequenceBase<PublicAccessList, Guarded> {
-    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "PublicGuardedSequence {:?}", self.name())
-    }
-}
-
-/// Public + NonGuarded
-impl SequenceBase<PublicAccessList, NonGuarded> {
-    /// Returns new instance of public SequenceBase flavour.
+/// Public
+impl SequenceBase<PublicAccessList> {
+    /// Returns new instance of public SequenceBase.
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::Public { name, tag },
             data: Vec::new(),
             access_list: Vec::new(),
             owners: Vec::new(),
-            _flavour: NonGuarded,
         }
     }
 }
 
-impl Debug for SequenceBase<PublicAccessList, NonGuarded> {
+impl Debug for SequenceBase<PublicAccessList> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PublicSequence {:?}", self.name())
     }
 }
 
-/// Private + Guarded
-impl SequenceBase<PrivateAccessList, Guarded> {
-    /// Returns new instance of private SequenceBase flavour with concurrency control.
-    pub fn new(name: XorName, tag: u64) -> Self {
-        Self {
-            address: Address::PrivateGuarded { name, tag },
-            data: Vec::new(),
-            access_list: Vec::new(),
-            owners: Vec::new(),
-            _flavour: Guarded,
-        }
-    }
-}
-
-impl Debug for SequenceBase<PrivateAccessList, Guarded> {
-    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "PrivateGuardedSequence {:?}", self.name())
-    }
-}
-
-/// Private + NonGuarded
-impl SequenceBase<PrivateAccessList, NonGuarded> {
-    /// Returns new instance of private SequenceBase flavour.
+/// Private
+impl SequenceBase<PrivateAccessList> {
+    /// Returns new instance of private SequenceBase.
     pub fn new(name: XorName, tag: u64) -> Self {
         Self {
             address: Address::Private { name, tag },
             data: Vec::new(),
             access_list: Vec::new(),
             owners: Vec::new(),
-            _flavour: NonGuarded,
         }
     }
 }
 
-impl Debug for SequenceBase<PrivateAccessList, NonGuarded> {
+impl Debug for SequenceBase<PrivateAccessList> {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "PrivateSequence {:?}", self.name())
     }
@@ -378,12 +321,8 @@ impl Debug for SequenceBase<PrivateAccessList, NonGuarded> {
 /// Object storing a Sequence variant.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Sequence {
-    /// Public instance with concurrency control.
-    PublicGuarded(PublicGuardedSequence),
     /// Public instance.
     Public(PublicSequence),
-    /// Private instance with concurrency control.
-    PrivateGuarded(PrivateGuardedSequence),
     /// Private instance.
     Private(PrivateSequence),
 }
@@ -392,9 +331,7 @@ pub enum Sequence {
 macro_rules! state_dispatch {
     ($self:expr, $state:pat => $expr:expr) => {
         match $self {
-            Sequence::PublicGuarded($state) => $expr,
             Sequence::Public($state) => $expr,
-            Sequence::PrivateGuarded($state) => $expr,
             Sequence::Private($state) => $expr,
         }
     };
@@ -406,25 +343,14 @@ impl Sequence {
         use AccessType::*;
         use Sequence::*;
         // Public flavours automatically allows all reads.
+        if let (Public(_), Read) = (self, access) { return true }
         match (self, access) {
-            (PublicGuarded(_), Read) | (Public(_), Read) => return true,
-            _ => (),
-        }
-        match (self, access) {
-            (PublicGuarded(data), Append) | (PublicGuarded(data), ModifyPermissions) => {
-                data.is_allowed(user, access)
-            }
             (Public(data), Append) | (Public(data), ModifyPermissions) => {
-                data.is_allowed(user, access)
-            }
-
-            (PrivateGuarded(data), Append) | (PrivateGuarded(data), ModifyPermissions) => {
                 data.is_allowed(user, access)
             }
             (Private(data), Append) | (Private(data), ModifyPermissions) => {
                 data.is_allowed(user, access)
             }
-            (PrivateGuarded(data), Read) => data.is_allowed(user, access),
             (Private(data), Read) => data.is_allowed(user, access),
             _ => false,
         }
@@ -458,11 +384,6 @@ impl Sequence {
     /// Returns true if this instance is private.
     pub fn is_private(&self) -> bool {
         self.kind().is_private()
-    }
-
-    /// Returns true if this instance employs concurrency control.
-    pub fn is_guarded(&self) -> bool {
-        self.kind().is_guarded()
     }
 
     /// Returns true if the provided user (identified by their public key) is the current owner.
@@ -551,7 +472,6 @@ impl Sequence {
     pub fn public_access_list_at(&self, version: impl Into<Version>) -> Result<&PublicAccessList> {
         use Sequence::*;
         let access_list = match self {
-            PublicGuarded(data) => data.access_list_at(version),
             Public(data) => data.access_list_at(version),
             _ => return Err(Error::InvalidOperation),
         };
@@ -565,7 +485,6 @@ impl Sequence {
     ) -> Result<&PrivateAccessList> {
         use Sequence::*;
         let access_list = match self {
-            PrivateGuarded(data) => data.access_list_at(version),
             Private(data) => data.access_list_at(version),
             _ => return Err(Error::InvalidOperation),
         };
@@ -576,7 +495,6 @@ impl Sequence {
     pub fn public_access_list_history(&self) -> Result<Vec<PublicAccessList>> {
         use Sequence::*;
         let result = match self {
-            PublicGuarded(data) => Some(data.access_list_history()),
             Public(data) => Some(data.access_list_history()),
             _ => return Err(Error::InvalidOperation),
         };
@@ -587,7 +505,6 @@ impl Sequence {
     pub fn private_access_list_history(&self) -> Result<Vec<PrivateAccessList>> {
         use Sequence::*;
         let result = match self {
-            PrivateGuarded(data) => Some(data.access_list_history()),
             Private(data) => Some(data.access_list_history()),
             _ => return Err(Error::InvalidOperation),
         };
@@ -602,7 +519,6 @@ impl Sequence {
     ) -> Result<Vec<PublicAccessList>> {
         use Sequence::*;
         let result = match self {
-            PublicGuarded(data) => data.access_list_history_range(start, end),
             Public(data) => data.access_list_history_range(start, end),
             _ => return Err(Error::InvalidOperation),
         };
@@ -617,7 +533,6 @@ impl Sequence {
     ) -> Result<Vec<PrivateAccessList>> {
         use Sequence::*;
         let result = match self {
-            PrivateGuarded(data) => data.access_list_history_range(start, end),
             Private(data) => data.access_list_history_range(start, end),
             _ => return Err(Error::InvalidOperation),
         };
@@ -628,9 +543,7 @@ impl Sequence {
     pub fn shell(&self, version: impl Into<Version>) -> Result<Self> {
         use Sequence::*;
         match self {
-            PublicGuarded(adata) => adata.shell(version).map(PublicGuarded),
             Public(adata) => adata.shell(version).map(Public),
-            PrivateGuarded(adata) => adata.shell(version).map(PrivateGuarded),
             Private(adata) => adata.shell(version).map(Private),
         }
     }
@@ -649,7 +562,6 @@ impl Sequence {
         use Sequence::*;
         match self {
             Private(data) => data.set_access_list(access_list, expected_version),
-            PrivateGuarded(data) => data.set_access_list(access_list, expected_version),
             _ => Err(Error::InvalidOperation),
         }
     }
@@ -663,7 +575,6 @@ impl Sequence {
         use Sequence::*;
         match self {
             Public(data) => data.set_access_list(access_list, expected_version),
-            PublicGuarded(data) => data.set_access_list(access_list, expected_version),
             _ => Err(Error::InvalidOperation),
         }
     }
@@ -672,45 +583,19 @@ impl Sequence {
     pub fn append(&mut self, operation: &AppendOperation) -> Result<()> {
         use Sequence::*;
         match self {
-            PrivateGuarded(sequence) => match operation.expected_version {
-                Some(expected_version) => {
-                    sequence.append(operation.values.to_vec(), expected_version)
-                }
-                _ => Err(Error::InvalidOperation),
-            },
-            Private(sequence) => match operation.expected_version {
-                None => sequence.append(operation.values.to_vec()),
-                _ => Err(Error::InvalidOperation),
-            },
-            PublicGuarded(sequence) => match operation.expected_version {
-                Some(expected_version) => {
-                    sequence.append(operation.values.to_vec(), expected_version)
-                }
-                _ => Err(Error::InvalidOperation),
-            },
-            Public(sequence) => match operation.expected_version {
-                None => sequence.append(operation.values.to_vec()),
-                _ => Err(Error::InvalidOperation),
-            },
+            Private(sequence) => {
+                sequence.append(operation.values.to_vec(), operation.expected_version)
+            }
+            Public(sequence) => {
+                sequence.append(operation.values.to_vec(), operation.expected_version)
+            }
         }
-    }
-}
-
-impl From<PublicGuardedSequence> for Sequence {
-    fn from(data: PublicGuardedSequence) -> Self {
-        Sequence::PublicGuarded(data)
     }
 }
 
 impl From<PublicSequence> for Sequence {
     fn from(data: PublicSequence) -> Self {
         Sequence::Public(data)
-    }
-}
-
-impl From<PrivateGuardedSequence> for Sequence {
-    fn from(data: PrivateGuardedSequence) -> Self {
-        Sequence::PrivateGuarded(data)
     }
 }
 

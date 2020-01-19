@@ -7,35 +7,20 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::data::{PrivateGuardedSequence, PrivateSequence, PublicGuardedSequence};
+use crate::data::{PrivateSequence, PublicSequence};
 use crate::shared_types::Version;
 use crate::XorName;
 use unwrap::unwrap;
 
 #[test]
-fn append_guarded_data() {
-    let mut data = PublicGuardedSequence::new(XorName([1; 32]), 10000);
-    unwrap!(data.append(vec![b"hello".to_vec(), b"world".to_vec()], 0));
+fn append_public_data() {
+    let mut data = PublicSequence::new(XorName([1; 32]), 10000);
+    unwrap!(data.append(vec![b"hello".to_vec(), b"world".to_vec()], Some(0)));
 }
 
 #[test]
 fn append_private_data() {
     let mut data = PrivateSequence::new(XorName(rand::random()), 10);
-
-    // Assert that the Values are appended.
-    let values1 = vec![
-        b"KEY1".to_vec(),
-        b"VALUE1".to_vec(),
-        b"KEY2".to_vec(),
-        b"VALUE2".to_vec(),
-    ];
-
-    unwrap!(data.append(values1));
-}
-
-#[test]
-fn append_private_guarded_data() {
-    let mut data = PrivateGuardedSequence::new(XorName(rand::random()), 10);
 
     // Assert that the values are appended.
     let values1 = vec![
@@ -44,19 +29,19 @@ fn append_private_guarded_data() {
         b"KEY2".to_vec(),
         b"VALUE2".to_vec(),
     ];
-    unwrap!(data.append(values1, 0));
+    unwrap!(data.append(values1, Some(0)));
 }
 
 #[test]
 fn in_range() {
-    let mut data = PublicGuardedSequence::new(rand::random(), 10);
+    let mut data = PublicSequence::new(rand::random(), 10);
     let values = vec![
         b"key0".to_vec(),
         b"value0".to_vec(),
         b"key1".to_vec(),
         b"value1".to_vec(),
     ];
-    unwrap!(data.append(values, 0));
+    unwrap!(data.append(values, Some(0)));
 
     assert_eq!(
         data.in_range(Version::FromStart(0), Version::FromStart(0)),
