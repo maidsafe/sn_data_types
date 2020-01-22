@@ -35,13 +35,6 @@ pub struct DataEntry {
     pub value: Vec<u8>,
 }
 
-impl DataEntry {
-    /// Returns a new instance of a data entry.
-    pub fn new(version: u64, value: Vec<u8>) -> Self {
-        Self { version, value }
-    }
-}
-
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
 pub struct SequenceBase<P> {
     address: Address,
@@ -59,10 +52,8 @@ where
 {
     /// Returns true if the provided access type is allowed for the specific user (identified y their public key).
     pub fn is_allowed(&self, user: PublicKey, access: AccessType) -> bool {
-        if let Some(owner) = self.owner_at(CURRENT_VERSION) {
-            if owner.public_key == user {
-                return true;
-            }
+        if self.is_owner(user) {
+            return true;
         }
         match self.access_list_at(CURRENT_VERSION) {
             Some(list) => list.is_allowed(&user, access),
@@ -154,9 +145,10 @@ where
 
     /// Return the current data entry (if it is present).
     pub fn current_data_entry(&self) -> Option<DataEntry> {
-        self.data
-            .last()
-            .map(|value| DataEntry::new(self.data.len() as u64, value.to_vec()))
+        self.data.last().map(|value| DataEntry {
+            version: self.data.len() as u64,
+            value: value.to_vec(),
+        })
     }
 
     /// Get a range of values within the given versions.
@@ -177,14 +169,14 @@ where
     }
 
     /// Returns history of all owners
-    pub fn owner_history(&self) -> &Vec<Owner> {
-        &self.owners
+    pub fn owner_history(&self) -> Vec<Owner> {
+        self.owners.clone()
     }
 
     /// Get history of owners within the range of versions specified.
     pub fn owner_history_range(&self, start: Version, end: Version) -> Option<Vec<Owner>> {
         let range = to_absolute_range(start, end, self.owners.len())?;
-        Some(self.owners[range].to_vec())
+        Some(self.owners[range].iter().copied().collect())
     }
 
     /// Get access control at version.
@@ -194,8 +186,8 @@ where
     }
 
     /// Returns history of all access list states
-    pub fn access_list_history(&self) -> &Vec<C> {
-        &self.access_list
+    pub fn access_list_history(&self) -> Vec<C> {
+        self.access_list.clone()
     }
 
     /// Get history of access list within the range of versions specified.
@@ -437,7 +429,7 @@ impl Sequence {
     }
 
     /// Returns history of all owners
-    pub fn owner_history(&self) -> Result<&Vec<Owner>> {
+    pub fn owner_history(&self) -> Result<Vec<Owner>> {
         state_dispatch!(self, ref state => Some(state.owner_history())).ok_or(Error::NoSuchEntry)
     }
 
@@ -497,7 +489,7 @@ impl Sequence {
     }
 
     /// Returns history of all access list states
-    pub fn public_access_list_history(&self) -> Result<&Vec<PublicAccessList>> {
+    pub fn public_access_list_history(&self) -> Result<Vec<PublicAccessList>> {
         use Sequence::*;
         let result = match self {
             Public(data) => Some(data.access_list_history()),
@@ -507,7 +499,7 @@ impl Sequence {
     }
 
     /// Returns history of all access list states
-    pub fn private_access_list_history(&self) -> Result<&Vec<PrivateAccessList>> {
+    pub fn private_access_list_history(&self) -> Result<Vec<PrivateAccessList>> {
         use Sequence::*;
         let result = match self {
             Private(data) => Some(data.access_list_history()),
