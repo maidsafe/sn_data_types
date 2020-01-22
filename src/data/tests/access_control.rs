@@ -11,7 +11,7 @@ use crate::data::access_control::*;
 use crate::data::*;
 use crate::shared_types::{Owner, User, Version};
 use crate::{Error, PublicKey, XorName};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use threshold_crypto::SecretKey;
 use unwrap::unwrap;
 
@@ -32,7 +32,7 @@ fn set_sequence_access_list() {
         expected_owners_version: 0,
     };
     // Set the first access_list with correct ExpectedVersions - should pass.
-    let res = data.set_access_list(&access_list, 0);
+    let res = data.set_access_list(access_list, 0);
 
     match res {
         Ok(()) => (),
@@ -51,7 +51,7 @@ fn set_sequence_access_list() {
         expected_owners_version: 0,
     };
     // Set access_list with incorrect ExpectedVersions - should fail.
-    let res = data.set_access_list(&access_list, 1);
+    let res = data.set_access_list(access_list, 1);
 
     match res {
         Err(_) => (),
@@ -167,11 +167,11 @@ fn can_retrieve_sequence_access_list() {
     };
     let _ = private_access_list
         .access_list
-        .insert(public_key, PrivateUserAccess::new(BTreeMap::new()));
+        .insert(public_key, PrivateUserAccess::new(BTreeSet::new()));
 
     // public
     let mut data = PublicSequence::new(rand::random(), 20);
-    unwrap!(data.set_access_list(&public_access_list, 0));
+    unwrap!(data.set_access_list(public_access_list.clone(), 0));
     let data = Sequence::from(data);
 
     assert_eq!(data.public_access_list_at(0), Ok(&public_access_list));
@@ -192,7 +192,7 @@ fn can_retrieve_sequence_access_list() {
 
     // Private
     let mut data = PrivateSequence::new(rand::random(), 20);
-    unwrap!(data.set_access_list(&private_access_list, 0));
+    unwrap!(data.set_access_list(private_access_list.clone(), 0));
     let data = Sequence::from(data);
 
     assert_eq!(data.private_access_list_at(0), Ok(&private_access_list));
@@ -200,7 +200,7 @@ fn can_retrieve_sequence_access_list() {
 
     assert_eq!(
         data.private_user_access_at(public_key, 0),
-        Ok(PrivateUserAccess::new(BTreeMap::new()))
+        Ok(PrivateUserAccess::new(BTreeSet::new()))
     );
     assert_eq!(
         data.public_user_access_at(User::Specific(public_key), 0),
@@ -258,7 +258,7 @@ fn validates_public_sequence_access_list() {
     let _ = access_list
         .access_list
         .insert(User::Specific(public_key_1), PublicUserAccess::new(set));
-    unwrap!(sequence.set_access_list(&access_list, 0));
+    unwrap!(sequence.set_access_list(access_list, 0));
     let data = Sequence::from(sequence);
 
     // existing key fallback
@@ -305,14 +305,13 @@ fn validates_private_sequence_access_list() {
         expected_data_version: 0,
         expected_owners_version: 1,
     };
-    let mut set = BTreeMap::new();
-    let _ = set.insert(AccessType::Append, true);
-    let _ = set.insert(AccessType::Read, true);
-    let _ = set.insert(AccessType::ModifyPermissions, false);
+    let mut set = BTreeSet::new();
+    let _ = set.insert(AccessType::Append);
+    let _ = set.insert(AccessType::Read);
     let _ = access_list
         .access_list
         .insert(public_key_1, PrivateUserAccess::new(set));
-    unwrap!(sequence.set_access_list(&access_list, 0));
+    unwrap!(sequence.set_access_list(access_list, 0));
     let data = Sequence::from(sequence);
 
     // existing key

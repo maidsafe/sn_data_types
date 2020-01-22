@@ -10,7 +10,10 @@
 use crate::shared_types::User;
 use crate::PublicKey;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use std::{collections::BTreeMap, hash::Hash};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    hash::Hash,
+};
 
 /// ===========================================================
 ///  Access control of data type instances and their content.
@@ -83,7 +86,7 @@ impl From<PublicUserAccess> for UserAccess {
 /// The access configuration to Private data, for a User.
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub struct PrivateUserAccess {
-    config: BTreeMap<AccessType, bool>,
+    config: BTreeSet<AccessType>,
 }
 
 /// The access configuration to Public data, for a User.
@@ -95,7 +98,7 @@ pub struct PublicUserAccess {
 impl PrivateUserAccess {
     /// The ctor can be instantiated with
     /// an access configuration.
-    pub fn new(config: BTreeMap<AccessType, bool>) -> Self {
+    pub fn new(config: BTreeSet<AccessType>) -> Self {
         PrivateUserAccess { config }
     }
 
@@ -103,10 +106,7 @@ impl PrivateUserAccess {
     /// allowed according to this user access
     /// configuration.
     pub fn is_allowed(&self, access: AccessType) -> bool {
-        match self.config.get(&access) {
-            Some(true) => true,
-            _ => false,
-        }
+        self.config.contains(&access)
     }
 }
 
@@ -119,7 +119,7 @@ impl PublicUserAccess {
     }
 
     /// Returns `Some(true)` if `access` is allowed and `Some(false)` if it's not.
-    /// `None` means that `User::Anyone` permissions apply.
+    /// `None` means that `User::Anyone` permissions may apply.
     pub fn is_allowed(&self, access: AccessType) -> Option<bool> {
         match access {
             AccessType::Read => Some(true), // It's Public data, so it's always allowed to read it.

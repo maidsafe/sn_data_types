@@ -154,10 +154,9 @@ where
 
     /// Return the current data entry (if it is present).
     pub fn current_data_entry(&self) -> Option<DataEntry> {
-        match self.data.last() {
-            Some(value) => Some(DataEntry::new(self.data.len() as u64, value.to_vec())),
-            None => None,
-        }
+        self.data
+            .last()
+            .map(|value| DataEntry::new(self.data.len() as u64, value.to_vec()))
     }
 
     /// Get a range of values within the given versions.
@@ -178,14 +177,14 @@ where
     }
 
     /// Returns history of all owners
-    pub fn owner_history(&self) -> Vec<Owner> {
-        self.owners.clone()
+    pub fn owner_history(&self) -> &Vec<Owner> {
+        &self.owners
     }
 
     /// Get history of owners within the range of versions specified.
     pub fn owner_history_range(&self, start: Version, end: Version) -> Option<Vec<Owner>> {
         let range = to_absolute_range(start, end, self.owners.len())?;
-        Some(self.owners[range].iter().copied().collect())
+        Some(self.owners[range].to_vec())
     }
 
     /// Get access control at version.
@@ -195,8 +194,8 @@ where
     }
 
     /// Returns history of all access list states
-    pub fn access_list_history(&self) -> Vec<C> {
-        self.access_list.clone()
+    pub fn access_list_history(&self) -> &Vec<C> {
+        &self.access_list
     }
 
     /// Get history of access list within the range of versions specified.
@@ -224,7 +223,7 @@ where
 
     /// Set access list.
     /// The `AccessList` struct needs to contain the correct expected versions.
-    pub fn set_access_list(&mut self, access_list: &C, expected_version: u64) -> Result<()> {
+    pub fn set_access_list(&mut self, access_list: C, expected_version: u64) -> Result<()> {
         if access_list.expected_data_version() != self.expected_data_version() {
             return Err(Error::InvalidSuccessor(self.expected_data_version()));
         }
@@ -236,7 +235,7 @@ where
         if self.expected_access_list_version() != expected_version {
             return Err(Error::InvalidSuccessor(self.expected_access_list_version()));
         }
-        self.access_list.push(access_list.clone()); // hmm... do we have to clone in situations like these?
+        self.access_list.push(access_list);
         Ok(())
     }
 
@@ -438,7 +437,7 @@ impl Sequence {
     }
 
     /// Returns history of all owners
-    pub fn owner_history(&self) -> Result<Vec<Owner>> {
+    pub fn owner_history(&self) -> Result<&Vec<Owner>> {
         state_dispatch!(self, ref state => Some(state.owner_history())).ok_or(Error::NoSuchEntry)
     }
 
@@ -498,7 +497,7 @@ impl Sequence {
     }
 
     /// Returns history of all access list states
-    pub fn public_access_list_history(&self) -> Result<Vec<PublicAccessList>> {
+    pub fn public_access_list_history(&self) -> Result<&Vec<PublicAccessList>> {
         use Sequence::*;
         let result = match self {
             Public(data) => Some(data.access_list_history()),
@@ -508,7 +507,7 @@ impl Sequence {
     }
 
     /// Returns history of all access list states
-    pub fn private_access_list_history(&self) -> Result<Vec<PrivateAccessList>> {
+    pub fn private_access_list_history(&self) -> Result<&Vec<PrivateAccessList>> {
         use Sequence::*;
         let result = match self {
             Private(data) => Some(data.access_list_history()),
@@ -562,7 +561,7 @@ impl Sequence {
     /// Sets a new access list of a private instance.
     pub fn set_private_access_list(
         &mut self,
-        access_list: &PrivateAccessList,
+        access_list: PrivateAccessList,
         expected_version: u64,
     ) -> Result<()> {
         use Sequence::*;
@@ -575,7 +574,7 @@ impl Sequence {
     /// Sets a new access list of a public instance.
     pub fn set_public_access_list(
         &mut self,
-        access_list: &PublicAccessList,
+        access_list: PublicAccessList,
         expected_version: u64,
     ) -> Result<()> {
         use Sequence::*;
