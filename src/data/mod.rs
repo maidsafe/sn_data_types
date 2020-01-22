@@ -17,6 +17,6 @@ pub use access_control::{
     PublicUserAccess,
 };
 pub use sequence::{
-    AppendOperation, DataEntry as SequenceEntry, PrivateGuardedSequence, PrivateSequence,
-    PublicGuardedSequence, PublicSequence, Sequence, SequenceBase, Values as SequenceValues,
+    AppendOperation, DataEntry as SequenceEntry, PrivateSequence, PublicSequence, Sequence,
+    SequenceBase, Values as SequenceValues,
 };

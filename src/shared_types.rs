@@ -45,14 +45,6 @@ pub type Values = Vec<Value>;
 /// A list of keys.
 pub type Keys = Vec<Key>;
 
-/// Marker for Guarded data.
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
-pub struct Guarded;
-
-/// Marker for non-Guarded data.
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
-pub struct NonGuarded;
-
 /// Represents users of the network.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
 pub enum User {
@@ -130,23 +122,19 @@ pub struct Owner {
     pub expected_access_list_version: u64,
 }
 
-/// The flavour of the data type.
+/// The scope of the data type.
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
-pub enum Flavour {
-    /// Public and with concurrency control.
-    PublicGuarded,
+pub enum Scope {
     /// Public means data is perpetual.
     Public,
-    /// Private and with concurrency control.
-    PrivateGuarded,
     /// Private means data can be deleted, if desired.
     Private,
 }
 
-impl Flavour {
-    /// Returns true if the data type is public.
+impl Scope {
+    /// Returns true if the data type scope is public.
     pub fn is_public(self) -> bool {
-        self == Flavour::PublicGuarded || self == Flavour::Public
+        self == Scope::Public
     }
 
     /// Returns true if the data type is private.
@@ -154,19 +142,12 @@ impl Flavour {
         !self.is_public()
     }
 
-    /// Returns true if the data type
-    /// is guarded, i.e. implements concurrency control.
-    pub fn is_guarded(self) -> bool {
-        self == Flavour::PublicGuarded || self == Flavour::PrivateGuarded
-    }
-
-    /// Creates `Flavour` from `public` and `guarded` flags.
-    pub fn from_flags(public: bool, guarded: bool) -> Self {
-        match (public, guarded) {
-            (true, true) => Flavour::PublicGuarded,
-            (true, false) => Flavour::Public,
-            (false, true) => Flavour::PrivateGuarded,
-            (false, false) => Flavour::Private,
+    /// Creates `Scope` from `public` flags.
+    pub fn from_flags(public: bool) -> Self {
+        if public {
+            Scope::Public
+        } else {
+            Scope::Private
         }
     }
 }
@@ -178,26 +159,12 @@ pub enum DataAddress {
 }
 
 /// The address of a data type.
-/// Each flavour has its own address space.
+/// Each scope has its own address space.
 /// Todo: Fix this formatting / docs.
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Address {
     ///
-    PublicGuarded {
-        ///
-        name: XorName,
-        ///
-        tag: u64,
-    },
-    ///
     Public {
-        ///
-        name: XorName,
-        ///
-        tag: u64,
-    },
-    ///
-    PrivateGuarded {
         ///
         name: XorName,
         ///
@@ -213,23 +180,19 @@ pub enum Address {
 }
 
 impl Address {
-    /// Returns an Address instance for the specified data type flavour.
-    pub fn from_flavour(flavour: Flavour, name: XorName, tag: u64) -> Self {
-        match flavour {
-            Flavour::PublicGuarded => Address::PublicGuarded { name, tag },
-            Flavour::Public => Address::Public { name, tag },
-            Flavour::PrivateGuarded => Address::PrivateGuarded { name, tag },
-            Flavour::Private => Address::Private { name, tag },
+    /// Returns an Address instance for the specified data type scope.
+    pub fn from_scope(scope: Scope, name: XorName, tag: u64) -> Self {
+        match scope {
+            Scope::Public => Address::Public { name, tag },
+            Scope::Private => Address::Private { name, tag },
         }
     }
 
-    /// Returns the flavour of data type that this address space represents.
-    pub fn flavour(&self) -> Flavour {
+    /// Returns the scope of data type that this address space represents.
+    pub fn scope(&self) -> Scope {
         match self {
-            Address::PublicGuarded { .. } => Flavour::PublicGuarded,
-            Address::Public { .. } => Flavour::Public,
-            Address::PrivateGuarded { .. } => Flavour::PrivateGuarded,
-            Address::Private { .. } => Flavour::Private,
+            Address::Public { .. } => Scope::Public,
+            Address::Private { .. } => Scope::Private,
         }
     }
 
@@ -237,37 +200,25 @@ impl Address {
     /// within its address space.
     pub fn name(&self) -> &XorName {
         match self {
-            Address::PublicGuarded { ref name, .. }
-            | Address::Public { ref name, .. }
-            | Address::PrivateGuarded { ref name, .. }
-            | Address::Private { ref name, .. } => name,
+            Address::Public { ref name, .. } | Address::Private { ref name, .. } => name,
         }
     }
 
     /// Returns the tag that denotes a specific address space.
     pub fn tag(&self) -> u64 {
         match self {
-            Address::PublicGuarded { tag, .. }
-            | Address::Public { tag, .. }
-            | Address::PrivateGuarded { tag, .. }
-            | Address::Private { tag, .. } => *tag,
+            Address::Public { tag, .. } | Address::Private { tag, .. } => *tag,
         }
     }
 
     /// Returns true if the address is for a public data type.
     pub fn is_public(&self) -> bool {
-        self.flavour().is_public()
+        self.scope().is_public()
     }
 
     /// Returns true if the address is for a private data type.
     pub fn is_private(&self) -> bool {
-        self.flavour().is_private()
-    }
-
-    /// Returns true if the address is for a guarded data type,
-    /// i.e. a data type implementing concurrency control.
-    pub fn is_guarded(&self) -> bool {
-        self.flavour().is_guarded()
+        self.scope().is_private()
     }
 
     /// Returns the Address serialised and encoded in z-base-32.

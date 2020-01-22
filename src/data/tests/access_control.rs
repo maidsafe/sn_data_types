@@ -25,7 +25,7 @@ fn gen_public_key() -> PublicKey {
 
 #[test]
 fn set_sequence_access_list() {
-    let mut data = PrivateGuardedSequence::new(XorName([1; 32]), 10000);
+    let mut data = PrivateSequence::new(XorName([1; 32]), 10000);
     let access_list = PrivateAccessList {
         access_list: BTreeMap::new(),
         expected_data_version: 0,
@@ -69,7 +69,7 @@ fn set_sequence_access_list() {
 fn set_sequence_owners() {
     let owner_pk = gen_public_key();
 
-    let mut data = PrivateGuardedSequence::new(XorName([1; 32]), 10000);
+    let mut data = PrivateSequence::new(XorName([1; 32]), 10000);
 
     // Set the first owner with correct ExpectedVersions - should pass.
     let res = data.set_owner(
@@ -119,7 +119,7 @@ fn gets_sequence_shell() {
     let owner_pk = gen_public_key();
     let owner_pk1 = gen_public_key();
 
-    let mut data = PrivateGuardedSequence::new(XorName([1; 32]), 10000);
+    let mut data = PrivateSequence::new(XorName([1; 32]), 10000);
 
     let _ = data.set_owner(
         Owner {
@@ -190,50 +190,8 @@ fn can_retrieve_sequence_access_list() {
         Err(Error::NoSuchEntry)
     );
 
-    // public, Guarded
-    let mut data = PublicGuardedSequence::new(rand::random(), 20);
-    unwrap!(data.set_access_list(&public_access_list, 0));
-    let data = Sequence::from(data);
-
-    assert_eq!(data.public_access_list_at(0), Ok(&public_access_list));
-    assert_eq!(data.private_access_list_at(0), Err(Error::InvalidOperation));
-
-    assert_eq!(
-        data.public_user_access_at(User::Specific(public_key), 0),
-        Ok(PublicUserAccess::new(BTreeMap::new()))
-    );
-    assert_eq!(
-        data.private_user_access_at(public_key, 0),
-        Err(Error::InvalidOperation)
-    );
-    assert_eq!(
-        data.public_user_access_at(User::Specific(invalid_public_key), 0),
-        Err(Error::NoSuchEntry)
-    );
-
     // Private
     let mut data = PrivateSequence::new(rand::random(), 20);
-    unwrap!(data.set_access_list(&private_access_list, 0));
-    let data = Sequence::from(data);
-
-    assert_eq!(data.private_access_list_at(0), Ok(&private_access_list));
-    assert_eq!(data.public_access_list_at(0), Err(Error::InvalidOperation));
-
-    assert_eq!(
-        data.private_user_access_at(public_key, 0),
-        Ok(PrivateUserAccess::new(BTreeMap::new()))
-    );
-    assert_eq!(
-        data.public_user_access_at(User::Specific(public_key), 0),
-        Err(Error::InvalidOperation)
-    );
-    assert_eq!(
-        data.private_user_access_at(invalid_public_key, 0),
-        Err(Error::NoSuchEntry)
-    );
-
-    // Private, seq
-    let mut data = PrivateGuardedSequence::new(rand::random(), 20);
     unwrap!(data.set_access_list(&private_access_list, 0));
     let data = Sequence::from(data);
 
@@ -259,7 +217,7 @@ fn validates_public_sequence_access_list() {
     let public_key_0 = gen_public_key();
     let public_key_1 = gen_public_key();
     let public_key_2 = gen_public_key();
-    let mut sequence = PublicGuardedSequence::new(XorName([1; 32]), 100);
+    let mut sequence = PublicSequence::new(XorName([1; 32]), 100);
 
     // no owner
     let data = Sequence::from(sequence.clone());
@@ -321,7 +279,7 @@ fn validates_private_sequence_access_list() {
     let public_key_0 = gen_public_key();
     let public_key_1 = gen_public_key();
     let public_key_2 = gen_public_key();
-    let mut sequence = PrivateGuardedSequence::new(XorName([1; 32]), 100);
+    let mut sequence = PrivateSequence::new(XorName([1; 32]), 100);
 
     // no owner
     let data = Sequence::from(sequence.clone());

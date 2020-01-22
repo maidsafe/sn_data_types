@@ -46,8 +46,7 @@ pub use data::access_control::{
     PublicUserAccess,
 };
 pub use data::{
-    AppendOperation, PrivateGuardedSequence, PrivateSequence, PublicGuardedSequence,
-    PublicSequence, Sequence, SequenceEntry, SequenceValues,
+    AppendOperation, PrivateSequence, PublicSequence, Sequence, SequenceEntry, SequenceValues,
 };
 pub use errors::{EntryError, Error, Result};
 pub use identity::{
@@ -74,7 +73,7 @@ pub use request::{LoginPacket, Request, Type as RequestType, MAX_LOGIN_PACKET_BY
 pub use response::{Response, TryFromError};
 pub use sha3::Sha3_512 as Ed25519Digest;
 pub use shared_types::{
-    Address, ExpectedVersions, Flavour, Key, Keys, Owner, User, Value, Values, Version,
+    Address, ExpectedVersions, Key, Keys, Owner, Scope, User, Value, Values, Version,
 };
 pub use utils::verify_signature;
 
@@ -318,7 +317,7 @@ mod tests {
     #[test]
     fn zbase32_encodes_and_decodes_data_address() {
         let name = XorName(rand::random());
-        let address = Address::PrivateGuarded { name, tag: 15000 };
+        let address = Address::Private { name, tag: 15000 };
         let encoded = address.encode_to_zbase32();
         let decoded = unwrap!(Address::decode_from_zbase32(&encoded));
         assert_eq!(address, decoded);
