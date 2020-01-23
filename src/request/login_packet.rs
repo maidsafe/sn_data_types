@@ -23,6 +23,7 @@ pub struct LoginPacket {
 }
 
 impl LoginPacket {
+    /// Construct a new login packet.
     pub fn new(
         destination: XorName,
         authorised_getter: PublicKey,
@@ -42,26 +43,32 @@ impl LoginPacket {
         }
     }
 
+    /// Returns true if the size of the data is valid.
     pub fn size_is_valid(&self) -> bool {
         self.data.len() <= MAX_LOGIN_PACKET_BYTES
     }
 
+    /// Gets the destination.
     pub fn destination(&self) -> &XorName {
         &self.destination
     }
 
+    /// Gets the authorised getter.
     pub fn authorised_getter(&self) -> &PublicKey {
         &self.authorised_getter
     }
 
+    /// Returns the data.
     pub fn data(&self) -> &[u8] {
         &self.data
     }
 
+    /// Returns the signature.
     pub fn signature(&self) -> &Signature {
         &self.signature
     }
 
+    /// Convert this login packet into its data and signature.
     pub fn into_data_and_signature(self) -> (Vec<u8>, Signature) {
         (self.data, self.signature)
     }

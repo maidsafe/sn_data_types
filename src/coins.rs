@@ -35,12 +35,12 @@ impl Coins {
         self.0
     }
 
-    // Computes self + rhs, returning None if overflow occurred.
+    /// Computes `self + rhs`, returning `None` if overflow occurred.
     pub fn checked_add(self, rhs: Coins) -> Option<Coins> {
         self.0.checked_add(rhs.0).map(Self::from_nano)
     }
 
-    // Computes self - rhs, returning None if overflow occurred.
+    /// Computes `self - rhs`, returning `None` if overflow occurred.
     pub fn checked_sub(self, rhs: Coins) -> Option<Coins> {
         self.0.checked_sub(rhs.0).map(Self::from_nano)
     }
@@ -85,6 +85,7 @@ impl FromStr for Coins {
 
 impl Debug for Coins {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+
         Display::fmt(self, formatter)
     }
 }

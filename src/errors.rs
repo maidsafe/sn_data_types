@@ -32,6 +32,7 @@ impl<'a, T> Debug for ErrorDebug<'a, T> {
     }
 }
 
+/// Main error type for the crate.
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Error {
     /// Access is denied for a given requester
@@ -67,8 +68,6 @@ pub enum Error {
     /// Invalid version for performing a given mutating operation. Contains the
     /// current permissions version.
     InvalidPermissionsSuccessor(u64),
-    /// The list of permissions is invalid.
-    InvalidPermissions,
     /// Invalid Operation such as a POST on ImmutableData
     InvalidOperation,
     /// Mismatch between key type and signature type.
@@ -134,7 +133,6 @@ impl Display for Error {
                 // TODO
                 write!(f, "Data given is not a valid successor of stored data")
             }
-            Error::InvalidPermissions => write!(f, "The lists of permissions is invalid"),
             Error::SigningKeyTypeMismatch => {
                 write!(f, "Mismatch between key type and signature type")
             }
@@ -178,7 +176,6 @@ impl error::Error for Error {
             Error::InvalidSuccessor(_) => "Invalid data successor",
             Error::InvalidOwnersSuccessor(_) => "Invalid owners successor",
             Error::InvalidPermissionsSuccessor(_) => "Invalid permissions successor",
-            Error::InvalidPermissions => "Invalid permissions",
             Error::InvalidOperation => "Invalid operation",
             Error::SigningKeyTypeMismatch => "Key type and signature type mismatch",
             Error::InvalidSignature => "Invalid signature",

@@ -7,7 +7,7 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use super::BlsKeypairShare;
+use crate::keys::BlsKeypairShare;
 use crate::{utils, Ed25519Digest, Error, PublicKey, Signature, XorName};
 use ed25519_dalek::{Keypair as Ed25519Keypair, PublicKey as Ed25519PublicKey};
 use hex_fmt::HexFmt;
@@ -135,7 +135,7 @@ impl PublicId {
         utils::encode(&self)
     }
 
-    /// Create from z-base-32 encoded string.
+    /// Creates from z-base-32 encoded string.
     pub fn decode_from_zbase32<T: Decodable>(encoded: T) -> Result<Self, Error> {
         utils::decode(encoded)
     }
@@ -182,8 +182,7 @@ impl Debug for PublicId {
 }
 
 impl Display for PublicId {
-    #[allow(trivial_casts)]
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        (self as &Debug).fmt(formatter)
+        Debug::fmt(self, formatter)
     }
 }

@@ -21,63 +21,89 @@ use std::{
 };
 
 /// RPC responses from vaults.
-#[allow(clippy::large_enum_variant, clippy::type_complexity, missing_docs)]
+#[allow(clippy::large_enum_variant, clippy::type_complexity)]
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub enum Response {
     //
     // ===== Immutable Data =====
     //
+    /// Get ImmutableData.
     GetIData(Result<IData>),
     //
     // ===== Mutable Data =====
     //
+    /// Get MutableData.
     GetMData(Result<MData>),
+    /// Get MutableData shell.
     GetMDataShell(Result<MData>),
+    /// Get MutableData version.
     GetMDataVersion(Result<u64>),
+    /// List all MutableData entries (key-value pairs).
     ListMDataEntries(Result<MDataEntries>),
+    /// List all MutableData keys.
     ListMDataKeys(Result<BTreeSet<Vec<u8>>>),
+    /// List all MutableData values.
     ListMDataValues(Result<MDataValues>),
+    /// Get MutableData permissions for a user.
     ListMDataUserPermissions(Result<MDataPermissionSet>),
+    /// List all MutableData permissions.
     ListMDataPermissions(Result<BTreeMap<PublicKey, MDataPermissionSet>>),
+    /// Get MutableData value.
     GetMDataValue(Result<MDataValue>),
     //
     // ===== Append Only Data =====
     //
+    /// Get AppendOnlyData.
     GetAData(Result<AData>),
+    /// Get AppendOnlyData shell.
     GetADataShell(Result<AData>),
+    /// Get AppendOnlyData owners.
     GetADataOwners(Result<ADataOwner>),
+    /// Get AppendOnlyData.
     GetADataRange(Result<ADataEntries>),
+    /// Get AppendOnlyData value.
     GetADataValue(Result<Vec<u8>>),
+    /// Get AppendOnlyData indices.
     GetADataIndices(Result<ADataIndices>),
+    /// Get AppendOnlyData last entry.
     GetADataLastEntry(Result<ADataEntry>),
+    /// List all AppendOnlyData permissions at the provided index.
     GetADataPermissions(Result<ADataPermissions>),
+    /// Get published AppendOnlyData permissions for a user.
     GetPubADataUserPermissions(Result<ADataPubPermissionSet>),
+    /// Get unpublished AppendOnlyData permissions for a user..
     GetUnpubADataUserPermissions(Result<ADataUnpubPermissionSet>),
     //
     // ===== Coins =====
     //
+    /// Get coin balance.
     GetBalance(Result<Coins>),
+    /// Return the result of a transaction.
     Transaction(Result<Transaction>),
     //
     // ===== Login Packet =====
     //
-    /// Returns an encrypted login packet
+    /// Get an encrypted login packet.
     GetLoginPacket(Result<(Vec<u8>, Signature)>),
     //
     // ===== Client (Owner) to SrcElders =====
     //
-    /// Returns a list of authorised keys and the version of the auth keys container from Elders.
+    /// Get a list of authorised keys and the version of the auth keys container from Elders.
     ListAuthKeysAndVersion(Result<(BTreeMap<PublicKey, AppPermissions>, u64)>),
     //
     // ===== Mutation =====
     //
-    /// Returns a success or failure status for a mutation operation.
+    /// Return a success or failure status for a mutation operation.
     Mutation(Result<()>),
 }
 
+/// Error type for an attempted conversion from `Response` to a type implementing
+/// `TryFrom<Response>`.
 #[derive(Debug, PartialEq)]
 pub enum TryFromError {
+    /// Wrong variant found in `Response`.
     WrongType,
+    /// The `Response` contained an error.
     Response(Error),
 }
 
@@ -128,6 +154,7 @@ try_from!((), Mutation);
 impl fmt::Debug for Response {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use Response::*;
+
         match self {
             // IData
             GetIData(res) => write!(f, "Response::GetIData({:?})", ErrorDebug(res)),
@@ -226,7 +253,7 @@ mod tests {
         let m_data = MData::Unseq(UnseqMutableData::new_with_data(
             *i_data.name(),
             1,
-            data.clone(),
+            data,
             BTreeMap::new(),
             owners,
         ));
