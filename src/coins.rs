@@ -85,7 +85,6 @@ impl FromStr for Coins {
 
 impl Debug for Coins {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-
         Display::fmt(self, formatter)
     }
 }
