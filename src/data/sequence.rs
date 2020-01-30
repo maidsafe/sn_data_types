@@ -51,7 +51,7 @@ where
     C: AccessListTrait,
 {
     /// Returns true if the provided access type is allowed for the specific user (identified y their public key).
-    pub fn is_allowed(&self, user: PublicKey, access: AccessType) -> bool {
+    pub fn is_allowed(&self, user: &PublicKey, access: AccessType) -> bool {
         if self.is_owner(user) {
             return true;
         }
@@ -77,9 +77,9 @@ where
     }
 
     /// Returns true if the user is the current owner.
-    pub fn is_owner(&self, user: PublicKey) -> bool {
+    pub fn is_owner(&self, user: &PublicKey) -> bool {
         match self.owner_at(CURRENT_VERSION) {
-            Some(owner) => user == owner.public_key,
+            Some(owner) => user == &owner.public_key,
             _ => false,
         }
     }
@@ -334,7 +334,7 @@ macro_rules! state_dispatch {
 
 impl Sequence {
     /// Returns true if the provided access type is allowed for the specific user (identified y their public key).
-    pub fn is_allowed(&self, access: AccessType, user: PublicKey) -> bool {
+    pub fn is_allowed(&self, access: AccessType, user: &PublicKey) -> bool {
         use AccessType::*;
         use Sequence::*;
         // Public flavours automatically allows all reads.
@@ -384,7 +384,7 @@ impl Sequence {
     }
 
     /// Returns true if the provided user (identified by their public key) is the current owner.
-    pub fn is_owner(&self, user: PublicKey) -> bool {
+    pub fn is_owner(&self, user: &PublicKey) -> bool {
         state_dispatch!(self, ref state => state.is_owner(user))
     }
 
@@ -455,7 +455,7 @@ impl Sequence {
     /// Returns a specific user's access list of a private instance at a specific version.
     pub fn private_user_access_at(
         &self,
-        user: PublicKey,
+        user: &PublicKey,
         version: impl Into<Version>,
     ) -> Result<PrivateUserAccess> {
         self.private_access_list_at(version)?

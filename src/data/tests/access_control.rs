@@ -182,7 +182,7 @@ fn can_retrieve_sequence_access_list() {
         Ok(PublicUserAccess::new(BTreeMap::new()))
     );
     assert_eq!(
-        data.private_user_access_at(public_key, 0),
+        data.private_user_access_at(&public_key, 0),
         Err(Error::InvalidOperation)
     );
     assert_eq!(
@@ -199,7 +199,7 @@ fn can_retrieve_sequence_access_list() {
     assert_eq!(data.public_access_list_at(0), Err(Error::InvalidOperation));
 
     assert_eq!(
-        data.private_user_access_at(public_key, 0),
+        data.private_user_access_at(&public_key, 0),
         Ok(PrivateUserAccess::new(BTreeSet::new()))
     );
     assert_eq!(
@@ -207,7 +207,7 @@ fn can_retrieve_sequence_access_list() {
         Err(Error::InvalidOperation)
     );
     assert_eq!(
-        data.private_user_access_at(invalid_public_key, 0),
+        data.private_user_access_at(&invalid_public_key, 0),
         Err(Error::NoSuchEntry)
     );
 }
@@ -221,9 +221,9 @@ fn validates_public_sequence_access_list() {
 
     // no owner
     let data = Sequence::from(sequence.clone());
-    assert_eq!(data.is_allowed(AccessType::Append, public_key_0), false);
+    assert_eq!(data.is_allowed(AccessType::Append, &public_key_0), false);
     // data is Public - read always allowed
-    assert_sequence_read_permitted(&data, public_key_0, true);
+    assert_sequence_read_permitted(&data, &public_key_0, true);
 
     // no access_list
     unwrap!(sequence.set_owner(
@@ -236,11 +236,11 @@ fn validates_public_sequence_access_list() {
     ));
     let data = Sequence::from(sequence.clone());
 
-    assert_eq!(data.is_allowed(AccessType::Append, public_key_0), true);
-    assert_eq!(data.is_allowed(AccessType::Append, public_key_1), false);
+    assert_eq!(data.is_allowed(AccessType::Append, &public_key_0), true);
+    assert_eq!(data.is_allowed(AccessType::Append, &public_key_1), false);
     // data is Public - read always allowed
-    assert_sequence_read_permitted(&data, public_key_0, true);
-    assert_sequence_read_permitted(&data, public_key_1, true);
+    assert_sequence_read_permitted(&data, &public_key_0, true);
+    assert_sequence_read_permitted(&data, &public_key_1, true);
 
     // with access_list
     let mut access_list = PublicAccessList {
@@ -262,16 +262,16 @@ fn validates_public_sequence_access_list() {
     let data = Sequence::from(sequence);
 
     // existing key fallback
-    assert_eq!(data.is_allowed(AccessType::Append, public_key_1), true);
+    assert_eq!(data.is_allowed(AccessType::Append, &public_key_1), true);
     // existing key override
-    assert_modify_sequence_access_list_permitted(&data, public_key_1, true);
+    assert_modify_sequence_access_list_permitted(&data, &public_key_1, true);
     // non-existing keys are handled by `Anyone`
-    assert_eq!(data.is_allowed(AccessType::Append, public_key_2), true);
-    assert_modify_sequence_access_list_permitted(&data, public_key_2, false);
+    assert_eq!(data.is_allowed(AccessType::Append, &public_key_2), true);
+    assert_modify_sequence_access_list_permitted(&data, &public_key_2, false);
     // data is Public - read always allowed
-    assert_sequence_read_permitted(&data, public_key_0, true);
-    assert_sequence_read_permitted(&data, public_key_1, true);
-    assert_sequence_read_permitted(&data, public_key_2, true);
+    assert_sequence_read_permitted(&data, &public_key_0, true);
+    assert_sequence_read_permitted(&data, &public_key_1, true);
+    assert_sequence_read_permitted(&data, &public_key_2, true);
 }
 
 #[test]
@@ -283,7 +283,7 @@ fn validates_private_sequence_access_list() {
 
     // no owner
     let data = Sequence::from(sequence.clone());
-    assert_sequence_read_permitted(&data, public_key_0, false);
+    assert_sequence_read_permitted(&data, &public_key_0, false);
 
     // no access
     unwrap!(sequence.set_owner(
@@ -296,8 +296,8 @@ fn validates_private_sequence_access_list() {
     ));
     let data = Sequence::from(sequence.clone());
 
-    assert_sequence_read_permitted(&data, public_key_0, true);
-    assert_sequence_read_permitted(&data, public_key_1, false);
+    assert_sequence_read_permitted(&data, &public_key_0, true);
+    assert_sequence_read_permitted(&data, &public_key_1, false);
 
     // with access
     let mut access_list = PrivateAccessList {
@@ -315,23 +315,23 @@ fn validates_private_sequence_access_list() {
     let data = Sequence::from(sequence);
 
     // existing key
-    assert_sequence_read_permitted(&data, public_key_1, true);
-    assert_eq!(data.is_allowed(AccessType::Append, public_key_1), true);
-    assert_modify_sequence_access_list_permitted(&data, public_key_1, false);
+    assert_sequence_read_permitted(&data, &public_key_1, true);
+    assert_eq!(data.is_allowed(AccessType::Append, &public_key_1), true);
+    assert_modify_sequence_access_list_permitted(&data, &public_key_1, false);
 
     // non-existing key
-    assert_sequence_read_permitted(&data, public_key_2, false);
-    assert_eq!(data.is_allowed(AccessType::Append, public_key_2), false);
-    assert_modify_sequence_access_list_permitted(&data, public_key_2, false);
+    assert_sequence_read_permitted(&data, &public_key_2, false);
+    assert_eq!(data.is_allowed(AccessType::Append, &public_key_2), false);
+    assert_modify_sequence_access_list_permitted(&data, &public_key_2, false);
 }
 
-fn assert_sequence_read_permitted(data: &Sequence, public_key: PublicKey, permitted: bool) {
+fn assert_sequence_read_permitted(data: &Sequence, public_key: &PublicKey, permitted: bool) {
     assert_eq!(data.is_allowed(AccessType::Read, public_key), permitted);
 }
 
 fn assert_modify_sequence_access_list_permitted(
     data: &Sequence,
-    public_key: PublicKey,
+    public_key: &PublicKey,
     permitted: bool,
 ) {
     assert_eq!(
