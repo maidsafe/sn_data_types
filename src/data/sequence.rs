@@ -108,9 +108,9 @@ where
     }
 
     /// Returns the data shell - that is - everything except the Values themselves.
-    pub fn shell(&self, expected_data_version: impl Into<Version>) -> Result<Self> {
-        let expected_data_version = to_absolute_version(
-            expected_data_version.into(),
+    pub fn shell(&self, version: impl Into<Version>) -> Result<Self> {
+        let version = to_absolute_version(
+            version.into(),
             self.expected_data_version() as usize,
         )
         .ok_or(Error::NoSuchEntry)? as u64;
@@ -118,14 +118,14 @@ where
         let access_list = self
             .access_list
             .iter()
-            .filter(|a| a.expected_data_version() <= expected_data_version)
+            .filter(|a| a.expected_data_version() - 1 <= version)
             .cloned()
             .collect();
 
         let owners = self
             .owners
             .iter()
-            .filter(|owner| owner.expected_data_version <= expected_data_version)
+            .filter(|owner| owner.expected_data_version - 1 <= version)
             .cloned()
             .collect();
 
