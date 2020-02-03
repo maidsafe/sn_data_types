@@ -24,10 +24,10 @@ fn append_private_data() {
 
     // Assert that the values are appended.
     let values1 = vec![
-        b"KEY1".to_vec(),
+        b"VALUE0".to_vec(),
         b"VALUE1".to_vec(),
-        b"KEY2".to_vec(),
         b"VALUE2".to_vec(),
+        b"VALUE3".to_vec(),
     ];
     unwrap!(data.append(values1, Some(0)));
 }
@@ -36,10 +36,10 @@ fn append_private_data() {
 fn in_range() {
     let mut data = PublicSequence::new(rand::random(), 10);
     let values = vec![
-        b"key0".to_vec(),
         b"value0".to_vec(),
-        b"key1".to_vec(),
         b"value1".to_vec(),
+        b"value2".to_vec(),
+        b"value3".to_vec(),
     ];
     unwrap!(data.append(values, Some(0)));
 
@@ -49,39 +49,39 @@ fn in_range() {
     );
     assert_eq!(
         data.in_range(Version::FromStart(0), Version::FromStart(2)),
-        Some(vec![b"key0".to_vec(), b"value0".to_vec()])
+        Some(vec![b"value0".to_vec(), b"value1".to_vec()])
     );
     assert_eq!(
         data.in_range(Version::FromStart(0), Version::FromStart(4)),
         Some(vec![
-            b"key0".to_vec(),
             b"value0".to_vec(),
-            b"key1".to_vec(),
             b"value1".to_vec(),
+            b"value2".to_vec(),
+            b"value3".to_vec(),
         ])
     );
 
     assert_eq!(
         data.in_range(Version::FromEnd(4), Version::FromEnd(2)),
-        Some(vec![b"key0".to_vec(), b"value0".to_vec(),])
+        Some(vec![b"value0".to_vec(), b"value1".to_vec(),])
     );
     assert_eq!(
         data.in_range(Version::FromEnd(4), Version::FromEnd(0)),
         Some(vec![
-            b"key0".to_vec(),
             b"value0".to_vec(),
-            b"key1".to_vec(),
             b"value1".to_vec(),
+            b"value2".to_vec(),
+            b"value3".to_vec(),
         ])
     );
 
     assert_eq!(
         data.in_range(Version::FromStart(0), Version::FromEnd(0)),
         Some(vec![
-            b"key0".to_vec(),
             b"value0".to_vec(),
-            b"key1".to_vec(),
             b"value1".to_vec(),
+            b"value2".to_vec(),
+            b"value3".to_vec(),
         ])
     );
 

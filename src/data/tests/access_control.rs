@@ -32,16 +32,11 @@ fn set_sequence_access_list() {
         expected_owners_version: 0,
     };
     // Set the first access_list with correct ExpectedVersions - should pass.
-    let res = data.set_access_list(access_list, 0);
-
-    match res {
-        Ok(()) => (),
-        Err(x) => panic!("Unexpected error: {:?}", x),
-    }
+    unwrap!(data.set_access_list(access_list, 0));
 
     // Verify that the access_list are part of the history.
     assert_eq!(
-        unwrap!(data.access_list_history_range(Version::FromStart(0), Version::FromEnd(0),)).len(),
+        unwrap!(data.access_list_history_range(Version::FromStart(0), Version::FromEnd(0))).len(),
         1
     );
 
@@ -51,16 +46,11 @@ fn set_sequence_access_list() {
         expected_owners_version: 0,
     };
     // Set access_list with incorrect ExpectedVersions - should fail.
-    let res = data.set_access_list(access_list, 1);
-
-    match res {
-        Err(_) => (),
-        Ok(()) => panic!("Unexpected Ok(()) result"),
-    }
+    assert!(data.set_access_list(access_list, 1).is_err());
 
     // Verify that the history of access_list remains unchanged.
     assert_eq!(
-        unwrap!(data.access_list_history_range(Version::FromStart(0), Version::FromEnd(0),)).len(),
+        unwrap!(data.access_list_history_range(Version::FromStart(0), Version::FromEnd(0))).len(),
         1
     );
 }
@@ -72,19 +62,14 @@ fn set_sequence_owners() {
     let mut data = PrivateSequence::new(XorName([1; 32]), 10000);
 
     // Set the first owner with correct ExpectedVersions - should pass.
-    let res = data.set_owner(
+    unwrap!(data.set_owner(
         Owner {
             public_key: owner_pk,
             expected_data_version: 0,
             expected_access_list_version: 0,
         },
         0,
-    );
-
-    match res {
-        Ok(()) => (),
-        Err(x) => panic!("Unexpected error: {:?}", x),
-    }
+    ));
 
     // Verify that the owner is part of the history.
     assert_eq!(
@@ -93,19 +78,16 @@ fn set_sequence_owners() {
     );
 
     // Set owner with incorrect ExpectedVersions - should fail.
-    let res = data.set_owner(
-        Owner {
-            public_key: owner_pk,
-            expected_data_version: 64,
-            expected_access_list_version: 0,
-        },
-        1,
-    );
-
-    match res {
-        Err(_) => (),
-        Ok(()) => panic!("Unexpected Ok(()) result"),
-    }
+    assert!(data
+        .set_owner(
+            Owner {
+                public_key: owner_pk,
+                expected_data_version: 64,
+                expected_access_list_version: 0,
+            },
+            1,
+        )
+        .is_err());
 
     // Verify that the history of owners remains unchanged.
     assert_eq!(
@@ -121,23 +103,25 @@ fn gets_sequence_shell() {
 
     let mut data = PrivateSequence::new(XorName([1; 32]), 10000);
 
-    let _ = data.set_owner(
+    unwrap!(data.set_owner(
         Owner {
             public_key: owner_pk,
             expected_data_version: 0,
             expected_access_list_version: 0,
         },
         0,
-    );
+    ));
 
-    let _ = data.set_owner(
+    unwrap!(data.set_owner(
         Owner {
             public_key: owner_pk1,
             expected_data_version: 0,
             expected_access_list_version: 0,
         },
         1,
-    );
+    ));
+
+    //dbg!(unwrap!(data.shell(0)).owner_history());
 
     assert_eq!(
         data.expected_owners_version(),
@@ -178,8 +162,8 @@ fn can_retrieve_sequence_access_list() {
     assert_eq!(data.private_access_list_at(0), Err(Error::InvalidOperation));
 
     assert_eq!(
-        data.public_user_access_at(User::Specific(public_key), 0),
-        Ok(PublicUserAccess::new(BTreeMap::new()))
+        *unwrap!(data.public_user_access_at(User::Specific(public_key), 0)),
+        PublicUserAccess::new(BTreeMap::new())
     );
     assert_eq!(
         data.private_user_access_at(&public_key, 0),
@@ -199,8 +183,8 @@ fn can_retrieve_sequence_access_list() {
     assert_eq!(data.public_access_list_at(0), Err(Error::InvalidOperation));
 
     assert_eq!(
-        data.private_user_access_at(&public_key, 0),
-        Ok(PrivateUserAccess::new(BTreeSet::new()))
+        *unwrap!(data.private_user_access_at(&public_key, 0)),
+        PrivateUserAccess::new(BTreeSet::new())
     );
     assert_eq!(
         data.public_user_access_at(User::Specific(public_key), 0),
@@ -248,16 +232,17 @@ fn validates_public_sequence_access_list() {
         expected_data_version: 0,
         expected_owners_version: 1,
     };
-    let mut set = BTreeMap::new();
-    let _ = set.insert(AccessType::Append, true);
+    let mut public_permissions = BTreeMap::new();
+    let _ = public_permissions.insert(AccessType::Append, true);
     let _ = access_list
         .access_list
-        .insert(User::Anyone, PublicUserAccess::new(set));
-    let mut set = BTreeMap::new();
-    let _ = set.insert(AccessType::ModifyPermissions, true);
-    let _ = access_list
-        .access_list
-        .insert(User::Specific(public_key_1), PublicUserAccess::new(set));
+        .insert(User::Anyone, PublicUserAccess::new(public_permissions));
+    let mut user_permissions = BTreeMap::new();
+    let _ = user_permissions.insert(AccessType::ModifyPermissions, true);
+    let _ = access_list.access_list.insert(
+        User::Specific(public_key_1),
+        PublicUserAccess::new(user_permissions),
+    );
     unwrap!(sequence.set_access_list(access_list, 0));
     let data = Sequence::from(sequence);
 
@@ -305,12 +290,12 @@ fn validates_private_sequence_access_list() {
         expected_data_version: 0,
         expected_owners_version: 1,
     };
-    let mut set = BTreeSet::new();
-    let _ = set.insert(AccessType::Append);
-    let _ = set.insert(AccessType::Read);
+    let mut user_permissions = BTreeSet::new();
+    let _ = user_permissions.insert(AccessType::Append);
+    let _ = user_permissions.insert(AccessType::Read);
     let _ = access_list
         .access_list
-        .insert(public_key_1, PrivateUserAccess::new(set));
+        .insert(public_key_1, PrivateUserAccess::new(user_permissions));
     unwrap!(sequence.set_access_list(access_list, 0));
     let data = Sequence::from(sequence);
 

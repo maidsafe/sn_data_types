@@ -52,8 +52,6 @@ pub enum Error {
     InvalidEntryActions(BTreeMap<Vec<u8>, EntryError>),
     /// Key does not exist
     NoSuchKey,
-    // /// The key(s) of the entry or entries contained in this error already exist
-    // KeysExist(ADataEntries),
     /// Duplicate Entries in this push
     DuplicateEntryKeys,
     /// The list of owner keys is invalid

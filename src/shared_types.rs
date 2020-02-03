@@ -55,9 +55,9 @@ pub enum User {
 }
 
 /// The current version is defined as the last entry in the vector.
-pub const CURRENT_VERSION: Version = Version::FromEnd(1); // Shouldn't last entry be accessed with 0 ?
+pub const CURRENT_VERSION: Version = Version::FromEnd(1);
 
-///
+/// Enum to represent a specific version of data.
 #[derive(Copy, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum Version {
     /// Absolute index
@@ -75,39 +75,12 @@ impl From<u64> for Version {
 /// Set of data, owners, permissions versions.
 #[derive(Copy, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ExpectedVersions {
-    expected_data_version: u64,
-    expected_owners_version: u64,
-    expected_access_list_version: u64,
-}
-
-impl ExpectedVersions {
-    /// ctor
-    pub fn new(
-        expected_data_version: u64,
-        expected_owners_version: u64,
-        expected_access_list_version: u64,
-    ) -> Self {
-        ExpectedVersions {
-            expected_data_version,
-            expected_owners_version,
-            expected_access_list_version,
-        }
-    }
-
-    /// Returns the expected version for the data.
-    pub fn expected_data_version(&self) -> u64 {
-        self.expected_data_version
-    }
-
-    /// Returns the expected version for the owner.
-    pub fn expected_owners_version(&self) -> u64 {
-        self.expected_owners_version
-    }
-
-    /// Returns the expected version for the access list.
-    pub fn expected_access_list_version(&self) -> u64 {
-        self.expected_access_list_version
-    }
+    /// Expected data version.
+    pub data_version: u64,
+    /// Expected owners version.
+    pub owners_version: u64,
+    /// Expected access list version.
+    pub access_list_version: u64,
 }
 
 /// Represents an owner of a data instance,
@@ -142,8 +115,8 @@ impl Scope {
         !self.is_public()
     }
 
-    /// Creates `Scope` from `public` flags.
-    pub fn from_flags(public: bool) -> Self {
+    /// Creates `Scope` from `public` flag.
+    pub fn from_flag(public: bool) -> Self {
         if public {
             Scope::Public
         } else {
@@ -160,21 +133,20 @@ pub enum DataAddress {
 
 /// The address of a data type.
 /// Each scope has its own address space.
-/// Todo: Fix this formatting / docs.
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Address {
-    ///
+    /// Address in the public namespace.
     Public {
-        ///
+        /// Name.
         name: XorName,
-        ///
+        /// Type tag.
         tag: u64,
     },
-    ///
+    /// Address in the private namespace.
     Private {
-        ///
+        /// Name.
         name: XorName,
-        ///
+        /// Type tag.
         tag: u64,
     },
 }
@@ -234,7 +206,7 @@ impl Address {
 
 pub fn to_absolute_version(version: Version, count: usize) -> Option<usize> {
     match version {
-        Version::FromStart(version) if version as usize <= count => Some(version as usize),
+        Version::FromStart(version) if (version as usize) <= count => Some(version as usize),
         Version::FromStart(_) => None,
         Version::FromEnd(version) => count.checked_sub(version as usize),
     }
@@ -245,7 +217,7 @@ pub fn to_absolute_range(start: Version, end: Version, count: usize) -> Option<R
     let end = to_absolute_version(end, count)?;
 
     if start <= end {
-        Some(start..end)
+        Some(start..end) // `end` is exclusive in Range
     } else {
         None
     }

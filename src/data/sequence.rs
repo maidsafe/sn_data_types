@@ -100,32 +100,30 @@ where
     }
 
     pub fn versions(&self) -> ExpectedVersions {
-        ExpectedVersions::new(
-            self.expected_data_version(),
-            self.expected_owners_version(),
-            self.expected_access_list_version(),
-        )
+        ExpectedVersions {
+            data_version: self.expected_data_version(),
+            owners_version: self.expected_owners_version(),
+            access_list_version: self.expected_access_list_version(),
+        }
     }
 
     /// Returns the data shell - that is - everything except the Values themselves.
     pub fn shell(&self, version: impl Into<Version>) -> Result<Self> {
-        let version = to_absolute_version(
-            version.into(),
-            self.expected_data_version() as usize,
-        )
-        .ok_or(Error::NoSuchEntry)? as u64;
+        let expected_version =
+            1 + to_absolute_version(version.into(), self.expected_data_version() as usize)
+                .ok_or(Error::NoSuchEntry)? as u64;
 
         let access_list = self
             .access_list
             .iter()
-            .filter(|a| a.expected_data_version() - 1 <= version)
+            .filter(|a| a.expected_data_version() <= expected_version)
             .cloned()
             .collect();
 
         let owners = self
             .owners
             .iter()
-            .filter(|owner| owner.expected_data_version - 1 <= version)
+            .filter(|owner| owner.expected_data_version <= expected_version)
             .cloned()
             .collect();
 
@@ -207,7 +205,9 @@ where
             ));
         }
         if self.expected_owners_version() != expected_version {
-            return Err(Error::InvalidSuccessor(self.expected_owners_version()));
+            return Err(Error::InvalidOwnersSuccessor(
+                self.expected_owners_version(),
+            ));
         }
         self.owners.push(owner);
         Ok(())
@@ -225,7 +225,9 @@ where
             ));
         }
         if self.expected_access_list_version() != expected_version {
-            return Err(Error::InvalidSuccessor(self.expected_access_list_version()));
+            return Err(Error::InvalidPermissionsSuccessor(
+                self.expected_access_list_version(),
+            ));
         }
         self.access_list.push(access_list);
         Ok(())
@@ -444,11 +446,10 @@ impl Sequence {
         &self,
         user: User,
         version: impl Into<Version>,
-    ) -> Result<PublicUserAccess> {
+    ) -> Result<&PublicUserAccess> {
         self.public_access_list_at(version)?
             .access_list()
             .get(&user)
-            .cloned()
             .ok_or(Error::NoSuchEntry)
     }
 
@@ -457,22 +458,20 @@ impl Sequence {
         &self,
         user: &PublicKey,
         version: impl Into<Version>,
-    ) -> Result<PrivateUserAccess> {
+    ) -> Result<&PrivateUserAccess> {
         self.private_access_list_at(version)?
             .access_list()
             .get(&user)
-            .cloned()
             .ok_or(Error::NoSuchEntry)
     }
 
     /// Returns the access list of a public instance at a specific version.
     pub fn public_access_list_at(&self, version: impl Into<Version>) -> Result<&PublicAccessList> {
-        use Sequence::*;
-        let access_list = match self {
-            Public(data) => data.access_list_at(version),
-            _ => return Err(Error::InvalidOperation),
-        };
-        access_list.ok_or(Error::NoSuchEntry)
+        if let Sequence::Public(data) = self {
+            data.access_list_at(version).ok_or(Error::NoSuchEntry)
+        } else {
+            Err(Error::InvalidOperation)
+        }
     }
 
     /// Returns the access list of a private instance at a specific version.
@@ -480,12 +479,11 @@ impl Sequence {
         &self,
         version: impl Into<Version>,
     ) -> Result<&PrivateAccessList> {
-        use Sequence::*;
-        let access_list = match self {
-            Private(data) => data.access_list_at(version),
-            _ => return Err(Error::InvalidOperation),
-        };
-        access_list.ok_or(Error::NoSuchEntry)
+        if let Sequence::Private(data) = self {
+            data.access_list_at(version).ok_or(Error::NoSuchEntry)
+        } else {
+            Err(Error::InvalidOperation)
+        }
     }
 
     /// Returns history of all access list states
@@ -512,12 +510,12 @@ impl Sequence {
         start: Version,
         end: Version,
     ) -> Result<Vec<PublicAccessList>> {
-        use Sequence::*;
-        let result = match self {
-            Public(data) => data.access_list_history_range(start, end),
-            _ => return Err(Error::InvalidOperation),
-        };
-        result.ok_or(Error::NoSuchEntry)
+        if let Sequence::Public(data) = self {
+            data.access_list_history_range(start, end)
+                .ok_or(Error::NoSuchEntry)
+        } else {
+            Err(Error::InvalidOperation)
+        }
     }
 
     /// Get history of access list within the range of versions specified.
@@ -526,12 +524,12 @@ impl Sequence {
         start: Version,
         end: Version,
     ) -> Result<Vec<PrivateAccessList>> {
-        use Sequence::*;
-        let result = match self {
-            Private(data) => data.access_list_history_range(start, end),
-            _ => return Err(Error::InvalidOperation),
-        };
-        result.ok_or(Error::NoSuchEntry)
+        if let Sequence::Private(data) = self {
+            data.access_list_history_range(start, end)
+                .ok_or(Error::NoSuchEntry)
+        } else {
+            Err(Error::InvalidOperation)
+        }
     }
 
     /// Returns a shell without the data of the instance, as of a specific data version.
@@ -554,10 +552,10 @@ impl Sequence {
         access_list: PrivateAccessList,
         expected_version: u64,
     ) -> Result<()> {
-        use Sequence::*;
-        match self {
-            Private(data) => data.set_access_list(access_list, expected_version),
-            _ => Err(Error::InvalidOperation),
+        if let Sequence::Private(data) = self {
+            data.set_access_list(access_list, expected_version)
+        } else {
+            Err(Error::InvalidOperation)
         }
     }
 
@@ -567,10 +565,10 @@ impl Sequence {
         access_list: PublicAccessList,
         expected_version: u64,
     ) -> Result<()> {
-        use Sequence::*;
-        match self {
-            Public(data) => data.set_access_list(access_list, expected_version),
-            _ => Err(Error::InvalidOperation),
+        if let Sequence::Public(data) = self {
+            data.set_access_list(access_list, expected_version)
+        } else {
+            Err(Error::InvalidOperation)
         }
     }
 
