@@ -107,11 +107,16 @@ where
         }
     }
 
-    /// Returns the data shell - that is - everything except the Values themselves.
-    pub fn shell(&self, version: impl Into<Version>) -> Result<Self> {
-        let expected_version =
-            1 + to_absolute_version(version.into(), self.expected_data_version() as usize)
-                .ok_or(Error::NoSuchEntry)? as u64;
+    /// Returns the data shell - that is - everything except the Values themselves,
+    /// at a specific data version. `None` would signify no data yet added.
+    pub fn shell(&self, version: Option<Version>) -> Result<Self> {
+        let expected_version = match version {
+            Some(v) => {
+                1 + to_absolute_version(v, self.expected_data_version() as usize)
+                    .ok_or(Error::NoSuchEntry)? as u64
+            }
+            None => 0,
+        };
 
         let access_list = self
             .access_list
@@ -533,11 +538,11 @@ impl Sequence {
     }
 
     /// Returns a shell without the data of the instance, as of a specific data version.
-    pub fn shell(&self, version: impl Into<Version>) -> Result<Self> {
+    pub fn shell(&self, version: Option<Version>) -> Result<Self> {
         use Sequence::*;
         match self {
-            Public(adata) => adata.shell(version).map(Public),
-            Private(adata) => adata.shell(version).map(Private),
+            Public(data) => data.shell(version).map(Public),
+            Private(data) => data.shell(version).map(Private),
         }
     }
 

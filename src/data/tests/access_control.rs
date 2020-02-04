@@ -121,11 +121,11 @@ fn gets_sequence_shell() {
         1,
     ));
 
-    //dbg!(unwrap!(data.shell(0)).owner_history());
+    dbg!(unwrap!(data.shell(None)).owner_history());
 
     assert_eq!(
         data.expected_owners_version(),
-        unwrap!(data.shell(0)).expected_owners_version()
+        unwrap!(data.shell(Some(Version::FromStart(0)))).expected_owners_version()
     );
 }
 
