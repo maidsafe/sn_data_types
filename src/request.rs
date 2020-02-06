@@ -120,8 +120,8 @@ pub enum Request {
     GetSequenceShell {
         /// The address of the instance.
         address: Address,
-        /// The data version of the instance. // todo: specific_data_version
-        expected_data_version: Version,
+        /// The data version of the instance. `None` if no data has been added yet.
+        data_version: Option<Version>,
     },
     /// Get an entry at the current version.
     GetSequenceCurrentEntry(Address),
