@@ -217,7 +217,7 @@ pub fn to_absolute_range(start: Version, end: Version, count: usize) -> Option<R
     let end = to_absolute_version(end, count)?;
 
     if start <= end {
-        Some(start..end) // `end` is exclusive in Range
+        Some(start..end)
     } else {
         None
     }

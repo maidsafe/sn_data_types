@@ -10,6 +10,7 @@
 pub mod access_control;
 pub mod sequence;
 
+#[cfg(test)]
 mod tests;
 
 pub use access_control::{

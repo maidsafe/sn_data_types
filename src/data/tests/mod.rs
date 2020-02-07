@@ -7,7 +7,5 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-#[cfg(test)]
 mod access_control;
-#[cfg(test)]
 mod sequence;

@@ -50,7 +50,7 @@ impl<C> SequenceBase<C>
 where
     C: AccessListTrait,
 {
-    /// Returns true if the provided access type is allowed for the specific user (identified y their public key).
+    /// Returns true if the provided access type is allowed for the specific user (identified by their public key).
     pub fn is_allowed(&self, user: &PublicKey, access: AccessType) -> bool {
         if self.is_owner(user) {
             return true;
@@ -340,7 +340,7 @@ macro_rules! state_dispatch {
 }
 
 impl Sequence {
-    /// Returns true if the provided access type is allowed for the specific user (identified y their public key).
+    /// Returns true if the provided access type is allowed for the specific user (identified by their public key).
     pub fn is_allowed(&self, access: AccessType, user: &PublicKey) -> bool {
         use AccessType::*;
         use Sequence::*;
