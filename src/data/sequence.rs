@@ -293,6 +293,32 @@ impl SequenceBase<PublicAccessList> {
             owners: Vec::new(),
         }
     }
+
+    /// Sets a user's access of a public instance.
+    pub fn set_user_public_access(
+        &mut self,
+        user: User,
+        access: PublicUserAccess,
+        expected_version: u64,
+    ) -> Result<()> {
+        let result = self.access_list.last();
+        match result {
+            Some(list) => {
+                let mut clone = list.clone();
+                let _ = clone.access_list.insert(user, access);
+                self.set_access_list(clone, expected_version)
+            }
+            None => {
+                let mut list = PublicAccessList {
+                    access_list: std::collections::BTreeMap::new(),
+                    expected_data_version: self.expected_data_version(),
+                    expected_owners_version: self.expected_owners_version(),
+                };
+                let _ = list.access_list.insert(user, access);
+                self.set_access_list(list, expected_version)
+            }
+        }
+    }
 }
 
 impl Debug for SequenceBase<PublicAccessList> {
@@ -310,6 +336,32 @@ impl SequenceBase<PrivateAccessList> {
             data: Vec::new(),
             access_list: Vec::new(),
             owners: Vec::new(),
+        }
+    }
+
+    /// Sets a user's access of a private instance.
+    pub fn set_user_private_access(
+        &mut self,
+        user: PublicKey,
+        access: PrivateUserAccess,
+        expected_version: u64,
+    ) -> Result<()> {
+        let result = self.access_list.last();
+        match result {
+            Some(list) => {
+                let mut clone = list.clone();
+                let _ = clone.access_list.insert(user, access);
+                self.set_access_list(clone, expected_version)
+            }
+            None => {
+                let mut list = PrivateAccessList {
+                    access_list: std::collections::BTreeMap::new(),
+                    expected_data_version: self.expected_data_version(),
+                    expected_owners_version: self.expected_owners_version(),
+                };
+                let _ = list.access_list.insert(user, access);
+                self.set_access_list(list, expected_version)
+            }
         }
     }
 }
@@ -572,6 +624,34 @@ impl Sequence {
     ) -> Result<()> {
         if let Sequence::Public(data) = self {
             data.set_access_list(access_list, expected_version)
+        } else {
+            Err(Error::InvalidOperation)
+        }
+    }
+
+    /// Sets a user's access of a private instance.
+    pub fn set_user_private_access(
+        &mut self,
+        user: PublicKey,
+        access: PrivateUserAccess,
+        expected_version: u64,
+    ) -> Result<()> {
+        if let Sequence::Private(data) = self {
+            data.set_user_private_access(user, access, expected_version)
+        } else {
+            Err(Error::InvalidOperation)
+        }
+    }
+
+    /// Sets a user's access of a public instance.
+    pub fn set_user_public_access(
+        &mut self,
+        user: User,
+        access: PublicUserAccess,
+        expected_version: u64,
+    ) -> Result<()> {
+        if let Sequence::Public(data) = self {
+            data.set_user_public_access(user, access, expected_version)
         } else {
             Err(Error::InvalidOperation)
         }

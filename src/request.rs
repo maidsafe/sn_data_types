@@ -13,7 +13,8 @@ pub use self::login_packet::{LoginPacket, MAX_LOGIN_PACKET_BYTES};
 use crate::{
     Address, AppPermissions, AppendOperation, Coins, Error, IData, IDataAddress, MData,
     MDataAddress, MDataEntryActions, MDataPermissionSet, Owner, PrivateAccessList,
-    PublicAccessList, PublicKey, Response, Sequence, TransactionId, User, Version, XorName,
+    PrivateUserAccess, PublicAccessList, PublicKey, PublicUserAccess, Response, Sequence,
+    TransactionId, User, Version, XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -281,6 +282,28 @@ pub enum Request {
         /// The expected access list version.
         expected_version: u64,
     },
+    /// Set user access.
+    SetPublicSequenceUserAccess {
+        /// The address of the instance.
+        address: Address,
+        /// The user.
+        user: User,
+        /// The user access.
+        access_list: PublicUserAccess,
+        /// The expected access list version.
+        expected_version: u64,
+    },
+    /// Set user access.
+    SetPrivateSequenceUserAccess {
+        /// The address of the instance.
+        address: Address,
+        /// The user.
+        user: PublicKey,
+        /// The user access.
+        access_list: PrivateUserAccess,
+        /// The expected access list version.
+        expected_version: u64,
+    },
     // ===== Coins =====
     //
     /// Balance transfer.
@@ -435,6 +458,8 @@ impl Request {
             | SetSequenceOwner { .. }
             | SetPublicSequenceAccessList { .. }
             | SetPrivateSequenceAccessList { .. }
+            | SetPublicSequenceUserAccess { .. }
+            | SetPrivateSequenceUserAccess { .. }
             | Append(_) |
             // Login Packet
             CreateLoginPacket { .. } |
@@ -535,6 +560,8 @@ impl Request {
             | SetSequenceOwner { .. }
             | SetPublicSequenceAccessList { .. }
             | SetPrivateSequenceAccessList { .. }
+            | SetPublicSequenceUserAccess { .. }
+            | SetPrivateSequenceUserAccess { .. }
             | Append(_) |
             // Login Packet
             CreateLoginPacket { .. } |
@@ -622,6 +649,12 @@ impl fmt::Debug for Request {
                 }
                 SetPrivateSequenceAccessList { .. } => {
                     "SequenceWriteRequest::SetPrivateSequenceAccessList"
+                }
+                SetPublicSequenceUserAccess { .. } => {
+                    "SequenceWriteRequest::SetPublicSequenceUserAccess"
+                }
+                SetPrivateSequenceUserAccess { .. } => {
+                    "SequenceWriteRequest::SetPrivateSequenceUserAccess"
                 }
                 Append(_) => "SequenceWriteRequest::Append",
                 // Coins
