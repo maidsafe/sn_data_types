@@ -644,7 +644,7 @@ impl Sequence {
     }
 
     /// Sets a user's access of a public instance.
-    pub fn set_user_public_access(
+    pub fn set_public_user_access(
         &mut self,
         user: User,
         access: PublicUserAccess,
