@@ -295,7 +295,7 @@ impl SequenceBase<PublicAccessList> {
     }
 
     /// Sets a user's access of a public instance.
-    pub fn set_user_public_access(
+    pub fn set_public_user_access(
         &mut self,
         user: User,
         access: PublicUserAccess,
@@ -340,7 +340,7 @@ impl SequenceBase<PrivateAccessList> {
     }
 
     /// Sets a user's access of a private instance.
-    pub fn set_user_private_access(
+    pub fn set_private_user_access(
         &mut self,
         user: PublicKey,
         access: PrivateUserAccess,
@@ -630,14 +630,14 @@ impl Sequence {
     }
 
     /// Sets a user's access of a private instance.
-    pub fn set_user_private_access(
+    pub fn set_private_user_access(
         &mut self,
         user: PublicKey,
         access: PrivateUserAccess,
         expected_version: u64,
     ) -> Result<()> {
         if let Sequence::Private(data) = self {
-            data.set_user_private_access(user, access, expected_version)
+            data.set_private_user_access(user, access, expected_version)
         } else {
             Err(Error::InvalidOperation)
         }
@@ -651,7 +651,7 @@ impl Sequence {
         expected_version: u64,
     ) -> Result<()> {
         if let Sequence::Public(data) = self {
-            data.set_user_public_access(user, access, expected_version)
+            data.set_public_user_access(user, access, expected_version)
         } else {
             Err(Error::InvalidOperation)
         }

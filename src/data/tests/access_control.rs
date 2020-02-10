@@ -261,7 +261,7 @@ fn validates_public_sequence_access_list() {
     let _ = user_permissions.insert(AccessType::Read, false); // will have no effect
     let _ = user_permissions.insert(AccessType::Append, false);
     let _ = user_permissions.insert(AccessType::ModifyPermissions, false);
-    unwrap!(sequence.set_user_public_access(
+    unwrap!(sequence.set_public_user_access(
         User::Specific(public_key_1),
         PublicUserAccess::new(user_permissions),
         1
@@ -325,13 +325,13 @@ fn validates_private_sequence_access_list() {
     assert_modify_sequence_access_list_permitted(&data, &public_key_2, false);
 
     // update user access
-    unwrap!(sequence.set_user_private_access(
+    unwrap!(sequence.set_private_user_access(
         public_key_1,
         PrivateUserAccess::new(BTreeSet::new()),
         1
     ));
-    let data = Sequence::from(sequence);
-
+    let mut data = Sequence::from(sequence);
+    unwrap!(data.set_private_user_access(public_key_1, PrivateUserAccess::new(BTreeSet::new()), 1));
     // validate that permissions are updated
     assert_sequence_read_permitted(&data, &public_key_1, false);
     assert_eq!(data.is_allowed(AccessType::Append, &public_key_1), false);
