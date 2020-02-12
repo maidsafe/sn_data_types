@@ -1,5 +1,10 @@
 # safe-nd - Change Log
 
+## [0.8.0]
+
+- Remove limit check from `Coins::from_nano`.
+- Replace `ConnectionInfo` with `SocketAddr`.
+
 ## [0.7.2]
 
 - Fix GitHub actions crate.io release, with `git log --no-merges`
