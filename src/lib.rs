@@ -1,4 +1,4 @@
-// Copyright 2019 MaidSafe.net limited.
+// Copyright 2020 MaidSafe.net limited.
 //
 // This SAFE Network Software is licensed to you under the MIT license <LICENSE-MIT
 // https://opensource.org/licenses/MIT> or the Modified BSD license <LICENSE-BSD
@@ -37,6 +37,7 @@ mod keys;
 mod mutable_data;
 mod request;
 mod response;
+mod sequence;
 mod utils;
 
 pub use append_only_data::{
@@ -74,6 +75,7 @@ pub use mutable_data::{
 };
 pub use request::{LoginPacket, Request, Type as RequestType, MAX_LOGIN_PACKET_BYTES};
 pub use response::{Response, TryFromError};
+pub use sequence::Sequence;
 pub use sha3::Sha3_512 as Ed25519Digest;
 pub use utils::verify_signature;
 
