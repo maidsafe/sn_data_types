@@ -7,13 +7,13 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use super::Type;
+use super::{AuthorisationKind, Type};
 use crate::{
     AData, ADataAddress, ADataAppendOperation, ADataIndex, ADataOwner, ADataPubPermissions,
-    ADataUnpubPermissions, ADataUser, Error, PublicKey, Response,
+    ADataUnpubPermissions, ADataUser, Error, PublicKey, Response, XorName,
 };
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use std::{borrow::Cow, fmt};
 
 /// AppendOnlyData request that is sent to vaults.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
@@ -136,7 +136,6 @@ impl ADataRequest {
     /// Get the `Type` of this `Request`.
     pub fn get_type(&self) -> Type {
         use ADataRequest::*;
-
         match *self {
             Get(address)
             | GetShell { address, .. }
@@ -168,7 +167,6 @@ impl ADataRequest {
     /// Request variant.
     pub fn error_response(&self, error: Error) -> Response {
         use ADataRequest::*;
-
         match *self {
             Get(_) => Response::GetAData(Err(error)),
             GetShell { .. } => Response::GetADataShell(Err(error)),
@@ -189,12 +187,66 @@ impl ADataRequest {
             | AppendUnseq(_) => Response::Mutation(Err(error)),
         }
     }
+
+    /// Returns the type of authorisation needed for the request.
+    pub fn authorisation_kind(&self) -> AuthorisationKind {
+        use ADataRequest::*;
+        match *self {
+            Put(_)
+            | Delete(_)
+            | AddPubPermissions { .. }
+            | AddUnpubPermissions { .. }
+            | SetOwner { .. }
+            | AppendSeq { .. }
+            | AppendUnseq(_) => AuthorisationKind::Mutation,
+            Get(address)
+            | GetValue { address, .. }
+            | GetShell { address, .. }
+            | GetRange { address, .. }
+            | GetIndices(address)
+            | GetLastEntry(address)
+            | GetPermissions { address, .. }
+            | GetPubUserPermissions { address, .. }
+            | GetUnpubUserPermissions { address, .. }
+            | GetOwners { address, .. } => {
+                if address.is_pub() {
+                    AuthorisationKind::GetPub
+                } else {
+                    AuthorisationKind::GetPriv
+                }
+            }
+        }
+    }
+
+    /// Returns the address of the destination for `request`.
+    pub fn dest_address(&self) -> Option<Cow<XorName>> {
+        use ADataRequest::*;
+        match self {
+            Put(ref data) => Some(Cow::Borrowed(data.name())),
+            Get(ref address)
+            | GetValue { ref address, .. }
+            | GetShell { ref address, .. }
+            | Delete(ref address)
+            | GetRange { ref address, .. }
+            | GetIndices(ref address)
+            | GetLastEntry(ref address)
+            | GetPermissions { ref address, .. }
+            | GetPubUserPermissions { ref address, .. }
+            | GetUnpubUserPermissions { ref address, .. }
+            | GetOwners { ref address, .. }
+            | AddPubPermissions { ref address, .. }
+            | AddUnpubPermissions { ref address, .. }
+            | SetOwner { ref address, .. } => Some(Cow::Borrowed(address.name())),
+            AppendSeq { ref append, .. } | AppendUnseq(ref append) => {
+                Some(Cow::Borrowed(append.address.name()))
+            }
+        }
+    }
 }
 
 impl fmt::Debug for ADataRequest {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         use ADataRequest::*;
-
         write!(
             formatter,
             "Request::{}",
