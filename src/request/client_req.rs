@@ -7,10 +7,10 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use super::Type;
-use crate::{AppPermissions, Error, PublicKey, Response};
+use super::{AuthorisationKind, Type};
+use crate::{AppPermissions, Error, PublicKey, Response, XorName};
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use std::{borrow::Cow, fmt};
 
 /// Client (Owner) request that is sent to vaults.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
@@ -39,7 +39,6 @@ impl ClientRequest {
     /// Get the `Type` of this `Request`.
     pub fn get_type(&self) -> Type {
         use ClientRequest::*;
-
         match *self {
             ListAuthKeysAndVersion => Type::PrivateGet,
             InsAuthKey { .. } | DelAuthKey { .. } => Type::Mutation,
@@ -50,11 +49,20 @@ impl ClientRequest {
     /// Request variant.
     pub fn error_response(&self, error: Error) -> Response {
         use ClientRequest::*;
-
         match *self {
             ListAuthKeysAndVersion => Response::ListAuthKeysAndVersion(Err(error)),
             InsAuthKey { .. } | DelAuthKey { .. } => Response::Mutation(Err(error)),
         }
+    }
+
+    /// Returns the type of authorisation needed for the request.
+    pub fn authorisation_kind(&self) -> AuthorisationKind {
+        AuthorisationKind::ManageAppKeys
+    }
+
+    /// Returns the address of the destination for `request`.
+    pub fn dest_address(&self) -> Option<Cow<XorName>> {
+        None
     }
 }
 

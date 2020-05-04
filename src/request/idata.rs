@@ -7,10 +7,10 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use super::Type;
-use crate::{Error, IData, IDataAddress, Response};
+use super::{AuthorisationKind, Type};
+use crate::{Error, IData, IDataAddress, Response, XorName};
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use std::{borrow::Cow, fmt};
 
 /// ImmutableData request that is sent to vaults.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
@@ -27,15 +27,9 @@ impl IDataRequest {
     /// Get the `Type` of this `Request`.
     pub fn get_type(&self) -> Type {
         use IDataRequest::*;
-
         match *self {
-            Get(address) => {
-                if address.is_pub() {
-                    Type::PublicGet
-                } else {
-                    Type::PrivateGet
-                }
-            }
+            Get(IDataAddress::Pub(_)) => Type::PublicGet,
+            Get(IDataAddress::Unpub(_)) => Type::PrivateGet,
             Put(_) | DeleteUnpub(_) => Type::Mutation,
         }
     }
@@ -44,10 +38,28 @@ impl IDataRequest {
     /// Request variant.
     pub fn error_response(&self, error: Error) -> Response {
         use IDataRequest::*;
-
         match *self {
             Get(_) => Response::GetIData(Err(error)),
             Put(_) | DeleteUnpub(_) => Response::Mutation(Err(error)),
+        }
+    }
+
+    /// Returns the type of authorisation needed for the request.
+    pub fn authorisation_kind(&self) -> AuthorisationKind {
+        use IDataRequest::*;
+        match *self {
+            Get(IDataAddress::Pub(_)) => AuthorisationKind::GetPub,
+            Get(IDataAddress::Unpub(_)) => AuthorisationKind::GetPriv,
+            Put(_) | DeleteUnpub(_) => AuthorisationKind::Mutation,
+        }
+    }
+
+    /// Returns the address of the destination for `request`.
+    pub fn dest_address(&self) -> Option<Cow<XorName>> {
+        use IDataRequest::*;
+        match self {
+            Get(ref address) | DeleteUnpub(ref address) => Some(Cow::Borrowed(address.name())),
+            Put(ref data) => Some(Cow::Borrowed(data.name())),
         }
     }
 }
@@ -55,7 +67,6 @@ impl IDataRequest {
 impl fmt::Debug for IDataRequest {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         use IDataRequest::*;
-
         write!(
             formatter,
             "Request::{}",

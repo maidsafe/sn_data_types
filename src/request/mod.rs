@@ -15,14 +15,14 @@ mod login_packet;
 mod mdata;
 
 pub use self::login_packet::{LoginPacket, LoginPacketRequest, MAX_LOGIN_PACKET_BYTES};
-use crate::{Error, Response};
+use crate::{Error, Response, XorName};
 pub use adata::ADataRequest;
 pub use client_req::ClientRequest;
 pub use coins::CoinsRequest;
 pub use idata::IDataRequest;
 pub use mdata::MDataRequest;
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use std::{borrow::Cow, fmt};
 
 /// The type of a `Request`.
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
@@ -35,6 +35,24 @@ pub enum Type {
     Mutation,
     /// Request is a Transaction.
     Transaction,
+}
+
+/// The kind of authorisation needed for a request.
+pub enum AuthorisationKind {
+    /// Get request against public data.
+    GetPub,
+    /// Get request against private data.
+    GetPriv,
+    /// Request to get balance.
+    GetBalance,
+    /// Mutation request.
+    Mutation,
+    /// Request to manage app keys.
+    ManageAppKeys,
+    /// Request to transfer coins
+    TransferCoins,
+    /// Request to mutate and transfer coins
+    MutAndTransferCoins,
 }
 
 /// RPC Request that is sent to vaults.
@@ -59,7 +77,6 @@ impl Request {
     /// Get the `Type` of this `Request`.
     pub fn get_type(&self) -> Type {
         use Request::*;
-
         match self {
             IData(req) => req.get_type(),
             MData(req) => req.get_type(),
@@ -74,7 +91,6 @@ impl Request {
     /// Request variant.
     pub fn error_response(&self, error: Error) -> Response {
         use Request::*;
-
         match self {
             IData(req) => req.error_response(error),
             MData(req) => req.error_response(error),
@@ -82,6 +98,32 @@ impl Request {
             Coins(req) => req.error_response(error),
             LoginPacket(req) => req.error_response(error),
             Client(req) => req.error_response(error),
+        }
+    }
+
+    /// Returns the type of authorisation needed for the request.
+    pub fn authorisation_kind(&self) -> AuthorisationKind {
+        use Request::*;
+        match self {
+            IData(req) => req.authorisation_kind(),
+            MData(req) => req.authorisation_kind(),
+            AData(req) => req.authorisation_kind(),
+            Coins(req) => req.authorisation_kind(),
+            LoginPacket(req) => req.authorisation_kind(),
+            Client(req) => req.authorisation_kind(),
+        }
+    }
+
+    /// Returns the address of the destination for `request`.
+    pub fn dest_address(&self) -> Option<Cow<XorName>> {
+        use Request::*;
+        match self {
+            IData(req) => req.dest_address(),
+            MData(req) => req.dest_address(),
+            AData(req) => req.dest_address(),
+            Coins(req) => req.dest_address(),
+            LoginPacket(req) => req.dest_address(),
+            Client(req) => req.dest_address(),
         }
     }
 }

@@ -7,12 +7,12 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use super::Type;
+use super::{AuthorisationKind, Type};
 use crate::{
-    Error, MData, MDataAddress, MDataEntryActions, MDataPermissionSet, PublicKey, Response,
+    Error, MData, MDataAddress, MDataEntryActions, MDataPermissionSet, PublicKey, Response, XorName,
 };
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use std::{borrow::Cow, fmt};
 
 /// MutableData request that is sent to vaults.
 #[allow(clippy::large_enum_variant)]
@@ -123,6 +123,48 @@ impl MDataRequest {
             | SetUserPermissions { .. }
             | DelUserPermissions { .. }
             | MutateEntries { .. } => Response::Mutation(Err(error)),
+        }
+    }
+
+    /// Returns the type of authorisation needed for the request.
+    pub fn authorisation_kind(&self) -> AuthorisationKind {
+        use MDataRequest::*;
+        match *self {
+            Put(_)
+            | Delete(_)
+            | SetUserPermissions { .. }
+            | DelUserPermissions { .. }
+            | MutateEntries { .. } => AuthorisationKind::Mutation,
+            Get(_)
+            | GetValue { .. }
+            | GetShell(_)
+            | GetVersion(_)
+            | ListEntries(_)
+            | ListKeys(_)
+            | ListValues(_)
+            | ListPermissions(_)
+            | ListUserPermissions { .. } => AuthorisationKind::GetPriv,
+        }
+    }
+
+    /// Returns the address of the destination for `request`.
+    pub fn dest_address(&self) -> Option<Cow<XorName>> {
+        use MDataRequest::*;
+        match self {
+            Put(ref data) => Some(Cow::Borrowed(data.name())),
+            Get(ref address)
+            | GetValue { ref address, .. }
+            | Delete(ref address)
+            | GetShell(ref address)
+            | GetVersion(ref address)
+            | ListEntries(ref address)
+            | ListKeys(ref address)
+            | ListValues(ref address)
+            | SetUserPermissions { ref address, .. }
+            | DelUserPermissions { ref address, .. }
+            | ListPermissions(ref address)
+            | ListUserPermissions { ref address, .. }
+            | MutateEntries { ref address, .. } => Some(Cow::Borrowed(address.name())),
         }
     }
 }
