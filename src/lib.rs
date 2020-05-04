@@ -72,7 +72,10 @@ pub use mutable_data::{
     UnseqEntryAction as MDataUnseqEntryAction, UnseqEntryActions as MDataUnseqEntryActions,
     Value as MDataValue, Values as MDataValues,
 };
-pub use request::{LoginPacket, Request, Type as RequestType, MAX_LOGIN_PACKET_BYTES};
+pub use request::{
+    ADataRequest, ClientRequest, CoinsRequest, IDataRequest, LoginPacket, LoginPacketRequest,
+    MDataRequest, Request, Type as RequestType, MAX_LOGIN_PACKET_BYTES,
+};
 pub use response::{Response, TryFromError};
 pub use sha3::Sha3_512 as Ed25519Digest;
 pub use utils::verify_signature;
