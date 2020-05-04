@@ -14,7 +14,6 @@
 //! secret key.
 
 use crate::{utils, Ed25519Digest, Error, Result, XorName, XOR_NAME_LEN};
-use ed25519_dalek;
 use hex_fmt::HexFmt;
 use multibase::Decodable;
 use rand::{CryptoRng, Rng};
@@ -354,7 +353,6 @@ mod tests {
     use super::*;
     use crate::utils;
     use bincode::deserialize as deserialise;
-    use rand;
     use threshold_crypto::{self, IntoFr};
 
     fn gen_keypairs() -> Vec<Keypair> {

@@ -8,7 +8,6 @@
 // Software.
 
 use crate::{Error, MessageId, PublicKey, Request, Result, Signature};
-use bincode;
 use multibase::{self, Base, Decodable};
 use serde::{de::DeserializeOwned, Serialize};
 use unwrap::unwrap;

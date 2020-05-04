@@ -15,7 +15,6 @@ use std::{
     fmt::{self, Debug, Formatter},
     u64,
 };
-use tiny_keccak;
 
 /// Maximum allowed size for a serialised ImmutableData to grow to.
 pub const MAX_IMMUTABLE_DATA_SIZE_IN_BYTES: u64 = 1024 * 1024 + 10 * 1024;

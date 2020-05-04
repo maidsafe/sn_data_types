@@ -7,11 +7,78 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::{Error, PublicKey, Result, Signature, XorName};
+use super::Type;
+use crate::{Coins, Error, PublicKey, Response, Result, Signature, TransactionId, XorName};
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 /// Login packet size is limited .
 pub const MAX_LOGIN_PACKET_BYTES: usize = 1024 * 1024; // 1 MB
+
+/// LoginPacket request that is sent to vaults.
+#[allow(clippy::large_enum_variant)]
+#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
+pub enum LoginPacketRequest {
+    /// Create a login packet.
+    Create(LoginPacket),
+    /// Create a login packet for a given user and transfer some initial coins.
+    CreateFor {
+        /// The new owner of the login packet.
+        new_owner: PublicKey,
+        /// The new balance amount in coins.
+        amount: Coins,
+        /// The ID of the transaction.
+        transaction_id: TransactionId,
+        /// The new login packet.
+        new_login_packet: LoginPacket,
+    },
+    /// Update a login packet.
+    Update(LoginPacket),
+    /// Get an encrypted login packet.
+    Get(XorName),
+}
+
+impl LoginPacketRequest {
+    /// Get the `Type` of this `Request`.
+    pub fn get_type(&self) -> Type {
+        use LoginPacketRequest::*;
+
+        match *self {
+            Get(..) => Type::PrivateGet,
+            CreateFor { .. } => Type::Transaction,
+            Create { .. } | Update { .. } => Type::Mutation,
+        }
+    }
+
+    /// Creates a Response containing an error, with the Response variant corresponding to the
+    /// Request variant.
+    pub fn error_response(&self, error: Error) -> Response {
+        use LoginPacketRequest::*;
+
+        match *self {
+            Get(..) => Response::GetLoginPacket(Err(error)),
+            CreateFor { .. } => Response::Transaction(Err(error)),
+            Create { .. } | Update { .. } => Response::Mutation(Err(error)),
+        }
+    }
+}
+
+impl fmt::Debug for LoginPacketRequest {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        use LoginPacketRequest::*;
+
+        write!(
+            formatter,
+            "Request::{}",
+            match *self {
+                Create { .. } => "CreateLoginPacket",
+                CreateFor { .. } => "CreateLoginPacketFor",
+                Update { .. } => "UpdateLoginPacket",
+                Get(..) => "GetLoginPacket",
+            }
+        )
+    }
+}
 
 /// Login packet containing arbitrary user's login information.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
@@ -78,7 +145,6 @@ impl LoginPacket {
 mod tests {
     use super::{LoginPacket, MAX_LOGIN_PACKET_BYTES};
     use crate::{ClientFullId, Error};
-    use rand;
 
     #[test]
     fn exceed_size_limit() {
