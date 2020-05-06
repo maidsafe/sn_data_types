@@ -1,5 +1,11 @@
 # safe-nd - Change Log
 
+## [0.9.0]
+
+- Expose functions which tell you the Request's destination address (XorName) and the type of authorisation needed for the request (RequestAuthKind)
+- Break the `Request` enum down into several ones
+- Update README to link to contributing guidelines doc
+
 ## [0.8.0]
 
 - Remove limit check from `Coins::from_nano`.
