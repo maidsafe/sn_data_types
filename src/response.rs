@@ -8,9 +8,9 @@
 // Software.
 
 use crate::{
-    errors::ErrorDebug, AppPermissions, Coins, Error, IData, MData, MDataEntries,
-    MDataPermissionSet, MDataValue, MDataValues, PublicKey, Result, SData, SDataEntries,
-    SDataEntry, SDataOwner, SDataPermissions, SDataUserPermissions, Signature, Transaction,
+    errors::ErrorDebug, AppPermissions, Error, IData, MData, MDataEntries,
+    MDataPermissionSet, MDataValue, MDataValues, Money, MoneyReceipt, PublicKey, Result, SData, SDataEntries,
+    SDataEntry, SDataOwner, SDataPermissions, SDataUserPermissions, Signature
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -65,12 +65,12 @@ pub enum Response {
     /// Get Sequence permissions for a user.
     GetSDataUserPermissions(Result<SDataUserPermissions>),
     //
-    // ===== Coins =====
+    // ===== Money =====
     //
-    /// Get coin balance.
-    GetBalance(Result<Coins>),
-    /// Return the result of a transaction.
-    Transaction(Result<Transaction>),
+    /// Get account balance.
+    GetBalance(Result<Money>),
+    /// Return the result of a MoneyReceipt.
+    MoneyReceipt(Result<MoneyReceipt>),
     //
     // ===== Login Packet =====
     //
@@ -130,8 +130,8 @@ try_from!(SDataEntries, GetSDataRange);
 try_from!((u64, SDataEntry), GetSDataLastEntry);
 try_from!(SDataPermissions, GetSDataPermissions);
 try_from!(SDataUserPermissions, GetSDataUserPermissions);
-try_from!(Coins, GetBalance);
-try_from!(Transaction, Transaction);
+try_from!(Money, GetBalance);
+try_from!(MoneyReceipt, MoneyReceipt);
 try_from!(
     (BTreeMap<PublicKey, AppPermissions>, u64),
     ListAuthKeysAndVersion
@@ -177,9 +177,9 @@ impl fmt::Debug for Response {
                 ErrorDebug(res)
             ),
             GetSDataOwner(res) => write!(f, "Response::GetSDataOwner({:?})", ErrorDebug(res)),
-            // Coins
+            // Money
             GetBalance(res) => write!(f, "Response::GetBalance({:?})", ErrorDebug(res)),
-            Transaction(res) => write!(f, "Response::Transaction({:?})", ErrorDebug(res)),
+            MoneyReceipt(res) => write!(f, "Response::MoneyReceipt({:?})", ErrorDebug(res)),
             // Login Packet
             GetLoginPacket(res) => write!(f, "Response::GetLoginPacket({:?})", ErrorDebug(res)),
             // Client (Owner) to SrcElders
