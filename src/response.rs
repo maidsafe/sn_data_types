@@ -9,9 +9,9 @@
 
 use crate::{
     errors::ErrorDebug, AData, ADataEntries, ADataEntry, ADataIndices, ADataOwner,
-    ADataPermissions, ADataPubPermissionSet, ADataUnpubPermissionSet, AppPermissions, Coins, Error,
-    IData, MData, MDataEntries, MDataPermissionSet, MDataValue, MDataValues, PublicKey, Result,
-    Signature, Transaction,
+    ADataPermissions, ADataPubPermissionSet, ADataUnpubPermissionSet, AppPermissions, Error, IData,
+    MData, MDataEntries, MDataPermissionSet, MDataValue, MDataValues, Money, MoneyReceipt,
+    PublicKey, Result, Signature,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -74,12 +74,12 @@ pub enum Response {
     /// Get unpublished AppendOnlyData permissions for a user..
     GetUnpubADataUserPermissions(Result<ADataUnpubPermissionSet>),
     //
-    // ===== Coins =====
+    // ===== Money =====
     //
-    /// Get coin balance.
-    GetBalance(Result<Coins>),
-    /// Return the result of a transaction.
-    Transaction(Result<Transaction>),
+    /// Get account balance.
+    GetBalance(Result<Money>),
+    /// Return the result of a MoneyReceipt.
+    MoneyReceipt(Result<MoneyReceipt>),
     //
     // ===== Login Packet =====
     //
@@ -142,8 +142,8 @@ try_from!(ADataEntry, GetADataLastEntry);
 try_from!(ADataPermissions, GetADataPermissions);
 try_from!(ADataPubPermissionSet, GetPubADataUserPermissions);
 try_from!(ADataUnpubPermissionSet, GetUnpubADataUserPermissions);
-try_from!(Coins, GetBalance);
-try_from!(Transaction, Transaction);
+try_from!(Money, GetBalance);
+try_from!(MoneyReceipt, MoneyReceipt);
 try_from!(
     (BTreeMap<PublicKey, AppPermissions>, u64),
     ListAuthKeysAndVersion
@@ -197,9 +197,9 @@ impl fmt::Debug for Response {
             ),
             GetADataShell(res) => write!(f, "Response::GetADataShell({:?})", ErrorDebug(res)),
             GetADataOwners(res) => write!(f, "Response::GetADataOwners({:?})", ErrorDebug(res)),
-            // Coins
+            // Money
             GetBalance(res) => write!(f, "Response::GetBalance({:?})", ErrorDebug(res)),
-            Transaction(res) => write!(f, "Response::Transaction({:?})", ErrorDebug(res)),
+            MoneyReceipt(res) => write!(f, "Response::MoneyReceipt({:?})", ErrorDebug(res)),
             // Login Packet
             GetLoginPacket(res) => write!(f, "Response::GetLoginPacket({:?})", ErrorDebug(res)),
             // Client (Owner) to SrcElders

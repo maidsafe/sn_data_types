@@ -8,7 +8,7 @@
 // Software.
 
 use super::{AuthorisationKind, Type};
-use crate::{Coins, Error, PublicKey, Response, Result, Signature, TransactionId, XorName};
+use crate::{Error, Money, PublicKey, Response, Result, Signature, TransactionId, XorName};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt};
 
@@ -21,12 +21,12 @@ pub const MAX_LOGIN_PACKET_BYTES: usize = 1024 * 1024; // 1 MB
 pub enum LoginPacketRequest {
     /// Create a login packet.
     Create(LoginPacket),
-    /// Create a login packet for a given user and transfer some initial coins.
+    /// Create a login packet for a given user and transfer some initial money.
     CreateFor {
         /// The new owner of the login packet.
         new_owner: PublicKey,
-        /// The new balance amount in coins.
-        amount: Coins,
+        /// The new balance amount in money.
+        amount: Money,
         /// The ID of the transaction.
         transaction_id: TransactionId,
         /// The new login packet.
@@ -55,7 +55,7 @@ impl LoginPacketRequest {
         use LoginPacketRequest::*;
         match *self {
             Get(..) => Response::GetLoginPacket(Err(error)),
-            CreateFor { .. } => Response::Transaction(Err(error)),
+            CreateFor { .. } => Response::MoneyReceipt(Err(error)),
             Create { .. } | Update { .. } => Response::Mutation(Err(error)),
         }
     }
@@ -69,7 +69,7 @@ impl LoginPacketRequest {
                 if amount.as_nano() == 0 {
                     AuthorisationKind::Mutation
                 } else {
-                    AuthorisationKind::MutAndTransferCoins
+                    AuthorisationKind::MutAndTransferMoney
                 }
             }
             Get(_) => AuthorisationKind::GetPriv,
