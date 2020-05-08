@@ -28,18 +28,17 @@
     unused_results
 )]
 
-mod coins;
 mod errors;
 mod identity;
 mod immutable_data;
 mod keys;
+mod money;
 mod mutable_data;
 mod request;
 mod response;
 mod sequence;
 mod utils;
 
-pub use coins::Coins;
 pub use errors::{EntryError, Error, Result};
 pub use identity::{
     app::{FullId as AppFullId, PublicId as AppPublicId},
@@ -52,6 +51,7 @@ pub use immutable_data::{
     UnpubData as UnpubImmutableData, MAX_IMMUTABLE_DATA_SIZE_IN_BYTES,
 };
 pub use keys::{BlsKeypair, BlsKeypairShare, Keypair, PublicKey, Signature};
+pub use money::Money;
 pub use mutable_data::{
     Action as MDataAction, Address as MDataAddress, Data as MData, Entries as MDataEntries,
     EntryActions as MDataEntryActions, Kind as MDataKind, PermissionSet as MDataPermissionSet,
@@ -62,8 +62,8 @@ pub use mutable_data::{
     Value as MDataValue, Values as MDataValues,
 };
 pub use request::{
-    AuthorisationKind as RequestAuthKind, ClientRequest, CoinsRequest, IDataRequest, LoginPacket,
-    LoginPacketRequest, MDataRequest, Request, SDataRequest, Type as RequestType,
+    AuthorisationKind as RequestAuthKind, ClientRequest, IDataRequest, LoginPacket,
+    LoginPacketRequest, MDataRequest, MoneyRequest, Request, SDataRequest, Type as RequestType,
     MAX_LOGIN_PACKET_BYTES,
 };
 pub use response::{Response, TryFromError};
@@ -142,11 +142,11 @@ impl From<SData> for Data {
     Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Default, Debug,
 )]
 pub struct AppPermissions {
-    /// Whether this app has permissions to transfer coins.
-    pub transfer_coins: bool,
+    /// Whether this app has permissions to transfer money.
+    pub transfer_money: bool,
     /// Whether this app has permissions to perform mutations.
     pub perform_mutations: bool,
-    /// Whether this app has permissions to read the coin balance.
+    /// Whether this app has permissions to read the account balance.
     pub get_balance: bool,
 }
 
@@ -286,18 +286,18 @@ pub enum HandshakeResponse {
 /// Transaction ID.
 pub type TransactionId = u64; // TODO: Use the trait UUID
 
-/// Coin transaction.
+/// Money transaction.
 #[derive(Copy, Clone, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Debug)]
-pub struct Transaction {
+pub struct MoneyReceipt {
     /// Transaction ID.
     pub id: TransactionId,
-    /// Amount of coins.
-    pub amount: Coins,
+    /// Amount of money.
+    pub amount: Money,
 }
 
-/// Notification of a transaction.
+/// Notification of a MoneyReceipt.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
-pub struct Notification(pub Transaction);
+pub struct Notification(pub MoneyReceipt);
 
 #[cfg(test)]
 mod tests {
