@@ -8,7 +8,7 @@
 // Software.
 
 use super::{AuthorisationKind, Type};
-use crate::{Error, Money, PublicKey, Response, Result, Signature, TransactionId, XorName};
+use crate::{Error, Money, PublicKey, Response, Result, Signature, TransferId, XorName};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt};
 
@@ -27,8 +27,8 @@ pub enum LoginPacketRequest {
         new_owner: PublicKey,
         /// The new balance amount in money.
         amount: Money,
-        /// The ID of the transaction.
-        transaction_id: TransactionId,
+        /// The ID of the transfer.
+        transfer_id: TransferId,
         /// The new login packet.
         new_login_packet: LoginPacket,
     },
@@ -55,7 +55,7 @@ impl LoginPacketRequest {
         use LoginPacketRequest::*;
         match *self {
             Get(..) => Response::GetLoginPacket(Err(error)),
-            CreateFor { .. } => Response::MoneyReceipt(Err(error)),
+            CreateFor { .. } => Response::TransferReceipt(Err(error)),
             Create { .. } | Update { .. } => Response::Mutation(Err(error)),
         }
     }
