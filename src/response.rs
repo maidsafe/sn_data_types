@@ -11,7 +11,8 @@ use crate::{
     errors::ErrorDebug, AData, ADataEntries, ADataEntry, ADataIndices, ADataOwner,
     ADataPermissions, ADataPubPermissionSet, ADataUnpubPermissionSet, AppPermissions, Coins, Error,
     IData, MData, MDataEntries, MDataPermissionSet, MDataValue, MDataValues, PublicKey, Result,
-    Signature, Transaction,
+    SData, SDataEntries, SDataEntry, SDataOwner, SDataPermissions, SDataUserPermissions, Signature,
+    Transaction,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -73,6 +74,21 @@ pub enum Response {
     GetPubADataUserPermissions(Result<ADataPubPermissionSet>),
     /// Get unpublished AppendOnlyData permissions for a user..
     GetUnpubADataUserPermissions(Result<ADataUnpubPermissionSet>),
+    //
+    // ===== Sequence Data =====
+    //
+    /// Get Sequence.
+    GetSData(Result<SData>),
+    /// Get Sequence owners.
+    GetSDataOwner(Result<SDataOwner>),
+    /// Get Sequence entries from a range.
+    GetSDataRange(Result<SDataEntries>),
+    /// Get Sequence last entry.
+    GetSDataLastEntry(Result<(u64, SDataEntry)>),
+    /// List all Sequence permissions at the provided index.
+    GetSDataPermissions(Result<SDataPermissions>),
+    /// Get Sequence permissions for a user.
+    GetSDataUserPermissions(Result<SDataUserPermissions>),
     //
     // ===== Coins =====
     //
@@ -142,6 +158,12 @@ try_from!(ADataEntry, GetADataLastEntry);
 try_from!(ADataPermissions, GetADataPermissions);
 try_from!(ADataPubPermissionSet, GetPubADataUserPermissions);
 try_from!(ADataUnpubPermissionSet, GetUnpubADataUserPermissions);
+try_from!(SData, GetSData);
+try_from!(SDataOwner, GetSDataOwner);
+try_from!(SDataEntries, GetSDataRange);
+try_from!((u64, SDataEntry), GetSDataLastEntry);
+try_from!(SDataPermissions, GetSDataPermissions);
+try_from!(SDataUserPermissions, GetSDataUserPermissions);
 try_from!(Coins, GetBalance);
 try_from!(Transaction, Transaction);
 try_from!(
@@ -197,6 +219,21 @@ impl fmt::Debug for Response {
             ),
             GetADataShell(res) => write!(f, "Response::GetADataShell({:?})", ErrorDebug(res)),
             GetADataOwners(res) => write!(f, "Response::GetADataOwners({:?})", ErrorDebug(res)),
+            // SData
+            GetSData(res) => write!(f, "Response::GetSData({:?})", ErrorDebug(res)),
+            GetSDataRange(res) => write!(f, "Response::GetSDataRange({:?})", ErrorDebug(res)),
+            GetSDataLastEntry(res) => {
+                write!(f, "Response::GetSDataLastEntry({:?})", ErrorDebug(res))
+            }
+            GetSDataPermissions(res) => {
+                write!(f, "Response::GetSDataPermissions({:?})", ErrorDebug(res))
+            }
+            GetSDataUserPermissions(res) => write!(
+                f,
+                "Response::GetSDataUserPermissions({:?})",
+                ErrorDebug(res)
+            ),
+            GetSDataOwner(res) => write!(f, "Response::GetSDataOwner({:?})", ErrorDebug(res)),
             // Coins
             GetBalance(res) => write!(f, "Response::GetBalance({:?})", ErrorDebug(res)),
             Transaction(res) => write!(f, "Response::Transaction({:?})", ErrorDebug(res)),

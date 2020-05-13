@@ -1,4 +1,4 @@
-// Copyright 2019 MaidSafe.net limited.
+// Copyright 2020 MaidSafe.net limited.
 //
 // This SAFE Network Software is licensed to you under the MIT license <LICENSE-MIT
 // https://opensource.org/licenses/MIT> or the Modified BSD license <LICENSE-BSD
@@ -37,6 +37,7 @@ mod keys;
 mod mutable_data;
 mod request;
 mod response;
+mod sequence;
 mod utils;
 
 pub use append_only_data::{
@@ -74,10 +75,19 @@ pub use mutable_data::{
 };
 pub use request::{
     ADataRequest, AuthorisationKind as RequestAuthKind, ClientRequest, CoinsRequest, IDataRequest,
-    LoginPacket, LoginPacketRequest, MDataRequest, Request, Type as RequestType,
+    LoginPacket, LoginPacketRequest, MDataRequest, Request, SDataRequest, Type as RequestType,
     MAX_LOGIN_PACKET_BYTES,
 };
 pub use response::{Response, TryFromError};
+pub use sequence::{
+    Action as SDataAction, Address as SDataAddress, AppendOperation as SDataAppendOperation,
+    Data as SData, Entries as SDataEntries, Entry as SDataEntry, Index as SDataIndex,
+    Indices as SDataIndices, Owner as SDataOwner, Permissions as SDataPermissions,
+    PrivPermissions as SDataPrivPermissions, PrivSeqData,
+    PrivUserPermissions as SDataPrivUserPermissions, PubPermissions as SDataPubPermissions,
+    PubSeqData, PubUserPermissions as SDataPubUserPermissions, User as SDataUser,
+    UserPermissions as SDataUserPermissions,
+};
 pub use sha3::Sha3_512 as Ed25519Digest;
 pub use utils::verify_signature;
 
@@ -94,6 +104,7 @@ use std::{
 };
 
 /// Object storing a data variant.
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Data {
     /// ImmutableData.
@@ -102,6 +113,8 @@ pub enum Data {
     Mutable(MData),
     /// AppendOnlyData.
     AppendOnly(AData),
+    /// Sequence.
+    Sequence(SData),
 }
 
 impl Data {
@@ -111,6 +124,7 @@ impl Data {
             Self::Immutable(ref idata) => idata.is_pub(),
             Self::Mutable(_) => false,
             Self::AppendOnly(ref adata) => adata.is_pub(),
+            Self::Sequence(ref sdata) => sdata.is_pub(),
         }
     }
 
@@ -135,6 +149,12 @@ impl From<MData> for Data {
 impl From<AData> for Data {
     fn from(data: AData) -> Self {
         Self::AppendOnly(data)
+    }
+}
+
+impl From<SData> for Data {
+    fn from(data: SData) -> Self {
+        Self::Sequence(data)
     }
 }
 
