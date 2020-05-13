@@ -284,21 +284,21 @@ pub enum HandshakeResponse {
     InvalidSection,
 }
 
-/// Transaction ID.
-pub type TransactionId = u64; // TODO: Use the trait UUID
+/// Transfer ID.
+pub type TransferId = u64; // TODO: Use the trait UUID
 
-/// Money transaction.
+/// Receipt of a transfer.
 #[derive(Copy, Clone, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Debug)]
-pub struct MoneyReceipt {
-    /// Transaction ID.
-    pub id: TransactionId,
+pub struct TransferReceipt {
+    /// Transfer ID.
+    pub id: TransferId,
     /// Amount of money.
     pub amount: Money,
 }
 
-/// Notification of a MoneyReceipt.
+/// Notification of a TransferReceipt.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
-pub struct Notification(pub MoneyReceipt);
+pub struct Notification(pub TransferReceipt);
 
 #[cfg(test)]
 mod tests {

@@ -10,8 +10,8 @@
 use crate::{
     errors::ErrorDebug, AData, ADataEntries, ADataEntry, ADataIndices, ADataOwner,
     ADataPermissions, ADataPubPermissionSet, ADataUnpubPermissionSet, AppPermissions, Error, IData,
-    MData, MDataEntries, MDataPermissionSet, MDataValue, MDataValues, Money, MoneyReceipt,
-    PublicKey, Result, Signature,
+    MData, MDataEntries, MDataPermissionSet, MDataValue, MDataValues, Money, PublicKey, Result,
+    Signature, TransferReceipt,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -78,8 +78,8 @@ pub enum Response {
     //
     /// Get account balance.
     GetBalance(Result<Money>),
-    /// Return the result of a MoneyReceipt.
-    MoneyReceipt(Result<MoneyReceipt>),
+    /// Return the result of a TransferReceipt.
+    TransferReceipt(Result<TransferReceipt>),
     //
     // ===== Login Packet =====
     //
@@ -143,7 +143,7 @@ try_from!(ADataPermissions, GetADataPermissions);
 try_from!(ADataPubPermissionSet, GetPubADataUserPermissions);
 try_from!(ADataUnpubPermissionSet, GetUnpubADataUserPermissions);
 try_from!(Money, GetBalance);
-try_from!(MoneyReceipt, MoneyReceipt);
+try_from!(TransferReceipt, TransferReceipt);
 try_from!(
     (BTreeMap<PublicKey, AppPermissions>, u64),
     ListAuthKeysAndVersion
@@ -199,7 +199,7 @@ impl fmt::Debug for Response {
             GetADataOwners(res) => write!(f, "Response::GetADataOwners({:?})", ErrorDebug(res)),
             // Money
             GetBalance(res) => write!(f, "Response::GetBalance({:?})", ErrorDebug(res)),
-            MoneyReceipt(res) => write!(f, "Response::MoneyReceipt({:?})", ErrorDebug(res)),
+            TransferReceipt(res) => write!(f, "Response::TransferReceipt({:?})", ErrorDebug(res)),
             // Login Packet
             GetLoginPacket(res) => write!(f, "Response::GetLoginPacket({:?})", ErrorDebug(res)),
             // Client (Owner) to SrcElders

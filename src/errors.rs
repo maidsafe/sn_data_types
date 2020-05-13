@@ -86,8 +86,8 @@ pub enum Error {
     ExcessiveValue,
     /// Failed to parse the string as [`Money`](struct.Money.html).
     FailedToParse(String),
-    /// Transaction ID already exists.
-    TransactionIdExists,
+    /// Transfer ID already exists.
+    TransferIdExists,
     /// Insufficient money.
     InsufficientBalance,
     /// Inexistent balance.
@@ -148,7 +148,7 @@ impl Display for Error {
             Error::FailedToParse(ref error) => {
                 write!(f, "Failed to parse from a string: {}", error)
             }
-            Error::TransactionIdExists => write!(f, "Transaction with a given ID already exists"),
+            Error::TransferIdExists => write!(f, "Transfer with a given ID already exists"),
             Error::InsufficientBalance => write!(f, "Not enough money to complete this operation"),
             Error::NoSuchBalance => write!(f, "Balance does not exist"),
             Error::BalanceExists => write!(f, "Balance already exists"),
@@ -185,7 +185,7 @@ impl error::Error for Error {
                 "Overflow on amount of money (check the MAX_MONEY_VALUE const)"
             }
             Error::FailedToParse(_) => "Failed to parse entity",
-            Error::TransactionIdExists => "Transaction with a given ID already exists",
+            Error::TransferIdExists => "Transfer with a given ID already exists",
             Error::InsufficientBalance => "Not enough money to complete this operation",
             Error::NoSuchBalance => "Balance does not exist",
             Error::BalanceExists => "Balance already exists",
