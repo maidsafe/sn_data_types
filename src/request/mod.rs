@@ -13,6 +13,7 @@ mod coins;
 mod idata;
 mod login_packet;
 mod mdata;
+mod sdata;
 
 pub use self::login_packet::{LoginPacket, LoginPacketRequest, MAX_LOGIN_PACKET_BYTES};
 use crate::{Error, Response, XorName};
@@ -21,6 +22,7 @@ pub use client_req::ClientRequest;
 pub use coins::CoinsRequest;
 pub use idata::IDataRequest;
 pub use mdata::MDataRequest;
+pub use sdata::SDataRequest;
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt};
 
@@ -65,6 +67,8 @@ pub enum Request {
     MData(MDataRequest),
     /// AppendOnlyData request
     AData(ADataRequest),
+    /// Sequence request
+    SData(SDataRequest),
     /// Coins request
     Coins(CoinsRequest),
     /// LoginPacket request
@@ -81,6 +85,7 @@ impl Request {
             IData(req) => req.get_type(),
             MData(req) => req.get_type(),
             AData(req) => req.get_type(),
+            SData(req) => req.get_type(),
             Coins(req) => req.get_type(),
             LoginPacket(req) => req.get_type(),
             Client(req) => req.get_type(),
@@ -95,6 +100,7 @@ impl Request {
             IData(req) => req.error_response(error),
             MData(req) => req.error_response(error),
             AData(req) => req.error_response(error),
+            SData(req) => req.error_response(error),
             Coins(req) => req.error_response(error),
             LoginPacket(req) => req.error_response(error),
             Client(req) => req.error_response(error),
@@ -108,6 +114,7 @@ impl Request {
             IData(req) => req.authorisation_kind(),
             MData(req) => req.authorisation_kind(),
             AData(req) => req.authorisation_kind(),
+            SData(req) => req.authorisation_kind(),
             Coins(req) => req.authorisation_kind(),
             LoginPacket(req) => req.authorisation_kind(),
             Client(req) => req.authorisation_kind(),
@@ -121,6 +128,7 @@ impl Request {
             IData(req) => req.dest_address(),
             MData(req) => req.dest_address(),
             AData(req) => req.dest_address(),
+            SData(req) => req.dest_address(),
             Coins(req) => req.dest_address(),
             LoginPacket(req) => req.dest_address(),
             Client(req) => req.dest_address(),
@@ -136,6 +144,7 @@ impl fmt::Debug for Request {
             IData(req) => write!(formatter, "{:?}", req),
             MData(req) => write!(formatter, "{:?}", req),
             AData(req) => write!(formatter, "{:?}", req),
+            SData(req) => write!(formatter, "{:?}", req),
             Coins(req) => write!(formatter, "{:?}", req),
             LoginPacket(req) => write!(formatter, "{:?}", req),
             Client(req) => write!(formatter, "{:?}", req),
