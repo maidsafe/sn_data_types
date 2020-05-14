@@ -8,6 +8,7 @@
 // Software.
 
 mod adata;
+mod at2;
 mod client_req;
 mod idata;
 mod login_packet;
@@ -31,10 +32,14 @@ pub enum Type {
     PublicGet,
     /// Request is a Get for private data.
     PrivateGet,
-    /// Request is a Mutation.
+    /// Request is a Mutation of data.
     Mutation,
-    /// Request is a Transaction.
-    Transaction,
+    /// Request is a Transfer of money.
+    Transfer,
+    // /// Request to validate a Transfer of money.
+    // TransferValidation, // TODO: fix..
+    // /// Request to register a validated Transfer of money.
+    // TransferRegistration, // TODO: fix..
 }
 
 /// The kind of authorisation needed for a request.
@@ -43,16 +48,20 @@ pub enum AuthorisationKind {
     GetPub,
     /// Get request against private data.
     GetPriv,
-    /// Request to get balance.
+    /// Request to get account balance.
     GetBalance,
+    /// Request to get account history.
+    GetHistory,
     /// Mutation request.
     Mutation,
     /// Request to manage app keys.
     ManageAppKeys,
-    /// Request to transfer money
+    /// Request to transfer money from account.
     TransferMoney,
     /// Request to mutate and transfer money
     MutAndTransferMoney,
+    /// No authorisation required.
+    None,
 }
 
 /// RPC Request that is sent to vaults.
