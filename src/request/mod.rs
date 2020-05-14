@@ -8,7 +8,6 @@
 // Software.
 
 mod adata;
-mod at2;
 mod client_req;
 mod idata;
 mod login_packet;
