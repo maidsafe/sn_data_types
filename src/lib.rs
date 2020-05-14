@@ -144,12 +144,14 @@ impl From<AData> for Data {
     Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Default, Debug,
 )]
 pub struct AppPermissions {
+    /// Whether this app has permissions to perform data mutations.
+    pub data_mutations: bool,
     /// Whether this app has permissions to transfer money.
     pub transfer_money: bool,
-    /// Whether this app has permissions to perform mutations.
-    pub perform_mutations: bool,
     /// Whether this app has permissions to read the account balance.
-    pub get_balance: bool,
+    pub read_balance: bool,
+    /// Whether this app has permissions to read the account transfer history.
+    pub read_transfer_history: bool,
 }
 
 /// Constant byte length of `XorName`.
