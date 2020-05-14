@@ -304,18 +304,16 @@ pub enum TransferRestrictions {
 ///
 #[derive(Copy, Clone, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Debug)]
 pub struct Transfer {
+    /// Transfer ID.
+    pub id: TransferId,
     /// The transfer source.
     pub from: PublicKey,
     /// The destination to transfer to.
     pub to: PublicKey,
     /// The amount to transfer.
     pub amount: Money,
-    /// Transfer ID.
-    pub id: TransferId,
     /// Determines the behaviour of a Transfer.
     pub restrictions: TransferRestrictions,
-    /// Transfer id
-    pub transfer_id: TransferId,
 }
 
 /// A Client cmd.
@@ -370,18 +368,9 @@ pub struct TransferRegistered {
 //     pub client_signature: Signature,
 // }
 
-/// Receipt of a transfer.
-#[derive(Copy, Clone, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Debug)]
-pub struct TransferReceipt {
-    /// Transfer ID.
-    pub id: TransferId,
-    /// Amount of money.
-    pub amount: Money,
-}
-
-/// Notification of a TransferReceipt.
+/// Notification of a Transfer sent to a recipient.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
-pub struct Notification(pub TransferReceipt);
+pub struct Notification(pub TransferRegistered);
 
 #[cfg(test)]
 mod tests {
