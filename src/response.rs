@@ -9,8 +9,8 @@
 
 use crate::{
     errors::ErrorDebug, AppPermissions, Error, IData, MData, MDataEntries,
-    MDataPermissionSet, MDataValue, MDataValues, Money, TransferReceipt, PublicKey, Result, SData, SDataEntries,
-    SDataEntry, SDataOwner, SDataPermissions, SDataUserPermissions, Signature
+    MDataPermissionSet, MDataValue, MDataValues, Money, PublicKey, Result, SData, SDataEntries,
+    SDataEntry, SDataOwner, SDataPermissions, SDataUserPermissions, Signature, Transfer, TransferReceipt, TransferValidated,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -69,8 +69,12 @@ pub enum Response {
     //
     /// Get account balance.
     GetBalance(Result<Money>),
-    /// Return the result of a TransferReceipt.
-    TransferReceipt(Result<TransferReceipt>),
+    /// Get account history.
+    GetHistory(Result<Vec<Transfer>>),
+    /// Return the result of a ValidateTransfer cmd.
+    TransferValidated(Result<TransferValidated>),
+    /// Return the result of a RegisterTransfer cmd.
+    TransferRegistered(Result<TransferReceipt>),
     //
     // ===== Login Packet =====
     //
@@ -131,7 +135,8 @@ try_from!((u64, SDataEntry), GetSDataLastEntry);
 try_from!(SDataPermissions, GetSDataPermissions);
 try_from!(SDataUserPermissions, GetSDataUserPermissions);
 try_from!(Money, GetBalance);
-try_from!(TransferReceipt, TransferReceipt);
+try_from!(TransferReceipt, TransferRegistered);
+try_from!(TransferValidated, TransferValidated);
 try_from!(
     (BTreeMap<PublicKey, AppPermissions>, u64),
     ListAuthKeysAndVersion
@@ -179,7 +184,13 @@ impl fmt::Debug for Response {
             GetSDataOwner(res) => write!(f, "Response::GetSDataOwner({:?})", ErrorDebug(res)),
             // Money
             GetBalance(res) => write!(f, "Response::GetBalance({:?})", ErrorDebug(res)),
-            TransferReceipt(res) => write!(f, "Response::TransferReceipt({:?})", ErrorDebug(res)),
+            GetHistory(res) => write!(f, "Response::GetHistory({:?})", ErrorDebug(res)),
+            TransferValidated(res) => {
+                write!(f, "Response::TransferValidated({:?})", ErrorDebug(res))
+            }
+            TransferRegistered(res) => {
+                write!(f, "Response::TransferRegistered({:?})", ErrorDebug(res))
+            }
             // Login Packet
             GetLoginPacket(res) => write!(f, "Response::GetLoginPacket({:?})", ErrorDebug(res)),
             // Client (Owner) to SrcElders
