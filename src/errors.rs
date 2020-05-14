@@ -90,8 +90,10 @@ pub enum Error {
     TransferIdExists,
     /// Insufficient money.
     InsufficientBalance,
-    /// Inexistent balance.
-    NoSuchBalance,
+    /// Inexistent sender balance.
+    NoSuchSender,
+    /// Inexistent recipient balance.
+    NoSuchRecipient,
     /// Coin balance already exists.
     BalanceExists,
     /// Expected data size exceeded.
@@ -150,7 +152,8 @@ impl Display for Error {
             }
             Error::TransferIdExists => write!(f, "Transfer with a given ID already exists"),
             Error::InsufficientBalance => write!(f, "Not enough money to complete this operation"),
-            Error::NoSuchBalance => write!(f, "Balance does not exist"),
+            Error::NoSuchSender => write!(f, "Sender does not exist"),
+            Error::NoSuchRecipient => write!(f, "Recipient does not exist"),
             Error::BalanceExists => write!(f, "Balance already exists"),
             Error::DuplicateMessageId => write!(f, "MessageId already exists"),
             Error::ExceededSize => write!(f, "Size of the structure exceeds the limit"),
@@ -187,7 +190,8 @@ impl error::Error for Error {
             Error::FailedToParse(_) => "Failed to parse entity",
             Error::TransferIdExists => "Transfer with a given ID already exists",
             Error::InsufficientBalance => "Not enough money to complete this operation",
-            Error::NoSuchBalance => "Balance does not exist",
+            Error::NoSuchSender => "Sender does not exist",
+            Error::NoSuchRecipient => "Recipient does not exist",
             Error::BalanceExists => "Balance already exists",
             Error::DuplicateMessageId => "MessageId already exists",
             Error::ExceededSize => "Exceeded the size limit",
