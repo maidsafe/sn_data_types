@@ -72,9 +72,11 @@ pub enum Response {
     /// Get account history.
     GetHistory(Result<Vec<Transfer>>),
     /// Return the result of a ValidateTransfer cmd.
-    TransferValidated(Result<TransferValidated>),
+    TransferValidation(Result<TransferValidated>),
     /// Return the result of a RegisterTransfer cmd.
-    TransferRegistered(Result<TransferRegistered>),
+    TransferRegistration(Result<TransferRegistered>),
+    /// Return the result of propagation of TransferRegistered event.
+    TransferPropagation(Result<()>),
     //
     // ===== Login Packet =====
     //
@@ -135,14 +137,14 @@ try_from!((u64, SDataEntry), GetSDataLastEntry);
 try_from!(SDataPermissions, GetSDataPermissions);
 try_from!(SDataUserPermissions, GetSDataUserPermissions);
 try_from!(Money, GetBalance);
-try_from!(TransferRegistered, TransferRegistered);
-try_from!(TransferValidated, TransferValidated);
+try_from!(TransferRegistered, TransferRegistration);
+try_from!(TransferValidated, TransferValidation);
+try_from!((), TransferPropagation, Mutation);
 try_from!(
     (BTreeMap<PublicKey, AppPermissions>, u64),
     ListAuthKeysAndVersion
 );
 try_from!((Vec<u8>, Signature), GetLoginPacket);
-try_from!((), Mutation);
 
 impl fmt::Debug for Response {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -185,11 +187,14 @@ impl fmt::Debug for Response {
             // Money
             GetBalance(res) => write!(f, "Response::GetBalance({:?})", ErrorDebug(res)),
             GetHistory(res) => write!(f, "Response::GetHistory({:?})", ErrorDebug(res)),
-            TransferValidated(res) => {
-                write!(f, "Response::TransferValidated({:?})", ErrorDebug(res))
+            TransferValidation(res) => {
+                write!(f, "Response::TransferValidation({:?})", ErrorDebug(res))
             }
-            TransferRegistered(res) => {
-                write!(f, "Response::TransferRegistered({:?})", ErrorDebug(res))
+            TransferRegistration(res) => {
+                write!(f, "Response::TransferRegistration({:?})", ErrorDebug(res))
+            }
+            TransferPropagation(res) => {
+                write!(f, "Response::TransferPropagation({:?})", ErrorDebug(res))
             }
             // Login Packet
             GetLoginPacket(res) => write!(f, "Response::GetLoginPacket({:?})", ErrorDebug(res)),
