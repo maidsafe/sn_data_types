@@ -10,7 +10,7 @@
 use crate::{
     errors::ErrorDebug, AppPermissions, Error, IData, MData, MDataEntries,
     MDataPermissionSet, MDataValue, MDataValues, Money, PublicKey, Result, SData, SDataEntries,
-    SDataEntry, SDataOwner, SDataPermissions, SDataUserPermissions, Signature, Transfer, TransferReceipt, TransferValidated,
+    SDataEntry, SDataOwner, SDataPermissions, SDataUserPermissions, Signature, Transfer, TransferRegistered, TransferValidated,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -74,7 +74,7 @@ pub enum Response {
     /// Return the result of a ValidateTransfer cmd.
     TransferValidated(Result<TransferValidated>),
     /// Return the result of a RegisterTransfer cmd.
-    TransferRegistered(Result<TransferReceipt>),
+    TransferRegistered(Result<TransferRegistered>),
     //
     // ===== Login Packet =====
     //
@@ -135,7 +135,7 @@ try_from!((u64, SDataEntry), GetSDataLastEntry);
 try_from!(SDataPermissions, GetSDataPermissions);
 try_from!(SDataUserPermissions, GetSDataUserPermissions);
 try_from!(Money, GetBalance);
-try_from!(TransferReceipt, TransferRegistered);
+try_from!(TransferRegistered, TransferRegistered);
 try_from!(TransferValidated, TransferValidated);
 try_from!(
     (BTreeMap<PublicKey, AppPermissions>, u64),
