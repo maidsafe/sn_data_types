@@ -58,7 +58,7 @@ impl MoneyRequest {
         use MoneyRequest::*;
         match *self {
             GetBalance(_) => Type::PrivateGet,
-            Transfer { .. } => Type::Transaction,
+            Transfer { .. } => Type::Transfer,
         }
     }
 
@@ -68,7 +68,7 @@ impl MoneyRequest {
         use MoneyRequest::*;
         match *self {
             GetBalance(_) => Response::GetBalance(Err(error)),
-            Transfer { .. } => Response::TransferReceipt(Err(error)),
+            Transfer { .. } => Response::TransferRegistered(Err(error)),
         }
     }
 

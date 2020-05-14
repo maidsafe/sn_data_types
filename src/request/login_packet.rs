@@ -44,7 +44,7 @@ impl LoginPacketRequest {
         use LoginPacketRequest::*;
         match *self {
             Get(..) => Type::PrivateGet,
-            CreateFor { .. } => Type::Transaction,
+            CreateFor { .. } => Type::Transfer,
             Create { .. } | Update { .. } => Type::Mutation,
         }
     }
@@ -55,7 +55,7 @@ impl LoginPacketRequest {
         use LoginPacketRequest::*;
         match *self {
             Get(..) => Response::GetLoginPacket(Err(error)),
-            CreateFor { .. } => Response::TransferReceipt(Err(error)),
+            CreateFor { .. } => Response::TransferRegistered(Err(error)),
             Create { .. } | Update { .. } => Response::Mutation(Err(error)),
         }
     }
