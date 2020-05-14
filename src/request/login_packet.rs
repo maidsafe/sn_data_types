@@ -55,7 +55,7 @@ impl LoginPacketRequest {
         use LoginPacketRequest::*;
         match *self {
             Get(..) => Response::GetLoginPacket(Err(error)),
-            CreateFor { .. } => Response::TransferRegistered(Err(error)),
+            CreateFor { .. } => Response::TransferRegistration(Err(error)),
             Create { .. } | Update { .. } => Response::Mutation(Err(error)),
         }
     }

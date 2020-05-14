@@ -27,6 +27,11 @@ pub enum MoneyRequest {
         /// The cmd to register the consensused transfer.
         payload: RegisterTransfer,
     },
+    /// Request to propagate transfer.
+    PropagateTransfer {
+        /// The cmd to register the consensused transfer.
+        payload: RegisterTransfer,
+    },
     /// Get account balance.
     GetBalance(XorName),
     /// Get account history.
@@ -42,6 +47,7 @@ impl MoneyRequest {
             GetHistory(_) => Type::PrivateGet,
             ValidateTransfer { .. } => Type::Transfer, // TODO: fix..
             RegisterTransfer { .. } => Type::Transfer, // TODO: fix..
+            PropagateTransfer { .. } => Type::Transfer, // TODO: fix..
         }
     }
 
@@ -52,8 +58,9 @@ impl MoneyRequest {
         match *self {
             GetBalance(_) => Response::GetBalance(Err(error)),
             GetHistory(_) => Response::GetHistory(Err(error)),
-            ValidateTransfer { .. } => Response::TransferValidated(Err(error)),
-            RegisterTransfer { .. } => Response::TransferRegistered(Err(error)),
+            ValidateTransfer { .. } => Response::TransferValidation(Err(error)),
+            RegisterTransfer { .. } => Response::TransferRegistration(Err(error)),
+            PropagateTransfer { .. } => Response::TransferPropagation(Err(error)),
         }
     }
 
@@ -62,6 +69,7 @@ impl MoneyRequest {
         use MoneyRequest::*;
         use TransferRestrictions::*;
         match self.clone() {
+            PropagateTransfer { .. } => AuthorisationKind::None, // the proof has the authority within it
             RegisterTransfer { .. } => AuthorisationKind::None, // the proof has the authority within it
             ValidateTransfer { payload, .. } => {
                 match payload.transfer.restrictions {
@@ -86,11 +94,14 @@ impl MoneyRequest {
     pub fn dest_address(&self) -> Option<Cow<XorName>> {
         use MoneyRequest::*;
         match self {
+            PropagateTransfer { ref payload, .. } => Some(Cow::Owned(XorName::from(
+                payload.proof.transfer_cmd.transfer.to, // sent to section where credit is made
+            ))),
             RegisterTransfer { ref payload, .. } => Some(Cow::Owned(XorName::from(
-                payload.proof.transfer_cmd.transfer.to,
+                payload.proof.transfer_cmd.transfer.from, // this is handled where the debit is made
             ))),
             ValidateTransfer { ref payload, .. } => {
-                Some(Cow::Owned(XorName::from(payload.transfer.to)))
+                Some(Cow::Owned(XorName::from(payload.transfer.from))) // this is handled where the debit is made
             }
             GetBalance(_) => None,
             GetHistory(_) => None,
@@ -105,6 +116,7 @@ impl fmt::Debug for MoneyRequest {
             formatter,
             "MoneyRequest::{}",
             match *self {
+                PropagateTransfer { .. } => "PropagateTransfer",
                 RegisterTransfer { .. } => "RegisterTransfer",
                 ValidateTransfer { .. } => "ValidateTransfer",
                 GetBalance(_) => "GetBalance",
