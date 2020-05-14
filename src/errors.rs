@@ -87,6 +87,8 @@ pub enum Error {
     TransferIdExists,
     /// Insufficient money.
     InsufficientBalance,
+    /// Inexistent balance.
+    NoSuchBalance,
     /// Inexistent sender balance.
     NoSuchSender,
     /// Inexistent recipient balance.
@@ -148,6 +150,7 @@ impl Display for Error {
             }
             Error::TransferIdExists => write!(f, "Transfer with a given ID already exists"),
             Error::InsufficientBalance => write!(f, "Not enough money to complete this operation"),
+            Error::NoSuchBalance => write!(f, "Balance does not exist"),
             Error::NoSuchSender => write!(f, "Sender does not exist"),
             Error::NoSuchRecipient => write!(f, "Recipient does not exist"),
             Error::BalanceExists => write!(f, "Balance already exists"),
@@ -185,6 +188,7 @@ impl error::Error for Error {
             Error::FailedToParse(_) => "Failed to parse entity",
             Error::TransferIdExists => "Transfer with a given ID already exists",
             Error::InsufficientBalance => "Not enough money to complete this operation",
+            Error::NoSuchBalance => "Balance does not exist",
             Error::NoSuchSender => "Sender does not exist",
             Error::NoSuchRecipient => "Recipient does not exist",
             Error::BalanceExists => "Balance already exists",
