@@ -220,10 +220,10 @@ pub enum Message {
         /// Associated message ID.
         message_id: MessageId,
     },
-    /// Notification of a transaction.
-    Notification {
+    /// Notification of a transfer.
+    TransferNotification {
         /// Notification.
-        notification: Notification,
+        payload: TransferNotification,
     },
 }
 
@@ -234,7 +234,7 @@ impl Message {
             Self::Request { message_id, .. } | Self::Response { message_id, .. } => {
                 Some(*message_id)
             }
-            Self::Notification { .. } => None,
+            Self::TransferNotification { .. } => None,
         }
     }
 }
@@ -371,7 +371,7 @@ pub struct TransferRegistered {
 
 /// Notification of a Transfer sent to a recipient.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Debug)]
-pub struct Notification(pub TransferRegistered);
+pub struct TransferNotification(pub ProofOfAgreement);
 
 #[cfg(test)]
 mod tests {
