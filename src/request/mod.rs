@@ -7,7 +7,6 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-mod at2;
 mod client_req;
 mod idata;
 mod login_packet;
