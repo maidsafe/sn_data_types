@@ -38,9 +38,15 @@ pub enum MoneyRequest {
     GetHistory {
         /// The xor name of the balance key.
         at: XorName,
-        /// The last index of transfers we know of.
-        since_index: u64,
+        /// The last indices of transfers we know of.
+        since: TransferIndices,
     },
+}
+
+#[derive(Hash, Eq, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
+pub struct TransferIndices {
+    pub incoming: usize,
+    pub outgoing: usize,
 }
 
 impl MoneyRequest {
