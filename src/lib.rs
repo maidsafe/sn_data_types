@@ -333,8 +333,8 @@ pub struct TransferValidated {
     pub transfer_cmd: ValidateTransfer,
     /// Elder signature over the transfer cmd.
     pub elder_signature: threshold_crypto::SignatureShare,
-    /// The PK Set of the section
-    pub pk_set: threshold_crypto::PublicKeySet,
+    // /// The PK Set of the section
+    // pub pk_set: threshold_crypto::PublicKeySet, // temporary commented out
 }
 
 /// The aggregated Elder signatures of the client transfer cmd.
