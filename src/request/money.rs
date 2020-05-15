@@ -32,10 +32,15 @@ pub enum MoneyRequest {
         /// The cmd to register the consensused transfer.
         payload: RegisterTransfer,
     },
-    /// Get account balance.
+    /// Get key balance.
     GetBalance(XorName),
-    /// Get account history.
-    GetHistory(XorName),
+    /// Get key history since specified index.
+    GetHistory {
+        /// The xor name of the balance key.
+        at: XorName,
+        /// The last index of transfers we know of.
+        since_index: u64,
+    },
 }
 
 impl MoneyRequest {
@@ -44,7 +49,7 @@ impl MoneyRequest {
         use MoneyRequest::*;
         match *self {
             GetBalance(_) => Type::PrivateGet,
-            GetHistory(_) => Type::PrivateGet,
+            GetHistory { .. } => Type::PrivateGet,
             ValidateTransfer { .. } => Type::Transfer, // TODO: fix..
             RegisterTransfer { .. } => Type::Transfer, // TODO: fix..
             PropagateTransfer { .. } => Type::Transfer, // TODO: fix..
@@ -57,7 +62,7 @@ impl MoneyRequest {
         use MoneyRequest::*;
         match *self {
             GetBalance(_) => Response::GetBalance(Err(error)),
-            GetHistory(_) => Response::GetHistory(Err(error)),
+            GetHistory { .. } => Response::GetHistory(Err(error)),
             ValidateTransfer { .. } => Response::TransferValidation(Err(error)),
             RegisterTransfer { .. } => Response::TransferRegistration(Err(error)),
             PropagateTransfer { .. } => Response::TransferPropagation(Err(error)),
@@ -72,7 +77,7 @@ impl MoneyRequest {
             RegisterTransfer { .. } => AuthorisationKind::None, // the proof has the authority within it
             ValidateTransfer { .. } => AuthorisationKind::MutAndTransferMoney,
             GetBalance(_) => AuthorisationKind::GetBalance, // current state
-            GetHistory(_) => AuthorisationKind::GetHistory, // history of transfers
+            GetHistory { .. } => AuthorisationKind::GetHistory, // history of transfers
         }
     }
 
@@ -90,7 +95,7 @@ impl MoneyRequest {
                 Some(Cow::Owned(XorName::from(payload.transfer.id.actor))) // this is handled where the debit is made
             }
             GetBalance(_) => None,
-            GetHistory(_) => None,
+            GetHistory { .. } => None,
         }
     }
 }
@@ -106,7 +111,7 @@ impl fmt::Debug for MoneyRequest {
                 RegisterTransfer { .. } => "RegisterTransfer",
                 ValidateTransfer { .. } => "ValidateTransfer",
                 GetBalance(_) => "GetBalance",
-                GetHistory(_) => "GetHistory",
+                GetHistory { .. } => "GetHistory",
             }
         )
     }
