@@ -94,7 +94,6 @@ use std::{
     fmt::{self, Debug, Display, Formatter},
     net::SocketAddr,
 };
-use threshold_crypto;
 
 /// Object storing a data variant.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]

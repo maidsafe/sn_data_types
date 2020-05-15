@@ -8,7 +8,7 @@
 // Software.
 
 use super::{AuthorisationKind, Type};
-use crate::{Error, RegisterTransfer, Response, TransferRestrictions, ValidateTransfer, XorName};
+use crate::{Error, RegisterTransfer, Response, ValidateTransfer, XorName};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt};
 
@@ -67,24 +67,10 @@ impl MoneyRequest {
     /// Returns the type of authorisation needed for the request.
     pub fn authorisation_kind(&self) -> AuthorisationKind {
         use MoneyRequest::*;
-        use TransferRestrictions::*;
         match self.clone() {
             PropagateTransfer { .. } => AuthorisationKind::None, // the proof has the authority within it
             RegisterTransfer { .. } => AuthorisationKind::None, // the proof has the authority within it
-            ValidateTransfer { payload, .. } => {
-                match payload.transfer.restrictions {
-                    NoRestriction => AuthorisationKind::MutAndTransferMoney,
-                    RequireHistory => AuthorisationKind::TransferMoney,
-                    ExpectNoHistory => {
-                        if payload.transfer.amount.as_nano() == 0 {
-                            return AuthorisationKind::Mutation; // just create the account
-                        } else {
-                            // create and transfer the amount
-                            return AuthorisationKind::MutAndTransferMoney;
-                        };
-                    }
-                }
-            }
+            ValidateTransfer { .. } => AuthorisationKind::MutAndTransferMoney,
             GetBalance(_) => AuthorisationKind::GetBalance, // current state
             GetHistory(_) => AuthorisationKind::GetHistory, // history of transfers
         }
