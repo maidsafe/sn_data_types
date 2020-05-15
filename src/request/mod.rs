@@ -20,7 +20,7 @@ pub use adata::ADataRequest;
 pub use client_req::ClientRequest;
 pub use idata::IDataRequest;
 pub use mdata::MDataRequest;
-pub use money::MoneyRequest;
+pub use money::{MoneyRequest, TransferIndices};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt};
 

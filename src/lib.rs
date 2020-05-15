@@ -75,7 +75,7 @@ pub use mutable_data::{
 };
 pub use request::{
     ADataRequest, AuthorisationKind as RequestAuthKind, ClientRequest, IDataRequest, LoginPacket,
-    LoginPacketRequest, MDataRequest, MoneyRequest, Request, Type as RequestType,
+    LoginPacketRequest, MDataRequest, MoneyRequest, Request, TransferIndices, Type as RequestType,
     MAX_LOGIN_PACKET_BYTES,
 };
 pub use response::{Response, TryFromError};

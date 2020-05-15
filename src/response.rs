@@ -79,7 +79,7 @@ pub enum Response {
     /// Get account balance.
     GetBalance(Result<Money>),
     /// Get account history.
-    GetHistory(Result<Vec<Transfer>>),
+    GetHistory(Result<(Vec<Transfer>, Vec<Transfer>)>),
     /// Return the result of a ValidateTransfer cmd.
     TransferValidation(Result<TransferValidated>),
     /// An aggregate response created client side
