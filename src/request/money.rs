@@ -98,10 +98,10 @@ impl MoneyRequest {
                 payload.proof.transfer_cmd.transfer.to, // sent to section where credit is made
             ))),
             RegisterTransfer { ref payload, .. } => Some(Cow::Owned(XorName::from(
-                payload.proof.transfer_cmd.transfer.from, // this is handled where the debit is made
+                payload.proof.transfer_cmd.transfer.id.actor, // this is handled where the debit is made
             ))),
             ValidateTransfer { ref payload, .. } => {
-                Some(Cow::Owned(XorName::from(payload.transfer.from))) // this is handled where the debit is made
+                Some(Cow::Owned(XorName::from(payload.transfer.id.actor))) // this is handled where the debit is made
             }
             GetBalance(_) => None,
             GetHistory(_) => None,
