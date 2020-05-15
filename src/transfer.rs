@@ -17,20 +17,6 @@ pub struct Transfer {
     pub to: PublicKey,
     /// The amount to transfer.
     pub amount: Money,
-    /// Determines the behaviour of a Transfer.
-    pub restrictions: TransferRestrictions,
-}
-
-#[derive(Copy, Clone, Hash, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize, Debug)]
-/// Determines the behaviour of a Transfer
-/// when validation over the different possible states is done.
-pub enum TransferRestrictions {
-    /// Fails transfer if the key has no history.
-    RequireHistory,
-    /// Fails transfer if there are previously recorded transfers.
-    ExpectNoHistory,
-    /// Transfers regardless of previous history.
-    NoRestriction,
 }
 
 /// A Client cmd.
