@@ -9,7 +9,7 @@
 
 use crate::{
     errors::ErrorDebug, AppPermissions, Error, IData, MData, MDataEntries,
-    MDataPermissionSet, MDataValue, MDataValues, Money, PublicKey, Result, SData, SDataEntries,
+    MDataPermissionSet, MDataValue, MDataValues, Money, ProofOfAgreement, PublicKey, Result, SData, SDataEntries,
     SDataEntry, SDataOwner, SDataPermissions, SDataUserPermissions, Signature, Transfer, TransferRegistered, TransferValidated,
 };
 use serde::{Deserialize, Serialize};
@@ -73,6 +73,9 @@ pub enum Response {
     GetHistory(Result<Vec<Transfer>>),
     /// Return the result of a ValidateTransfer cmd.
     TransferValidation(Result<TransferValidated>),
+    /// An aggregate response created client side
+    /// (for upper Client layers) out of multiple TransferValidation responses.
+    TransferProofOfAgreement(Result<ProofOfAgreement>),
     /// Return the result of a RegisterTransfer cmd.
     TransferRegistration(Result<TransferRegistered>),
     /// Return the result of propagation of TransferRegistered event.
@@ -190,6 +193,11 @@ impl fmt::Debug for Response {
             TransferValidation(res) => {
                 write!(f, "Response::TransferValidation({:?})", ErrorDebug(res))
             }
+            TransferProofOfAgreement(res) => write!(
+                f,
+                "Response::TransferProofOfAgreement({:?})",
+                ErrorDebug(res)
+            ),
             TransferRegistration(res) => {
                 write!(f, "Response::TransferRegistration({:?})", ErrorDebug(res))
             }
