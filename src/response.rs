@@ -22,7 +22,7 @@ use std::{
 
 /// RPC responses from vaults.
 #[allow(clippy::large_enum_variant, clippy::type_complexity)]
-#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
+#[derive(Hash, Eq, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
 pub enum Response {
     //
     // ===== Immutable Data =====

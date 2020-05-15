@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt};
 
 /// Money request that is sent to Elders.
-#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
+#[derive(Hash, Eq, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
 pub enum MoneyRequest {
     // ===== Money =====
     //

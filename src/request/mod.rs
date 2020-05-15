@@ -65,7 +65,7 @@ pub enum AuthorisationKind {
 
 /// RPC Request that is sent to vaults.
 #[allow(clippy::large_enum_variant)]
-#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
+#[derive(Hash, Eq, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
 pub enum Request {
     /// ImmutableData request
     IData(IDataRequest),
