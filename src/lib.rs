@@ -92,7 +92,6 @@ use std::{
     fmt::{self, Debug, Display, Formatter},
     net::SocketAddr,
 };
-use threshold_crypto;
 
 /// Object storing a data variant.
 #[allow(clippy::large_enum_variant)]
