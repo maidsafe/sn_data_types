@@ -17,7 +17,7 @@ pub const MAX_LOGIN_PACKET_BYTES: usize = 1024 * 1024; // 1 MB
 
 /// LoginPacket request that is sent to vaults.
 #[allow(clippy::large_enum_variant)]
-#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
+#[derive(Hash, Eq, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
 pub enum LoginPacketRequest {
     /// Create a login packet.
     Create(LoginPacket),
