@@ -43,24 +43,44 @@ pub enum Type {
 
 /// The kind of authorisation needed for a request.
 pub enum AuthorisationKind {
+    /// Authorisation for data requests.
+    Data(DataAuthKind),
+    /// Authorisation for money requests.
+    Money(MoneyAuthKind),
+    /// Miscellaneous authorisation kinds.
+    /// NB: Not very well categorized yet
+    Misc(MiscAuthKind),
+    /// When none required.
+    None,
+}
+
+/// Authorisation for data requests.
+pub enum DataAuthKind {
     /// Get request against public data.
-    GetPub,
+    GetPublic,
     /// Get request against private data.
-    GetPriv,
-    /// Request to get account balance.
-    GetBalance,
-    /// Request to get account history.
-    GetHistory,
+    GetPrivate,
     /// Mutation request.
     Mutation,
+}
+
+/// Authorisation for money requests.
+pub enum MoneyAuthKind {
+    /// Request to get key balance.
+    GetBalance,
+    /// Request to get key transfer history.
+    GetHistory,
+    /// Request to transfer money from key.
+    TransferMoney,
+}
+
+/// Miscellaneous authorisation kinds.
+/// NB: Not very well categorized yet
+pub enum MiscAuthKind {
     /// Request to manage app keys.
     ManageAppKeys,
-    /// Request to transfer money from account.
-    TransferMoney,
-    /// Request to mutate and transfer money
+    /// Request to mutate and transfer money from key.
     MutAndTransferMoney,
-    /// No authorisation required.
-    None,
 }
 
 /// RPC Request that is sent to vaults.

@@ -7,7 +7,7 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use super::{AuthorisationKind, Type};
+use super::{AuthorisationKind, MiscAuthKind, Type};
 use crate::{AppPermissions, Error, PublicKey, Response, XorName};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt};
@@ -57,7 +57,7 @@ impl ClientRequest {
 
     /// Returns the type of authorisation needed for the request.
     pub fn authorisation_kind(&self) -> AuthorisationKind {
-        AuthorisationKind::ManageAppKeys
+        AuthorisationKind::Misc(MiscAuthKind::ManageAppKeys)
     }
 
     /// Returns the address of the destination for `request`.
