@@ -7,7 +7,7 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use super::{AuthorisationKind, Type};
+use super::{AuthorisationKind, DataAuthKind, Type};
 use crate::{Error, IData, IDataAddress, Response, XorName};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt};
@@ -48,9 +48,9 @@ impl IDataRequest {
     pub fn authorisation_kind(&self) -> AuthorisationKind {
         use IDataRequest::*;
         match *self {
-            Get(IDataAddress::Pub(_)) => AuthorisationKind::GetPub,
-            Get(IDataAddress::Unpub(_)) => AuthorisationKind::GetPriv,
-            Put(_) | DeleteUnpub(_) => AuthorisationKind::Mutation,
+            Get(IDataAddress::Pub(_)) => AuthorisationKind::Data(DataAuthKind::GetPublic),
+            Get(IDataAddress::Unpub(_)) => AuthorisationKind::Data(DataAuthKind::GetPrivate),
+            Put(_) | DeleteUnpub(_) => AuthorisationKind::Data(DataAuthKind::Mutation),
         }
     }
 

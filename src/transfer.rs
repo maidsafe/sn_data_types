@@ -8,16 +8,25 @@ use threshold_crypto;
 /// Transfer ID.
 pub type TransferId = Dot<PublicKey>;
 
-/// Op
+/// A transfer of money between two keys.
 #[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Serialize, Deserialize, Debug)]
 pub struct Transfer {
-    /// Transfer ID.
+    /// Transfer ID, containing source key.
     pub id: TransferId,
     /// The destination to transfer to.
     pub to: PublicKey,
     /// The amount to transfer.
     pub amount: Money,
 }
+
+// /// A transfer of money between two keys.
+// #[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Serialize, Deserialize, Debug)]
+// pub struct MultiTransfer {
+//     /// Transfer ID, containing source key.
+//     pub id: TransferId,
+//     /// The destinations to transfer to, and the respective amounts.
+//     pub dst_amounts: Vec<(PublicKey, Money)>,
+// }
 
 /// A Client cmd.
 #[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Serialize, Deserialize, Debug)]
