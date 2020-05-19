@@ -7,7 +7,7 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use super::{AuthorisationKind, Type};
+use super::{AuthorisationKind, DataAuthKind, Type};
 use crate::{
     Error, MData, MDataAddress, MDataEntryActions, MDataPermissionSet, PublicKey, Response, XorName,
 };
@@ -134,7 +134,7 @@ impl MDataRequest {
             | Delete(_)
             | SetUserPermissions { .. }
             | DelUserPermissions { .. }
-            | MutateEntries { .. } => AuthorisationKind::Mutation,
+            | MutateEntries { .. } => AuthorisationKind::Data(DataAuthKind::Mutation),
             Get(_)
             | GetValue { .. }
             | GetShell(_)
@@ -143,7 +143,7 @@ impl MDataRequest {
             | ListKeys(_)
             | ListValues(_)
             | ListPermissions(_)
-            | ListUserPermissions { .. } => AuthorisationKind::GetPriv,
+            | ListUserPermissions { .. } => AuthorisationKind::Data(DataAuthKind::GetPrivate),
         }
     }
 
