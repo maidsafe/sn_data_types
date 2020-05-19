@@ -76,10 +76,10 @@ pub enum Response {
     //
     // ===== Money =====
     //
-    /// Get account balance.
+    /// Get key balance.
     GetBalance(Result<Money>),
-    /// Get account history.
-    GetHistory(Result<(Vec<Transfer>, Vec<Transfer>)>),
+    /// Get key transfer history.
+    GetHistory(Result<Vec<Transfer>>),
     /// Return the result of a ValidateTransfer cmd.
     TransferValidation(Result<TransferValidated>),
     /// An aggregate response created client side
@@ -152,6 +152,7 @@ try_from!(ADataPermissions, GetADataPermissions);
 try_from!(ADataPubPermissionSet, GetPubADataUserPermissions);
 try_from!(ADataUnpubPermissionSet, GetUnpubADataUserPermissions);
 try_from!(Money, GetBalance);
+try_from!(Vec<Transfer>, GetHistory);
 try_from!(TransferRegistered, TransferRegistration);
 try_from!(TransferValidated, TransferValidation);
 try_from!((), TransferPropagation, Mutation);

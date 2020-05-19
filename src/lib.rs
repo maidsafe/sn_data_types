@@ -74,9 +74,9 @@ pub use mutable_data::{
     Value as MDataValue, Values as MDataValues,
 };
 pub use request::{
-    ADataRequest, AuthorisationKind as RequestAuthKind, ClientRequest, IDataRequest, LoginPacket,
-    LoginPacketRequest, MDataRequest, MoneyRequest, Request, TransferIndices, Type as RequestType,
-    MAX_LOGIN_PACKET_BYTES,
+    ADataRequest, AuthorisationKind as RequestAuthKind, ClientRequest, DataAuthKind, IDataRequest,
+    LoginPacket, LoginPacketRequest, MDataRequest, MiscAuthKind, MoneyAuthKind, MoneyRequest,
+    Request, Type as RequestType, MAX_LOGIN_PACKET_BYTES,
 };
 pub use response::{Response, TryFromError};
 pub use sha3::Sha3_512 as Ed25519Digest;

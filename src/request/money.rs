@@ -7,7 +7,7 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use super::{AuthorisationKind, Type};
+use super::{AuthorisationKind, MiscAuthKind, MoneyAuthKind, Type};
 use crate::{Error, RegisterTransfer, Response, ValidateTransfer, XorName};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt};
@@ -34,19 +34,17 @@ pub enum MoneyRequest {
     },
     /// Get key balance.
     GetBalance(XorName),
-    /// Get key history since specified index.
+    /// Get key transfers since specified version.
     GetHistory {
         /// The xor name of the balance key.
         at: XorName,
-        /// The last indices of transfers we know of.
-        since: TransferIndices,
+        /// The last version of transfers we know of.
+        since_version: usize,
+        /// Whether we only want the incoming transfers
+        /// NB: This is not guaranteed to give you all unseen,
+        /// since incoming transfers have no absolute order.
+        incoming_only: bool,
     },
-}
-
-#[derive(Hash, Eq, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
-pub struct TransferIndices {
-    pub incoming: usize,
-    pub outgoing: usize,
 }
 
 impl MoneyRequest {
@@ -81,9 +79,9 @@ impl MoneyRequest {
         match self.clone() {
             PropagateTransfer { .. } => AuthorisationKind::None, // the proof has the authority within it
             RegisterTransfer { .. } => AuthorisationKind::None, // the proof has the authority within it
-            ValidateTransfer { .. } => AuthorisationKind::MutAndTransferMoney,
-            GetBalance(_) => AuthorisationKind::GetBalance, // current state
-            GetHistory { .. } => AuthorisationKind::GetHistory, // history of transfers
+            ValidateTransfer { .. } => AuthorisationKind::Misc(MiscAuthKind::MutAndTransferMoney),
+            GetBalance(_) => AuthorisationKind::Money(MoneyAuthKind::GetBalance), // current state
+            GetHistory { .. } => AuthorisationKind::Money(MoneyAuthKind::GetHistory), // history of incoming transfers
         }
     }
 

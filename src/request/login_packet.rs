@@ -7,7 +7,7 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use super::{AuthorisationKind, Type};
+use super::{AuthorisationKind, DataAuthKind, MiscAuthKind, Type};
 use crate::{Error, Money, PublicKey, Response, Result, Signature, TransferId, XorName};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt};
@@ -64,15 +64,15 @@ impl LoginPacketRequest {
     pub fn authorisation_kind(&self) -> AuthorisationKind {
         use LoginPacketRequest::*;
         match *self {
-            Create { .. } | Update { .. } => AuthorisationKind::Mutation,
+            Create { .. } | Update { .. } => AuthorisationKind::Data(DataAuthKind::Mutation),
             CreateFor { amount, .. } => {
                 if amount.as_nano() == 0 {
-                    AuthorisationKind::Mutation
+                    AuthorisationKind::Data(DataAuthKind::Mutation)
                 } else {
-                    AuthorisationKind::MutAndTransferMoney
+                    AuthorisationKind::Misc(MiscAuthKind::MutAndTransferMoney)
                 }
             }
-            Get(_) => AuthorisationKind::GetPriv,
+            Get(_) => AuthorisationKind::Data(DataAuthKind::GetPrivate),
         }
     }
 

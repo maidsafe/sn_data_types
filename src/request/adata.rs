@@ -10,7 +10,7 @@
 use super::{AuthorisationKind, Type};
 use crate::{
     AData, ADataAddress, ADataAppendOperation, ADataIndex, ADataOwner, ADataPubPermissions,
-    ADataUnpubPermissions, ADataUser, Error, PublicKey, Response, XorName,
+    ADataUnpubPermissions, ADataUser, DataAuthKind, Error, PublicKey, Response, XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt};
@@ -198,7 +198,7 @@ impl ADataRequest {
             | AddUnpubPermissions { .. }
             | SetOwner { .. }
             | AppendSeq { .. }
-            | AppendUnseq(_) => AuthorisationKind::Mutation,
+            | AppendUnseq(_) => AuthorisationKind::Data(DataAuthKind::Mutation),
             Get(address)
             | GetValue { address, .. }
             | GetShell { address, .. }
@@ -210,9 +210,9 @@ impl ADataRequest {
             | GetUnpubUserPermissions { address, .. }
             | GetOwners { address, .. } => {
                 if address.is_pub() {
-                    AuthorisationKind::GetPub
+                    AuthorisationKind::Data(DataAuthKind::GetPublic)
                 } else {
-                    AuthorisationKind::GetPriv
+                    AuthorisationKind::Data(DataAuthKind::GetPrivate)
                 }
             }
         }
