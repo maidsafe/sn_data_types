@@ -8,7 +8,7 @@
 // Software.
 
 use super::{AuthorisationKind, MiscAuthKind, MoneyAuthKind, Type};
-use crate::{Error, RegisterTransfer, Response, ValidateTransfer, XorName};
+use crate::{DebitAgreementProof, Error, Response, SignedTransfer, XorName};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt};
 
@@ -20,17 +20,17 @@ pub enum MoneyRequest {
     /// Request to validate transfer.
     ValidateTransfer {
         /// The cmd to validate a transfer.
-        payload: ValidateTransfer,
+        signed_transfer: SignedTransfer,
     },
     /// Request to register transfer.
     RegisterTransfer {
         /// The cmd to register the consensused transfer.
-        payload: RegisterTransfer,
+        proof: DebitAgreementProof,
     },
     /// Request to propagate transfer.
     PropagateTransfer {
         /// The cmd to register the consensused transfer.
-        payload: RegisterTransfer,
+        proof: DebitAgreementProof,
     },
     /// Get key balance.
     GetBalance(XorName),
@@ -40,10 +40,6 @@ pub enum MoneyRequest {
         at: XorName,
         /// The last version of transfers we know of.
         since_version: usize,
-        /// Whether we only want the incoming transfers
-        /// NB: This is not guaranteed to give you all unseen,
-        /// since incoming transfers have no absolute order.
-        incoming_only: bool,
     },
 }
 
@@ -89,14 +85,18 @@ impl MoneyRequest {
     pub fn dest_address(&self) -> Option<Cow<XorName>> {
         use MoneyRequest::*;
         match self {
-            PropagateTransfer { ref payload, .. } => Some(Cow::Owned(XorName::from(
-                payload.proof.transfer_cmd.transfer.to, // sent to section where credit is made
+            PropagateTransfer { ref proof, .. } => Some(Cow::Owned(XorName::from(
+                proof.signed_transfer.transfer.to, // sent to section where credit is made
             ))),
-            RegisterTransfer { ref payload, .. } => Some(Cow::Owned(XorName::from(
-                payload.proof.transfer_cmd.transfer.id.actor, // this is handled where the debit is made
+            RegisterTransfer { ref proof, .. } => Some(Cow::Owned(XorName::from(
+                proof.signed_transfer.transfer.id.actor, // this is handled where the debit is made
             ))),
-            ValidateTransfer { ref payload, .. } => {
-                Some(Cow::Owned(XorName::from(payload.transfer.id.actor))) // this is handled where the debit is made
+            ValidateTransfer {
+                ref signed_transfer,
+                ..
+            } => {
+                Some(Cow::Owned(XorName::from(signed_transfer.transfer.id.actor)))
+                // this is handled where the debit is made
             }
             GetBalance(_) => None,
             GetHistory { .. } => None,
