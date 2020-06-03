@@ -8,8 +8,8 @@
 // Software.
 
 use crate::{
-    errors::ErrorDebug, AppPermissions, Error, IData, MData, MDataEntries,
-    MDataPermissionSet, MDataValue, MDataValues, Money, ProofOfAgreement, PublicKey, Result, SData, SDataEntries,
+    errors::ErrorDebug, AppPermissions, DebitAgreementProof, Error, IData, MData, MDataEntries,
+    MDataPermissionSet, MDataValue, MDataValues, Money, ProofOfAgreement, PublicKey, Result, ReplicaEvent, SData, SDataEntries,
     SDataEntry, SDataOwner, SDataPermissions, SDataUserPermissions, Signature, Transfer, TransferRegistered, TransferValidated,
 };
 use serde::{Deserialize, Serialize};
@@ -70,12 +70,12 @@ pub enum Response {
     /// Get key balance.
     GetBalance(Result<Money>),
     /// Get key transfer history.
-    GetHistory(Result<Vec<Transfer>>),
+    GetHistory(Result<Vec<ReplicaEvent>>),
     /// Return the result of a ValidateTransfer cmd.
     TransferValidation(Result<TransferValidated>),
     /// An aggregate response created client side
     /// (for upper Client layers) out of multiple TransferValidation responses.
-    TransferProofOfAgreement(Result<ProofOfAgreement>),
+    TransferDebitAgreementProof(Result<DebitAgreementProof>),
     /// Return the result of a RegisterTransfer cmd.
     TransferRegistration(Result<TransferRegistered>),
     /// Return the result of propagation of TransferRegistered event.
@@ -140,7 +140,7 @@ try_from!((u64, SDataEntry), GetSDataLastEntry);
 try_from!(SDataPermissions, GetSDataPermissions);
 try_from!(SDataUserPermissions, GetSDataUserPermissions);
 try_from!(Money, GetBalance);
-try_from!(Vec<Transfer>, GetHistory);
+try_from!(Vec<ReplicaEvent>, GetHistory);
 try_from!(TransferRegistered, TransferRegistration);
 try_from!(TransferValidated, TransferValidation);
 try_from!((), TransferPropagation, Mutation);
@@ -194,9 +194,9 @@ impl fmt::Debug for Response {
             TransferValidation(res) => {
                 write!(f, "Response::TransferValidation({:?})", ErrorDebug(res))
             }
-            TransferProofOfAgreement(res) => write!(
+            TransferDebitAgreementProof(res) => write!(
                 f,
-                "Response::TransferProofOfAgreement({:?})",
+                "Response::TransferDebitAgreementProof({:?})",
                 ErrorDebug(res)
             ),
             TransferRegistration(res) => {
