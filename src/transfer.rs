@@ -106,8 +106,10 @@ pub struct TransferRegistered {
 pub struct TransferPropagated {
     /// The debiting Replicas' proof.
     pub debit_proof: DebitAgreementProof,
+    /// The pub key of the debiting Replicas.
+    pub debiting_replicas: PublicKey,
     /// The crediting Replica signature.
-    pub replica_sig: SignatureShare,
+    pub crediting_replica_sig: SignatureShare,
 }
 
 /// The Replica event raised when
