@@ -37,6 +37,7 @@ mod mutable_data;
 mod request;
 mod response;
 mod sequence;
+mod safe_key;
 mod transfer;
 mod utils;
 
@@ -77,6 +78,7 @@ pub use sequence::{
     PubSeqData, PubUserPermissions as SDataPubUserPermissions, User as SDataUser,
     UserPermissions as SDataUserPermissions,
 };
+pub use safe_key::SafeKey;
 pub use sha3::Sha3_512 as Ed25519Digest;
 pub use transfer::*;
 pub use utils::verify_signature;
