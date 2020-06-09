@@ -9,7 +9,7 @@
 
 use super::{AuthorisationKind, Type};
 use crate::{
-    Error, PublicKey, Response, SData, SDataAddress, SDataAppendOperation, SDataIndex,
+    Error, PublicKey, Response, SData, SDataAddress, SDataIndex, SDataMutationOperation,
     SDataPermissions, SDataUser, XorName,
 };
 use serde::{Deserialize, Serialize};
@@ -83,8 +83,8 @@ pub enum SDataRequest {
         /// New owner.
         owner: PublicKey,
     },
-    /// Append an item to the Sequence.
-    Append(SDataAppendOperation),
+    /// Mutate the Sequence (insert/remove entry).
+    Mutate(SDataMutationOperation),
 }
 
 impl SDataRequest {
@@ -105,7 +105,7 @@ impl SDataRequest {
                     Type::PrivateGet
                 }
             }
-            Store(_) | Delete(_) | SetPermissions { .. } | SetOwner { .. } | Append(_) => {
+            Store(_) | Delete(_) | SetPermissions { .. } | SetOwner { .. } | Mutate(_) => {
                 Type::Mutation
             }
         }
@@ -123,7 +123,7 @@ impl SDataRequest {
             GetPermissions { .. } => Response::GetSDataPermissions(Err(error)),
             GetUserPermissions { .. } => Response::GetSDataUserPermissions(Err(error)),
             GetOwner { .. } => Response::GetSDataOwner(Err(error)),
-            Store(_) | Delete(_) | SetPermissions { .. } | SetOwner { .. } | Append(_) => {
+            Store(_) | Delete(_) | SetPermissions { .. } | SetOwner { .. } | Mutate(_) => {
                 Response::Mutation(Err(error))
             }
         }
@@ -133,7 +133,7 @@ impl SDataRequest {
     pub fn authorisation_kind(&self) -> AuthorisationKind {
         use SDataRequest::*;
         match *self {
-            Store(_) | Delete(_) | SetPermissions { .. } | SetOwner { .. } | Append(_) => {
+            Store(_) | Delete(_) | SetPermissions { .. } | SetOwner { .. } | Mutate(_) => {
                 AuthorisationKind::Mutation
             }
             Get(address)
@@ -165,7 +165,7 @@ impl SDataRequest {
             | GetOwner { ref address, .. }
             | SetPermissions { ref address, .. }
             | SetOwner { ref address, .. } => Some(Cow::Borrowed(address.name())),
-            Append(ref append) => Some(Cow::Borrowed(append.address.name())),
+            Mutate(ref append) => Some(Cow::Borrowed(append.address.name())),
         }
     }
 }
@@ -188,7 +188,7 @@ impl fmt::Debug for SDataRequest {
                 GetOwner { .. } => "GetSDataOwner",
                 SetPermissions { .. } => "SetSDataPermissions",
                 SetOwner { .. } => "SetSDataOwner",
-                Append(_) => "Append",
+                Mutate(_) => "Mutate",
             }
         )
     }

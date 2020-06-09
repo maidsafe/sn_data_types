@@ -80,10 +80,10 @@ pub use request::{
 };
 pub use response::{Response, TryFromError};
 pub use sequence::{
-    Action as SDataAction, Address as SDataAddress, AppendOperation as SDataAppendOperation,
-    Data as SData, Entries as SDataEntries, Entry as SDataEntry, Index as SDataIndex,
-    Indices as SDataIndices, Owner as SDataOwner, Permissions as SDataPermissions,
-    PrivPermissions as SDataPrivPermissions, PrivSeqData,
+    Action as SDataAction, Address as SDataAddress, Data as SData, Entries as SDataEntries,
+    Entry as SDataEntry, Index as SDataIndex, Indices as SDataIndices,
+    MutationOperation as SDataMutationOperation, Owner as SDataOwner,
+    Permissions as SDataPermissions, PrivPermissions as SDataPrivPermissions, PrivSeqData,
     PrivUserPermissions as SDataPrivUserPermissions, PubPermissions as SDataPubPermissions,
     PubSeqData, PubUserPermissions as SDataPubUserPermissions, User as SDataUser,
     UserPermissions as SDataUserPermissions,
