@@ -8,7 +8,7 @@
 // Software.
 
 use super::{AuthorisationKind, MiscAuthKind, MoneyAuthKind, Type};
-use crate::{DebitAgreementProof, Error, Response, SignedTransfer, XorName};
+use crate::{DebitAgreementProof, Error, Response, SignedTransfer, XorName, PublicKey};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt};
 
@@ -33,11 +33,11 @@ pub enum MoneyRequest {
         proof: DebitAgreementProof,
     },
     /// Get key balance.
-    GetBalance(XorName),
+    GetBalance(PublicKey),
     /// Get key transfers since specified version.
     GetHistory {
-        /// The xor name of the balance key.
-        at: XorName,
+        /// The balance key.
+        at: PublicKey,
         /// The last version of transfers we know of.
         since_version: usize,
     },
