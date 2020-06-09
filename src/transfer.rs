@@ -31,6 +31,7 @@ pub struct DebitAgreementProof {
     pub debiting_replicas_sig: Signature,
 }
 
+
 /// An Actor cmd.
 #[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Serialize, Deserialize, Debug)]
 pub struct SignedTransfer {
@@ -38,6 +39,24 @@ pub struct SignedTransfer {
     pub transfer: Transfer,
     /// Actor signature over the transfer.
     pub actor_signature: Signature,
+}
+
+
+impl SignedTransfer {
+    /// Get the amount of this transfer
+    pub fn amount (&self) -> Money {
+        self.transfer.amount
+    }
+
+    /// Get the recipient of this transfer
+    pub fn to (&self) -> PublicKey {
+        self.transfer.to
+    }
+
+    /// Get the transfer id
+    pub fn id (&self) -> TransferId {
+        self.transfer.id
+    }
 }
 
 // ------------------------------------------------------------
@@ -99,6 +118,24 @@ pub struct TransferRegistered {
     /// The debit proof.
     pub debit_proof: DebitAgreementProof,
 }
+
+impl TransferRegistered {
+    /// Get the amount of this transfer
+    pub fn amount (&self) -> Money {
+        self.debit_proof.signed_transfer.amount()
+    }
+
+    /// Get the recipient of this transfer
+    pub fn to (&self) -> PublicKey {
+        self.debit_proof.signed_transfer.to()
+    }
+
+    /// Get the transfer id
+    pub fn id (&self) -> TransferId {
+        self.debit_proof.signed_transfer.id()
+    }
+}
+
 
 /// The crediting Replica event raised when
 /// PropagateTransfer cmd has been successful.
