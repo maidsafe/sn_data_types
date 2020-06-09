@@ -7,10 +7,10 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use super::metadata::{/*Action,*/ Address, Entries, Entry, Index, Indices, Owner, Perm};
+use super::metadata::{Address, Entries, Entry, Index, Indices, Owner, Perm};
 use crate::{Error, PublicKey, Result, XorName};
-use crdts::lseq::LSeq;
-pub use crdts::Actor;
+use crdts::{lseq::LSeq, CmRDT};
+pub use crdts::{lseq::Op, Actor};
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{self, Display},
@@ -95,10 +95,14 @@ where
     }
 
     /// Append a new item to the SequenceCrdt.
-    pub fn append(&mut self, entries: Entries) -> Result<()> {
-        let _operation = self.data.append(entries[0].clone());
-        // TODO: return the operation in case it needs to be broadcasted to other nodes
-        Ok(())
+    pub fn append(&mut self, entry: Entry) -> Op<Entry, A> {
+        // We return the operation in case it needs to be broadcasted to other replicas
+        self.data.append(entry)
+    }
+
+    /// Apply CRDT operation.
+    pub fn apply_crdt_op(&mut self, op: Op<Entry, A>) {
+        self.data.apply(op)
     }
 
     /// Gets the entry at `index` if it exists.

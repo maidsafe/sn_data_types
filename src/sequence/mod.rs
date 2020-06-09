@@ -16,7 +16,7 @@ pub use metadata::{
     PrivPermissions, PrivUserPermissions, PubPermissions, PubUserPermissions, User,
     UserPermissions,
 };
-use seq_crdt::SequenceCrdt;
+use seq_crdt::{Op, SequenceCrdt};
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{self, Debug, Formatter},
@@ -199,12 +199,25 @@ impl Data {
         }
     }
 
-    /// Appends new entries.
-    pub fn append(&mut self, entries: Entries) -> Result<()> {
-        match self {
-            Data::Public(data) => data.append(entries),
-            Data::Private(data) => data.append(entries),
+    /// Appends new entry.
+    pub fn append(&mut self, entry: Entry) -> MutationOperation {
+        let crdt_op = match self {
+            Data::Public(data) => data.append(entry),
+            Data::Private(data) => data.append(entry),
+        };
+
+        MutationOperation {
+            address: *self.address(),
+            crdt_op,
         }
+    }
+
+    /// Apply CRDT operation.
+    pub fn apply_crdt_op(&mut self, op: Op<Entry, PublicKey>) {
+        match self {
+            Data::Public(data) => data.apply_crdt_op(op),
+            Data::Private(data) => data.apply_crdt_op(op),
+        };
     }
 
     /// Adds a new permissions entry.
@@ -290,11 +303,11 @@ impl From<PrivSeqData> for Data {
     }
 }
 
-/// Entries to append.
+/// Mutation operation to apply to Sequence.
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
-pub struct AppendOperation {
+pub struct MutationOperation {
     /// Address of a Sequence object on the network.
     pub address: Address,
-    /// A list of entries to append.
-    pub values: Entries,
+    /// The operation to apply.
+    pub crdt_op: Op<Entry, PublicKey>,
 }
