@@ -31,6 +31,28 @@ pub struct DebitAgreementProof {
     pub debiting_replicas_sig: Signature,
 }
 
+impl DebitAgreementProof {
+    /// Get the transfer id
+    pub fn id(&self) -> TransferId {
+        self.signed_transfer.id()
+    }
+
+    /// Get the amount of this transfer
+    pub fn amount(&self) -> Money {
+        self.signed_transfer.amount()
+    }
+
+    /// Get the sender of this transfer
+    pub fn from(&self) -> PublicKey {
+        self.signed_transfer.from()
+    }
+
+    /// Get the recipient of this transfer
+    pub fn to(&self) -> PublicKey {
+        self.signed_transfer.to()
+    }
+}
+
 /// An Actor cmd.
 #[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Serialize, Deserialize, Debug)]
 pub struct SignedTransfer {
@@ -41,19 +63,24 @@ pub struct SignedTransfer {
 }
 
 impl SignedTransfer {
+    /// Get the transfer id
+    pub fn id(&self) -> TransferId {
+        self.transfer.id
+    }
+
     /// Get the amount of this transfer
     pub fn amount(&self) -> Money {
         self.transfer.amount
     }
 
+    /// Get the sender of this transfer
+    pub fn from(&self) -> PublicKey {
+        self.transfer.id.actor
+    }
+
     /// Get the recipient of this transfer
     pub fn to(&self) -> PublicKey {
         self.transfer.to
-    }
-
-    /// Get the transfer id
-    pub fn id(&self) -> TransferId {
-        self.transfer.id
     }
 }
 
@@ -118,19 +145,24 @@ pub struct TransferRegistered {
 }
 
 impl TransferRegistered {
+    /// Get the transfer id
+    pub fn id(&self) -> TransferId {
+        self.debit_proof.id()
+    }
+
     /// Get the amount of this transfer
     pub fn amount(&self) -> Money {
-        self.debit_proof.signed_transfer.amount()
+        self.debit_proof.amount()
+    }
+
+    /// Get the recipient of this transfer
+    pub fn from(&self) -> PublicKey {
+        self.debit_proof.from()
     }
 
     /// Get the recipient of this transfer
     pub fn to(&self) -> PublicKey {
-        self.debit_proof.signed_transfer.to()
-    }
-
-    /// Get the transfer id
-    pub fn id(&self) -> TransferId {
-        self.debit_proof.signed_transfer.id()
+        self.debit_proof.to()
     }
 }
 
@@ -147,19 +179,24 @@ pub struct TransferPropagated {
 }
 
 impl TransferPropagated {
+    /// Get the transfer id
+    pub fn id(&self) -> TransferId {
+        self.debit_proof.id()
+    }
+
     /// Get the amount of this transfer
     pub fn amount(&self) -> Money {
-        self.debit_proof.signed_transfer.amount()
+        self.debit_proof.amount()
+    }
+
+    /// Get the recipient of this transfer
+    pub fn from(&self) -> PublicKey {
+        self.debit_proof.from()
     }
 
     /// Get the recipient of this transfer
     pub fn to(&self) -> PublicKey {
-        self.debit_proof.signed_transfer.to()
-    }
-
-    /// Get the transfer id
-    pub fn id(&self) -> TransferId {
-        self.debit_proof.signed_transfer.id()
+        self.debit_proof.to()
     }
 }
 
