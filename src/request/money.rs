@@ -8,7 +8,7 @@
 // Software.
 
 use super::{AuthorisationKind, MiscAuthKind, MoneyAuthKind, Type};
-use crate::{DebitAgreementProof, Error, Response, SignedTransfer, XorName, PublicKey};
+use crate::{DebitAgreementProof, Error, PublicKey, Response, SignedTransfer, XorName};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt};
 

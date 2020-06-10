@@ -31,7 +31,6 @@ pub struct DebitAgreementProof {
     pub debiting_replicas_sig: Signature,
 }
 
-
 /// An Actor cmd.
 #[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Serialize, Deserialize, Debug)]
 pub struct SignedTransfer {
@@ -41,20 +40,19 @@ pub struct SignedTransfer {
     pub actor_signature: Signature,
 }
 
-
 impl SignedTransfer {
     /// Get the amount of this transfer
-    pub fn amount (&self) -> Money {
+    pub fn amount(&self) -> Money {
         self.transfer.amount
     }
 
     /// Get the recipient of this transfer
-    pub fn to (&self) -> PublicKey {
+    pub fn to(&self) -> PublicKey {
         self.transfer.to
     }
 
     /// Get the transfer id
-    pub fn id (&self) -> TransferId {
+    pub fn id(&self) -> TransferId {
         self.transfer.id
     }
 }
@@ -121,21 +119,20 @@ pub struct TransferRegistered {
 
 impl TransferRegistered {
     /// Get the amount of this transfer
-    pub fn amount (&self) -> Money {
+    pub fn amount(&self) -> Money {
         self.debit_proof.signed_transfer.amount()
     }
 
     /// Get the recipient of this transfer
-    pub fn to (&self) -> PublicKey {
+    pub fn to(&self) -> PublicKey {
         self.debit_proof.signed_transfer.to()
     }
 
     /// Get the transfer id
-    pub fn id (&self) -> TransferId {
+    pub fn id(&self) -> TransferId {
         self.debit_proof.signed_transfer.id()
     }
 }
-
 
 /// The crediting Replica event raised when
 /// PropagateTransfer cmd has been successful.
@@ -147,6 +144,23 @@ pub struct TransferPropagated {
     pub debiting_replicas: PublicKey,
     /// The crediting Replica signature.
     pub crediting_replica_sig: SignatureShare,
+}
+
+impl TransferPropagated {
+    /// Get the amount of this transfer
+    pub fn amount(&self) -> Money {
+        self.debit_proof.signed_transfer.amount()
+    }
+
+    /// Get the recipient of this transfer
+    pub fn to(&self) -> PublicKey {
+        self.debit_proof.signed_transfer.to()
+    }
+
+    /// Get the transfer id
+    pub fn id(&self) -> TransferId {
+        self.debit_proof.signed_transfer.id()
+    }
 }
 
 /// The Replica event raised when
