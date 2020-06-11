@@ -8,7 +8,7 @@
 // Software.
 
 use super::{AuthorisationKind, MiscAuthKind, MoneyAuthKind, Type};
-use crate::{DebitAgreementProof, Error, PublicKey, Response, SignedTransfer, XorName};
+use crate::{DebitAgreementProof, Error, PublicKey, Response, SignedTransfer, Transfer, XorName};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt};
 
@@ -17,6 +17,12 @@ use std::{borrow::Cow, fmt};
 pub enum MoneyRequest {
     // ===== Money =====
     //
+    #[cfg(feature = "testing")]
+    /// Request to simulate a farming payout
+    SimulatePayout {
+        /// The cmd to validate a transfer.
+        transfer: Transfer,
+    },
     /// Request to validate transfer.
     ValidateTransfer {
         /// The cmd to validate a transfer.
@@ -53,6 +59,8 @@ impl MoneyRequest {
             ValidateTransfer { .. } => Type::Transfer, // TODO: fix..
             RegisterTransfer { .. } => Type::Transfer, // TODO: fix..
             PropagateTransfer { .. } => Type::Transfer, // TODO: fix..
+            #[cfg(feature = "testing")]
+            SimulatePayout { .. } => Type::Transfer, // TODO: fix..
         }
     }
 
@@ -66,6 +74,8 @@ impl MoneyRequest {
             ValidateTransfer { .. } => Response::TransferValidation(Err(error)),
             RegisterTransfer { .. } => Response::TransferRegistration(Err(error)),
             PropagateTransfer { .. } => Response::TransferPropagation(Err(error)),
+            #[cfg(feature = "testing")]
+            SimulatePayout { .. } => Response::TransferPropagation(Err(error)),
         }
     }
 
@@ -78,6 +88,8 @@ impl MoneyRequest {
             ValidateTransfer { .. } => AuthorisationKind::Misc(MiscAuthKind::MutAndTransferMoney),
             GetBalance(_) => AuthorisationKind::Money(MoneyAuthKind::GetBalance), // current state
             GetHistory { .. } => AuthorisationKind::Money(MoneyAuthKind::GetHistory), // history of incoming transfers
+            #[cfg(feature = "testing")]
+            SimulatePayout { .. } => AuthorisationKind::None,
         }
     }
 
@@ -98,6 +110,11 @@ impl MoneyRequest {
                 Some(Cow::Owned(XorName::from(signed_transfer.transfer.id.actor)))
                 // this is handled where the debit is made
             }
+            #[cfg(feature = "testing")]
+            SimulatePayout { ref transfer, .. } => {
+                Some(Cow::Owned(XorName::from(transfer.id.actor)))
+                // this is handled where the debit is made
+            }
             GetBalance(_) => None,
             GetHistory { .. } => None,
         }
@@ -116,6 +133,8 @@ impl fmt::Debug for MoneyRequest {
                 ValidateTransfer { .. } => "ValidateTransfer",
                 GetBalance(_) => "GetBalance",
                 GetHistory { .. } => "GetHistory",
+                #[cfg(feature = "testing")]
+                SimulatePayout { .. } => "SimulatePayout",
             }
         )
     }
