@@ -32,3 +32,4 @@ rand_xorshift = "~0.1.1"
 
 [features]
 default = [ "ed25519-dalek/serde" ]
+testing = []
