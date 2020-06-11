@@ -22,6 +22,23 @@ pub struct Transfer {
     pub amount: Money,
 }
 
+impl Transfer {
+    /// Get the transfer id
+    pub fn id(&self) -> TransferId {
+        self.id
+    }
+
+    /// Get the amount of this transfer
+    pub fn amount(&self) -> Money {
+        self.amount
+    }
+
+    /// Get the recipient of this transfer
+    pub fn to(&self) -> PublicKey {
+        self.to
+    }
+}
+
 /// The aggregated Replica signatures of the Actor debit cmd.
 #[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Serialize, Deserialize, Debug)]
 pub struct DebitAgreementProof {
