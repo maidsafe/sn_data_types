@@ -8,7 +8,7 @@
 // Software.
 
 use super::metadata::{Address, Entries, Entry, Index, Indices, Owner, Perm};
-use crate::{Error, PublicKey, Result, XorName};
+use crate::{Error, PublicKey, Result};
 use crdts::{lseq::LSeq, CmRDT};
 pub use crdts::{lseq::Op, Actor};
 use serde::{Deserialize, Serialize};
@@ -65,9 +65,9 @@ where
     P: Perm + Hash + Clone,
 {
     /// Constructs a new 'SequenceCrdt'.
-    pub fn new(actor: A, name: XorName, tag: u64) -> Self {
+    pub fn new(actor: A, address: Address) -> Self {
         Self {
-            address: Address::Public { name, tag },
+            address,
             data: LSeq::new_with_args(actor.clone(), LSEQ_TREE_BASE, LSEQ_BOUNDARY),
             permissions: LSeq::new_with_args(actor.clone(), LSEQ_TREE_BASE, LSEQ_BOUNDARY),
             owners: LSeq::new_with_args(actor, LSEQ_TREE_BASE, LSEQ_BOUNDARY),
