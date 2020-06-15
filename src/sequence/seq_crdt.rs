@@ -25,7 +25,7 @@ const LSEQ_BOUNDARY: u64 = 1;
 const LSEQ_TREE_BASE: u8 = 10; // arity of 1024 at root
 
 /// Sequence data type as a CRDT
-#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd)]
 pub struct SequenceCrdt<A, P>
 where
     A: Actor,
@@ -36,10 +36,10 @@ where
     /// CRDT to store the actual data
     data: LSeq<Entry, A>,
     /// This is the history of permissions matrix, with each entry representing a permissions matrix.
-    permissions: Vec<P>,
+    permissions: LSeq<P, A>,
     /// This is the history of owners, with each entry representing an owner. Each single owner
     /// could represent an individual user, or a group of users, depending on the `PublicKey` type.
-    owners: Vec<Owner>,
+    owners: LSeq<Owner, A>,
 }
 
 impl<A, P> Display for SequenceCrdt<A, P>
@@ -68,9 +68,9 @@ where
     pub fn new(actor: A, name: XorName, tag: u64) -> Self {
         Self {
             address: Address::Public { name, tag },
-            data: LSeq::new_with_args(actor, LSEQ_TREE_BASE, LSEQ_BOUNDARY),
-            permissions: Vec::new(),
-            owners: Vec::new(),
+            data: LSeq::new_with_args(actor.clone(), LSEQ_TREE_BASE, LSEQ_BOUNDARY),
+            permissions: LSeq::new_with_args(actor.clone(), LSEQ_TREE_BASE, LSEQ_BOUNDARY),
+            owners: LSeq::new_with_args(actor, LSEQ_TREE_BASE, LSEQ_BOUNDARY),
         }
     }
 
@@ -167,17 +167,27 @@ where
 
     /// Adds a new permissions entry.
     /// The `Perm` struct should contain valid indices.
-    pub fn append_permissions(&mut self, permissions: &P) {
-        self.permissions.push(permissions.clone());
+    pub fn append_permissions(&mut self, permissions: P) -> Op<P, A> {
+        self.permissions.append(permissions)
+    }
+
+    /// Apply Permissions CRDT operation.
+    pub fn apply_crdt_perms_op(&mut self, op: Op<P, A>) {
+        self.permissions.apply(op)
     }
 
     /// Adds a new owner entry.
-    pub fn append_owner(&mut self, public_key: PublicKey) {
-        self.owners.push(Owner {
+    pub fn append_owner(&mut self, public_key: PublicKey) -> Op<Owner, A> {
+        self.owners.append(Owner {
             entries_index: self.entries_index(),
             permissions_index: self.permissions_index(),
             public_key,
-        });
+        })
+    }
+
+    /// Apply Owner CRDT operation.
+    pub fn apply_crdt_owner_op(&mut self, op: Op<Owner, A>) {
+        self.owners.apply(op)
     }
 
     /// Checks if the requester is the last owner.

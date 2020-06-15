@@ -19,14 +19,18 @@ pub use metadata::{
 use seq_crdt::{Op, SequenceCrdt};
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::BTreeMap,
     fmt::{self, Debug, Formatter},
     hash::Hash,
 };
 
+// Type of data used for the 'Actor' in CRDT vector clocks
+type ActorType = PublicKey;
+
 /// Public Sequence.
-pub type PubSeqData = SequenceCrdt<PublicKey, PubPermissions>;
+pub type PubSeqData = SequenceCrdt<ActorType, PubPermissions>;
 /// Private Sequence.
-pub type PrivSeqData = SequenceCrdt<PublicKey, PrivPermissions>;
+pub type PrivSeqData = SequenceCrdt<ActorType, PrivPermissions>;
 
 impl Debug for PubSeqData {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
@@ -40,29 +44,8 @@ impl Debug for PrivSeqData {
     }
 }
 
-macro_rules! check_perm {
-    ($data: ident, $requester: ident, $action: ident) => {
-        $data.check_is_last_owner($requester).or_else(|_| {
-            $data
-                .permissions(Index::FromEnd(1))
-                .ok_or(Error::AccessDenied)?
-                .is_action_allowed($requester, $action)
-        })
-    };
-}
-
-macro_rules! indices {
-    ($data: ident) => {
-        Ok(Indices::new(
-            $data.entries_index(),
-            $data.owners_index(),
-            $data.permissions_index(),
-        ))
-    };
-}
-
-/// Object storing an AppendOnlyData variant.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
+/// Object storing a Sequence variant.
+#[derive(Clone, Eq, PartialEq, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Data {
     /// Public Sequence Data.
     Public(PubSeqData),
@@ -121,6 +104,17 @@ impl Data {
     /// `Err::InvalidOwners` if the last owner is invalid,
     /// `Err::AccessDenied` if the action is not allowed.
     pub fn check_permission(&self, action: Action, requester: PublicKey) -> Result<()> {
+        macro_rules! check_perm {
+            ($data: ident, $requester: ident, $action: ident) => {
+                $data.check_is_last_owner($requester).or_else(|_| {
+                    $data
+                        .permissions(Index::FromEnd(1))
+                        .ok_or(Error::AccessDenied)?
+                        .is_action_allowed($requester, $action)
+                })
+            };
+        }
+
         match self {
             Data::Public(data) => {
                 if action == Action::Read {
@@ -172,17 +166,6 @@ impl Data {
         }
     }
 
-    /// Returns a tuple containing the last entries index, last owners index, and last permissions
-    /// indices.
-    ///
-    /// Always returns `Ok(Indices)`.
-    pub fn indices(&self) -> Result<Indices> {
-        match self {
-            Data::Public(data) => indices!(data),
-            Data::Private(data) => indices!(data),
-        }
-    }
-
     /// Returns the last entry, if present.
     pub fn last_entry(&self) -> Option<&Entry> {
         match self {
@@ -200,7 +183,7 @@ impl Data {
     }
 
     /// Appends new entry.
-    pub fn append(&mut self, entry: Entry) -> MutationOperation {
+    pub fn append(&mut self, entry: Entry) -> MutationOperation<Entry> {
         let crdt_op = match self {
             Data::Public(data) => data.append(entry),
             Data::Private(data) => data.append(entry),
@@ -213,32 +196,90 @@ impl Data {
     }
 
     /// Apply CRDT operation.
-    pub fn apply_crdt_op(&mut self, op: Op<Entry, PublicKey>) {
+    pub fn apply_crdt_op(&mut self, op: Op<Entry, ActorType>) {
         match self {
             Data::Public(data) => data.apply_crdt_op(op),
             Data::Private(data) => data.apply_crdt_op(op),
         };
     }
 
-    /// Adds a new permissions entry.
-    /// The `Perm` struct should contain valid indices.
-    /// TODO: change permissions arg to be of type BTreeMap<PublicKey, Pub/PrivUserPermissions>
-    pub fn set_permissions(&mut self, permissions: &Permissions) -> Result<()> {
-        match (self, permissions) {
-            (Data::Public(data), Permissions::Pub(perms)) => data.append_permissions(perms),
-            (Data::Private(data), Permissions::Priv(perms)) => data.append_permissions(perms),
-            _ => return Err(Error::InvalidOperation),
+    /// Adds a new permissions entry for Public Sequence.
+    pub fn set_pub_permissions(
+        &mut self,
+        permissions: BTreeMap<User, PubUserPermissions>,
+    ) -> Result<MutationOperation<PubPermissions>> {
+        let address = *self.address();
+        match self {
+            Data::Public(data) => {
+                let crdt_op = data.append_permissions(PubPermissions {
+                    entries_index: data.entries_index(),
+                    owners_index: data.owners_index(),
+                    permissions,
+                });
+                Ok(MutationOperation { address, crdt_op })
+            }
+            Data::Private(_) => Err(Error::InvalidOperation),
         }
+    }
 
-        Ok(())
+    /// Adds a new permissions entry for Private Sequence.
+    pub fn set_priv_permissions(
+        &mut self,
+        permissions: BTreeMap<PublicKey, PrivUserPermissions>,
+    ) -> Result<MutationOperation<PrivPermissions>> {
+        let address = *self.address();
+        match self {
+            Data::Private(data) => {
+                let crdt_op = data.append_permissions(PrivPermissions {
+                    entries_index: data.entries_index(),
+                    owners_index: data.owners_index(),
+                    permissions,
+                });
+                Ok(MutationOperation { address, crdt_op })
+            }
+            Data::Public(_) => Err(Error::InvalidOperation),
+        }
+    }
+
+    /// Apply Public Permissions CRDT operation.
+    pub fn apply_crdt_pub_perms_op(&mut self, op: Op<PubPermissions, ActorType>) -> Result<()> {
+        match (self, &op) {
+            (Data::Public(data), Op::Insert { .. }) => {
+                data.apply_crdt_perms_op(op);
+                Ok(())
+            }
+            _ => Err(Error::InvalidOperation),
+        }
+    }
+
+    /// Apply Private Permissions CRDT operation.
+    pub fn apply_crdt_priv_perms_op(&mut self, op: Op<PrivPermissions, ActorType>) -> Result<()> {
+        match self {
+            Data::Private(data) => {
+                data.apply_crdt_perms_op(op);
+                Ok(())
+            }
+            _ => Err(Error::InvalidOperation),
+        }
     }
 
     /// Adds a new owner entry.
-    pub fn set_owner(&mut self, owner: PublicKey) {
-        match self {
+    pub fn set_owner(&mut self, owner: PublicKey) -> MutationOperation<Owner> {
+        let address = *self.address();
+        let crdt_op = match self {
             Data::Public(data) => data.append_owner(owner),
             Data::Private(data) => data.append_owner(owner),
-        }
+        };
+
+        MutationOperation { address, crdt_op }
+    }
+
+    /// Apply Owner CRDT operation.
+    pub fn apply_crdt_owner_op(&mut self, op: Op<Owner, ActorType>) {
+        match self {
+            Data::Public(data) => data.apply_crdt_owner_op(op),
+            Data::Private(data) => data.apply_crdt_owner_op(op),
+        };
     }
 
     /// Checks if the requester is the last owner.
@@ -276,7 +317,7 @@ impl Data {
     pub fn pub_permissions(&self, index: impl Into<Index>) -> Result<&PubPermissions> {
         let perms = match self {
             Data::Public(data) => data.permissions(index),
-            Data::Private(_) => return Err(Error::NoSuchData),
+            Data::Private(_) => return Err(Error::InvalidOperation),
         };
         perms.ok_or(Error::NoSuchEntry)
     }
@@ -285,7 +326,7 @@ impl Data {
     pub fn priv_permissions(&self, index: impl Into<Index>) -> Result<&PrivPermissions> {
         let perms = match self {
             Data::Private(data) => data.permissions(index),
-            Data::Public(_) => return Err(Error::NoSuchData),
+            Data::Public(_) => return Err(Error::InvalidOperation),
         };
         perms.ok_or(Error::NoSuchEntry)
     }
@@ -304,10 +345,10 @@ impl From<PrivSeqData> for Data {
 }
 
 /// Mutation operation to apply to Sequence.
-#[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash)]
-pub struct MutationOperation {
+#[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Eq, Hash)]
+pub struct MutationOperation<T> {
     /// Address of a Sequence object on the network.
     pub address: Address,
     /// The operation to apply.
-    pub crdt_op: Op<Entry, PublicKey>,
+    pub crdt_op: Op<T, ActorType>,
 }

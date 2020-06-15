@@ -105,7 +105,7 @@ use std::{
 
 /// Object storing a data variant.
 #[allow(clippy::large_enum_variant)]
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
+#[derive(Clone, Eq, PartialEq, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Data {
     /// ImmutableData.
     Immutable(IData),

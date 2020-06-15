@@ -9,15 +9,15 @@
 
 use super::{AuthorisationKind, Type};
 use crate::{
-    Error, PublicKey, Response, SData, SDataAddress, SDataIndex, SDataMutationOperation,
-    SDataPermissions, SDataUser, XorName,
+    Error, Response, SData, SDataAddress, SDataEntry, SDataIndex, SDataMutationOperation,
+    SDataOwner, SDataPrivPermissions, SDataPubPermissions, SDataUser, XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt};
 
 /// Sequence request that is sent to vaults.
 #[allow(clippy::large_enum_variant)]
-#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
+#[derive(Hash, Eq, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
 pub enum SDataRequest {
     /// Store a new Sequence onto the network.
     Store(SData),
@@ -46,45 +46,25 @@ pub enum SDataRequest {
     },
     /// Get last entry from the Sequence.
     GetLastEntry(SDataAddress),
-    /// List all permissions at the provided index.
-    GetPermissions {
-        /// Sequence address.
-        address: SDataAddress,
-        /// Permissions index.
-        permissions_index: SDataIndex,
-    },
-    /// Get permissions for a specified user(s).
+    /// List all current users permissions.
+    GetPermissions(SDataAddress),
+    /// Get current permissions for a specified user(s).
     GetUserPermissions {
         /// Sequence address.
         address: SDataAddress,
-        /// Permissions index.
-        permissions_index: SDataIndex,
         /// User to get permissions for.
         user: SDataUser,
     },
-    /// Get owners at the provided index.
-    GetOwner {
-        /// Sequence address.
-        address: SDataAddress,
-        /// Onwers index.
-        owners_index: SDataIndex,
-    },
-    /// Set new permissions.
-    SetPermissions {
-        /// Sequence address.
-        address: SDataAddress,
-        /// New permissions to set.
-        permissions: SDataPermissions,
-    },
+    /// Get current owner.
+    GetOwner(SDataAddress),
+    /// Set new permissions for public Sequence.
+    MutatePubPermissions(SDataMutationOperation<SDataPubPermissions>),
+    /// Set new permissions for private Sequence.
+    MutatePrivPermissions(SDataMutationOperation<SDataPrivPermissions>),
     /// Add a new `owners` entry. Only the current owner(s) can perform this action.
-    SetOwner {
-        /// Sequence address.
-        address: SDataAddress,
-        /// New owner.
-        owner: PublicKey,
-    },
+    MutateOwner(SDataMutationOperation<SDataOwner>),
     /// Mutate the Sequence (insert/remove entry).
-    Mutate(SDataMutationOperation),
+    Mutate(SDataMutationOperation<SDataEntry>),
 }
 
 impl SDataRequest {
@@ -96,18 +76,21 @@ impl SDataRequest {
             Get(address)
             | GetRange { address, .. }
             | GetLastEntry(address)
-            | GetPermissions { address, .. }
+            | GetPermissions(address)
             | GetUserPermissions { address, .. }
-            | GetOwner { address, .. } => {
+            | GetOwner(address) => {
                 if address.is_pub() {
                     Type::PublicGet
                 } else {
                     Type::PrivateGet
                 }
             }
-            Store(_) | Delete(_) | SetPermissions { .. } | SetOwner { .. } | Mutate(_) => {
-                Type::Mutation
-            }
+            Store(_)
+            | Delete(_)
+            | MutatePubPermissions(_)
+            | MutatePrivPermissions(_)
+            | MutateOwner(_)
+            | Mutate(_) => Type::Mutation,
         }
     }
 
@@ -120,12 +103,15 @@ impl SDataRequest {
             Get(_) => Response::GetSData(Err(error)),
             GetRange { .. } => Response::GetSDataRange(Err(error)),
             GetLastEntry(_) => Response::GetSDataLastEntry(Err(error)),
-            GetPermissions { .. } => Response::GetSDataPermissions(Err(error)),
+            GetPermissions(_) => Response::GetSDataPermissions(Err(error)),
             GetUserPermissions { .. } => Response::GetSDataUserPermissions(Err(error)),
-            GetOwner { .. } => Response::GetSDataOwner(Err(error)),
-            Store(_) | Delete(_) | SetPermissions { .. } | SetOwner { .. } | Mutate(_) => {
-                Response::Mutation(Err(error))
-            }
+            GetOwner(_) => Response::GetSDataOwner(Err(error)),
+            Store(_)
+            | Delete(_)
+            | MutatePubPermissions(_)
+            | MutatePrivPermissions(_)
+            | MutateOwner(_)
+            | Mutate(_) => Response::Mutation(Err(error)),
         }
     }
 
@@ -133,15 +119,18 @@ impl SDataRequest {
     pub fn authorisation_kind(&self) -> AuthorisationKind {
         use SDataRequest::*;
         match *self {
-            Store(_) | Delete(_) | SetPermissions { .. } | SetOwner { .. } | Mutate(_) => {
-                AuthorisationKind::Mutation
-            }
+            Store(_)
+            | Delete(_)
+            | MutatePubPermissions(_)
+            | MutatePrivPermissions(_)
+            | MutateOwner(_)
+            | Mutate(_) => AuthorisationKind::Mutation,
             Get(address)
             | GetRange { address, .. }
             | GetLastEntry(address)
-            | GetPermissions { address, .. }
+            | GetPermissions(address)
             | GetUserPermissions { address, .. }
-            | GetOwner { address, .. } => {
+            | GetOwner(address) => {
                 if address.is_pub() {
                     AuthorisationKind::GetPub
                 } else {
@@ -159,13 +148,14 @@ impl SDataRequest {
             Get(ref address)
             | Delete(ref address)
             | GetRange { ref address, .. }
-            | GetLastEntry(ref address)
-            | GetPermissions { ref address, .. }
+            | GetLastEntry(ref address) => Some(Cow::Borrowed(address.name())),
+            GetPermissions(ref address)
             | GetUserPermissions { ref address, .. }
-            | GetOwner { ref address, .. }
-            | SetPermissions { ref address, .. }
-            | SetOwner { ref address, .. } => Some(Cow::Borrowed(address.name())),
-            Mutate(ref append) => Some(Cow::Borrowed(append.address.name())),
+            | GetOwner(ref address) => Some(Cow::Borrowed(address.name())),
+            MutatePubPermissions(ref op) => Some(Cow::Borrowed(op.address.name())),
+            MutatePrivPermissions(ref op) => Some(Cow::Borrowed(op.address.name())),
+            MutateOwner(ref op) => Some(Cow::Borrowed(op.address.name())),
+            Mutate(ref op) => Some(Cow::Borrowed(op.address.name())),
         }
     }
 }
@@ -186,9 +176,10 @@ impl fmt::Debug for SDataRequest {
                 GetPermissions { .. } => "GetSDataPermissions",
                 GetUserPermissions { .. } => "GetSDataUserPermissions",
                 GetOwner { .. } => "GetSDataOwner",
-                SetPermissions { .. } => "SetSDataPermissions",
-                SetOwner { .. } => "SetSDataOwner",
-                Mutate(_) => "Mutate",
+                MutatePubPermissions(_) => "MutateSDataPubPermissions",
+                MutatePrivPermissions(_) => "MutateSDataPrivPermissions",
+                MutateOwner(_) => "MutateSDataOwner",
+                Mutate(_) => "MutateSData",
             }
         )
     }
