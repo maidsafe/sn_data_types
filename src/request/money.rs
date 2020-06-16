@@ -17,7 +17,7 @@ use std::{borrow::Cow, fmt};
 pub enum MoneyRequest {
     // ===== Money =====
     //
-    #[cfg(feature = "testing")]
+    #[cfg(feature = "simulated-payouts")]
     /// Request to simulate a farming payout
     SimulatePayout {
         /// The cmd to validate a transfer.
@@ -59,7 +59,7 @@ impl MoneyRequest {
             ValidateTransfer { .. } => Type::Transfer, // TODO: fix..
             RegisterTransfer { .. } => Type::Transfer, // TODO: fix..
             PropagateTransfer { .. } => Type::Transfer, // TODO: fix..
-            #[cfg(feature = "testing")]
+            #[cfg(feature = "simulated-payouts")]
             SimulatePayout { .. } => Type::Transfer, // TODO: fix..
         }
     }
@@ -74,7 +74,7 @@ impl MoneyRequest {
             ValidateTransfer { .. } => Response::TransferValidation(Err(error)),
             RegisterTransfer { .. } => Response::TransferRegistration(Err(error)),
             PropagateTransfer { .. } => Response::TransferPropagation(Err(error)),
-            #[cfg(feature = "testing")]
+            #[cfg(feature = "simulated-payouts")]
             SimulatePayout { .. } => Response::TransferPropagation(Err(error)),
         }
     }
@@ -88,7 +88,7 @@ impl MoneyRequest {
             ValidateTransfer { .. } => AuthorisationKind::Misc(MiscAuthKind::MutAndTransferMoney),
             GetBalance(_) => AuthorisationKind::Money(MoneyAuthKind::GetBalance), // current state
             GetHistory { .. } => AuthorisationKind::Money(MoneyAuthKind::GetHistory), // history of incoming transfers
-            #[cfg(feature = "testing")]
+            #[cfg(feature = "simulated-payouts")]
             SimulatePayout { .. } => AuthorisationKind::None,
         }
     }
@@ -110,7 +110,7 @@ impl MoneyRequest {
                 Some(Cow::Owned(XorName::from(signed_transfer.transfer.id.actor)))
                 // this is handled where the debit is made
             }
-            #[cfg(feature = "testing")]
+            #[cfg(feature = "simulated-payouts")]
             SimulatePayout { ref transfer, .. } => {
                 Some(Cow::Owned(XorName::from(transfer.id.actor)))
                 // this is handled where the debit is made
@@ -133,7 +133,7 @@ impl fmt::Debug for MoneyRequest {
                 ValidateTransfer { .. } => "ValidateTransfer",
                 GetBalance(_) => "GetBalance",
                 GetHistory { .. } => "GetHistory",
-                #[cfg(feature = "testing")]
+                #[cfg(feature = "simulated-payouts")]
                 SimulatePayout { .. } => "SimulatePayout",
             }
         )
