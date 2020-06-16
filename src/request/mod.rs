@@ -7,7 +7,6 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-mod adata;
 mod client_req;
 mod coins;
 mod idata;
@@ -17,7 +16,6 @@ mod sdata;
 
 pub use self::login_packet::{LoginPacket, LoginPacketRequest, MAX_LOGIN_PACKET_BYTES};
 use crate::{Error, Response, XorName};
-pub use adata::ADataRequest;
 pub use client_req::ClientRequest;
 pub use coins::CoinsRequest;
 pub use idata::IDataRequest;
@@ -65,8 +63,6 @@ pub enum Request {
     IData(IDataRequest),
     /// MutableData request
     MData(MDataRequest),
-    /// AppendOnlyData request
-    AData(ADataRequest),
     /// Sequence request
     SData(SDataRequest),
     /// Coins request
@@ -84,7 +80,6 @@ impl Request {
         match self {
             IData(req) => req.get_type(),
             MData(req) => req.get_type(),
-            AData(req) => req.get_type(),
             SData(req) => req.get_type(),
             Coins(req) => req.get_type(),
             LoginPacket(req) => req.get_type(),
@@ -99,7 +94,6 @@ impl Request {
         match self {
             IData(req) => req.error_response(error),
             MData(req) => req.error_response(error),
-            AData(req) => req.error_response(error),
             SData(req) => req.error_response(error),
             Coins(req) => req.error_response(error),
             LoginPacket(req) => req.error_response(error),
@@ -113,7 +107,6 @@ impl Request {
         match self {
             IData(req) => req.authorisation_kind(),
             MData(req) => req.authorisation_kind(),
-            AData(req) => req.authorisation_kind(),
             SData(req) => req.authorisation_kind(),
             Coins(req) => req.authorisation_kind(),
             LoginPacket(req) => req.authorisation_kind(),
@@ -127,7 +120,6 @@ impl Request {
         match self {
             IData(req) => req.dest_address(),
             MData(req) => req.dest_address(),
-            AData(req) => req.dest_address(),
             SData(req) => req.dest_address(),
             Coins(req) => req.dest_address(),
             LoginPacket(req) => req.dest_address(),
@@ -143,7 +135,6 @@ impl fmt::Debug for Request {
         match self {
             IData(req) => write!(formatter, "{:?}", req),
             MData(req) => write!(formatter, "{:?}", req),
-            AData(req) => write!(formatter, "{:?}", req),
             SData(req) => write!(formatter, "{:?}", req),
             Coins(req) => write!(formatter, "{:?}", req),
             LoginPacket(req) => write!(formatter, "{:?}", req),
