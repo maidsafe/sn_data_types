@@ -16,7 +16,7 @@ ed25519-dalek = "~0.9.1"
 hex_fmt = "~0.3.0"
 multibase = "~0.6.0"
 rand = "~0.6"
-crdts = { git = "https://github.com/bochaco/rust-crdt.git", branch = "lseq-improvements" }
+crdts = "4.1.0"
 serde = { version = "~1.0.91", features = ["derive"] }
 sha3 = "~0.8.2"
 threshold_crypto = "~0.3.2"
