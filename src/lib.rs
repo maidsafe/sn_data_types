@@ -28,7 +28,6 @@
     unused_results
 )]
 
-mod append_only_data;
 mod coins;
 mod errors;
 mod identity;
@@ -40,17 +39,6 @@ mod response;
 mod sequence;
 mod utils;
 
-pub use append_only_data::{
-    Action as ADataAction, Address as ADataAddress, AppendOnlyData,
-    AppendOperation as ADataAppendOperation, Data as AData, Entries as ADataEntries,
-    Entry as ADataEntry, Index as ADataIndex, Indices as ADataIndices, Kind as ADataKind,
-    Owner as ADataOwner, Permissions as ADataPermissions,
-    PubPermissionSet as ADataPubPermissionSet, PubPermissions as ADataPubPermissions,
-    PubSeqData as PubSeqAppendOnlyData, PubUnseqData as PubUnseqAppendOnlyData, SeqAppendOnly,
-    UnpubPermissionSet as ADataUnpubPermissionSet, UnpubPermissions as ADataUnpubPermissions,
-    UnpubSeqData as UnpubSeqAppendOnlyData, UnpubUnseqData as UnpubUnseqAppendOnlyData,
-    UnseqAppendOnly, User as ADataUser,
-};
 pub use coins::Coins;
 pub use errors::{EntryError, Error, Result};
 pub use identity::{
@@ -74,8 +62,8 @@ pub use mutable_data::{
     Value as MDataValue, Values as MDataValues,
 };
 pub use request::{
-    ADataRequest, AuthorisationKind as RequestAuthKind, ClientRequest, CoinsRequest, IDataRequest,
-    LoginPacket, LoginPacketRequest, MDataRequest, Request, SDataRequest, Type as RequestType,
+    AuthorisationKind as RequestAuthKind, ClientRequest, CoinsRequest, IDataRequest, LoginPacket,
+    LoginPacketRequest, MDataRequest, Request, SDataRequest, Type as RequestType,
     MAX_LOGIN_PACKET_BYTES,
 };
 pub use response::{Response, TryFromError};
@@ -111,8 +99,6 @@ pub enum Data {
     Immutable(IData),
     /// MutableData.
     Mutable(MData),
-    /// AppendOnlyData.
-    AppendOnly(AData),
     /// Sequence.
     Sequence(SData),
 }
@@ -123,7 +109,6 @@ impl Data {
         match *self {
             Self::Immutable(ref idata) => idata.is_pub(),
             Self::Mutable(_) => false,
-            Self::AppendOnly(ref adata) => adata.is_pub(),
             Self::Sequence(ref sdata) => sdata.is_pub(),
         }
     }
@@ -143,12 +128,6 @@ impl From<IData> for Data {
 impl From<MData> for Data {
     fn from(data: MData) -> Self {
         Self::Mutable(data)
-    }
-}
-
-impl From<AData> for Data {
-    fn from(data: AData) -> Self {
-        Self::AppendOnly(data)
     }
 }
 

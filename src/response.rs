@@ -8,11 +8,9 @@
 // Software.
 
 use crate::{
-    errors::ErrorDebug, AData, ADataEntries, ADataEntry, ADataIndices, ADataOwner,
-    ADataPermissions, ADataPubPermissionSet, ADataUnpubPermissionSet, AppPermissions, Coins, Error,
-    IData, MData, MDataEntries, MDataPermissionSet, MDataValue, MDataValues, PublicKey, Result,
-    SData, SDataEntries, SDataEntry, SDataOwner, SDataPermissions, SDataUserPermissions, Signature,
-    Transaction,
+    errors::ErrorDebug, AppPermissions, Coins, Error, IData, MData, MDataEntries,
+    MDataPermissionSet, MDataValue, MDataValues, PublicKey, Result, SData, SDataEntries,
+    SDataEntry, SDataOwner, SDataPermissions, SDataUserPermissions, Signature, Transaction,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -51,29 +49,6 @@ pub enum Response {
     ListMDataPermissions(Result<BTreeMap<PublicKey, MDataPermissionSet>>),
     /// Get MutableData value.
     GetMDataValue(Result<MDataValue>),
-    //
-    // ===== Append Only Data =====
-    //
-    /// Get AppendOnlyData.
-    GetAData(Result<AData>),
-    /// Get AppendOnlyData shell.
-    GetADataShell(Result<AData>),
-    /// Get AppendOnlyData owners.
-    GetADataOwners(Result<ADataOwner>),
-    /// Get AppendOnlyData.
-    GetADataRange(Result<ADataEntries>),
-    /// Get AppendOnlyData value.
-    GetADataValue(Result<Vec<u8>>),
-    /// Get AppendOnlyData indices.
-    GetADataIndices(Result<ADataIndices>),
-    /// Get AppendOnlyData last entry.
-    GetADataLastEntry(Result<ADataEntry>),
-    /// List all AppendOnlyData permissions at the provided index.
-    GetADataPermissions(Result<ADataPermissions>),
-    /// Get published AppendOnlyData permissions for a user.
-    GetPubADataUserPermissions(Result<ADataPubPermissionSet>),
-    /// Get unpublished AppendOnlyData permissions for a user..
-    GetUnpubADataUserPermissions(Result<ADataUnpubPermissionSet>),
     //
     // ===== Sequence Data =====
     //
@@ -149,15 +124,6 @@ try_from!(MDataValues, ListMDataValues);
 try_from!(MDataPermissionSet, ListMDataUserPermissions);
 try_from!(BTreeMap<PublicKey, MDataPermissionSet>, ListMDataPermissions);
 try_from!(MDataValue, GetMDataValue);
-try_from!(Vec<u8>, GetADataValue);
-try_from!(AData, GetAData, GetADataShell);
-try_from!(ADataOwner, GetADataOwners);
-try_from!(ADataEntries, GetADataRange);
-try_from!(ADataIndices, GetADataIndices);
-try_from!(ADataEntry, GetADataLastEntry);
-try_from!(ADataPermissions, GetADataPermissions);
-try_from!(ADataPubPermissionSet, GetPubADataUserPermissions);
-try_from!(ADataUnpubPermissionSet, GetUnpubADataUserPermissions);
 try_from!(SData, GetSData);
 try_from!(SDataOwner, GetSDataOwner);
 try_from!(SDataEntries, GetSDataRange);
@@ -196,29 +162,6 @@ impl fmt::Debug for Response {
                 ErrorDebug(res)
             ),
             GetMDataValue(res) => write!(f, "Response::GetMDataValue({:?})", ErrorDebug(res)),
-            // AData
-            GetAData(res) => write!(f, "Response::GetAData({:?})", ErrorDebug(res)),
-            GetADataValue(res) => write!(f, "Response::GetADataValue({:?})", ErrorDebug(res)),
-            GetADataRange(res) => write!(f, "Response::GetADataRange({:?})", ErrorDebug(res)),
-            GetADataIndices(res) => write!(f, "Response::GetADataIndices({:?})", ErrorDebug(res)),
-            GetADataLastEntry(res) => {
-                write!(f, "Response::GetADataLastEntry({:?})", ErrorDebug(res))
-            }
-            GetADataPermissions(res) => {
-                write!(f, "Response::GetADataPermissions({:?})", ErrorDebug(res))
-            }
-            GetPubADataUserPermissions(res) => write!(
-                f,
-                "Response::GetPubADataUserPermissions({:?})",
-                ErrorDebug(res)
-            ),
-            GetUnpubADataUserPermissions(res) => write!(
-                f,
-                "Response::GetUnpubADataUserPermissions({:?})",
-                ErrorDebug(res)
-            ),
-            GetADataShell(res) => write!(f, "Response::GetADataShell({:?})", ErrorDebug(res)),
-            GetADataOwners(res) => write!(f, "Response::GetADataOwners({:?})", ErrorDebug(res)),
             // SData
             GetSData(res) => write!(f, "Response::GetSData({:?})", ErrorDebug(res)),
             GetSDataRange(res) => write!(f, "Response::GetSDataRange({:?})", ErrorDebug(res)),
@@ -261,10 +204,10 @@ mod tests {
         let response = Response::Mutation(Ok(()));
         assert_eq!(format!("{:?}", response), "Response::Mutation(Success)");
         use crate::Error;
-        let errored_response = Response::GetADataShell(Err(Error::AccessDenied));
+        let errored_response = Response::GetSData(Err(Error::AccessDenied));
         assert_eq!(
             format!("{:?}", errored_response),
-            "Response::GetADataShell(AccessDenied)"
+            "Response::GetSData(AccessDenied)"
         );
     }
 
