@@ -7,12 +7,15 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
+#![allow(unused_imports)] // NB: Only while we have #[cfg(feature = "simulated-payouts")]
+
 use super::{AuthorisationKind, MiscAuthKind, MoneyAuthKind, Type};
 use crate::{DebitAgreementProof, Error, PublicKey, Response, SignedTransfer, Transfer, XorName};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt};
 
 /// Money request that is sent to Elders.
+#[allow(clippy::large_enum_variant)]
 #[derive(Hash, Eq, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
 pub enum MoneyRequest {
     // ===== Money =====
