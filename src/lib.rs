@@ -37,7 +37,6 @@ mod money;
 mod mutable_data;
 mod request;
 mod response;
-mod safe_key;
 mod transfer;
 mod utils;
 
@@ -57,7 +56,7 @@ pub use identity::{
     app::{FullId as AppFullId, PublicId as AppPublicId},
     client::{FullId as ClientFullId, PublicId as ClientPublicId},
     node::{FullId as NodeFullId, PublicId as NodePublicId},
-    PublicId,
+    PublicId, SafeKey,
 };
 pub use immutable_data::{
     Address as IDataAddress, Data as IData, Kind as IDataKind, PubData as PubImmutableData,
@@ -80,7 +79,6 @@ pub use request::{
     Request, Type as RequestType, MAX_LOGIN_PACKET_BYTES,
 };
 pub use response::{Response, TryFromError};
-pub use safe_key::SafeKey;
 pub use sha3::Sha3_512 as Ed25519Digest;
 pub use transfer::*;
 pub use utils::verify_signature;

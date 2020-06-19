@@ -115,6 +115,7 @@ pub struct SignatureShare {
 }
 
 /// Events raised by the Replica.
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Serialize, Deserialize, Debug)]
 pub enum ReplicaEvent {
     /// The event raised when
