@@ -46,7 +46,7 @@ pub use identity::{
     app::{FullId as AppFullId, PublicId as AppPublicId},
     client::{FullId as ClientFullId, PublicId as ClientPublicId},
     node::{FullId as NodeFullId, PublicId as NodePublicId},
-    PublicId,
+    PublicId, SafeKey,
 };
 pub use immutable_data::{
     Address as IDataAddress, Data as IData, Kind as IDataKind, PubData as PubImmutableData,
