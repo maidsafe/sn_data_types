@@ -1,5 +1,12 @@
 # safe-nd - Change Log
 
+## [0.10.0]
+
+- Addition of Sequence CRDT
+- Upgrade rust-crdt crate to v4.1.0
+- Removal of AppendOnlyData type
+- Addition of a scheduled security audit scan on CI
+
 ## [0.9.0]
 
 - Expose functions which tell you the Request's destination address (XorName) and the type of authorisation needed for the request (RequestAuthKind)
