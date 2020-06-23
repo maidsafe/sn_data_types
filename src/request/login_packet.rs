@@ -23,7 +23,7 @@ pub enum LoginPacketRequest {
     Create {
         /// The LoginPacket itself.
         login_packet: LoginPacket,
-        /// Debit-proof for storing the LoginPacket - Optional fir IdataOps
+        /// Debit-proof for storing the LoginPacket
         debit_proof: DebitAgreementProof,
     },
     /// Create a login packet for a given user and transfer some initial money.
