@@ -8,7 +8,7 @@
 // Software.
 
 use super::{AuthorisationKind, DataAuthKind, MiscAuthKind, Type};
-use crate::{Error, Money, PublicKey, Response, Result, Signature, TransferId, XorName};
+use crate::{DebitAgreementProof, Error, PublicKey, Response, Result, Signature, XorName};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt};
 
@@ -20,15 +20,20 @@ pub const MAX_LOGIN_PACKET_BYTES: usize = 1024 * 1024; // 1 MB
 #[derive(Hash, Eq, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
 pub enum LoginPacketRequest {
     /// Create a login packet.
-    Create(LoginPacket),
+    Create {
+        /// The LoginPacket itself.
+        login_packet: LoginPacket,
+        /// Debit-proof for storing the LoginPacket
+        debit_proof: DebitAgreementProof,
+    },
     /// Create a login packet for a given user and transfer some initial money.
     CreateFor {
         /// The new owner of the login packet.
         new_owner: PublicKey,
-        /// The new balance amount in money.
-        amount: Money,
-        /// The ID of the transfer.
-        transfer_id: TransferId,
+        /// The debit-proof for storing the LoginPacket.
+        debit_proof: DebitAgreementProof,
+        /// The debit-proof for injecting money into the new account - optional
+        optional_debit_proof: Option<DebitAgreementProof>,
         /// The new login packet.
         new_login_packet: LoginPacket,
     },
@@ -65,8 +70,11 @@ impl LoginPacketRequest {
         use LoginPacketRequest::*;
         match *self {
             Create { .. } | Update { .. } => AuthorisationKind::Data(DataAuthKind::Mutation),
-            CreateFor { amount, .. } => {
-                if amount.as_nano() == 0 {
+            CreateFor {
+                ref optional_debit_proof,
+                ..
+            } => {
+                if optional_debit_proof.is_none() {
                     AuthorisationKind::Data(DataAuthKind::Mutation)
                 } else {
                     AuthorisationKind::Misc(MiscAuthKind::MutAndTransferMoney)
@@ -80,7 +88,7 @@ impl LoginPacketRequest {
     pub fn dest_address(&self) -> Option<Cow<XorName>> {
         use LoginPacketRequest::*;
         match self {
-            Create(login_packet) => Some(Cow::Borrowed(login_packet.destination())),
+            Create { login_packet, .. } => Some(Cow::Borrowed(login_packet.destination())),
             CreateFor {
                 new_login_packet, ..
             } => Some(Cow::Borrowed(new_login_packet.destination())),

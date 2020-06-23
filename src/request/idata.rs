@@ -8,15 +8,20 @@
 // Software.
 
 use super::{AuthorisationKind, DataAuthKind, Type};
-use crate::{Error, IData, IDataAddress, Response, XorName};
+use crate::{DebitAgreementProof, Error, IData, IDataAddress, Response, XorName};
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt};
 
 /// ImmutableData request that is sent to vaults.
-#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
+#[derive(Hash, Eq, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
 pub enum IDataRequest {
     /// Put ImmutableData.
-    Put(IData),
+    Put {
+        /// The data itself.
+        data: IData,
+        /// Money debit-proof for storing the data
+        debit_proof: DebitAgreementProof,
+    },
     /// Get ImmutableData.
     Get(IDataAddress),
     /// Delete unpublished ImmutableData.
@@ -30,7 +35,7 @@ impl IDataRequest {
         match *self {
             Get(IDataAddress::Pub(_)) => Type::PublicGet,
             Get(IDataAddress::Unpub(_)) => Type::PrivateGet,
-            Put(_) | DeleteUnpub(_) => Type::Mutation,
+            Put { .. } | DeleteUnpub(_) => Type::Mutation,
         }
     }
 
@@ -40,7 +45,7 @@ impl IDataRequest {
         use IDataRequest::*;
         match *self {
             Get(_) => Response::GetIData(Err(error)),
-            Put(_) | DeleteUnpub(_) => Response::Mutation(Err(error)),
+            Put { .. } | DeleteUnpub(_) => Response::Mutation(Err(error)),
         }
     }
 
@@ -50,7 +55,7 @@ impl IDataRequest {
         match *self {
             Get(IDataAddress::Pub(_)) => AuthorisationKind::Data(DataAuthKind::GetPublic),
             Get(IDataAddress::Unpub(_)) => AuthorisationKind::Data(DataAuthKind::GetPrivate),
-            Put(_) | DeleteUnpub(_) => AuthorisationKind::Data(DataAuthKind::Mutation),
+            Put { .. } | DeleteUnpub(_) => AuthorisationKind::Data(DataAuthKind::Mutation),
         }
     }
 
@@ -59,7 +64,7 @@ impl IDataRequest {
         use IDataRequest::*;
         match self {
             Get(ref address) | DeleteUnpub(ref address) => Some(Cow::Borrowed(address.name())),
-            Put(ref data) => Some(Cow::Borrowed(data.name())),
+            Put { ref data, .. } => Some(Cow::Borrowed(data.name())),
         }
     }
 }
@@ -71,7 +76,7 @@ impl fmt::Debug for IDataRequest {
             formatter,
             "Request::{}",
             match *self {
-                Put(_) => "PutIData",
+                Put { .. } => "PutIData",
                 Get(_) => "GetIData",
                 DeleteUnpub(_) => "DeleteUnpubIData",
             }
