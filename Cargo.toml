@@ -11,7 +11,7 @@ version = "0.10.0"
 
 [dependencies]
 # Ensure bincode version is identical to that in SAFE Client Libs and SAFE Vault.
-bincode = "=1.1.4"
+bincode = "=1.2.1"
 ed25519-dalek = "~0.9.1"
 hex_fmt = "~0.3.0"
 multibase = "~0.6.0"
@@ -22,7 +22,6 @@ sha3 = "~0.8.2"
 threshold_crypto = "~0.3.2"
 tiny-keccak = "~1.5.0"
 unwrap = "~1.2.1"
-crdts = "4.0.0"
 
 [dev-dependencies]
 hex = "~0.3.2"

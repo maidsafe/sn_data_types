@@ -9,17 +9,23 @@
 
 use super::{AuthorisationKind, DataAuthKind, Type};
 use crate::{
-    Error, MData, MDataAddress, MDataEntryActions, MDataPermissionSet, PublicKey, Response, XorName,
+    DebitAgreementProof, Error, MData, MDataAddress, MDataEntryActions, MDataPermissionSet,
+    PublicKey, Response, XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt};
 
 /// MutableData request that is sent to vaults.
 #[allow(clippy::large_enum_variant)]
-#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
+#[derive(Hash, Eq, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
 pub enum MDataRequest {
     /// Put MutableData.
-    Put(MData),
+    Put {
+        /// The data itself.
+        data: MData,
+        /// Money debit-proof for storing the data
+        debit_proof: DebitAgreementProof,
+    },
     /// Get MutableData.
     Get(MDataAddress),
     /// Get MutableData value.
@@ -51,6 +57,8 @@ pub enum MDataRequest {
         permissions: MDataPermissionSet,
         /// Version to set.
         version: u64,
+        /// Money debit-proof for mutation
+        debit_proof: DebitAgreementProof,
     },
     /// Delete MutableData user permissions.
     DelUserPermissions {
@@ -60,6 +68,8 @@ pub enum MDataRequest {
         user: PublicKey,
         /// Version to delete.
         version: u64,
+        /// Money debit-proof for mutation
+        debit_proof: DebitAgreementProof,
     },
     /// List MutableData permissions.
     ListPermissions(MDataAddress),
@@ -76,6 +86,8 @@ pub enum MDataRequest {
         address: MDataAddress,
         /// Mutation actions to perform.
         actions: MDataEntryActions,
+        /// Money debit-proof for mutation
+        debit_proof: DebitAgreementProof,
     },
 }
 
@@ -95,7 +107,7 @@ impl MDataRequest {
             | ListValues(_)
             | ListPermissions(_)
             | ListUserPermissions { .. } => Type::PrivateGet,
-            Put(_)
+            Put { .. }
             | Delete(_)
             | SetUserPermissions { .. }
             | DelUserPermissions { .. }
@@ -118,7 +130,7 @@ impl MDataRequest {
             ListValues(_) => Response::ListMDataValues(Err(error)),
             ListPermissions(_) => Response::ListMDataPermissions(Err(error)),
             ListUserPermissions { .. } => Response::ListMDataUserPermissions(Err(error)),
-            Put(_)
+            Put { .. }
             | Delete(_)
             | SetUserPermissions { .. }
             | DelUserPermissions { .. }
@@ -130,7 +142,7 @@ impl MDataRequest {
     pub fn authorisation_kind(&self) -> AuthorisationKind {
         use MDataRequest::*;
         match *self {
-            Put(_)
+            Put { .. }
             | Delete(_)
             | SetUserPermissions { .. }
             | DelUserPermissions { .. }
@@ -151,7 +163,7 @@ impl MDataRequest {
     pub fn dest_address(&self) -> Option<Cow<XorName>> {
         use MDataRequest::*;
         match self {
-            Put(ref data) => Some(Cow::Borrowed(data.name())),
+            Put { ref data, .. } => Some(Cow::Borrowed(data.name())),
             Get(ref address)
             | GetValue { ref address, .. }
             | Delete(ref address)
@@ -177,7 +189,7 @@ impl fmt::Debug for MDataRequest {
             formatter,
             "Request::{}",
             match *self {
-                Put(_) => "PutMData",
+                Put { .. } => "PutMData",
                 Get(_) => "GetMData",
                 GetValue { .. } => "GetMDataValue",
                 Delete(_) => "DeleteMData",
