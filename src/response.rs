@@ -9,8 +9,9 @@
 
 use crate::{
     errors::ErrorDebug, AppPermissions, DebitAgreementProof, Error, IData, MData, MDataEntries,
-    MDataPermissionSet, MDataValue, MDataValues, Money, ProofOfAgreement, PublicKey, Result, ReplicaEvent, SData, SDataEntries,
-    SDataEntry, SDataOwner, SDataPermissions, SDataUserPermissions, Signature, Transfer, TransferRegistered, TransferValidated,
+    MDataPermissionSet, MDataValue, MDataValues, Money, PublicKey, ReplicaEvent, Result, SData,
+    SDataEntries, SDataEntry, SDataOwner, SDataPermissions, SDataUserPermissions, Signature,
+    TransferRegistered, TransferValidated,
 };
 use serde::{Deserialize, Serialize};
 use std::{

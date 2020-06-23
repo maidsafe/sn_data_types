@@ -37,7 +37,6 @@ mod mutable_data;
 mod request;
 mod response;
 mod sequence;
-mod safe_key;
 mod transfer;
 mod utils;
 
@@ -64,9 +63,9 @@ pub use mutable_data::{
     Value as MDataValue, Values as MDataValues,
 };
 pub use request::{
-    AuthorisationKind as RequestAuthKind, ClientRequest, IDataRequest, LoginPacket,
-    LoginPacketRequest, MDataRequest, MiscAuthKind, MoneyAuthKind, MoneyRequest, Request, SDataRequest, Type as RequestType,
-    MAX_LOGIN_PACKET_BYTES,
+    AuthorisationKind as RequestAuthKind, ClientRequest, DataAuthKind, IDataRequest, LoginPacket,
+    LoginPacketRequest, MDataRequest, MiscAuthKind, MoneyAuthKind, MoneyRequest, Request,
+    SDataRequest, Type as RequestType, MAX_LOGIN_PACKET_BYTES,
 };
 pub use response::{Response, TryFromError};
 pub use sequence::{
@@ -78,7 +77,6 @@ pub use sequence::{
     PubSeqData, PubUserPermissions as SDataPubUserPermissions, User as SDataUser,
     UserPermissions as SDataUserPermissions,
 };
-pub use safe_key::SafeKey;
 pub use sha3::Sha3_512 as Ed25519Digest;
 pub use transfer::*;
 pub use utils::verify_signature;

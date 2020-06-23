@@ -11,16 +11,16 @@ mod client_req;
 mod idata;
 mod login_packet;
 mod mdata;
-mod sdata;
 mod money;
+mod sdata;
 
 pub use self::login_packet::{LoginPacket, LoginPacketRequest, MAX_LOGIN_PACKET_BYTES};
 use crate::{Error, Response, XorName};
 pub use client_req::ClientRequest;
 pub use idata::IDataRequest;
 pub use mdata::MDataRequest;
-pub use sdata::SDataRequest;
 pub use money::MoneyRequest;
+pub use sdata::SDataRequest;
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt};
 
