@@ -218,6 +218,8 @@ impl TransferPropagated {
     }
 }
 
+/// Public Key Set for a group of transfer replicas.
+pub type ReplicaPublicKeySet = PublicKeySet;
 /// The Replica event raised when
 /// we learn of a new group PK set.
 #[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Serialize, Deserialize, Debug)]
