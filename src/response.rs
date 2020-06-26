@@ -9,9 +9,9 @@
 
 use crate::{
     errors::ErrorDebug, AppPermissions, DebitAgreementProof, Error, IData, MData, MDataEntries,
-    MDataPermissionSet, MDataValue, MDataValues, Money, PublicKey, ReplicaEvent, Result, SData,
-    SDataEntries, SDataEntry, SDataOwner, SDataPermissions, SDataUserPermissions, Signature,
-    TransferRegistered, TransferValidated,
+    MDataPermissionSet, MDataValue, MDataValues, Money, PublicKey, ReplicaEvent,
+    ReplicaPublicKeySet, Result, SData, SDataEntries, SDataEntry, SDataOwner, SDataPermissions,
+    SDataUserPermissions, Signature, TransferRegistered, TransferValidated,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -68,6 +68,8 @@ pub enum Response {
     //
     // ===== Money =====
     //
+    /// Get replica keys
+    GetReplicaKeys(Result<ReplicaPublicKeySet>),
     /// Get key balance.
     GetBalance(Result<Money>),
     /// Get key transfer history.
@@ -141,6 +143,7 @@ try_from!((u64, SDataEntry), GetSDataLastEntry);
 try_from!(SDataPermissions, GetSDataPermissions);
 try_from!(SDataUserPermissions, GetSDataUserPermissions);
 try_from!(Money, GetBalance);
+try_from!(ReplicaPublicKeySet, GetReplicaKeys);
 try_from!(Vec<ReplicaEvent>, GetHistory);
 try_from!(TransferRegistered, TransferRegistration);
 try_from!(TransferValidated, TransferValidation);
@@ -190,6 +193,7 @@ impl fmt::Debug for Response {
             ),
             GetSDataOwner(res) => write!(f, "Response::GetSDataOwner({:?})", ErrorDebug(res)),
             // Money
+            GetReplicaKeys(res) => write!(f, "Response::GetReplicaKeys({:?})", ErrorDebug(res)),
             GetBalance(res) => write!(f, "Response::GetBalance({:?})", ErrorDebug(res)),
             GetHistory(res) => write!(f, "Response::GetHistory({:?})", ErrorDebug(res)),
             TransferValidation(res) => {
