@@ -41,6 +41,8 @@ pub enum MoneyRequest {
         /// The cmd to register the consensused transfer.
         proof: DebitAgreementProof,
     },
+    /// Get the PublicKeySet for replicas of a given PK
+    GetReplicaKeys(PublicKey),
     /// Get key balance.
     GetBalance(PublicKey),
     /// Get key transfers since specified version.
@@ -57,6 +59,8 @@ impl MoneyRequest {
     pub fn get_type(&self) -> Type {
         use MoneyRequest::*;
         match *self {
+            // TODO: should this be private?
+            GetReplicaKeys(_) => Type::PublicGet,
             GetBalance(_) => Type::PrivateGet,
             GetHistory { .. } => Type::PrivateGet,
             ValidateTransfer { .. } => Type::Transfer, // TODO: fix..
@@ -72,6 +76,7 @@ impl MoneyRequest {
     pub fn error_response(&self, error: Error) -> Response {
         use MoneyRequest::*;
         match *self {
+            GetReplicaKeys(_) => Response::GetReplicaKeys(Err(error)),
             GetBalance(_) => Response::GetBalance(Err(error)),
             GetHistory { .. } => Response::GetHistory(Err(error)),
             ValidateTransfer { .. } => Response::TransferValidation(Err(error)),
@@ -90,6 +95,7 @@ impl MoneyRequest {
             RegisterTransfer { .. } => AuthorisationKind::None, // the proof has the authority within it
             ValidateTransfer { .. } => AuthorisationKind::Misc(MiscAuthKind::MutAndTransferMoney),
             GetBalance(_) => AuthorisationKind::Money(MoneyAuthKind::GetBalance), // current state
+            GetReplicaKeys(_) => AuthorisationKind::None, // current replica keys
             GetHistory { .. } => AuthorisationKind::Money(MoneyAuthKind::GetHistory), // history of incoming transfers
             #[cfg(feature = "simulated-payouts")]
             SimulatePayout { .. } => AuthorisationKind::None,
@@ -119,6 +125,7 @@ impl MoneyRequest {
                 // this is handled where the debit is made
             }
             GetBalance(_) => None,
+            GetReplicaKeys(pk) => Some(Cow::Owned(XorName::from(*pk))),
             GetHistory { .. } => None,
         }
     }
@@ -135,6 +142,7 @@ impl fmt::Debug for MoneyRequest {
                 RegisterTransfer { .. } => "RegisterTransfer",
                 ValidateTransfer { .. } => "ValidateTransfer",
                 GetBalance(_) => "GetBalance",
+                GetReplicaKeys(_) => "GetReplicaKeys",
                 GetHistory { .. } => "GetHistory",
                 #[cfg(feature = "simulated-payouts")]
                 SimulatePayout { .. } => "SimulatePayout",
