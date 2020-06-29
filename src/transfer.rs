@@ -154,6 +154,28 @@ pub struct TransferValidated {
     // Cost / benefit to be discussed..
 }
 
+impl TransferValidated {
+    /// Get the transfer id
+    pub fn id(&self) -> TransferId {
+        self.signed_transfer.id()
+    }
+
+    /// Get the amount of this transfer
+    pub fn amount(&self) -> Money {
+        self.signed_transfer.amount()
+    }
+
+    /// Get the recipient of this transfer
+    pub fn from(&self) -> PublicKey {
+        self.signed_transfer.from()
+    }
+
+    /// Get the recipient of this transfer
+    pub fn to(&self) -> PublicKey {
+        self.signed_transfer.to()
+    }
+}
+
 /// The debiting Replica event raised when
 /// RegisterTransfer cmd has been successful.
 #[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Serialize, Deserialize, Debug)]
