@@ -107,21 +107,21 @@ impl MoneyRequest {
         use MoneyRequest::*;
         match self {
             PropagateTransfer { ref proof, .. } => Some(Cow::Owned(XorName::from(
-                proof.signed_transfer.transfer.to, // sent to section where credit is made
+                proof.to(), // sent to section where credit is made
             ))),
             RegisterTransfer { ref proof, .. } => Some(Cow::Owned(XorName::from(
-                proof.signed_transfer.transfer.id.actor, // this is handled where the debit is made
+                proof.from(), // this is handled where the debit is made
             ))),
             ValidateTransfer {
                 ref signed_transfer,
                 ..
             } => {
-                Some(Cow::Owned(XorName::from(signed_transfer.transfer.id.actor)))
+                Some(Cow::Owned(XorName::from(signed_transfer.from())))
                 // this is handled where the debit is made
             }
             #[cfg(feature = "simulated-payouts")]
             SimulatePayout { ref transfer, .. } => {
-                Some(Cow::Owned(XorName::from(transfer.id.actor)))
+                Some(Cow::Owned(XorName::from(transfer.from())))
                 // this is handled where the debit is made
             }
             GetBalance(_) => None,
