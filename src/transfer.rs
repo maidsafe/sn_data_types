@@ -33,6 +33,11 @@ impl Transfer {
         self.amount
     }
 
+    /// Get the sender of this transfer
+    pub fn from(&self) -> AccountId {
+        self.id.actor
+    }
+
     /// Get the recipient of this transfer
     pub fn to(&self) -> PublicKey {
         self.to
