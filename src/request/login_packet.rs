@@ -48,9 +48,9 @@ impl LoginPacketRequest {
     pub fn get_type(&self) -> Type {
         use LoginPacketRequest::*;
         match *self {
-            Get(..) => Type::PrivateGet,
+            Get(..) => Type::PrivateRead,
             CreateFor { .. } => Type::Transfer,
-            Create { .. } | Update { .. } => Type::Mutation,
+            Create { .. } | Update { .. } => Type::Write,
         }
     }
 
@@ -61,7 +61,7 @@ impl LoginPacketRequest {
         match *self {
             Get(..) => Response::GetLoginPacket(Err(error)),
             CreateFor { .. } => Response::TransferRegistration(Err(error)),
-            Create { .. } | Update { .. } => Response::Mutation(Err(error)),
+            Create { .. } | Update { .. } => Response::Write(Err(error)),
         }
     }
 
@@ -69,18 +69,18 @@ impl LoginPacketRequest {
     pub fn authorisation_kind(&self) -> AuthorisationKind {
         use LoginPacketRequest::*;
         match *self {
-            Create { .. } | Update { .. } => AuthorisationKind::Data(DataAuthKind::Mutation),
+            Create { .. } | Update { .. } => AuthorisationKind::Data(DataAuthKind::Write),
             CreateFor {
                 ref optional_debit_proof,
                 ..
             } => {
                 if optional_debit_proof.is_none() {
-                    AuthorisationKind::Data(DataAuthKind::Mutation)
+                    AuthorisationKind::Data(DataAuthKind::Write)
                 } else {
-                    AuthorisationKind::Misc(MiscAuthKind::MutAndTransferMoney)
+                    AuthorisationKind::Misc(MiscAuthKind::WriteAndTransfer)
                 }
             }
-            Get(_) => AuthorisationKind::Data(DataAuthKind::GetPrivate),
+            Get(_) => AuthorisationKind::Data(DataAuthKind::PrivateRead),
         }
     }
 

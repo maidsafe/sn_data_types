@@ -106,12 +106,12 @@ impl MDataRequest {
             | ListKeys(_)
             | ListValues(_)
             | ListPermissions(_)
-            | ListUserPermissions { .. } => Type::PrivateGet,
+            | ListUserPermissions { .. } => Type::PrivateRead,
             Put { .. }
             | Delete(_)
             | SetUserPermissions { .. }
             | DelUserPermissions { .. }
-            | MutateEntries { .. } => Type::Mutation,
+            | MutateEntries { .. } => Type::Write,
         }
     }
 
@@ -134,7 +134,7 @@ impl MDataRequest {
             | Delete(_)
             | SetUserPermissions { .. }
             | DelUserPermissions { .. }
-            | MutateEntries { .. } => Response::Mutation(Err(error)),
+            | MutateEntries { .. } => Response::Write(Err(error)),
         }
     }
 
@@ -146,7 +146,7 @@ impl MDataRequest {
             | Delete(_)
             | SetUserPermissions { .. }
             | DelUserPermissions { .. }
-            | MutateEntries { .. } => AuthorisationKind::Data(DataAuthKind::Mutation),
+            | MutateEntries { .. } => AuthorisationKind::Data(DataAuthKind::Write),
             Get(_)
             | GetValue { .. }
             | GetShell(_)
@@ -155,7 +155,7 @@ impl MDataRequest {
             | ListKeys(_)
             | ListValues(_)
             | ListPermissions(_)
-            | ListUserPermissions { .. } => AuthorisationKind::Data(DataAuthKind::GetPrivate),
+            | ListUserPermissions { .. } => AuthorisationKind::Data(DataAuthKind::PrivateRead),
         }
     }
 
