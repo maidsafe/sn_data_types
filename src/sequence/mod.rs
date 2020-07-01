@@ -44,11 +44,11 @@ impl Debug for PrivSeqData {
     }
 }
 
-/// Mutation operation to apply to Sequence.
-/// This is used for all kind of CRDT operationsmade on the Sequence,
+/// Write operation to apply to Sequence.
+/// This is used for all kind of CRDT operations made on the Sequence,
 /// i.e. not only on the data but also on the permissions and owner info.
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Eq, Hash)]
-pub struct MutationOperation<T> {
+pub struct WriteOp<T> {
     /// Address of a Sequence object on the network.
     pub address: Address,
     /// The operation to apply.
@@ -194,13 +194,13 @@ impl Data {
     }
 
     /// Appends new entry.
-    pub fn append(&mut self, entry: Entry) -> MutationOperation<Entry> {
+    pub fn append(&mut self, entry: Entry) -> WriteOp<Entry> {
         let crdt_op = match self {
             Data::Public(data) => data.append(entry),
             Data::Private(data) => data.append(entry),
         };
 
-        MutationOperation {
+        WriteOp {
             address: *self.address(),
             crdt_op,
         }
@@ -214,11 +214,11 @@ impl Data {
         };
     }
 
-    /// Adds a new permissions entry for Public Sequence.
+    ///   a new permissions entry for Public Sequence.
     pub fn set_pub_permissions(
         &mut self,
         permissions: BTreeMap<User, PubUserPermissions>,
-    ) -> Result<MutationOperation<PubPermissions>> {
+    ) -> Result<WriteOp<PubPermissions>> {
         let address = *self.address();
         match self {
             Data::Public(data) => {
@@ -227,7 +227,7 @@ impl Data {
                     owners_index: data.owners_index(),
                     permissions,
                 });
-                Ok(MutationOperation { address, crdt_op })
+                Ok(WriteOp { address, crdt_op })
             }
             Data::Private(_) => Err(Error::InvalidOperation),
         }
@@ -237,7 +237,7 @@ impl Data {
     pub fn set_priv_permissions(
         &mut self,
         permissions: BTreeMap<PublicKey, PrivUserPermissions>,
-    ) -> Result<MutationOperation<PrivPermissions>> {
+    ) -> Result<WriteOp<PrivPermissions>> {
         let address = *self.address();
         match self {
             Data::Private(data) => {
@@ -246,7 +246,7 @@ impl Data {
                     owners_index: data.owners_index(),
                     permissions,
                 });
-                Ok(MutationOperation { address, crdt_op })
+                Ok(WriteOp { address, crdt_op })
             }
             Data::Public(_) => Err(Error::InvalidOperation),
         }
@@ -275,14 +275,14 @@ impl Data {
     }
 
     /// Adds a new owner entry.
-    pub fn set_owner(&mut self, owner: PublicKey) -> MutationOperation<Owner> {
+    pub fn set_owner(&mut self, owner: PublicKey) -> WriteOp<Owner> {
         let address = *self.address();
         let crdt_op = match self {
             Data::Public(data) => data.append_owner(owner),
             Data::Private(data) => data.append_owner(owner),
         };
 
-        MutationOperation { address, crdt_op }
+        WriteOp { address, crdt_op }
     }
 
     /// Apply Owner CRDT operation.

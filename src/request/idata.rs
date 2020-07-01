@@ -33,9 +33,9 @@ impl IDataRequest {
     pub fn get_type(&self) -> Type {
         use IDataRequest::*;
         match *self {
-            Get(IDataAddress::Pub(_)) => Type::PublicGet,
-            Get(IDataAddress::Unpub(_)) => Type::PrivateGet,
-            Put { .. } | DeleteUnpub(_) => Type::Mutation,
+            Get(IDataAddress::Pub(_)) => Type::PublicRead,
+            Get(IDataAddress::Unpub(_)) => Type::PrivateRead,
+            Put { .. } | DeleteUnpub(_) => Type::Write,
         }
     }
 
@@ -45,7 +45,7 @@ impl IDataRequest {
         use IDataRequest::*;
         match *self {
             Get(_) => Response::GetIData(Err(error)),
-            Put { .. } | DeleteUnpub(_) => Response::Mutation(Err(error)),
+            Put { .. } | DeleteUnpub(_) => Response::Write(Err(error)),
         }
     }
 
@@ -53,9 +53,9 @@ impl IDataRequest {
     pub fn authorisation_kind(&self) -> AuthorisationKind {
         use IDataRequest::*;
         match *self {
-            Get(IDataAddress::Pub(_)) => AuthorisationKind::Data(DataAuthKind::GetPublic),
-            Get(IDataAddress::Unpub(_)) => AuthorisationKind::Data(DataAuthKind::GetPrivate),
-            Put { .. } | DeleteUnpub(_) => AuthorisationKind::Data(DataAuthKind::Mutation),
+            Get(IDataAddress::Pub(_)) => AuthorisationKind::Data(DataAuthKind::PublicRead),
+            Get(IDataAddress::Unpub(_)) => AuthorisationKind::Data(DataAuthKind::PrivateRead),
+            Put { .. } | DeleteUnpub(_) => AuthorisationKind::Data(DataAuthKind::Write),
         }
     }
 

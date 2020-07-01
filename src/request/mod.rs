@@ -27,13 +27,13 @@ use std::{borrow::Cow, fmt};
 /// The type of a `Request`.
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Type {
-    /// Request is a Get for public data.
-    PublicGet,
-    /// Request is a Get for private data.
-    PrivateGet,
-    /// Request is a Mutation of data.
-    Mutation,
-    /// Request is a Transfer of money.
+    /// Request is a Read of public data.
+    PublicRead,
+    /// Request is a Read of private data.
+    PrivateRead,
+    /// Request is a Write.
+    Write,
+    /// Request is a Transfer.
     Transfer,
     // /// Request to validate a Transfer of money.
     // TransferValidation, // TODO: fix..
@@ -56,22 +56,22 @@ pub enum AuthorisationKind {
 
 /// Authorisation for data requests.
 pub enum DataAuthKind {
-    /// Get request against public data.
-    GetPublic,
-    /// Get request against private data.
-    GetPrivate,
-    /// Mutation request.
-    Mutation,
+    /// Read of public data.
+    PublicRead,
+    /// Read of private data.
+    PrivateRead,
+    /// Write of data/metadata.
+    Write,
 }
 
 /// Authorisation for money requests.
 pub enum MoneyAuthKind {
     /// Request to get key balance.
-    GetBalance,
+    ReadBalance,
     /// Request to get key transfer history.
-    GetHistory,
+    ReadHistory,
     /// Request to transfer money from key.
-    TransferMoney,
+    Transfer,
 }
 
 /// Miscellaneous authorisation kinds.
@@ -80,7 +80,7 @@ pub enum MiscAuthKind {
     /// Request to manage app keys.
     ManageAppKeys,
     /// Request to mutate and transfer money from key.
-    MutAndTransferMoney,
+    WriteAndTransfer,
 }
 
 /// RPC Request that is sent to vaults.

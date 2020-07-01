@@ -60,9 +60,9 @@ impl MoneyRequest {
         use MoneyRequest::*;
         match *self {
             // TODO: should this be private?
-            GetReplicaKeys(_) => Type::PublicGet,
-            GetBalance(_) => Type::PrivateGet,
-            GetHistory { .. } => Type::PrivateGet,
+            GetReplicaKeys(_) => Type::PublicRead,
+            GetBalance(_) => Type::PrivateRead,
+            GetHistory { .. } => Type::PrivateRead,
             ValidateTransfer { .. } => Type::Transfer, // TODO: fix..
             RegisterTransfer { .. } => Type::Transfer, // TODO: fix..
             PropagateTransfer { .. } => Type::Transfer, // TODO: fix..
@@ -93,10 +93,10 @@ impl MoneyRequest {
         match self.clone() {
             PropagateTransfer { .. } => AuthorisationKind::None, // the proof has the authority within it
             RegisterTransfer { .. } => AuthorisationKind::None, // the proof has the authority within it
-            ValidateTransfer { .. } => AuthorisationKind::Misc(MiscAuthKind::MutAndTransferMoney),
-            GetBalance(_) => AuthorisationKind::Money(MoneyAuthKind::GetBalance), // current state
+            ValidateTransfer { .. } => AuthorisationKind::Misc(MiscAuthKind::WriteAndTransfer),
+            GetBalance(_) => AuthorisationKind::Money(MoneyAuthKind::ReadBalance), // current state
             GetReplicaKeys(_) => AuthorisationKind::None, // current replica keys
-            GetHistory { .. } => AuthorisationKind::Money(MoneyAuthKind::GetHistory), // history of incoming transfers
+            GetHistory { .. } => AuthorisationKind::Money(MoneyAuthKind::ReadHistory), // history of incoming transfers
             #[cfg(feature = "simulated-payouts")]
             SimulatePayout { .. } => AuthorisationKind::None,
         }
