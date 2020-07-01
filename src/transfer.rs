@@ -51,6 +51,8 @@ pub struct DebitAgreementProof {
     pub signed_transfer: SignedTransfer,
     /// Quorum of Replica sigs over the transfer cmd.
     pub debiting_replicas_sig: Signature,
+    /// PublicKeySet of the replica when it validated the transfer.
+    pub replica_key: ReplicaPublicKeySet,
 }
 
 impl DebitAgreementProof {
@@ -72,6 +74,11 @@ impl DebitAgreementProof {
     /// Get the recipient of this transfer
     pub fn to(&self) -> PublicKey {
         self.signed_transfer.to()
+    }
+
+    /// Get the PublicKeySet of the replica that validated this transfer
+    pub fn replica_keys(&self) -> ReplicaPublicKeySet {
+        self.replica_key.clone()
     }
 }
 
