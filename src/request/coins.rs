@@ -42,8 +42,8 @@ impl CoinsRequest {
     pub fn get_type(&self) -> Type {
         use CoinsRequest::*;
         match *self {
-            GetBalance => Type::PrivateGet,
-            Transfer { .. } | CreateBalance { .. } => Type::Transaction,
+            GetBalance => Type::PrivateRead,
+            Transfer { .. } | CreateBalance { .. } => Type::Transfer,
         }
     }
 
@@ -63,13 +63,13 @@ impl CoinsRequest {
         match *self {
             CreateBalance { amount, .. } => {
                 if amount.as_nano() == 0 {
-                    AuthorisationKind::Mutation
+                    AuthorisationKind::Write
                 } else {
-                    AuthorisationKind::MutAndTransferCoins
+                    AuthorisationKind::WriteAndTransfer
                 }
             }
-            Transfer { .. } => AuthorisationKind::TransferCoins,
-            GetBalance => AuthorisationKind::GetBalance,
+            Transfer { .. } => AuthorisationKind::Transfer,
+            GetBalance => AuthorisationKind::ReadBalance,
         }
     }
 

@@ -9,8 +9,8 @@
 
 use super::{AuthorisationKind, Type};
 use crate::{
-    Error, Response, SData, SDataAddress, SDataEntry, SDataIndex, SDataMutationOperation,
-    SDataOwner, SDataPrivPermissions, SDataPubPermissions, SDataUser, XorName,
+    Error, Response, SData, SDataAddress, SDataEntry, SDataIndex, SDataOwner, SDataPrivPermissions,
+    SDataPubPermissions, SDataUser, SDataWriteOp, XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt};
@@ -21,13 +21,15 @@ use std::{borrow::Cow, fmt};
 pub enum SDataRequest {
     /// Store a new Sequence onto the network.
     Store(SData),
-    /// Get Sequence from the network.
-    Get(SDataAddress),
+    /// Edit the Sequence (insert/remove entry).
+    Edit(SDataWriteOp<SDataEntry>),
     /// Delete a private Sequence.
     ///
     /// This operation MUST return an error if applied to public Sequence. Only the current
     /// owner(s) can perform this action.
     Delete(SDataAddress),
+    /// Get Sequence from the network.
+    Get(SDataAddress),
     /// Get a range of entries from an Sequence object on the network.
     GetRange {
         /// Sequence address.
@@ -57,14 +59,12 @@ pub enum SDataRequest {
     },
     /// Get current owner.
     GetOwner(SDataAddress),
+    /// Set a new owner. Only the current owner(s) can perform this action.
+    SetOwner(SDataWriteOp<SDataOwner>),
     /// Set new permissions for public Sequence.
-    MutatePubPermissions(SDataMutationOperation<SDataPubPermissions>),
+    SetPubPermissions(SDataWriteOp<SDataPubPermissions>),
     /// Set new permissions for private Sequence.
-    MutatePrivPermissions(SDataMutationOperation<SDataPrivPermissions>),
-    /// Add a new `owners` entry. Only the current owner(s) can perform this action.
-    MutateOwner(SDataMutationOperation<SDataOwner>),
-    /// Mutate the Sequence (insert/remove entry).
-    Mutate(SDataMutationOperation<SDataEntry>),
+    SetPrivPermissions(SDataWriteOp<SDataPrivPermissions>),
 }
 
 impl SDataRequest {
@@ -80,17 +80,17 @@ impl SDataRequest {
             | GetUserPermissions { address, .. }
             | GetOwner(address) => {
                 if address.is_pub() {
-                    Type::PublicGet
+                    Type::PublicRead
                 } else {
-                    Type::PrivateGet
+                    Type::PrivateRead
                 }
             }
             Store(_)
             | Delete(_)
-            | MutatePubPermissions(_)
-            | MutatePrivPermissions(_)
-            | MutateOwner(_)
-            | Mutate(_) => Type::Mutation,
+            | SetPubPermissions(_)
+            | SetPrivPermissions(_)
+            | SetOwner(_)
+            | Edit(_) => Type::Write,
         }
     }
 
@@ -108,23 +108,23 @@ impl SDataRequest {
             GetOwner(_) => Response::GetSDataOwner(Err(error)),
             Store(_)
             | Delete(_)
-            | MutatePubPermissions(_)
-            | MutatePrivPermissions(_)
-            | MutateOwner(_)
-            | Mutate(_) => Response::Mutation(Err(error)),
+            | SetPubPermissions(_)
+            | SetPrivPermissions(_)
+            | SetOwner(_)
+            | Edit(_) => Response::Write(Err(error)),
         }
     }
 
-    /// Returns the type of authorisation needed for the request.
+    /// Returns the access categorisation of the request.
     pub fn authorisation_kind(&self) -> AuthorisationKind {
         use SDataRequest::*;
         match *self {
             Store(_)
             | Delete(_)
-            | MutatePubPermissions(_)
-            | MutatePrivPermissions(_)
-            | MutateOwner(_)
-            | Mutate(_) => AuthorisationKind::Mutation,
+            | SetPubPermissions(_)
+            | SetPrivPermissions(_)
+            | SetOwner(_)
+            | Edit(_) => AuthorisationKind::Write,
             Get(address)
             | GetRange { address, .. }
             | GetLastEntry(address)
@@ -132,9 +132,9 @@ impl SDataRequest {
             | GetUserPermissions { address, .. }
             | GetOwner(address) => {
                 if address.is_pub() {
-                    AuthorisationKind::GetPub
+                    AuthorisationKind::PublicRead
                 } else {
-                    AuthorisationKind::GetPriv
+                    AuthorisationKind::PrivateRead
                 }
             }
         }
@@ -152,10 +152,10 @@ impl SDataRequest {
             GetPermissions(ref address)
             | GetUserPermissions { ref address, .. }
             | GetOwner(ref address) => Some(Cow::Borrowed(address.name())),
-            MutatePubPermissions(ref op) => Some(Cow::Borrowed(op.address.name())),
-            MutatePrivPermissions(ref op) => Some(Cow::Borrowed(op.address.name())),
-            MutateOwner(ref op) => Some(Cow::Borrowed(op.address.name())),
-            Mutate(ref op) => Some(Cow::Borrowed(op.address.name())),
+            SetPubPermissions(ref op) => Some(Cow::Borrowed(op.address.name())),
+            SetPrivPermissions(ref op) => Some(Cow::Borrowed(op.address.name())),
+            SetOwner(ref op) => Some(Cow::Borrowed(op.address.name())),
+            Edit(ref op) => Some(Cow::Borrowed(op.address.name())),
         }
     }
 }
@@ -163,7 +163,6 @@ impl SDataRequest {
 impl fmt::Debug for SDataRequest {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         use SDataRequest::*;
-
         write!(
             formatter,
             "Request::{}",
@@ -176,10 +175,10 @@ impl fmt::Debug for SDataRequest {
                 GetPermissions { .. } => "GetSDataPermissions",
                 GetUserPermissions { .. } => "GetSDataUserPermissions",
                 GetOwner { .. } => "GetSDataOwner",
-                MutatePubPermissions(_) => "MutateSDataPubPermissions",
-                MutatePrivPermissions(_) => "MutateSDataPrivPermissions",
-                MutateOwner(_) => "MutateSDataOwner",
-                Mutate(_) => "MutateSData",
+                SetPubPermissions(_) => "SetSDataPubPermissions",
+                SetPrivPermissions(_) => "SetSDataPrivPermissions",
+                SetOwner(_) => "SetSDataOwner",
+                Edit(_) => "EditSData",
             }
         )
     }

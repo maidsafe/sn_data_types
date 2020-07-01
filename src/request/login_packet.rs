@@ -43,9 +43,9 @@ impl LoginPacketRequest {
     pub fn get_type(&self) -> Type {
         use LoginPacketRequest::*;
         match *self {
-            Get(..) => Type::PrivateGet,
-            CreateFor { .. } => Type::Transaction,
-            Create { .. } | Update { .. } => Type::Mutation,
+            Get(..) => Type::PrivateRead,
+            CreateFor { .. } => Type::Transfer,
+            Create { .. } | Update { .. } => Type::Write,
         }
     }
 
@@ -56,7 +56,7 @@ impl LoginPacketRequest {
         match *self {
             Get(..) => Response::GetLoginPacket(Err(error)),
             CreateFor { .. } => Response::Transaction(Err(error)),
-            Create { .. } | Update { .. } => Response::Mutation(Err(error)),
+            Create { .. } | Update { .. } => Response::Write(Err(error)),
         }
     }
 
@@ -64,15 +64,15 @@ impl LoginPacketRequest {
     pub fn authorisation_kind(&self) -> AuthorisationKind {
         use LoginPacketRequest::*;
         match *self {
-            Create { .. } | Update { .. } => AuthorisationKind::Mutation,
+            Create { .. } | Update { .. } => AuthorisationKind::Write,
             CreateFor { amount, .. } => {
                 if amount.as_nano() == 0 {
-                    AuthorisationKind::Mutation
+                    AuthorisationKind::Write
                 } else {
-                    AuthorisationKind::MutAndTransferCoins
+                    AuthorisationKind::WriteAndTransfer
                 }
             }
-            Get(_) => AuthorisationKind::GetPriv,
+            Get(_) => AuthorisationKind::PrivateRead,
         }
     }
 

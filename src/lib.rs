@@ -70,11 +70,11 @@ pub use response::{Response, TryFromError};
 pub use sequence::{
     Action as SDataAction, Address as SDataAddress, Data as SData, Entries as SDataEntries,
     Entry as SDataEntry, Index as SDataIndex, Indices as SDataIndices, Kind as SDataKind,
-    MutationOperation as SDataMutationOperation, Owner as SDataOwner,
-    Permissions as SDataPermissions, PrivPermissions as SDataPrivPermissions, PrivSeqData,
-    PrivUserPermissions as SDataPrivUserPermissions, PubPermissions as SDataPubPermissions,
-    PubSeqData, PubUserPermissions as SDataPubUserPermissions, User as SDataUser,
-    UserPermissions as SDataUserPermissions,
+    Owner as SDataOwner, Permissions as SDataPermissions, PrivPermissions as SDataPrivPermissions,
+    PrivSeqData, PrivUserPermissions as SDataPrivUserPermissions,
+    PubPermissions as SDataPubPermissions, PubSeqData,
+    PubUserPermissions as SDataPubUserPermissions, User as SDataUser,
+    UserPermissions as SDataUserPermissions, WriteOp as SDataWriteOp,
 };
 pub use sha3::Sha3_512 as Ed25519Digest;
 pub use utils::verify_signature;

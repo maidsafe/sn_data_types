@@ -27,32 +27,32 @@ use std::{borrow::Cow, fmt};
 /// The type of a `Request`.
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Type {
-    /// Request is a Get for public data.
-    PublicGet,
-    /// Request is a Get for private data.
-    PrivateGet,
-    /// Request is a Mutation.
-    Mutation,
-    /// Request is a Transaction.
-    Transaction,
+    /// Request is a Read of public data.
+    PublicRead,
+    /// Request is a Read of private data.
+    PrivateRead,
+    /// Request is a Write.
+    Write,
+    /// Request is a Transfer.
+    Transfer,
 }
 
 /// The kind of authorisation needed for a request.
 pub enum AuthorisationKind {
-    /// Get request against public data.
-    GetPub,
-    /// Get request against private data.
-    GetPriv,
-    /// Request to get balance.
-    GetBalance,
-    /// Mutation request.
-    Mutation,
+    /// Read of public data.
+    PublicRead,
+    /// Read of private data.
+    PrivateRead,
+    /// Request to Read balance.
+    ReadBalance,
+    /// Write of data/metadata.
+    Write,
     /// Request to manage app keys.
     ManageAppKeys,
-    /// Request to transfer coins
-    TransferCoins,
-    /// Request to mutate and transfer coins
-    MutAndTransferCoins,
+    /// Request to transfer currency.
+    Transfer,
+    /// Request to write and transfer.
+    WriteAndTransfer,
 }
 
 /// RPC Request that is sent to vaults.

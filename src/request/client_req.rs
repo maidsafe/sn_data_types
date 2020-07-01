@@ -40,8 +40,8 @@ impl ClientRequest {
     pub fn get_type(&self) -> Type {
         use ClientRequest::*;
         match *self {
-            ListAuthKeysAndVersion => Type::PrivateGet,
-            InsAuthKey { .. } | DelAuthKey { .. } => Type::Mutation,
+            ListAuthKeysAndVersion => Type::PrivateRead,
+            InsAuthKey { .. } | DelAuthKey { .. } => Type::Write,
         }
     }
 
@@ -51,7 +51,7 @@ impl ClientRequest {
         use ClientRequest::*;
         match *self {
             ListAuthKeysAndVersion => Response::ListAuthKeysAndVersion(Err(error)),
-            InsAuthKey { .. } | DelAuthKey { .. } => Response::Mutation(Err(error)),
+            InsAuthKey { .. } | DelAuthKey { .. } => Response::Write(Err(error)),
         }
     }
 

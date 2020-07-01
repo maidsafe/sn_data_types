@@ -82,10 +82,10 @@ pub enum Response {
     /// Get a list of authorised keys and the version of the auth keys container from Elders.
     ListAuthKeysAndVersion(Result<(BTreeMap<PublicKey, AppPermissions>, u64)>),
     //
-    // ===== Mutation =====
+    // ===== Write =====
     //
-    /// Return a success or failure status for a mutation operation.
-    Mutation(Result<()>),
+    /// Return a success or failure status for a write operation.
+    Write(Result<()>),
 }
 
 /// Error type for an attempted conversion from `Response` to a type implementing
@@ -137,7 +137,7 @@ try_from!(
     ListAuthKeysAndVersion
 );
 try_from!((Vec<u8>, Signature), GetLoginPacket);
-try_from!((), Mutation);
+try_from!((), Write);
 
 impl fmt::Debug for Response {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -186,8 +186,8 @@ impl fmt::Debug for Response {
             ListAuthKeysAndVersion(res) => {
                 write!(f, "Response::ListAuthKeysAndVersion({:?})", ErrorDebug(res))
             }
-            // Mutation
-            Mutation(res) => write!(f, "Response::Mutation({:?})", ErrorDebug(res)),
+            // Write
+            Write(res) => write!(f, "Response::Write({:?})", ErrorDebug(res)),
         }
     }
 }
@@ -201,8 +201,8 @@ mod tests {
 
     #[test]
     fn debug_format() {
-        let response = Response::Mutation(Ok(()));
-        assert_eq!(format!("{:?}", response), "Response::Mutation(Success)");
+        let response = Response::Write(Ok(()));
+        assert_eq!(format!("{:?}", response), "Response::Write(Success)");
         use crate::Error;
         let errored_response = Response::GetSData(Err(Error::AccessDenied));
         assert_eq!(
@@ -224,7 +224,7 @@ mod tests {
         );
         assert_eq!(
             TryFromError::WrongType,
-            unwrap_err!(IData::try_from(Mutation(Ok(()))))
+            unwrap_err!(IData::try_from(Write(Ok(()))))
         );
 
         let mut data = BTreeMap::new();
@@ -244,7 +244,7 @@ mod tests {
         );
         assert_eq!(
             TryFromError::WrongType,
-            unwrap_err!(MData::try_from(Mutation(Ok(()))))
+            unwrap_err!(MData::try_from(Write(Ok(()))))
         );
     }
 }
