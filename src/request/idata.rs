@@ -20,7 +20,7 @@ pub enum IDataRequest {
         /// The data itself.
         data: IData,
         /// Money debit-proof for storing the data
-        debit_proof: Option<DebitAgreementProof>,
+        debit_proof: DebitAgreementProof,
     },
     /// Get ImmutableData.
     Get(IDataAddress),
