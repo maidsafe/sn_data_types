@@ -360,10 +360,10 @@ mod tests {
     use crate::{
         Error, PublicKey, Result, SData, SDataAddress, SDataIndex, SDataKind,
         SDataPrivUserPermissions, SDataPubUserPermissions, SDataUser, SDataUserPermissions,
-        XorName,
     };
     use std::collections::BTreeMap;
     use threshold_crypto::SecretKey;
+    use xor_name::XorName;
 
     fn gen_public_key() -> PublicKey {
         PublicKey::Bls(SecretKey::random().public_key())
@@ -372,7 +372,7 @@ mod tests {
     #[test]
     fn sequence_create_public() {
         let actor = gen_public_key();
-        let sdata_name: XorName = rand::random();
+        let sdata_name = XorName::default();
         let sdata_tag = 43_000;
         let sdata = SData::new_pub(actor, sdata_name, sdata_tag);
         assert_eq!(sdata.kind(), SDataKind::Public);
@@ -388,7 +388,7 @@ mod tests {
     #[test]
     fn sequence_create_private() {
         let actor = gen_public_key();
-        let sdata_name: XorName = rand::random();
+        let sdata_name = XorName::default();
         let sdata_tag = 43_000;
         let sdata = SData::new_priv(actor, sdata_name, sdata_tag);
         assert_eq!(sdata.kind(), SDataKind::Private);
@@ -404,7 +404,7 @@ mod tests {
     #[test]
     fn sequence_append_entry_and_apply() {
         let actor = gen_public_key();
-        let sdata_name: XorName = rand::random();
+        let sdata_name = XorName::default();
         let sdata_tag = 43_000;
         let mut replica1 = SData::new_pub(actor, sdata_name, sdata_tag);
         let mut replica2 = SData::new_pub(actor, sdata_name, sdata_tag);
@@ -440,7 +440,7 @@ mod tests {
     #[test]
     fn sequence_public_append_perms_and_apply() -> Result<()> {
         let actor = gen_public_key();
-        let sdata_name: XorName = rand::random();
+        let sdata_name = XorName::default();
         let sdata_tag = 43_000;
         let mut replica1 = SData::new_pub(actor, sdata_name, sdata_tag);
         let mut replica2 = SData::new_pub(actor, sdata_name, sdata_tag);
@@ -492,7 +492,7 @@ mod tests {
     fn sequence_private_append_perms_and_apply() -> Result<()> {
         let actor1 = gen_public_key();
         let actor2 = gen_public_key();
-        let sdata_name: XorName = rand::random();
+        let sdata_name = XorName::default();
         let sdata_tag = 43_000;
         let mut replica1 = SData::new_priv(actor1, sdata_name, sdata_tag);
         let mut replica2 = SData::new_priv(actor2, sdata_name, sdata_tag);
@@ -543,7 +543,7 @@ mod tests {
     #[test]
     fn sequence_append_owner_and_apply() -> Result<()> {
         let actor = gen_public_key();
-        let sdata_name: XorName = rand::random();
+        let sdata_name = XorName::default();
         let sdata_tag = 43_000;
         let mut replica1 = SData::new_pub(actor, sdata_name, sdata_tag);
         let mut replica2 = SData::new_pub(actor, sdata_name, sdata_tag);

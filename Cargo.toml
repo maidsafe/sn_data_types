@@ -20,6 +20,7 @@ sha3 = "~0.8.2"
 threshold_crypto = "~0.3.2"
 tiny-keccak = "1.5.0"
 unwrap = "1.2.1"
+xor_name = { git = "https://github.com/maidsafe/xor-name.git" }
 
   [dependencies.serde]
   version = "1.0.91"
