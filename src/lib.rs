@@ -34,7 +34,8 @@ mod immutable_data;
 mod keys;
 mod money;
 mod mutable_data;
-mod request;
+mod readwrite;
+//mod request;
 mod response;
 mod sequence;
 mod transfer;
@@ -62,10 +63,11 @@ pub use mutable_data::{
     UnseqEntryAction as MDataUnseqEntryAction, UnseqEntryActions as MDataUnseqEntryActions,
     Value as MDataValue, Values as MDataValues,
 };
-pub use request::{
-    AuthorisationKind as RequestAuthKind, ClientRequest, DataAuthKind, IDataRequest, LoginPacket,
-    LoginPacketRequest, MDataRequest, MiscAuthKind, MoneyAuthKind, MoneyRequest, Request,
-    SDataRequest, Type as RequestType, MAX_LOGIN_PACKET_BYTES,
+pub use readwrite::{
+    Account, AccountRead, AccountWrite, AuthorisationKind as RequestAuthKind, BlobRead, BlobWrite,
+    ClientAuth, ClientRequest, DataAuthKind, MapRead, MapWrite, MiscAuthKind, MoneyAuthKind,
+    NodeRequest, Read, Request, SequenceRead, SequenceWrite, SystemOp, Transfers,
+    Type as RequestType, Write, MAX_LOGIN_PACKET_BYTES,
 };
 pub use response::{Response, TryFromError};
 pub use sequence::{
