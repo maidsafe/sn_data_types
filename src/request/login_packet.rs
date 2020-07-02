@@ -172,6 +172,7 @@ impl LoginPacket {
 mod tests {
     use super::{LoginPacket, MAX_LOGIN_PACKET_BYTES};
     use crate::{ClientFullId, Error};
+    use xor_name::XorName;
 
     #[test]
     fn exceed_size_limit() {
@@ -181,7 +182,7 @@ mod tests {
         let signature = our_id.sign(&acc_data);
 
         let res = LoginPacket::new(
-            rand::random(),
+            XorName::default(),
             *our_id.public_id().public_key(),
             acc_data,
             signature,
@@ -202,7 +203,7 @@ mod tests {
         let signature = our_id.sign(&acc_data);
 
         let res = LoginPacket::new(
-            rand::random(),
+            XorName::default(),
             *our_id.public_id().public_key(),
             acc_data.clone(),
             signature,
