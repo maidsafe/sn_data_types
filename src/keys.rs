@@ -191,6 +191,16 @@ pub enum Signature {
     BlsShare(threshold_crypto::SignatureShare),
 }
 
+impl Signature {
+    /// Returns threshold_crypto::Signature if Self is a BLS variant.
+    pub fn into_bls(self) -> Option<threshold_crypto::Signature> {
+        match self {
+            Self::Bls(sig) => Some(sig),
+            _ => None,
+        }
+    }
+}
+
 impl From<threshold_crypto::Signature> for Signature {
     fn from(sig: threshold_crypto::Signature) -> Self {
         Self::Bls(sig)
