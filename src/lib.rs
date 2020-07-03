@@ -35,7 +35,6 @@ mod keys;
 mod money;
 mod mutable_data;
 mod readwrite;
-//mod request;
 mod response;
 mod sequence;
 mod transfer;
