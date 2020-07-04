@@ -64,8 +64,8 @@ pub use mutable_data::{
 };
 pub use readwrite::{
     Account, AccountRead, AccountWrite, AuthorisationKind as RequestAuthKind, BlobRead, BlobWrite,
-    ClientAuth, ClientRequest, DataAuthKind, MapRead, MapWrite, MiscAuthKind, MoneyAuthKind,
-    NodeRequest, Read, Request, SequenceRead, SequenceWrite, SystemOp, Transfers,
+    ClientAuth, ClientRequest, DataAuthKind, GatewayRequest, MapRead, MapWrite, MiscAuthKind,
+    MoneyAuthKind, NodeRequest, Read, Request, SequenceRead, SequenceWrite, SystemOp, Transfers,
     Type as RequestType, Write, MAX_LOGIN_PACKET_BYTES,
 };
 pub use response::{Response, TryFromError};

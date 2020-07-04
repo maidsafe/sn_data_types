@@ -10,6 +10,7 @@
 mod account;
 mod blob;
 mod client;
+mod gateway;
 mod map;
 mod money;
 mod node;
@@ -22,6 +23,7 @@ pub use self::{
     account::{Account, AccountRead, AccountWrite, MAX_LOGIN_PACKET_BYTES},
     blob::{BlobRead, BlobWrite},
     client::ClientRequest,
+    gateway::GatewayRequest,
     map::{MapRead, MapWrite},
     node::NodeRequest,
     read::Read,
@@ -39,6 +41,8 @@ use std::{borrow::Cow, fmt};
 pub enum Request {
     /// Client
     Client(ClientRequest),
+    /// Gateway
+    Gateway(GatewayRequest),
     /// Node
     Node(NodeRequest),
 }
@@ -103,8 +107,9 @@ impl Request {
     pub fn get_type(&self) -> Type {
         use Request::*;
         match self {
-            Client(req) => req.get_type(),
             Node(req) => req.get_type(),
+            Client(req) => req.get_type(),
+            Gateway(req) => req.get_type(),
         }
     }
 
@@ -115,6 +120,7 @@ impl Request {
         match self {
             Node(req) => req.error_response(error),
             Client(req) => req.error_response(error),
+            Gateway(req) => req.error_response(error),
         }
     }
 
@@ -124,6 +130,7 @@ impl Request {
         match self {
             Node(req) => req.authorisation_kind(),
             Client(req) => req.authorisation_kind(),
+            Gateway(req) => req.authorisation_kind(),
         }
     }
 
@@ -133,6 +140,7 @@ impl Request {
         match self {
             Node(req) => req.dst_address(),
             Client(req) => req.dst_address(),
+            Gateway(req) => req.dst_address(),
         }
     }
 }
@@ -143,6 +151,7 @@ impl fmt::Debug for Request {
         match self {
             Node(req) => write!(formatter, "{:?}", req),
             Client(req) => write!(formatter, "{:?}", req),
+            Gateway(req) => write!(formatter, "{:?}", req),
         }
     }
 }
