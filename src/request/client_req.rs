@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt};
 
 /// Client (Owner) request that is sent to vaults.
+#[allow(clippy::large_enum_variant)]
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub enum ClientRequest {
     /// List authorised keys and version stored by Elders.
