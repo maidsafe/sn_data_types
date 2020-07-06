@@ -7,15 +7,13 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::{
-    utils, ClientFullId, ClientPublicId, Ed25519Digest, Error, Keypair, PublicKey, Signature,
-    XorName,
-};
+use crate::{utils, ClientFullId, ClientPublicId, Error, Keypair, PublicKey, Signature};
 use multibase::Decodable;
 use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Debug, Display, Formatter};
 use threshold_crypto::SecretKeyShare as BlsSecretKeyShare;
+use xor_name::XorName;
 
 /// A struct holding a keypair variant and the corresponding public ID for a network App.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -54,7 +52,7 @@ impl FullId {
     /// Creates a detached signature of `data`.
     pub fn sign<T: AsRef<[u8]>>(&self, data: T) -> Signature {
         match &self.keypair {
-            Keypair::Ed25519(keys) => Signature::Ed25519(keys.sign::<Ed25519Digest>(data.as_ref())),
+            Keypair::Ed25519(keys) => Signature::Ed25519(keys.sign(data.as_ref())),
             Keypair::Bls(keys) => Signature::Bls(keys.secret.inner().sign(data)),
             Keypair::BlsShare(keys) => Signature::BlsShare(keys.secret.inner().sign(data)),
         }
