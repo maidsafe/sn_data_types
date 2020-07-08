@@ -7,10 +7,10 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use super::{AuthorisationKind, DataAuthKind, Type};
-use crate::{Error, PublicKey, Response, Result, Signature, XorName};
+use super::{AuthorisationKind, CmdError, DataAuthKind, QueryResponse};
+use crate::{Error, PublicKey, Result, Signature, XorName};
 use serde::{Deserialize, Serialize};
-use std::{borrow::Cow, fmt};
+use std::fmt;
 
 /// Login packet size is limited .
 pub const MAX_LOGIN_PACKET_BYTES: usize = 1024 * 1024; // 1 MB
@@ -19,7 +19,7 @@ pub const MAX_LOGIN_PACKET_BYTES: usize = 1024 * 1024; // 1 MB
 /// have Authenticator as its own app.
 #[allow(clippy::large_enum_variant)]
 #[derive(Hash, Eq, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
-pub enum AccountWrite {
+pub enum AccountCmd {
     /// Create a new account.
     New(Account),
     /// Update (overwrite) an Account.
@@ -35,45 +35,37 @@ pub enum AccountRead {
     Get(XorName),
 }
 
-impl AccountWrite {
-    /// Get the `Type` of this `Request`.
-    pub fn get_type(&self) -> Type {
-        use AccountWrite::*;
-        match *self {
-            New { .. } | Update { .. } => Type::Write,
-        }
-    }
-
+impl AccountCmd {
     /// Creates a Response containing an error, with the Response variant corresponding to the
     /// Request variant.
-    pub fn error_response(&self, error: Error) -> Response {
-        use AccountWrite::*;
+    pub fn error(&self, error: Error) -> CmdError {
+        use AccountCmd::*;
         match *self {
-            New { .. } | Update { .. } => Response::Write(Err(error)),
+            New { .. } | Update { .. } => CmdError::Data(error),
         }
     }
 
     /// Returns the type of authorisation needed for the request.
     pub fn authorisation_kind(&self) -> AuthorisationKind {
-        use AccountWrite::*;
+        use AccountCmd::*;
         match *self {
             New { .. } | Update { .. } => AuthorisationKind::Data(DataAuthKind::Write),
         }
     }
 
     /// Returns the address of the destination for `request`.
-    pub fn dst_address(&self) -> Option<Cow<XorName>> {
-        use AccountWrite::*;
+    pub fn dst_address(&self) -> XorName {
+        use AccountCmd::*;
         match self {
-            New(account) => Some(Cow::Borrowed(account.address())),
-            Update(account) => Some(Cow::Borrowed(account.address())),
+            New(account) => *account.address(),
+            Update(account) => *account.address(),
         }
     }
 }
 
-impl fmt::Debug for AccountWrite {
+impl fmt::Debug for AccountCmd {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        use AccountWrite::*;
+        use AccountCmd::*;
         write!(
             formatter,
             "Request::{}",
@@ -86,15 +78,15 @@ impl fmt::Debug for AccountWrite {
 }
 
 impl AccountRead {
-    /// Get the `Type` of this request.
-    pub fn get_type(&self) -> Type {
-        Type::PrivateRead
-    }
+    // /// Get the `Type` of this request.
+    // pub fn get_type(&self) -> Type {
+    //     Type::PrivateRead
+    // }
 
     /// Creates a Response containing an error, with the Response variant corresponding to the
     /// Request variant.
-    pub fn error_response(&self, error: Error) -> Response {
-        Response::GetLoginPacket(Err(error))
+    pub fn error(&self, error: Error) -> QueryResponse {
+        QueryResponse::GetAccount(Err(error))
     }
 
     /// Returns the type of authorisation needed for the request.
@@ -103,10 +95,10 @@ impl AccountRead {
     }
 
     /// Returns the address of the destination for request.
-    pub fn dst_address(&self) -> Option<Cow<XorName>> {
+    pub fn dst_address(&self) -> XorName {
         use AccountRead::*;
         match self {
-            Get(ref name) => Some(Cow::Borrowed(name)),
+            Get(ref name) => *name,
         }
     }
 }

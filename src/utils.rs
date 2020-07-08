@@ -7,7 +7,7 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::{Error, MessageId, PublicKey, Request, Result, Signature};
+use crate::{Error, Message, MessageId, PublicKey, Result, Signature};
 use multibase::{self, Base, Decodable};
 use serde::{de::DeserializeOwned, Serialize};
 use unwrap::unwrap;
@@ -16,7 +16,7 @@ use unwrap::unwrap;
 pub fn verify_signature(
     signature: &Signature,
     public_key: &PublicKey,
-    request: &Request,
+    request: &Message,
     message_id: &MessageId,
 ) -> Result<()> {
     let message = serialise(&(request, *message_id));

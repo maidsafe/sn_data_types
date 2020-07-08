@@ -7,10 +7,10 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use super::{AuthorisationKind, DataAuthKind, Type};
-use crate::{Error, IData as Blob, IDataAddress as BlobAddress, Response, XorName};
+use super::{AuthorisationKind, CmdError, DataAuthKind, QueryResponse};
+use crate::{Error, IData as Blob, IDataAddress as BlobAddress, XorName};
 use serde::{Deserialize, Serialize};
-use std::{borrow::Cow, fmt};
+use std::fmt;
 
 /// TODO: docs
 #[derive(Hash, Eq, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
@@ -30,19 +30,19 @@ pub enum BlobWrite {
 }
 
 impl BlobRead {
-    /// Get the `Type` of this `Request`.
-    pub fn get_type(&self) -> Type {
-        use BlobRead::*;
-        match self {
-            Get(BlobAddress::Pub(_)) => Type::PublicRead,
-            Get(BlobAddress::Unpub(_)) => Type::PrivateRead,
-        }
-    }
+    // /// Get the `Type` of this `Request`.
+    // pub fn get_type(&self) -> Type {
+    //     use BlobRead::*;
+    //     match self {
+    //         Get(BlobAddress::Pub(_)) => Type::PublicRead,
+    //         Get(BlobAddress::Unpub(_)) => Type::PrivateRead,
+    //     }
+    // }
 
     /// Creates a Response containing an error, with the Response variant corresponding to the
     /// Request variant.
-    pub fn error_response(&self, error: Error) -> Response {
-        Response::GetIData(Err(error))
+    pub fn error(&self, error: Error) -> QueryResponse {
+        QueryResponse::GetBlob(Err(error))
     }
 
     /// Returns the type of authorisation needed for the request.
@@ -55,24 +55,19 @@ impl BlobRead {
     }
 
     /// Returns the address of the destination for `request`.
-    pub fn dst_address(&self) -> Option<Cow<XorName>> {
+    pub fn dst_address(&self) -> XorName {
         use BlobRead::*;
         match self {
-            Get(ref address) => Some(Cow::Borrowed(address.name())),
+            Get(ref address) => *address.name(),
         }
     }
 }
 
 impl BlobWrite {
-    /// Get the `Type` of this `Request`.
-    pub fn get_type(&self) -> Type {
-        Type::Write
-    }
-
     /// Creates a Response containing an error, with the Response variant corresponding to the
     /// Request variant.
-    pub fn error_response(&self, error: Error) -> Response {
-        Response::Write(Err(error))
+    pub fn error(&self, error: Error) -> CmdError {
+        CmdError::Data(error)
     }
 
     /// Returns the type of authorisation needed for the request.
@@ -81,11 +76,11 @@ impl BlobWrite {
     }
 
     /// Returns the address of the destination for `request`.
-    pub fn dst_address(&self) -> Option<Cow<XorName>> {
+    pub fn dst_address(&self) -> XorName {
         use BlobWrite::*;
         match self {
-            New(ref data) => Some(Cow::Borrowed(data.name())),
-            DeletePrivate(ref address) => Some(Cow::Borrowed(address.name())),
+            New(ref data) => *data.name(),
+            DeletePrivate(ref address) => *address.name(),
         }
     }
 }

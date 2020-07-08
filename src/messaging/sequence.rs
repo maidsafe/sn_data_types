@@ -7,14 +7,14 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use super::{AuthorisationKind, DataAuthKind, Type};
+use super::{AuthorisationKind, CmdError, DataAuthKind, QueryResponse};
 use crate::{
-    Error, Response, SData as Sequence, SDataAddress as Address, SDataEntry as Entry,
-    SDataIndex as Index, SDataOwner as Owner, SDataPrivPermissions as PrivatePermissions,
+    Error, SData as Sequence, SDataAddress as Address, SDataEntry as Entry, SDataIndex as Index,
+    SDataOwner as Owner, SDataPrivPermissions as PrivatePermissions,
     SDataPubPermissions as PublicPermissions, SDataUser as User, SDataWriteOp as WriteOp, XorName,
 };
 use serde::{Deserialize, Serialize};
-use std::{borrow::Cow, fmt};
+use std::fmt;
 
 /// TODO: docs
 #[derive(Hash, Eq, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
@@ -74,36 +74,17 @@ pub enum SequenceWrite {
 }
 
 impl SequenceRead {
-    /// Get the `Type` of this request.
-    pub fn get_type(&self) -> Type {
-        use SequenceRead::*;
-        match *self {
-            Get(address)
-            | GetRange { address, .. }
-            | GetLastEntry(address)
-            | GetPermissions(address)
-            | GetUserPermissions { address, .. }
-            | GetOwner(address) => {
-                if address.is_pub() {
-                    Type::PublicRead
-                } else {
-                    Type::PrivateRead
-                }
-            }
-        }
-    }
-
     /// Creates a Response containing an error, with the Response variant corresponding to the
     /// Request variant.
-    pub fn error_response(&self, error: Error) -> Response {
+    pub fn error(&self, error: Error) -> QueryResponse {
         use SequenceRead::*;
         match *self {
-            Get(_) => Response::GetSData(Err(error)),
-            GetRange { .. } => Response::GetSDataRange(Err(error)),
-            GetLastEntry(_) => Response::GetSDataLastEntry(Err(error)),
-            GetPermissions(_) => Response::GetSDataPermissions(Err(error)),
-            GetUserPermissions { .. } => Response::GetSDataUserPermissions(Err(error)),
-            GetOwner(_) => Response::GetSDataOwner(Err(error)),
+            Get(_) => QueryResponse::GetSequence(Err(error)),
+            GetRange { .. } => QueryResponse::GetSequenceRange(Err(error)),
+            GetLastEntry(_) => QueryResponse::GetSequenceLastEntry(Err(error)),
+            GetPermissions(_) => QueryResponse::GetSequencePermissions(Err(error)),
+            GetUserPermissions { .. } => QueryResponse::GetSequenceUserPermissions(Err(error)),
+            GetOwner(_) => QueryResponse::GetSequenceOwner(Err(error)),
         }
     }
 
@@ -127,15 +108,15 @@ impl SequenceRead {
     }
 
     /// Returns the address of the destination for request.
-    pub fn dst_address(&self) -> Option<Cow<XorName>> {
+    pub fn dst_address(&self) -> XorName {
         use SequenceRead::*;
         match self {
-            Get(ref address) | GetRange { ref address, .. } | GetLastEntry(ref address) => {
-                Some(Cow::Borrowed(address.name()))
-            }
-            GetPermissions(ref address)
+            Get(ref address)
+            | GetRange { ref address, .. }
+            | GetLastEntry(ref address)
+            | GetPermissions(ref address)
             | GetUserPermissions { ref address, .. }
-            | GetOwner(ref address) => Some(Cow::Borrowed(address.name())),
+            | GetOwner(ref address) => *address.name(),
         }
     }
 }
@@ -159,15 +140,10 @@ impl fmt::Debug for SequenceRead {
 }
 
 impl SequenceWrite {
-    /// Get the `Type` of this request.
-    pub fn get_type(&self) -> Type {
-        Type::Write
-    }
-
     /// Creates a Response containing an error, with the Response variant corresponding to the
     /// Request variant.
-    pub fn error_response(&self, error: Error) -> Response {
-        Response::Write(Err(error))
+    pub fn error(&self, error: Error) -> CmdError {
+        CmdError::Data(error)
     }
 
     /// Returns the access categorisation of the request.
@@ -176,15 +152,15 @@ impl SequenceWrite {
     }
 
     /// Returns the address of the destination for request.
-    pub fn dst_address(&self) -> Option<Cow<XorName>> {
+    pub fn dst_address(&self) -> XorName {
         use SequenceWrite::*;
         match self {
-            New(ref data) => Some(Cow::Borrowed(data.name())),
-            Delete(ref address) => Some(Cow::Borrowed(address.name())),
-            SetPubPermissions(ref op) => Some(Cow::Borrowed(op.address.name())),
-            SetPrivPermissions(ref op) => Some(Cow::Borrowed(op.address.name())),
-            SetOwner(ref op) => Some(Cow::Borrowed(op.address.name())),
-            Edit(ref op) => Some(Cow::Borrowed(op.address.name())),
+            New(ref data) => *data.name(),
+            Delete(ref address) => *address.name(),
+            SetPubPermissions(ref op) => *op.address.name(),
+            SetPrivPermissions(ref op) => *op.address.name(),
+            SetOwner(ref op) => *op.address.name(),
+            Edit(ref op) => *op.address.name(),
         }
     }
 }

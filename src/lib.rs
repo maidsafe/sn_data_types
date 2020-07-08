@@ -32,10 +32,9 @@ mod errors;
 mod identity;
 mod immutable_data;
 mod keys;
+mod messaging;
 mod money;
 mod mutable_data;
-mod readwrite;
-mod response;
 mod sequence;
 mod transfer;
 mod utils;
@@ -52,6 +51,8 @@ pub use immutable_data::{
     UnpubData as UnpubImmutableData, MAX_IMMUTABLE_DATA_SIZE_IN_BYTES,
 };
 pub use keys::{BlsKeypair, BlsKeypairShare, Keypair, PublicKey, Signature};
+pub use messaging::*;
+pub use messaging::{CmdError, Event, QueryResponse, TryFromError};
 pub use money::Money;
 pub use mutable_data::{
     Action as MDataAction, Address as MDataAddress, Data as MData, Entries as MDataEntries,
@@ -62,13 +63,12 @@ pub use mutable_data::{
     UnseqEntryAction as MDataUnseqEntryAction, UnseqEntryActions as MDataUnseqEntryActions,
     Value as MDataValue, Values as MDataValues,
 };
-pub use readwrite::{
-    Account, AccountRead, AccountWrite, AuthorisationKind as RequestAuthKind, BlobRead, BlobWrite,
-    ClientAuth, ClientRequest, DataAuthKind, GatewayRequest, MapRead, MapWrite, MiscAuthKind,
-    MoneyAuthKind, NodeRequest, Read, Request, SequenceRead, SequenceWrite, SystemOp, Transfers,
-    Type as RequestType, Write, MAX_LOGIN_PACKET_BYTES,
-};
-pub use response::{Response, TryFromError};
+// pub use messaging::{
+//     Account, AccountCmd, AccountRead, AuthorisationKind as RequestAuthKind, BlobRead, BlobWrite,
+//     ClientAuth, ClientRequest, DataAuthKind, GatewayRequest, MapRead, MapWrite, MiscAuthKind,
+//     MoneyAuthKind, NodeRequest, Query, Request, SequenceRead, SequenceWrite, SystemOp, Transfers,
+//     Cmd, MAX_LOGIN_PACKET_BYTES, DataQuery, DataCmd, Transfer
+// };
 pub use sequence::{
     Action as SDataAction, Address as SDataAddress, Data as SData, Entries as SDataEntries,
     Entry as SDataEntry, Index as SDataIndex, Indices as SDataIndices, Kind as SDataKind,
@@ -197,67 +197,6 @@ impl Display for XorName {
 impl Distribution<XorName> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> XorName {
         XorName(rng.gen())
-    }
-}
-
-/// Wrapper message that contains a message ID and the requester ID along the request or response.
-/// It should also contain a valid signature if it's sent by the owner(s).
-#[allow(clippy::large_enum_variant)]
-#[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
-pub enum Message {
-    /// Request with the message ID.
-    Request {
-        /// Request.
-        request: Request,
-        /// Associated message ID.
-        message_id: MessageId,
-        /// Signature of `(request, message_id)`. Optional if the request is read-only.
-        signature: Option<Signature>,
-    },
-    /// Response matched to the message ID.
-    Response {
-        /// Response.
-        response: Response,
-        /// Associated message ID.
-        message_id: MessageId,
-    },
-    /// Notification of a transfer.
-    TransferNotification {
-        /// Notification.
-        payload: TransferNotification,
-    },
-}
-
-impl Message {
-    /// Gets the message ID, if applicable.
-    pub fn message_id(&self) -> Option<MessageId> {
-        match self {
-            Self::Request { message_id, .. } | Self::Response { message_id, .. } => {
-                Some(*message_id)
-            }
-            Self::TransferNotification { .. } => None,
-        }
-    }
-}
-
-/// Unique ID for messages.
-///
-/// This is used for deduplication: Since the network sends messages redundantly along different
-/// routes, the same message will usually arrive more than once at any given node. A message with
-/// an ID that is already in the cache will be ignored.
-#[derive(Ord, PartialOrd, Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize, Hash)]
-pub struct MessageId(pub XorName);
-
-impl MessageId {
-    /// Generates a new `MessageId` with random content.
-    pub fn new() -> Self {
-        Self(rand::random())
-    }
-}
-
-impl Default for MessageId {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
