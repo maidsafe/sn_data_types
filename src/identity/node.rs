@@ -7,7 +7,7 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::keys::BlsKeypairShare;
+use crate::keys::{BlsKeypairShare, SignatureShare};
 use crate::{utils, Ed25519Digest, Error, PublicKey, Signature, XorName};
 use ed25519_dalek::{Keypair as Ed25519Keypair, PublicKey as Ed25519PublicKey};
 use hex_fmt::HexFmt;
@@ -83,9 +83,12 @@ impl FullId {
 
     /// Creates a detached BLS signature share of `data` if the `self` holds a BLS keypair share.
     pub fn sign_using_bls<T: AsRef<[u8]>>(&self, data: T) -> Option<Signature> {
-        self.bls
-            .as_ref()
-            .map(|bls_keys| Signature::BlsShare(bls_keys.secret.inner().sign(data)))
+        self.bls.as_ref().map(|keys| {
+            Signature::BlsShare(SignatureShare {
+                index: keys.index,
+                share: keys.secret.inner().sign(data),
+            })
+        })
     }
 
     /// Sets the `FullId`'s BLS keypair share using the provided BLS secret key share.
@@ -93,7 +96,11 @@ impl FullId {
         let public = bls_secret_key_share.public_key_share();
         let secret = SerdeSecret(bls_secret_key_share);
         self.public_id.bls = Some(public);
-        self.bls = Some(BlsKeypairShare { secret, public });
+        self.bls = Some(BlsKeypairShare {
+            index: 0,
+            secret,
+            public,
+        });
     }
 
     /// Clears the `FullId`'s BLS keypair share, i.e. sets it to `None`.

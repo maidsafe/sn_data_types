@@ -50,7 +50,7 @@ pub use immutable_data::{
     Address as IDataAddress, Data as IData, Kind as IDataKind, PubData as PubImmutableData,
     UnpubData as UnpubImmutableData, MAX_IMMUTABLE_DATA_SIZE_IN_BYTES,
 };
-pub use keys::{BlsKeypair, BlsKeypairShare, Keypair, PublicKey, Signature};
+pub use keys::{BlsKeypair, BlsKeypairShare, Keypair, PublicKey, Signature, SignatureShare};
 pub use messaging::*;
 pub use messaging::{CmdError, Event, QueryResponse, TryFromError};
 pub use money::Money;

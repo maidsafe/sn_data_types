@@ -1,4 +1,4 @@
-use super::keys::{PublicKey, Signature};
+use super::keys::{PublicKey, Signature, SignatureShare};
 use super::money::Money;
 use crdts::Dot;
 use serde::{Deserialize, Serialize};
@@ -116,15 +116,6 @@ impl SignedTransfer {
 // ------------------------------------------------------------
 //                      Replica
 // ------------------------------------------------------------
-
-/// A signature share, with its index in the combined collection.
-#[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Serialize, Deserialize, Debug)]
-pub struct SignatureShare {
-    /// Index in the combined collection.
-    pub index: usize,
-    /// Replica signature over the transfer cmd.
-    pub share: threshold_crypto::SignatureShare,
-}
 
 /// Events raised by the Replica.
 #[allow(clippy::large_enum_variant)]

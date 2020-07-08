@@ -73,7 +73,7 @@ impl PublicKey {
                 pub_key.verify::<Ed25519Digest>(data.as_ref(), sig).is_ok()
             }
             (Self::Bls(pub_key), Signature::Bls(sig)) => pub_key.verify(sig, data),
-            (Self::BlsShare(pub_key), Signature::BlsShare(sig)) => pub_key.verify(sig, data),
+            (Self::BlsShare(pub_key), Signature::BlsShare(sig)) => pub_key.verify(&sig.share, data),
             _ => return Err(Error::SigningKeyTypeMismatch),
         };
         if is_valid {
@@ -179,6 +179,15 @@ impl Display for PublicKey {
     }
 }
 
+/// A signature share, with its index in the combined collection.
+#[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Serialize, Deserialize, Debug)]
+pub struct SignatureShare {
+    /// Index in the combined collection.
+    pub index: usize,
+    /// Replica signature over the transfer cmd.
+    pub share: threshold_crypto::SignatureShare,
+}
+
 /// Wrapper for different signature types.
 #[derive(Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[allow(clippy::large_enum_variant)]
@@ -188,7 +197,7 @@ pub enum Signature {
     /// BLS signature.
     Bls(threshold_crypto::Signature),
     /// BLS signature share.
-    BlsShare(threshold_crypto::SignatureShare),
+    BlsShare(SignatureShare),
 }
 
 impl Signature {
@@ -213,9 +222,16 @@ impl From<ed25519_dalek::Signature> for Signature {
     }
 }
 
-impl From<threshold_crypto::SignatureShare> for Signature {
-    fn from(sig: threshold_crypto::SignatureShare) -> Self {
+impl From<SignatureShare> for Signature {
+    fn from(sig: SignatureShare) -> Self {
         Self::BlsShare(sig)
+    }
+}
+
+impl From<(usize, threshold_crypto::SignatureShare)> for Signature {
+    fn from(sig: (usize, threshold_crypto::SignatureShare)) -> Self {
+        let (index, share) = sig;
+        Self::BlsShare(SignatureShare { index, share })
     }
 }
 
@@ -320,15 +336,15 @@ impl Keypair {
         Self::Bls(keypair)
     }
 
-    /// Constructs a random BLS public keypair share.
-    pub fn new_bls_share(bls_secret_key_share: threshold_crypto::SecretKeyShare) -> Self {
-        let bls_public_key_share = bls_secret_key_share.public_key_share();
-        let keypair_share = BlsKeypairShare {
-            secret: SerdeSecret(bls_secret_key_share),
-            public: bls_public_key_share,
-        };
-        Self::BlsShare(keypair_share)
-    }
+    // /// Constructs a random BLS public keypair share.
+    // pub fn new_bls_share(bls_secret_key_share: threshold_crypto::SecretKeyShare) -> Self {
+    //     let bls_public_key_share = bls_secret_key_share.public_key_share();
+    //     let keypair_share = BlsKeypairShare {
+    //         secret: SerdeSecret(bls_secret_key_share),
+    //         public: bls_public_key_share,
+    //     };
+    //     Self::BlsShare(keypair_share)
+    // }
 
     /// Returns the public key associated with this keypair.
     pub fn public_key(&self) -> PublicKey {
@@ -352,6 +368,8 @@ pub struct BlsKeypair {
 /// BLS keypair share.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct BlsKeypairShare {
+    /// Share index.
+    pub index: usize,
     /// Secret key share.
     pub secret: SerdeSecret<threshold_crypto::SecretKeyShare>,
     /// Public key share.
@@ -371,7 +389,7 @@ mod tests {
         vec![
             Keypair::new_ed25519(&mut rng),
             Keypair::new_bls(&mut rng),
-            Keypair::new_bls_share(threshold_crypto::SecretKeyShare::from_mut(&mut 0.into_fr())),
+            //Keypair::new_bls_share(threshold_crypto::SecretKeyShare::from_mut(&mut 0.into_fr())),
         ]
     }
 

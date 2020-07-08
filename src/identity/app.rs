@@ -8,8 +8,8 @@
 // Software.
 
 use crate::{
-    utils, ClientFullId, ClientPublicId, Ed25519Digest, Error, Keypair, PublicKey, Signature,
-    XorName,
+    keys::SignatureShare, utils, ClientFullId, ClientPublicId, Ed25519Digest, Error, Keypair,
+    PublicKey, Signature, XorName,
 };
 use multibase::Decodable;
 use rand::{CryptoRng, Rng};
@@ -35,10 +35,10 @@ impl FullId {
         Self::new(ClientFullId::new_bls(rng), owner)
     }
 
-    /// Constructs a `FullId` from a BLS secret key share.
-    pub fn new_bls_share(bls_secret_key_share: BlsSecretKeyShare, owner: ClientPublicId) -> Self {
-        Self::new(ClientFullId::new_bls_share(bls_secret_key_share), owner)
-    }
+    // /// Constructs a `FullId` from a BLS secret key share.
+    // pub fn new_bls_share(bls_secret_key_share: BlsSecretKeyShare, owner: ClientPublicId) -> Self {
+    //     Self::new(ClientFullId::new_bls_share(bls_secret_key_share), owner)
+    // }
 
     fn new(new_id: ClientFullId, owner: ClientPublicId) -> Self {
         let public_id = PublicId {
@@ -56,7 +56,10 @@ impl FullId {
         match &self.keypair {
             Keypair::Ed25519(keys) => Signature::Ed25519(keys.sign::<Ed25519Digest>(data.as_ref())),
             Keypair::Bls(keys) => Signature::Bls(keys.secret.inner().sign(data)),
-            Keypair::BlsShare(keys) => Signature::BlsShare(keys.secret.inner().sign(data)),
+            Keypair::BlsShare(keys) => Signature::BlsShare(SignatureShare {
+                index: keys.index,
+                share: keys.secret.inner().sign(data),
+            }),
         }
     }
 
