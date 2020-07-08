@@ -339,8 +339,8 @@ pub enum QueryResponse {
 }
 
 impl Message {
-    /// Gets the message ID, if applicable.
-    pub fn message_id(&self) -> MessageId {
+    /// Gets the message ID.
+    pub fn id(&self) -> MessageId {
         match self {
             Self::Cmd { id, .. }
             | Self::Query { id, .. }
