@@ -10,12 +10,9 @@
 mod account;
 mod auth;
 mod blob;
-mod client;
 mod cmd;
-mod gateway;
 mod map;
 mod network;
-mod node;
 mod query;
 mod sequence;
 mod transfer;
@@ -24,15 +21,12 @@ pub use self::{
     account::{Account, AccountCmd, AccountRead, MAX_LOGIN_PACKET_BYTES},
     auth::{AuthCmd, AuthQuery},
     blob::{BlobRead, BlobWrite},
-    //client::ClientMessage,
     cmd::Cmd,
-    //gateway::GatewayRequest,
     map::{MapRead, MapWrite},
     network::{NetworkCmd, NetworkCmdError, NetworkEvent},
-    //message::{CmdError, QueryResponse},
-    //node::NodeRequest,
     query::Query,
     sequence::{SequenceRead, SequenceWrite},
+    transfer::{TransferCmd, TransferQuery},
 };
 
 use crate::{
