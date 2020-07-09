@@ -21,26 +21,12 @@ use std::{borrow::Cow, fmt};
 #[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum TransferCmd {
     #[cfg(feature = "simulated-payouts")]
-    /// Request to simulate a farming payout
-    SimulatePayout {
-        /// The cmd to validate a transfer.
-        transfer: Transfer,
-    },
-    /// Request to validate transfer.
-    ValidateTransfer {
-        /// The cmd to validate a transfer.
-        signed_transfer: SignedTransfer,
-    },
-    /// Request to register transfer.
-    RegisterTransfer {
-        /// The cmd to register the consensused transfer.
-        proof: DebitAgreementProof,
-    },
-    /// Request to propagate transfer.
-    PropagateTransfer {
-        /// The cmd to register the consensused transfer.
-        proof: DebitAgreementProof,
-    },
+    /// Cmd to simulate a farming payout
+    SimulatePayout(Transfer),
+    /// The cmd to validate a transfer.
+    ValidateTransfer(SignedTransfer),
+    /// The cmd to register the consensused transfer.
+    RegisterTransfer(DebitAgreementProof),
 }
 
 /// Money query that is sent to network.
@@ -68,11 +54,10 @@ impl TransferCmd {
         use TransferCmd::*;
         use TransferError::*;
         match *self {
-            ValidateTransfer { .. } => Transfer(TransferValidation(error)),
-            RegisterTransfer { .. } => Transfer(TransferRegistration(error)),
-            PropagateTransfer { .. } => Transfer(TransferPropagation(error)),
+            ValidateTransfer(_) => Transfer(TransferValidation(error)),
+            RegisterTransfer(_) => Transfer(TransferRegistration(error)),
             #[cfg(feature = "simulated-payouts")]
-            SimulatePayout { .. } => Transfer(TransferPropagation(error)),
+            SimulatePayout(_) => Transfer(TransferPropagation(error)),
         }
     }
 
@@ -80,11 +65,10 @@ impl TransferCmd {
     pub fn authorisation_kind(&self) -> AuthorisationKind {
         use TransferCmd::*;
         match self.clone() {
-            PropagateTransfer { .. } => AuthorisationKind::None, // the proof has the authority within it
-            RegisterTransfer { .. } => AuthorisationKind::None, // the proof has the authority within it
-            ValidateTransfer { .. } => AuthorisationKind::Misc(MiscAuthKind::WriteAndTransfer),
+            RegisterTransfer(_) => AuthorisationKind::None, // the proof has the authority within it
+            ValidateTransfer(_) => AuthorisationKind::Misc(MiscAuthKind::WriteAndTransfer),
             #[cfg(feature = "simulated-payouts")]
-            SimulatePayout { .. } => AuthorisationKind::None,
+            SimulatePayout(_) => AuthorisationKind::None,
         }
     }
 
@@ -92,14 +76,10 @@ impl TransferCmd {
     pub fn dst_address(&self) -> XorName {
         use TransferCmd::*;
         match self {
-            PropagateTransfer { ref proof, .. } => XorName::from(proof.to()), // sent to section where credit is made
-            RegisterTransfer { ref proof, .. } => XorName::from(proof.from()), // this is handled where the debit is made
-            ValidateTransfer {
-                ref signed_transfer,
-                ..
-            } => XorName::from(signed_transfer.from()), // this is handled where the debit is made
+            RegisterTransfer(ref proof) => XorName::from(proof.from()), // this is handled where the debit is made
+            ValidateTransfer(ref signed_transfer) => XorName::from(signed_transfer.from()), // this is handled where the debit is made
             #[cfg(feature = "simulated-payouts")]
-            SimulatePayout { ref transfer, .. } => XorName::from(transfer.from()), // this is handled where the debit is made
+            SimulatePayout(ref transfer) => XorName::from(transfer.from()), // this is handled where the debit is made
         }
     }
 }
@@ -111,7 +91,6 @@ impl fmt::Debug for TransferCmd {
             formatter,
             "TransferCmd::{}",
             match *self {
-                PropagateTransfer { .. } => "PropagateTransfer",
                 RegisterTransfer { .. } => "RegisterTransfer",
                 ValidateTransfer { .. } => "ValidateTransfer",
                 #[cfg(feature = "simulated-payouts")]

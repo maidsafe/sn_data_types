@@ -18,6 +18,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NetworkCmd {
     ///
+    PropagateTransfer(DebitAgreementProof),
+    ///
     ReceiveWorker {
         ///
         new_node_id: XorName,
@@ -25,17 +27,6 @@ pub enum NetworkCmd {
         account_id: AccountId,
         ///
         counter: Vec<u8>,
-    },
-    ///
-    DuplicateChunk {
-        ///
-        address: IDataAddress,
-        ///
-        new_holder: XorName,
-        ///
-        message_id: MessageId,
-        ///
-        signature: Option<(usize, SignatureShare)>,
     },
     ///
     InitiateRewardPayout {
@@ -50,6 +41,17 @@ pub enum NetworkCmd {
         debit_agreement: DebitAgreementProof,
         ///
         message_id: MessageId,
+    },
+    ///
+    DuplicateChunk {
+        ///
+        address: IDataAddress,
+        ///
+        new_holder: XorName,
+        ///
+        message_id: MessageId,
+        ///
+        signature: Option<(usize, SignatureShare)>,
     },
 }
 
@@ -115,14 +117,15 @@ impl NetworkCmd {
         use Address::*;
         use NetworkCmd::*;
         match self {
+            PropagateTransfer(debit_agreement) => Section(debit_agreement.to().into()),
             ReceiveWorker { new_node_id, .. } => Section(*new_node_id),
-            DuplicateChunk { new_holder, .. } => Node(*new_holder),
             InitiateRewardPayout {
                 signed_transfer, ..
             } => Section(signed_transfer.from().into()),
             FinaliseRewardPayout {
                 debit_agreement, ..
             } => Section(debit_agreement.from().into()),
+            DuplicateChunk { new_holder, .. } => Node(*new_holder),
         }
     }
 }

@@ -152,6 +152,11 @@ pub struct MsgEnvelope {
 }
 
 impl MsgEnvelope {
+    /// Gets the message ID.
+    pub fn id(&self) -> MessageId {
+        self.message.id()
+    }
+
     /// The proxy would first sign the MsgEnvelope,
     /// and then call this method to add itself
     /// (public key + the signature) to the envelope.
