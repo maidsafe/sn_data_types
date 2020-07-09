@@ -59,6 +59,16 @@ pub enum Address {
     Section(XorName),
 }
 
+impl Address {
+    /// Extracts the underlying XorName.
+    pub fn xorname(&self) -> XorName {
+        use Address::*;
+        match self {
+            Client(xorname) | Node(xorname) | Section(xorname) => *xorname,
+        }
+    }
+}
+
 ///
 #[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum MsgSender {
