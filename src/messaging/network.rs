@@ -9,7 +9,7 @@
 
 use crate::{
     AccountId, Address, DebitAgreementProof, Error, IDataAddress, MessageId, Signature,
-    SignatureShare, SignedTransfer, TransferId, XorName,
+    SignatureShare, SignedTransfer, TransferId, TransferValidated, XorName,
 };
 use serde::{Deserialize, Serialize};
 
@@ -65,6 +65,13 @@ pub enum NetworkEvent {
         message_id: MessageId,
         ///
         proof: Option<Signature>,
+    },
+    ///
+    RewardPayoutValidated {
+        ///
+        event: TransferValidated,
+        ///
+        message_id: MessageId,
     },
 }
 
@@ -127,6 +134,7 @@ impl NetworkEvent {
         use NetworkEvent::*;
         match self {
             DuplicationComplete { chunk, .. } => Section(*chunk.name()),
+            RewardPayoutValidated { event, .. } => Section(event.from().into()),
         }
     }
 }
