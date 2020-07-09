@@ -14,6 +14,7 @@ mod client;
 mod cmd;
 mod gateway;
 mod map;
+mod network;
 mod node;
 mod query;
 mod sequence;
@@ -27,6 +28,7 @@ pub use self::{
     cmd::Cmd,
     //gateway::GatewayRequest,
     map::{MapRead, MapWrite},
+    network::{NetworkCmd, NetworkCmdError, NetworkEvent},
     //message::{CmdError, QueryResponse},
     //node::NodeRequest,
     query::Query,
@@ -181,6 +183,9 @@ impl MsgEnvelope {
             Event { event, .. } => Client(event.dst_address()), // TODO: needs the correct client address
             QueryResponse { query_origin, .. } => query_origin.clone(),
             CmdError { cmd_origin, .. } => cmd_origin.clone(),
+            NetworkCmd { cmd, .. } => cmd.dst_address(),
+            NetworkEvent { event, .. } => event.dst_address(),
+            NetworkCmdError { cmd_origin, .. } => cmd_origin.clone(),
         }
     }
 }
@@ -192,7 +197,7 @@ impl MsgEnvelope {
 pub enum Message {
     /// Cmd with the message ID.
     Cmd {
-        /// Request.
+        /// Cmd.
         cmd: Cmd,
         /// Message ID.
         id: MessageId,
@@ -234,6 +239,33 @@ pub enum Message {
         correlation_id: MessageId,
         /// The sender of the causing cmd.
         cmd_origin: Address,
+    },
+    /// Cmds only sent internally in the network.
+    NetworkCmd {
+        /// NetworkCmd.
+        cmd: NetworkCmd,
+        /// Message ID.
+        id: MessageId,
+    },
+    /// An error of a NetworkCmd.
+    NetworkCmdError {
+        /// The error.
+        error: NetworkCmdError,
+        /// Message ID.
+        id: MessageId,
+        /// ID of causing cmd.
+        correlation_id: MessageId,
+        /// The sender of the causing cmd.
+        cmd_origin: Address,
+    },
+    /// Events only sent internally in the network.
+    NetworkEvent {
+        /// Request.
+        event: NetworkEvent,
+        /// Message ID.
+        id: MessageId,
+        /// ID of causing cmd.
+        correlation_id: MessageId,
     },
 }
 
@@ -356,7 +388,10 @@ impl Message {
             | Self::Query { id, .. }
             | Self::Event { id, .. }
             | Self::QueryResponse { id, .. }
-            | Self::CmdError { id, .. } => *id,
+            | Self::CmdError { id, .. }
+            | Self::NetworkCmd { id, .. }
+            | Self::NetworkEvent { id, .. }
+            | Self::NetworkCmdError { id, .. } => *id,
         }
     }
 }
