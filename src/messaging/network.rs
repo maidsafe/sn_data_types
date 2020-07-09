@@ -8,8 +8,8 @@
 // Software.
 
 use crate::{
-    AccountId, Address, Error, IDataAddress, MessageId, Signature, SignatureShare, SignedTransfer,
-    TransferId, XorName,
+    AccountId, Address, DebitAgreementProof, Error, IDataAddress, MessageId, Signature,
+    SignatureShare, SignedTransfer, TransferId, XorName,
 };
 use serde::{Deserialize, Serialize};
 
@@ -38,9 +38,18 @@ pub enum NetworkCmd {
         signature: Option<(usize, SignatureShare)>,
     },
     ///
-    PayoutRewards {
+    InitiateRewardPayout {
         ///
         signed_transfer: SignedTransfer,
+        ///
+        message_id: MessageId,
+    },
+    ///
+    FinaliseRewardPayout {
+        ///
+        debit_agreement: DebitAgreementProof,
+        ///
+        message_id: MessageId,
     },
 }
 
@@ -64,11 +73,33 @@ pub enum NetworkEvent {
 #[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NetworkCmdError {
     ///
-    WorkerReception { account_id: AccountId, error: Error },
+    WorkerReception {
+        ///
+        account_id: AccountId,
+        ///
+        error: Error,
+    },
     ///
-    DuplicateChunk { address: IDataAddress, error: Error },
+    DuplicateChunk {
+        ///
+        address: IDataAddress,
+        ///
+        error: Error,
+    },
     ///
-    RewardPayout { id: TransferId, account: AccountId },
+    RewardPayoutInitiation {
+        ///
+        id: TransferId,
+        ///
+        account: AccountId,
+    },
+    ///
+    RewardPayoutFinalisation {
+        ///
+        id: TransferId,
+        ///
+        account: AccountId,
+    },
 }
 
 impl NetworkCmd {
@@ -79,9 +110,12 @@ impl NetworkCmd {
         match self {
             ReceiveWorker { new_node_id, .. } => Section(*new_node_id),
             DuplicateChunk { new_holder, .. } => Node(*new_holder),
-            PayoutRewards {
+            InitiateRewardPayout {
                 signed_transfer, ..
-            } => Section(signed_transfer.to().into()),
+            } => Section(signed_transfer.from().into()),
+            FinaliseRewardPayout {
+                debit_agreement, ..
+            } => Section(debit_agreement.from().into()),
         }
     }
 }
