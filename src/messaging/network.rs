@@ -8,42 +8,67 @@
 // Software.
 
 use crate::{
-    AccountId, Address, Error, IDataAddress, MessageId, Signature, SignatureShare, XorName,
+    AccountId, Address, Error, IDataAddress, MessageId, Signature, SignatureShare, SignedTransfer,
+    TransferId, XorName,
 };
 use serde::{Deserialize, Serialize};
 
+///
 #[allow(clippy::large_enum_variant)]
 #[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NetworkCmd {
+    ///
     ReceiveWorker {
+        ///
         new_node_id: XorName,
+        ///
         account_id: AccountId,
+        ///
         counter: Vec<u8>,
     },
+    ///
     DuplicateChunk {
+        ///
         address: IDataAddress,
+        ///
         new_holder: XorName,
+        ///
         message_id: MessageId,
+        ///
         signature: Option<(usize, SignatureShare)>,
+    },
+    ///
+    PayoutRewards {
+        ///
+        signed_transfer: SignedTransfer,
     },
 }
 
+///
 #[allow(clippy::large_enum_variant)]
 #[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NetworkEvent {
     /// Wrapper for a duplicate completion response, from a node to elders.
     DuplicationComplete {
+        ///
         chunk: IDataAddress,
+        ///
         message_id: MessageId,
+        ///
         proof: Option<Signature>,
     },
 }
 
+///
 #[allow(clippy::large_enum_variant)]
 #[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NetworkCmdError {
+    ///
     WorkerReception { account_id: AccountId, error: Error },
+    ///
     DuplicateChunk { address: IDataAddress, error: Error },
+    ///
+    RewardPayout { id: TransferId, account: AccountId },
 }
 
 impl NetworkCmd {
@@ -54,6 +79,9 @@ impl NetworkCmd {
         match self {
             ReceiveWorker { new_node_id, .. } => Section(*new_node_id),
             DuplicateChunk { new_holder, .. } => Node(*new_holder),
+            PayoutRewards {
+                signed_transfer, ..
+            } => Section(signed_transfer.to().into()),
         }
     }
 }
