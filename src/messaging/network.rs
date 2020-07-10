@@ -29,8 +29,6 @@ pub enum NetworkCmd {
         address: IDataAddress,
         ///
         new_holder: XorName,
-        ///
-        signature: Option<(usize, SignatureShare)>,
     },
 }
 
