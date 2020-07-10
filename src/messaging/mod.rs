@@ -25,7 +25,7 @@ pub use self::{
     cmd::Cmd,
     duty::{AdultDuty, Duty, ElderDuty},
     map::{MapRead, MapWrite},
-    network::{NetworkCmd, NetworkCmdError, NetworkEvent},
+    network::{NetworkCmd, NetworkCmdError, NetworkEvent, NetworkQuery, NetworkQueryResponse},
     query::Query,
     sequence::{SequenceRead, SequenceWrite},
     transfer::{TransferCmd, TransferQuery},
@@ -92,7 +92,9 @@ impl MsgEnvelope {
             CmdError { cmd_origin, .. } => cmd_origin.clone(),
             NetworkCmd { cmd, .. } => cmd.dst_address(),
             NetworkEvent { event, .. } => event.dst_address(),
+            NetworkQuery { query, .. } => query.dst_address(),
             NetworkCmdError { cmd_origin, .. } => cmd_origin.clone(),
+            NetworkQueryResponse { query_origin, .. } => query_origin.clone(),
         }
     }
 }
@@ -252,6 +254,24 @@ pub enum Message {
         /// ID of causing cmd.
         correlation_id: MessageId,
     },
+    /// Queries is a read-only operation.
+    NetworkQuery {
+        /// Query.
+        query: NetworkQuery,
+        /// Message ID.
+        id: MessageId,
+    },
+    /// The response to a query, containing the query result.
+    NetworkQueryResponse {
+        /// QueryResponse.
+        response: NetworkQueryResponse,
+        /// Message ID.
+        id: MessageId,
+        /// ID of causing query.
+        correlation_id: MessageId,
+        /// The sender of the causing query.
+        query_origin: Address,
+    },
 }
 
 impl Message {
@@ -265,7 +285,9 @@ impl Message {
             | Self::CmdError { id, .. }
             | Self::NetworkCmd { id, .. }
             | Self::NetworkEvent { id, .. }
-            | Self::NetworkCmdError { id, .. } => *id,
+            | Self::NetworkQuery { id, .. }
+            | Self::NetworkCmdError { id, .. }
+            | Self::NetworkQueryResponse { id, .. } => *id,
         }
     }
 }

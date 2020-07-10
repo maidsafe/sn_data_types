@@ -8,7 +8,7 @@
 // Software.
 
 use crate::{
-    AccountId, Address, DebitAgreementProof, Error, IDataAddress, MessageId, Signature,
+    AccountId, Address, DebitAgreementProof, Error, IData, IDataAddress, Result, Signature,
     SignatureShare, SignedTransfer, TransferId, TransferValidated, XorName,
 };
 use serde::{Deserialize, Serialize};
@@ -19,15 +19,6 @@ use serde::{Deserialize, Serialize};
 pub enum NetworkCmd {
     ///
     PropagateTransfer(DebitAgreementProof),
-    ///
-    ReceiveWorker {
-        ///
-        new_node_id: XorName,
-        ///
-        account_id: AccountId,
-        ///
-        counter: Vec<u8>,
-    },
     ///
     InitiateRewardPayout(SignedTransfer),
     ///
@@ -59,6 +50,55 @@ pub enum NetworkEvent {
     },
     ///
     RewardPayoutValidated(TransferValidated),
+}
+
+///
+#[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+pub enum NetworkQuery {
+    /// Elder to Adult Get.
+    GetChunk {
+        /// The holder id.
+        holder: XorName,
+        /// The chunk address.
+        address: IDataAddress,
+    },
+    /// Adult to Adult Get
+    GetChunks {
+        /// The holder id.
+        holder: XorName,
+        /// The chunk addresses.
+        addresses: Vec<IDataAddress>,
+    },
+    /// Sent by new section to old section
+    /// after having received a relocated node.
+    GetRewardCounter {
+        /// The old section will know
+        /// which counter to return
+        /// by the old node id.
+        old_node_id: XorName,
+    },
+}
+
+///
+#[allow(clippy::large_enum_variant)]
+#[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+pub enum NetworkQueryResponse {
+    /// Elder to Adult Get.
+    GetChunk(Result<IData>),
+    /// Adult to Adult Get
+    GetChunks(Result<Vec<IData>>),
+    /// The old section returns
+    /// the accumulated work & reward
+    /// for the relocated node.
+    GetRewardCounter {
+        /// This informs new section
+        /// which node this counter is for.
+        old_node_id: XorName,
+        /// The account id to payout rewards to.
+        account_id: AccountId,
+        /// The serialized RewardCounter.
+        counter: Vec<u8>,
+    },
 }
 
 ///
@@ -102,7 +142,6 @@ impl NetworkCmd {
         use NetworkCmd::*;
         match self {
             PropagateTransfer(debit_agreement) => Section(debit_agreement.to().into()),
-            ReceiveWorker { new_node_id, .. } => Section(*new_node_id),
             InitiateRewardPayout(signed_transfer) => Section(signed_transfer.from().into()),
             FinaliseRewardPayout(debit_agreement) => Section(debit_agreement.from().into()),
             DuplicateChunk { new_holder, .. } => Node(*new_holder),
@@ -118,6 +157,18 @@ impl NetworkEvent {
         match self {
             DuplicationComplete { chunk, .. } => Section(*chunk.name()),
             RewardPayoutValidated(event) => Section(event.from().into()),
+        }
+    }
+}
+
+impl NetworkQuery {
+    /// Returns the address of the destination for the query.
+    pub fn dst_address(&self) -> Address {
+        use Address::*;
+        use NetworkQuery::*;
+        match self {
+            GetChunk { holder, .. } | GetChunks { holder, .. } => Node(*holder),
+            GetRewardCounter { old_node_id, .. } => Section(*old_node_id),
         }
     }
 }
