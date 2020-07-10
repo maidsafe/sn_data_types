@@ -29,27 +29,15 @@ pub enum NetworkCmd {
         counter: Vec<u8>,
     },
     ///
-    InitiateRewardPayout {
-        ///
-        signed_transfer: SignedTransfer,
-        ///
-        message_id: MessageId,
-    },
+    InitiateRewardPayout(SignedTransfer),
     ///
-    FinaliseRewardPayout {
-        ///
-        debit_agreement: DebitAgreementProof,
-        ///
-        message_id: MessageId,
-    },
+    FinaliseRewardPayout(DebitAgreementProof),
     ///
     DuplicateChunk {
         ///
         address: IDataAddress,
         ///
         new_holder: XorName,
-        ///
-        message_id: MessageId,
         ///
         signature: Option<(usize, SignatureShare)>,
     },
@@ -64,17 +52,10 @@ pub enum NetworkEvent {
         ///
         chunk: IDataAddress,
         ///
-        message_id: MessageId,
-        ///
         proof: Option<Signature>,
     },
     ///
-    RewardPayoutValidated {
-        ///
-        event: TransferValidated,
-        ///
-        message_id: MessageId,
-    },
+    RewardPayoutValidated(TransferValidated),
 }
 
 ///
@@ -119,12 +100,8 @@ impl NetworkCmd {
         match self {
             PropagateTransfer(debit_agreement) => Section(debit_agreement.to().into()),
             ReceiveWorker { new_node_id, .. } => Section(*new_node_id),
-            InitiateRewardPayout {
-                signed_transfer, ..
-            } => Section(signed_transfer.from().into()),
-            FinaliseRewardPayout {
-                debit_agreement, ..
-            } => Section(debit_agreement.from().into()),
+            InitiateRewardPayout(signed_transfer) => Section(signed_transfer.from().into()),
+            FinaliseRewardPayout(debit_agreement) => Section(debit_agreement.from().into()),
             DuplicateChunk { new_holder, .. } => Node(*new_holder),
         }
     }
@@ -137,7 +114,7 @@ impl NetworkEvent {
         use NetworkEvent::*;
         match self {
             DuplicationComplete { chunk, .. } => Section(*chunk.name()),
-            RewardPayoutValidated { event, .. } => Section(event.from().into()),
+            RewardPayoutValidated(event) => Section(event.from().into()),
         }
     }
 }
