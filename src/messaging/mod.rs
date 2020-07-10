@@ -85,7 +85,7 @@ impl MsgEnvelope {
         use Address::*;
         use Message::*;
         match &self.message {
-            Cmd { cmd, .. } => Section(cmd.dst_address()),
+            Cmd { cmd, .. } => self.cmd_dst(cmd),
             Query { query, .. } => Section(query.dst_address()),
             Event { event, .. } => Client(event.dst_address()), // TODO: needs the correct client address
             QueryResponse { query_origin, .. } => query_origin.clone(),
@@ -95,6 +95,48 @@ impl MsgEnvelope {
             NetworkQuery { query, .. } => query.dst_address(),
             NetworkCmdError { cmd_origin, .. } => cmd_origin.clone(),
             NetworkQueryResponse { query_origin, .. } => query_origin.clone(),
+        }
+    }
+
+    fn cmd_dst(&self, cmd: &Cmd) -> Address {
+        use Address::*;
+        use Cmd::*;
+        match cmd {
+            // temporary case, while not impl at `Authenticator`
+            Auth(_) => Section((*self.origin.id()).into()),
+            // always to `Payment` section
+            Transfer(c) => Section(c.dst_address()),
+            // Data dst (after reaching `Gateway`)
+            // is `Payment` and then `Metadata`.
+            Data { cmd, payment } => {
+                match self.most_recent_sender() {
+                    // From `Client` to `Gateway`.
+                    MsgSender::Client { .. } => Section((*self.origin.id()).into()),
+                    // From `Gateway` to `Payment`.
+                    MsgSender::Node {
+                        duty: Duty::Elder(ElderDuty::Gateway),
+                        ..
+                    } => Section(payment.from().into()),
+                    // From `Payment` to `Metadata`.
+                    MsgSender::Node {
+                        duty: Duty::Elder(ElderDuty::Payment),
+                        ..
+                    } => Section(cmd.dst_address()),
+                    // Accumulated at `Metadata`.
+                    // I.e. this means we accumulated a section signature from `Payment` Elders.
+                    // (this is done at `Metadata` Elders, and the accumulated section is added to most recent sender)
+                    MsgSender::Section {
+                        duty: Duty::Elder(ElderDuty::Payment),
+                        ..
+                    } => Section(cmd.dst_address()),
+                    _ => {
+                        // this should not be a valid case
+                        // just putting a default address here for now
+                        // (pointing at `Gateway` seems best)
+                        Section((*self.origin.id()).into())
+                    }
+                }
+            }
         }
     }
 }
