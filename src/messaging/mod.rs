@@ -1,4 +1,4 @@
-// Copyright 2019 MaidSafe.net limited.
+// Copyright 2020 MaidSafe.net limited.
 //
 // This SAFE Network Software is licensed to you under the MIT license <LICENSE-MIT
 // https://opensource.org/licenses/MIT> or the Modified BSD license <LICENSE-BSD
@@ -11,6 +11,7 @@ mod account;
 mod auth;
 mod blob;
 mod cmd;
+mod duty;
 mod map;
 mod network;
 mod query;
@@ -22,6 +23,7 @@ pub use self::{
     auth::{AuthCmd, AuthQuery},
     blob::{BlobRead, BlobWrite},
     cmd::Cmd,
+    duty::{AdultDuty, Duty, ElderDuty},
     map::{MapRead, MapWrite},
     network::{NetworkCmd, NetworkCmdError, NetworkEvent},
     query::Query,
@@ -43,100 +45,6 @@ use std::{
     convert::TryFrom,
     fmt,
 };
-
-///
-#[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
-pub enum Address {
-    ///
-    Client(XorName),
-    ///
-    Node(XorName),
-    ///
-    Section(XorName),
-}
-
-impl Address {
-    /// Extracts the underlying XorName.
-    pub fn xorname(&self) -> XorName {
-        use Address::*;
-        match self {
-            Client(xorname) | Node(xorname) | Section(xorname) => *xorname,
-        }
-    }
-}
-
-///
-#[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
-pub enum MsgSender {
-    ///
-    Client {
-        ///
-        id: PublicKey,
-        ///
-        signature: Signature,
-    },
-    ///
-    Node {
-        ///
-        id: PublicKey,
-        ///
-        duty: Duty,
-        ///
-        signature: Signature,
-    },
-    ///
-    Section {
-        ///
-        id: PublicKey,
-        ///
-        duty: Duty,
-        ///
-        signature: Signature,
-    },
-}
-
-impl MsgSender {
-    ///
-    pub fn address(&self) -> XorName {
-        use MsgSender::*;
-        match self {
-            Client { id, .. } => (*id).into(),
-            Node { id, .. } => (*id).into(),
-            Section { id, .. } => (*id).into(),
-        }
-    }
-}
-
-///
-#[derive(Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
-pub enum Duty {
-    ///
-    Adult(AdultDuty),
-    ///
-    Elder(ElderDuty),
-}
-
-/// Duties of an Adult.
-#[derive(Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
-pub enum AdultDuty {
-    /// Keeping and serving chunks.
-    ChunkStorage,
-}
-
-/// Duties of an Elder.
-#[derive(Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
-pub enum ElderDuty {
-    /// Interfacing with clients.
-    Gateway,
-    /// Metadata management.
-    Metadata,
-    /// Payment for data storage etc.
-    Payment,
-    /// Transfers of money.
-    Transfer,
-    /// Rewards for data storage etc.
-    Rewards,
-}
 
 ///
 #[allow(clippy::large_enum_variant)]
@@ -185,6 +93,39 @@ impl MsgEnvelope {
             NetworkCmd { cmd, .. } => cmd.dst_address(),
             NetworkEvent { event, .. } => event.dst_address(),
             NetworkCmdError { cmd_origin, .. } => cmd_origin.clone(),
+        }
+    }
+}
+
+impl MsgSender {
+    ///
+    pub fn address(&self) -> XorName {
+        use MsgSender::*;
+        match self {
+            Client { id, .. } => (*id).into(),
+            Node { id, .. } => (*id).into(),
+            Section { id, .. } => (*id).into(),
+        }
+    }
+}
+
+///
+#[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+pub enum Address {
+    ///
+    Client(XorName),
+    ///
+    Node(XorName),
+    ///
+    Section(XorName),
+}
+
+impl Address {
+    /// Extracts the underlying XorName.
+    pub fn xorname(&self) -> XorName {
+        use Address::*;
+        match self {
+            Client(xorname) | Node(xorname) | Section(xorname) => *xorname,
         }
     }
 }
@@ -268,13 +209,80 @@ pub enum Message {
     },
 }
 
+impl Message {
+    /// Gets the message ID.
+    pub fn id(&self) -> MessageId {
+        match self {
+            Self::Cmd { id, .. }
+            | Self::Query { id, .. }
+            | Self::Event { id, .. }
+            | Self::QueryResponse { id, .. }
+            | Self::CmdError { id, .. }
+            | Self::NetworkCmd { id, .. }
+            | Self::NetworkEvent { id, .. }
+            | Self::NetworkCmdError { id, .. } => *id,
+        }
+    }
+}
+
+///
+#[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+pub enum MsgSender {
+    ///
+    Client {
+        ///
+        id: PublicKey,
+        ///
+        signature: Signature,
+    },
+    ///
+    Node {
+        ///
+        id: PublicKey,
+        ///
+        duty: Duty,
+        ///
+        signature: Signature,
+    },
+    ///
+    Section {
+        ///
+        id: PublicKey,
+        ///
+        duty: Duty,
+        ///
+        signature: Signature,
+    },
+}
+
+/// Unique ID for messages.
+///
+/// This is used for deduplication: Since the network sends messages redundantly along different
+/// routes, the same message will usually arrive more than once at any given node. A message with
+/// an ID that is already in the cache will be ignored.
+#[derive(Ord, PartialOrd, Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize, Hash)]
+pub struct MessageId(pub XorName);
+
+impl MessageId {
+    /// Generates a new `MessageId` with random content.
+    pub fn new() -> Self {
+        Self(rand::random())
+    }
+}
+
+impl Default for MessageId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 ///
 #[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum CmdError {
     ///
-    Auth(Error),
+    Auth(Error), // temporary, while Authenticator is not handling this
     ///
-    Data(Error),
+    Data(Error), // DataError enum for better differentiation?
     ///
     Transfer(TransferError),
 }
@@ -379,41 +387,46 @@ pub enum QueryResponse {
     ListAuthKeysAndVersion(Result<(BTreeMap<PublicKey, AppPermissions>, u64)>),
 }
 
-impl Message {
-    /// Gets the message ID.
-    pub fn id(&self) -> MessageId {
-        match self {
-            Self::Cmd { id, .. }
-            | Self::Query { id, .. }
-            | Self::Event { id, .. }
-            | Self::QueryResponse { id, .. }
-            | Self::CmdError { id, .. }
-            | Self::NetworkCmd { id, .. }
-            | Self::NetworkEvent { id, .. }
-            | Self::NetworkCmdError { id, .. } => *id,
-        }
-    }
+/// The kind of authorisation needed for a request.
+pub enum AuthorisationKind {
+    /// Authorisation for data requests.
+    Data(DataAuthKind),
+    /// Authorisation for money requests.
+    Money(MoneyAuthKind),
+    /// Miscellaneous authorisation kinds.
+    /// NB: Not very well categorized yet
+    Misc(MiscAuthKind),
+    /// When none required.
+    None,
 }
 
-/// Unique ID for messages.
-///
-/// This is used for deduplication: Since the network sends messages redundantly along different
-/// routes, the same message will usually arrive more than once at any given node. A message with
-/// an ID that is already in the cache will be ignored.
-#[derive(Ord, PartialOrd, Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize, Hash)]
-pub struct MessageId(pub XorName);
-
-impl MessageId {
-    /// Generates a new `MessageId` with random content.
-    pub fn new() -> Self {
-        Self(rand::random())
-    }
+/// Authorisation for data requests.
+pub enum DataAuthKind {
+    /// Read of public data.
+    PublicRead,
+    /// Read of private data.
+    PrivateRead,
+    /// Write of data/metadata.
+    Write,
 }
 
-impl Default for MessageId {
-    fn default() -> Self {
-        Self::new()
-    }
+/// Authorisation for money requests.
+pub enum MoneyAuthKind {
+    /// Request to get key balance.
+    ReadBalance,
+    /// Request to get key transfer history.
+    ReadHistory,
+    /// Request to transfer money from key.
+    Transfer,
+}
+
+/// Miscellaneous authorisation kinds.
+/// NB: Not very well categorized yet
+pub enum MiscAuthKind {
+    /// Request to manage app keys.
+    ManageAppKeys,
+    /// Request to mutate and transfer money from key.
+    WriteAndTransfer,
 }
 
 /// Error type for an attempted conversion from `QueryResponse` to a type implementing
@@ -582,165 +595,3 @@ mod tests {
         );
     }
 }
-
-// /// TODO
-// #[allow(clippy::large_enum_variant)]
-// #[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
-// pub enum NetworkCmd {
-//     /// Client
-//     Client(Cmd),
-//     /// Gateway
-//     Gateway(Cmd),
-//     /// Node
-//     Node(Cmd),
-// }
-
-// #[allow(clippy::large_enum_variant)]
-// #[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
-// pub enum NetworkQuery {
-//     /// Client
-//     Client(Query),
-//     /// Gateway
-//     Gateway(Query),
-//     /// Node
-//     Node(Query),
-// }
-
-/// The kind of authorisation needed for a request.
-pub enum AuthorisationKind {
-    /// Authorisation for data requests.
-    Data(DataAuthKind),
-    /// Authorisation for money requests.
-    Money(MoneyAuthKind),
-    /// Miscellaneous authorisation kinds.
-    /// NB: Not very well categorized yet
-    Misc(MiscAuthKind),
-    /// When none required.
-    None,
-}
-
-/// Authorisation for data requests.
-pub enum DataAuthKind {
-    /// Read of public data.
-    PublicRead,
-    /// Read of private data.
-    PrivateRead,
-    /// Write of data/metadata.
-    Write,
-}
-
-/// Authorisation for money requests.
-pub enum MoneyAuthKind {
-    /// Request to get key balance.
-    ReadBalance,
-    /// Request to get key transfer history.
-    ReadHistory,
-    /// Request to transfer money from key.
-    Transfer,
-}
-
-/// Miscellaneous authorisation kinds.
-/// NB: Not very well categorized yet
-pub enum MiscAuthKind {
-    /// Request to manage app keys.
-    ManageAppKeys,
-    /// Request to mutate and transfer money from key.
-    WriteAndTransfer,
-}
-
-// impl NetworkCmd {
-//     /// Get the `Type` of this `Request`.
-//     pub fn get_type(&self) -> Type {
-//         use NetworkCmd::*;
-//         match self {
-//             Node(req) => req.get_type(),
-//             Client(req) => req.get_type(),
-//             Gateway(req) => req.get_type(),
-//         }
-//     }
-
-//     // /// Creates a Response containing an error, with the QueryResponse variant corresponding to the
-//     // /// Cmd variant.
-//     // pub fn error_response(&self, error: Error) -> CmdError {
-//     //     use NetworkCmd::*;
-//     //     match self {
-//     //         Node(req) => req.error_response(error),
-//     //         Client(req) => req.error_response(error),
-//     //         Gateway(req) => req.error_response(error),
-//     //     }
-//     // }
-
-//     /// Returns the type of authorisation needed for the request.
-//     pub fn authorisation_kind(&self) -> AuthorisationKind {
-//         use NetworkCmd::*;
-//         match self {
-//             Node(req) => req.authorisation_kind(),
-//             Client(req) => req.authorisation_kind(),
-//             Gateway(req) => req.authorisation_kind(),
-//         }
-//     }
-
-//     /// Returns the address of the destination for `request`.
-//     pub fn dst_address(&self) -> XorName {
-//         use NetworkCmd::*;
-//         match self {
-//             Node(req) => req.dst_address(),
-//             Client(req) => req.dst_address(),
-//             Gateway(req) => req.dst_address(),
-//         }
-//     }
-// }
-
-// impl fmt::Debug for NetworkCmd {
-//     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-//         use NetworkCmd::*;
-//         match self {
-//             Node(req) => write!(formatter, "{:?}", req),
-//             Client(req) => write!(formatter, "{:?}", req),
-//             Gateway(req) => write!(formatter, "{:?}", req),
-//         }
-//     }
-// }
-
-// impl NetworkQuery {
-//     /// Get the `Type` of this `NetworkQuery`.
-//     pub fn get_type(&self) -> Type {
-//         use NetworkQuery::*;
-//         match self {
-//             Node(req) => req.get_type(),
-//             Client(req) => req.get_type(),
-//             Gateway(req) => req.get_type(),
-//         }
-//     }
-
-//     /// Returns the type of authorisation needed for the NetworkQuery.
-//     pub fn authorisation_kind(&self) -> AuthorisationKind {
-//         use NetworkQuery::*;
-//         match self {
-//             Node(req) => req.authorisation_kind(),
-//             Client(req) => req.authorisation_kind(),
-//             Gateway(req) => req.authorisation_kind(),
-//         }
-//     }
-
-//     /// Returns the address of the destination for `NetworkQuery`.
-//     pub fn dst_address(&self) -> XorName {
-//         use NetworkQuery::*;
-//         match self {
-//             Node(req) => req.dst_address(),
-//             Client(req) => req.dst_address(),
-//             Gateway(req) => req.dst_address(),
-//         }
-//     }
-// }
-
-// impl fmt::Debug for NetworkQuery {
-//     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-//         use NetworkQuery::*;
-//         match self {
-//             Node(req) => write!(formatter, "{:?}", req),
-//             Client(req) => write!(formatter, "{:?}", req),
-//             Gateway(req) => write!(formatter, "{:?}", req),
-//         }
-//     }
-// }
