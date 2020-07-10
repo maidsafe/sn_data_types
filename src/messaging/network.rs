@@ -12,6 +12,7 @@ use crate::{
     SignatureShare, SignedTransfer, TransferId, TransferValidated, XorName,
 };
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 
 ///
 #[allow(clippy::large_enum_variant)]
@@ -26,9 +27,11 @@ pub enum NetworkCmd {
     ///
     DuplicateChunk {
         ///
+        new_holder: XorName,
+        ///
         address: IDataAddress,
         ///
-        new_holder: XorName,
+        fetch_from_holders: BTreeSet<XorName>,
     },
 }
 
@@ -65,7 +68,7 @@ pub enum NetworkQuery {
         /// The holder id.
         holder: XorName,
         /// The chunk addresses.
-        addresses: Vec<IDataAddress>,
+        addresses: BTreeSet<IDataAddress>,
     },
     /// Sent by new section to old section
     /// after having received a relocated node.
