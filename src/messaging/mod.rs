@@ -130,26 +130,27 @@ impl Address {
     }
 }
 
-/// Wrapper message that contains a message ID and the requester ID along the request or response.
-/// It should also contain a valid signature if it's sent by the owner(s).
+///
 #[allow(clippy::large_enum_variant)]
 #[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum Message {
-    /// Cmd with the message ID.
+    /// A Cmd is leads to a write / change of state.
+    /// We expect them to be successful, and only return a msg
+    /// if something went wrong.
     Cmd {
         /// Cmd.
         cmd: Cmd,
         /// Message ID.
         id: MessageId,
     },
-    /// Query with the message ID.
+    /// Queries is a read-only operation.
     Query {
         /// Query.
         query: Query,
         /// Message ID.
         id: MessageId,
     },
-    /// Event with the message ID.
+    /// An Event is a fact about something that happened.
     Event {
         /// Request.
         event: Event,
@@ -158,7 +159,7 @@ pub enum Message {
         /// ID of causing cmd.
         correlation_id: MessageId,
     },
-    /// QueryResponse matched to the message ID.
+    /// The response to a query, containing the query result.
     QueryResponse {
         /// QueryResponse.
         response: QueryResponse,
