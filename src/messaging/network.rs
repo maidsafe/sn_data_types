@@ -51,8 +51,11 @@ pub enum NetworkEvent {
     DuplicationComplete {
         ///
         chunk: IDataAddress,
-        ///
-        proof: Option<Signature>,
+        /// The Elder's accumulated signature
+        /// over the chunk address. This is sent back
+        /// to them so that any uninformed Elder knows
+        /// that this is all good.
+        proof: Signature,
     },
     ///
     RewardPayoutValidated(TransferValidated),
