@@ -97,14 +97,58 @@ impl MsgEnvelope {
     }
 }
 
+///
+#[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+pub enum MsgSender {
+    ///
+    Client {
+        ///
+        id: PublicKey,
+        ///
+        signature: Signature,
+    },
+    ///
+    Node {
+        ///
+        id: PublicKey,
+        ///
+        duty: Duty,
+        ///
+        signature: Signature,
+    },
+    ///
+    Section {
+        ///
+        id: PublicKey,
+        ///
+        duty: Duty,
+        ///
+        signature: Signature,
+    },
+}
+
 impl MsgSender {
+    ///
+    pub fn id(&self) -> &PublicKey {
+        use MsgSender::*;
+        match self {
+            Client { id, .. } | Node { id, .. } | Section { id, .. } => id,
+        }
+    }
     ///
     pub fn address(&self) -> XorName {
         use MsgSender::*;
         match self {
-            Client { id, .. } => (*id).into(),
-            Node { id, .. } => (*id).into(),
-            Section { id, .. } => (*id).into(),
+            Client { id, .. } | Node { id, .. } | Section { id, .. } => (*id).into(),
+        }
+    }
+    ///
+    pub fn signature(&self) -> &Signature {
+        use MsgSender::*;
+        match self {
+            Client { signature, .. } | Node { signature, .. } | Section { signature, .. } => {
+                signature
+            }
         }
     }
 }
@@ -224,36 +268,6 @@ impl Message {
             | Self::NetworkCmdError { id, .. } => *id,
         }
     }
-}
-
-///
-#[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
-pub enum MsgSender {
-    ///
-    Client {
-        ///
-        id: PublicKey,
-        ///
-        signature: Signature,
-    },
-    ///
-    Node {
-        ///
-        id: PublicKey,
-        ///
-        duty: Duty,
-        ///
-        signature: Signature,
-    },
-    ///
-    Section {
-        ///
-        id: PublicKey,
-        ///
-        duty: Duty,
-        ///
-        signature: Signature,
-    },
 }
 
 /// Unique ID for messages.
