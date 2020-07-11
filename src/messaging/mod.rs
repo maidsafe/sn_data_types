@@ -84,6 +84,26 @@ impl MsgEnvelope {
         }
     }
 
+    /// TODO
+    pub fn authorisation_kind(&self) -> AuthorisationKind {
+        AuthorisationKind::None
+
+        // use Address::*;
+        // use Message::*;
+        // match &self.message {
+        //     Cmd { cmd, .. } => self.cmd_dst(cmd),
+        //     Query { query, .. } => Section(query.authorisation_kind()),
+        //     Event { event, .. } => Client(event.authorisation_kind()),
+        //     QueryResponse { query_origin, .. } => query_origin.clone(),
+        //     CmdError { cmd_origin, .. } => cmd_origin.clone(),
+        //     NetworkCmd { cmd, .. } => cmd.authorisation_kind(),
+        //     NetworkEvent { event, .. } => event.authorisation_kind(),
+        //     NetworkQuery { query, .. } => query.authorisation_kind(),
+        //     NetworkCmdError { cmd_origin, .. } => cmd_origin.clone(),
+        //     NetworkQueryResponse { query_origin, .. } => query_origin.clone(),
+        // }
+    }
+
     ///
     pub fn destination(&self) -> Address {
         use Address::*;
