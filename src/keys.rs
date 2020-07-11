@@ -356,8 +356,7 @@ impl Keypair {
     }
 
     /// Signs with the underlying keypair.
-    pub fn sign<T: Serialize>(&self, data: &T) -> Signature {
-        let data = utils::serialise(data);
+    pub fn sign(&self, data: &[u8]) -> Signature {
         match self {
             Self::Ed25519(keypair) => Signature::Ed25519(keypair.sign::<Ed25519Digest>(&data)),
             Self::Bls(keypair) => Signature::Bls(keypair.secret.sign(data)),
