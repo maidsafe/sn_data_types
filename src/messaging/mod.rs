@@ -184,10 +184,12 @@ impl MsgSender {
         }
     }
     ///
-    pub fn address(&self) -> XorName {
+    pub fn address(&self) -> Address {
         use MsgSender::*;
         match self {
-            Client { id, .. } | Node { id, .. } | Section { id, .. } => (*id).into(),
+            Client { id, .. } => Address::Client((*id).into()),
+            Node { id, .. } => Address::Node((*id).into()),
+            Section { id, .. } => Address::Section((*id).into()),
         }
     }
     ///
