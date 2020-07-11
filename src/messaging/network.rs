@@ -9,7 +9,7 @@
 
 use crate::{
     AccountId, Address, DebitAgreementProof, Error, IData, IDataAddress, Result, Signature,
-    SignatureShare, SignedTransfer, TransferId, TransferValidated, XorName,
+    SignedTransfer, TransferId, TransferValidated, XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -106,6 +106,8 @@ pub enum NetworkQueryResponse {
 #[allow(clippy::large_enum_variant)]
 #[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NetworkCmdError {
+    /// The error of propagation of TransferRegistered event.
+    TransferPropagation(Error),
     ///
     WorkerReception {
         ///
@@ -114,7 +116,7 @@ pub enum NetworkCmdError {
         error: Error,
     },
     ///
-    DuplicateChunk {
+    ChunkDuplication {
         ///
         address: IDataAddress,
         ///

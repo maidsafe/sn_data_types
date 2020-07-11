@@ -373,8 +373,6 @@ pub enum TransferError {
     TransferValidation(Error),
     /// The error of a RegisterTransfer cmd.
     TransferRegistration(Error),
-    /// The error of propagation of TransferRegistered event.
-    TransferPropagation(Error),
 }
 
 /// Events from the network that
