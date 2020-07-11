@@ -8,7 +8,7 @@
 // Software.
 
 use super::{
-    account::AccountCmd, auth::AuthCmd, blob::BlobWrite, map::MapWrite, sequence::SequenceWrite,
+    account::AccountWrite, auth::AuthCmd, blob::BlobWrite, map::MapWrite, sequence::SequenceWrite,
     transfer::TransferCmd, AuthorisationKind, CmdError,
 };
 use crate::{DebitAgreementProof, Error, XorName};
@@ -66,7 +66,7 @@ pub enum DataCmd {
     Sequence(SequenceWrite),
     /// Use this only while we don't
     /// have Authenticator as its own app.
-    Account(AccountCmd), // <- "LoginPacket"
+    Account(AccountWrite), // <- "LoginPacket"
 }
 
 impl DataCmd {

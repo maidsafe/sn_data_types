@@ -64,7 +64,7 @@ pub use mutable_data::{
     Value as MDataValue, Values as MDataValues,
 };
 // pub use messaging::{
-//     Account, AccountCmd, AccountRead, AuthorisationKind as RequestAuthKind, BlobRead, BlobWrite,
+//     Account, AccountWrite, AccountRead, AuthorisationKind as RequestAuthKind, BlobRead, BlobWrite,
 //     ClientAuth, ClientRequest, DataAuthKind, GatewayRequest, MapRead, MapWrite, MiscAuthKind,
 //     MoneyAuthKind, NodeRequest, Query, Request, SequenceRead, SequenceWrite, SystemOp, Transfers,
 //     Cmd, MAX_LOGIN_PACKET_BYTES, DataQuery, DataCmd, Transfer

@@ -19,7 +19,7 @@ mod sequence;
 mod transfer;
 
 pub use self::{
-    account::{Account, AccountCmd, AccountRead, MAX_LOGIN_PACKET_BYTES},
+    account::{Account, AccountRead, AccountWrite, MAX_LOGIN_PACKET_BYTES},
     auth::{AuthCmd, AuthQuery},
     blob::{BlobRead, BlobWrite},
     cmd::Cmd,

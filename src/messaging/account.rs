@@ -19,7 +19,7 @@ pub const MAX_LOGIN_PACKET_BYTES: usize = 1024 * 1024; // 1 MB
 /// have Authenticator as its own app.
 #[allow(clippy::large_enum_variant)]
 #[derive(Hash, Eq, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
-pub enum AccountCmd {
+pub enum AccountWrite {
     /// Create a new account.
     New(Account),
     /// Update (overwrite) an Account.
@@ -35,11 +35,11 @@ pub enum AccountRead {
     Get(XorName),
 }
 
-impl AccountCmd {
+impl AccountWrite {
     /// Creates a Response containing an error, with the Response variant corresponding to the
     /// Request variant.
     pub fn error(&self, error: Error) -> CmdError {
-        use AccountCmd::*;
+        use AccountWrite::*;
         match *self {
             New { .. } | Update { .. } => CmdError::Data(error),
         }
@@ -47,7 +47,7 @@ impl AccountCmd {
 
     /// Returns the type of authorisation needed for the request.
     pub fn authorisation_kind(&self) -> AuthorisationKind {
-        use AccountCmd::*;
+        use AccountWrite::*;
         match *self {
             New { .. } | Update { .. } => AuthorisationKind::Data(DataAuthKind::Write),
         }
@@ -55,7 +55,7 @@ impl AccountCmd {
 
     /// Returns the address of the destination for `request`.
     pub fn dst_address(&self) -> XorName {
-        use AccountCmd::*;
+        use AccountWrite::*;
         match self {
             New(account) => *account.address(),
             Update(account) => *account.address(),
@@ -63,9 +63,9 @@ impl AccountCmd {
     }
 }
 
-impl fmt::Debug for AccountCmd {
+impl fmt::Debug for AccountWrite {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        use AccountCmd::*;
+        use AccountWrite::*;
         write!(
             formatter,
             "Request::{}",
