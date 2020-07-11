@@ -381,10 +381,26 @@ pub enum TransferError {
 #[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum Event {
     /// The transfer was validated by a Replica instance.
-    TransferValidated(TransferValidated),
+    TransferValidated {
+        /// This is the client id.
+        /// A client can fhave any number of accounts.
+        client: XorName,
+        /// This is the validation of the transfer
+        /// requested by the client for an account.
+        event: TransferValidated,
+    },
     /// An aggregate event created client side
     /// (for upper Client layers) out of a quorum of TransferValidated events.
-    TransferDebitAgreementReached(DebitAgreementProof),
+    /// This is a temporary variant, until
+    /// SignatureAccumulation has been broken out
+    /// to its own crate, and can be used at client.
+    TransferDebitAgreementReached {
+        /// This is the client id.
+        /// A client can fhave any number of accounts.
+        client: XorName,
+        /// The accumulated proof.
+        proof: DebitAgreementProof,
+    },
 }
 
 impl Event {
@@ -392,8 +408,8 @@ impl Event {
     pub fn dst_address(&self) -> XorName {
         use Event::*;
         match self {
-            TransferValidated(e) => e.from().into(), // problem: this is not the client who made the request..
-            TransferDebitAgreementReached(req) => req.from().into(), // problem: this is not the client who made the request..
+            TransferValidated { client, .. } => *client,
+            TransferDebitAgreementReached { client, .. } => *client,
         }
     }
 }
