@@ -354,6 +354,20 @@ impl Keypair {
             Self::BlsShare(keypair) => PublicKey::BlsShare(keypair.public),
         }
     }
+
+    /// Signs with the underlying keypair.
+    pub fn sign<T: Serialize>(&self, data: &T) -> Signature {
+        let data = utils::serialise(data);
+        match self {
+            Self::Ed25519(keypair) => Signature::Ed25519(keypair.sign::<Ed25519Digest>(&data)),
+            Self::Bls(keypair) => Signature::Bls(keypair.secret.sign(data)),
+            Self::BlsShare(keypair) => {
+                let index = keypair.index;
+                let share = keypair.secret.sign(data);
+                Signature::BlsShare(SignatureShare { index, share })
+            }
+        }
+    }
 }
 
 /// BLS keypair.
