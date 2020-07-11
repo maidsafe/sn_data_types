@@ -7,13 +7,9 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use super::{
-    account::AccountWrite, auth::AuthCmd, blob::BlobWrite, map::MapWrite, sequence::SequenceWrite,
-    transfer::TransferCmd, AuthorisationKind, CmdError,
-};
-use crate::{DebitAgreementProof, Error, XorName};
+use super::{auth::AuthCmd, data::DataCmd, transfer::TransferCmd, AuthorisationKind};
+use crate::{DebitAgreementProof, XorName};
 use serde::{Deserialize, Serialize};
-use std::fmt;
 
 /// TODO: docs
 #[allow(clippy::large_enum_variant)]
@@ -50,68 +46,6 @@ impl Cmd {
             Auth(c) => c.dst_address(),
             Data { cmd, .. } => cmd.dst_address(),
             Transfer(c) => c.dst_address(),
-        }
-    }
-}
-
-/// TODO: docs
-#[allow(clippy::large_enum_variant)]
-#[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
-pub enum DataCmd {
-    /// TODO: docs
-    Blob(BlobWrite),
-    /// TODO: docs
-    Map(MapWrite),
-    /// TODO: docs
-    Sequence(SequenceWrite),
-    /// Use this only while we don't
-    /// have Authenticator as its own app.
-    Account(AccountWrite), // <- "LoginPacket"
-}
-
-impl DataCmd {
-    /// Creates a Response containing an error, with the Response variant corresponding to the
-    /// cuest variant.
-    pub fn error(&self, error: Error) -> CmdError {
-        use DataCmd::*;
-        match self {
-            Blob(c) => c.error(error),
-            Map(c) => c.error(error),
-            Sequence(c) => c.error(error),
-            Account(c) => c.error(error),
-        }
-    }
-    /// Returns the type of authorisation needed for the cuest.
-    pub fn authorisation_kind(&self) -> AuthorisationKind {
-        use DataCmd::*;
-        match self {
-            Blob(c) => c.authorisation_kind(),
-            Map(c) => c.authorisation_kind(),
-            Sequence(c) => c.authorisation_kind(),
-            Account(c) => c.authorisation_kind(),
-        }
-    }
-
-    /// Returns the address of the destination for `cuest`.
-    pub fn dst_address(&self) -> XorName {
-        use DataCmd::*;
-        match self {
-            Blob(c) => c.dst_address(),
-            Map(c) => c.dst_address(),
-            Sequence(c) => c.dst_address(),
-            Account(c) => c.dst_address(),
-        }
-    }
-}
-
-impl fmt::Debug for DataCmd {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        use DataCmd::*;
-        match self {
-            Blob(c) => write!(formatter, "{:?}", c),
-            Map(c) => write!(formatter, "{:?}", c),
-            Sequence(c) => write!(formatter, "{:?}", c),
-            Account(c) => write!(formatter, "{:?}", c),
         }
     }
 }

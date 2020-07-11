@@ -11,6 +11,7 @@ mod account;
 mod auth;
 mod blob;
 mod cmd;
+mod data;
 mod duty;
 mod map;
 mod network;
@@ -23,6 +24,7 @@ pub use self::{
     auth::{AuthCmd, AuthQuery},
     blob::{BlobRead, BlobWrite},
     cmd::Cmd,
+    data::{DataCmd, DataQuery},
     duty::{AdultDuty, Duty, ElderDuty},
     map::{MapRead, MapWrite},
     network::{NetworkCmd, NetworkCmdError, NetworkEvent, NetworkQuery, NetworkQueryResponse},
