@@ -112,7 +112,7 @@ impl fmt::Debug for AccountRead {
 /// Use this only while we don't
 /// have Authenticator as its own app.
 /// Containing arbitrary user's account information.
-#[derive(Hash, Eq, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
+#[derive(Debug, Hash, Eq, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
 pub struct Account {
     address: XorName,
     owner: PublicKey, // deterministically created from passwords

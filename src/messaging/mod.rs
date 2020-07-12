@@ -50,7 +50,7 @@ use std::{
 
 ///
 #[allow(clippy::large_enum_variant)]
-#[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub struct MsgEnvelope {
     ///
     pub message: Message,
@@ -166,7 +166,7 @@ impl MsgEnvelope {
 }
 
 ///
-#[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum MsgSender {
     ///
     Client {
@@ -224,7 +224,7 @@ impl MsgSender {
 }
 
 ///
-#[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum Address {
     ///
     Client(XorName),
@@ -246,7 +246,7 @@ impl Address {
 
 ///
 #[allow(clippy::large_enum_variant)]
-#[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum Message {
     /// A Cmd is leads to a write / change of state.
     /// We expect them to be successful, and only return a msg
@@ -382,7 +382,7 @@ impl Default for MessageId {
 }
 
 ///
-#[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum CmdError {
     ///
     Auth(Error), // temporary, while Authenticator is not handling this
@@ -393,7 +393,7 @@ pub enum CmdError {
 }
 
 ///
-#[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum TransferError {
     /// The error of a ValidateTransfer cmd.
     TransferValidation(Error),
@@ -404,7 +404,7 @@ pub enum TransferError {
 /// Events from the network that
 /// are pushed to the client.
 #[allow(clippy::large_enum_variant, clippy::type_complexity)]
-#[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum Event {
     /// The transfer was validated by a Replica instance.
     TransferValidated {

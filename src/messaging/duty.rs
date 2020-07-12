@@ -10,7 +10,7 @@
 use serde::{Deserialize, Serialize};
 
 ///
-#[derive(Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
 pub enum Duty {
     ///
     Adult(AdultDuty),
@@ -19,14 +19,14 @@ pub enum Duty {
 }
 
 /// Duties of an Adult.
-#[derive(Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
 pub enum AdultDuty {
     /// Keeping and serving chunks.
     ChunkStorage,
 }
 
 /// Duties of an Elder.
-#[derive(Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
 pub enum ElderDuty {
     /// Interfacing with clients.
     Gateway,

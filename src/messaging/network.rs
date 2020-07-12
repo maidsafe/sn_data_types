@@ -16,7 +16,7 @@ use std::collections::BTreeSet;
 
 ///
 #[allow(clippy::large_enum_variant)]
-#[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NetworkCmd {
     ///
     PropagateTransfer(DebitAgreementProof),
@@ -37,7 +37,7 @@ pub enum NetworkCmd {
 
 ///
 #[allow(clippy::large_enum_variant)]
-#[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NetworkEvent {
     /// Wrapper for a duplicate completion response, from a node to elders.
     DuplicationComplete {
@@ -54,7 +54,7 @@ pub enum NetworkEvent {
 }
 
 ///
-#[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NetworkQuery {
     /// Elder to Adult Get.
     GetChunk {
@@ -82,7 +82,7 @@ pub enum NetworkQuery {
 
 ///
 #[allow(clippy::large_enum_variant)]
-#[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NetworkQueryResponse {
     /// Elder to Adult Get.
     GetChunk(Result<IData>),
@@ -104,7 +104,7 @@ pub enum NetworkQueryResponse {
 
 ///
 #[allow(clippy::large_enum_variant)]
-#[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NetworkCmdError {
     /// The error of propagation of TransferRegistered event.
     TransferPropagation(Error),

@@ -47,7 +47,7 @@ impl Debug for PrivSeqData {
 /// Write operation to apply to Sequence.
 /// This is used for all kind of CRDT operations made on the Sequence,
 /// i.e. not only on the data but also on the permissions and owner info.
-#[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Eq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd, Eq, Hash)]
 pub struct WriteOp<T> {
     /// Address of a Sequence object on the network.
     pub address: Address,
