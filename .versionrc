@@ -1,0 +1,8 @@
+{
+  "bumpFiles": [
+    {
+      "filename": "Cargo.toml",
+      "updater": "toml-updater.js"
+    }
+  ]
+}
