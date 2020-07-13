@@ -1,5 +1,5 @@
 [package]
-authors = ["MaidSafe Developers <dev@maidsafe.net>"]
+authors = [ "MaidSafe Developers <dev@maidsafe.net>" ]
 description = "Safe Network Data Types"
 edition = "2018"
 homepage = "https://maidsafe.net"
@@ -10,18 +10,20 @@ repository = "https://github.com/maidsafe/safe-nd"
 version = "0.10.1"
 
 [dependencies]
-# Ensure bincode version is identical to that in SAFE Client Libs and SAFE Vault.
 bincode = "1.2.1"
 ed25519-dalek = "~0.9.1"
 hex_fmt = "~0.3.0"
 multibase = "~0.6.0"
 rand = "~0.6"
 crdts = "4.1.0"
-serde = { version = "1.0.91", features = ["derive"] }
 sha3 = "~0.8.2"
 threshold_crypto = "~0.3.2"
 tiny-keccak = "1.5.0"
 unwrap = "1.2.1"
+
+  [dependencies.serde]
+  version = "1.0.91"
+  features = [ "derive" ]
 
 [dev-dependencies]
 hex = "~0.3.2"
