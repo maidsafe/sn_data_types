@@ -57,7 +57,7 @@ impl TransferCmd {
             ValidateTransfer(_) => Transfer(TransferValidation(error)),
             RegisterTransfer(_) => Transfer(TransferRegistration(error)),
             #[cfg(feature = "simulated-payouts")]
-            SimulatePayout(_) => Transfer(TransferPropagation(error)),
+            SimulatePayout(_) => Transfer(TransferRegistration(error)),
         }
     }
 
