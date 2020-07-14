@@ -108,19 +108,37 @@ pub enum NetworkQueryResponse {
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NetworkCmdError {
-    /// The error of propagation of TransferRegistered event.
-    TransferPropagation(Error),
     ///
-    WorkerReception {
-        ///
-        account_id: AccountId,
-        ///
-        error: Error,
-    },
+    Data(DataError),
+    ///
+    Rewards(RewardError),
+    ///
+    Transfers(TransferError),
+}
+
+#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+pub enum DataError {
     ///
     ChunkDuplication {
         ///
         address: IDataAddress,
+        ///
+        error: Error,
+    },
+}
+
+#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+pub enum TransferError {
+    /// The error of propagation of TransferRegistered event.
+    TransferPropagation(Error),
+}
+
+#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+pub enum RewardError {
+    ///
+    RewardClaiming {
+        ///
+        account_id: AccountId,
         ///
         error: Error,
     },
@@ -130,6 +148,8 @@ pub enum NetworkCmdError {
         id: TransferId,
         ///
         account: AccountId,
+        ///
+        error: Error,
     },
     ///
     RewardPayoutFinalisation {
@@ -137,6 +157,8 @@ pub enum NetworkCmdError {
         id: TransferId,
         ///
         account: AccountId,
+        ///
+        error: Error,
     },
 }
 
