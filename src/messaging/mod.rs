@@ -27,12 +27,14 @@ pub use self::{
     data::{DataCmd, DataQuery},
     duty::{AdultDuty, Duty, ElderDuty},
     map::{MapRead, MapWrite},
-    network::{NetworkCmd, NetworkCmdError, NetworkEvent, NetworkQuery, NetworkQueryResponse},
+    network::{
+        NetworkCmd, NetworkCmdError, NetworkDataError, NetworkEvent, NetworkQuery,
+        NetworkQueryResponse, NetworkRewardError, NetworkTransferError,
+    },
     query::Query,
     sequence::{SequenceRead, SequenceWrite},
     transfer::{TransferCmd, TransferQuery},
 };
-
 use crate::{
     errors::ErrorDebug, AppPermissions, DebitAgreementProof, Error, IData, MData as Map,
     MDataEntries as MapEntries, MDataPermissionSet as MapPermissionSet, MDataValue as MapValue,

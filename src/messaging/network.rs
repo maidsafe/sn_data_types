@@ -109,15 +109,16 @@ pub enum NetworkQueryResponse {
 #[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NetworkCmdError {
     ///
-    Data(DataError),
+    Data(NetworkDataError),
     ///
-    Rewards(RewardError),
+    Rewards(NetworkRewardError),
     ///
-    Transfers(TransferError),
+    Transfers(NetworkTransferError),
 }
 
+///
 #[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
-pub enum DataError {
+pub enum NetworkDataError {
     ///
     ChunkDuplication {
         ///
@@ -127,14 +128,16 @@ pub enum DataError {
     },
 }
 
+///
 #[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
-pub enum TransferError {
+pub enum NetworkTransferError {
     /// The error of propagation of TransferRegistered event.
     TransferPropagation(Error),
 }
 
+///
 #[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
-pub enum RewardError {
+pub enum NetworkRewardError {
     ///
     RewardClaiming {
         ///

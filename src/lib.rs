@@ -53,7 +53,6 @@ pub use immutable_data::{
 };
 pub use keys::{BlsKeypair, BlsKeypairShare, Keypair, PublicKey, Signature, SignatureShare};
 pub use messaging::*;
-pub use messaging::{CmdError, Event, QueryResponse, TryFromError};
 pub use money::Money;
 pub use mutable_data::{
     Action as MDataAction, Address as MDataAddress, Data as MData, Entries as MDataEntries,

@@ -15,7 +15,8 @@ use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{self, Debug, Display, Formatter};
 use threshold_crypto::{
-    serde_impl::SerdeSecret, SecretKey as BlsSecretKey, SecretKeyShare as BlsSecretKeyShare,
+    serde_impl::SerdeSecret,
+    SecretKey as BlsSecretKey, //SecretKeyShare as BlsSecretKeyShare,
 };
 
 /// A struct holding a keypair variant and the corresponding public ID for a network Client.
