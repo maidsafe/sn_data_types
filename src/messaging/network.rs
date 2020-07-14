@@ -65,11 +65,11 @@ pub enum NetworkEvent {
     /// old section after node relocation.
     RewardCounterClaimed {
         /// The id of the node
-        /// in the old section.
-        old_node_id: XorName,
-        /// The id of the node
         /// in the new section.
         new_node_id: XorName,
+        /// The account for which
+        /// the rewards are accumulated.
+        account_id: AccountId,
         /// Accumulated work & reward
         counter: RewardCounter,
     },
