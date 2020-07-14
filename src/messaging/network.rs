@@ -8,8 +8,8 @@
 // Software.
 
 use crate::{
-    AccountId, Address, DebitAgreementProof, Error, IData, IDataAddress, Result, Signature,
-    SignedTransfer, TransferId, TransferValidated, XorName,
+    AccountId, Address, DebitAgreementProof, Error, IData, IDataAddress, Result, RewardCounter,
+    Signature, SignedTransfer, TransferId, TransferValidated, XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -20,6 +20,16 @@ use std::collections::BTreeSet;
 pub enum NetworkCmd {
     ///
     PropagateTransfer(DebitAgreementProof),
+    /// Sent by the new section to the
+    /// old section after node relocation.
+    ClaimRewardCounter {
+        /// The id of the node
+        /// in the old section.
+        old_node_id: XorName,
+        /// The id of the node
+        /// in the new section.
+        new_node_id: XorName,
+    },
     ///
     InitiateRewardPayout(SignedTransfer),
     ///
@@ -51,6 +61,18 @@ pub enum NetworkEvent {
     },
     ///
     RewardPayoutValidated(TransferValidated),
+    /// Raised by the old section to the
+    /// old section after node relocation.
+    RewardCounterClaimed {
+        /// The id of the node
+        /// in the old section.
+        old_node_id: XorName,
+        /// The id of the node
+        /// in the new section.
+        new_node_id: XorName,
+        /// Accumulated work & reward
+        counter: RewardCounter,
+    },
 }
 
 ///
@@ -70,14 +92,6 @@ pub enum NetworkQuery {
         /// The chunk addresses.
         addresses: BTreeSet<IDataAddress>,
     },
-    /// Sent by new section to old section
-    /// after having received a relocated node.
-    GetRewardCounter {
-        /// The old section will know
-        /// which counter to return
-        /// by the old node id.
-        old_node_id: XorName,
-    },
 }
 
 ///
@@ -88,18 +102,6 @@ pub enum NetworkQueryResponse {
     GetChunk(Result<IData>),
     /// Adult to Adult Get
     GetChunks(Result<Vec<IData>>),
-    /// The old section returns
-    /// the accumulated work & reward
-    /// for the relocated node.
-    GetRewardCounter {
-        /// This informs new section
-        /// which node this counter is for.
-        old_node_id: XorName,
-        /// The account id to payout rewards to.
-        account_id: AccountId,
-        /// The serialized RewardCounter.
-        counter: Vec<u8>,
-    },
 }
 
 ///
@@ -144,10 +146,11 @@ impl NetworkCmd {
         use Address::*;
         use NetworkCmd::*;
         match self {
-            PropagateTransfer(debit_agreement) => Section(debit_agreement.to().into()),
+            DuplicateChunk { new_holder, .. } => Node(*new_holder),
+            ClaimRewardCounter { old_node_id, .. } => Section(*old_node_id),
             InitiateRewardPayout(signed_transfer) => Section(signed_transfer.from().into()),
             FinaliseRewardPayout(debit_agreement) => Section(debit_agreement.from().into()),
-            DuplicateChunk { new_holder, .. } => Node(*new_holder),
+            PropagateTransfer(debit_agreement) => Section(debit_agreement.to().into()),
         }
     }
 }
@@ -159,6 +162,7 @@ impl NetworkEvent {
         use NetworkEvent::*;
         match self {
             DuplicationComplete { chunk, .. } => Section(*chunk.name()),
+            RewardCounterClaimed { new_node_id, .. } => Section(*new_node_id),
             RewardPayoutValidated(event) => Section(event.from().into()),
         }
     }
@@ -171,7 +175,6 @@ impl NetworkQuery {
         use NetworkQuery::*;
         match self {
             GetChunk { holder, .. } | GetChunks { holder, .. } => Node(*holder),
-            GetRewardCounter { old_node_id, .. } => Section(*old_node_id),
         }
     }
 }

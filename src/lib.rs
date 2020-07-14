@@ -35,6 +35,7 @@ mod keys;
 mod messaging;
 mod money;
 mod mutable_data;
+mod rewards;
 mod sequence;
 mod transfer;
 mod utils;
@@ -63,12 +64,7 @@ pub use mutable_data::{
     UnseqEntryAction as MDataUnseqEntryAction, UnseqEntryActions as MDataUnseqEntryActions,
     Value as MDataValue, Values as MDataValues,
 };
-// pub use messaging::{
-//     Account, AccountWrite, AccountRead, AuthorisationKind as RequestAuthKind, BlobRead, BlobWrite,
-//     ClientAuth, ClientRequest, DataAuthKind, GatewayRequest, MapRead, MapWrite, MiscAuthKind,
-//     MoneyAuthKind, NodeRequest, Query, Request, SequenceRead, SequenceWrite, SystemOp, Transfers,
-//     Cmd, MAX_LOGIN_PACKET_BYTES, DataQuery, DataCmd, Transfer
-// };
+pub use rewards::{RewardCounter, Work};
 pub use sequence::{
     Action as SDataAction, Address as SDataAddress, Data as SData, Entries as SDataEntries,
     Entry as SDataEntry, Index as SDataIndex, Indices as SDataIndices, Kind as SDataKind,
