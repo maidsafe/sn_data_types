@@ -119,7 +119,7 @@ impl Data {
             ($data: ident, $requester: ident, $action: ident) => {
                 $data.check_is_last_owner($requester).or_else(|_| {
                     $data
-                        .permissions(Index::FromEnd(1))
+                        .policy(Index::FromEnd(1))
                         .ok_or(Error::AccessDenied)?
                         .is_action_allowed($requester, $action)
                 })
@@ -310,15 +310,19 @@ impl Data {
     }
 
     /// Returns user permissions, if applicable.
-    pub fn user_permissions(&self, user: User, index: impl Into<Index>) -> Result<UserPermissions> {
+    pub fn user_permissions(
+        &self,
+        user: User,
+        version: impl Into<Index>,
+    ) -> Result<UserPermissions> {
         let user_perm = match self {
             Data::Public(data) => data
-                .permissions(index)
+                .policy(version)
                 .ok_or(Error::NoSuchEntry)?
                 .user_permissions(user)
                 .ok_or(Error::NoSuchEntry)?,
             Data::Private(data) => data
-                .permissions(index)
+                .policy(version)
                 .ok_or(Error::NoSuchEntry)?
                 .user_permissions(user)
                 .ok_or(Error::NoSuchEntry)?,
@@ -328,18 +332,19 @@ impl Data {
     }
 
     /// Returns public permissions, if applicable.
-    pub fn pub_permissions(&self, index: impl Into<Index>) -> Result<&PublicPermissions> {
+    pub fn pub_permissions(&self, version: impl Into<Index>) -> Result<&PublicPermissions> {
+        =======> {
         let perms = match self {
-            Data::Public(data) => data.permissions(index),
+            Data::Public(data) => data.policy(version),
             Data::Private(_) => return Err(Error::InvalidOperation),
         };
         perms.ok_or(Error::NoSuchEntry)
     }
 
     /// Returns private permissions, if applicable.
-    pub fn private_permissions(&self, index: impl Into<Index>) -> Result<&PrivatePermissions> {
+    pub fn private_permissions(&self, version: impl Into<Index>) -> Result<&PrivatePermissions> {
         let perms = match self {
-            Data::Private(data) => data.permissions(index),
+            Data::Private(data) => data.policy(version),
             Data::Public(_) => return Err(Error::InvalidOperation),
         };
         perms.ok_or(Error::NoSuchEntry)
@@ -572,7 +577,7 @@ mod tests {
         assert_eq!(first_entry.entries_index, 0);
         assert_eq!(first_entry.permissions_index, 0);
         assert_eq!(
-            first_entry,
+            first_owner,
             replica2.owner(index_0).ok_or(Error::InvalidOwners)?
         );
 
@@ -582,13 +587,126 @@ mod tests {
         assert_eq!(second_entry.entries_index, 0);
         assert_eq!(second_entry.permissions_index, 0);
         assert_eq!(
-            second_entry,
+            second_owner,
             replica2.owner(index_1).ok_or(Error::InvalidOwners)?
         );
 
         replica1.check_is_last_owner(owner2)?;
         replica2.check_is_last_owner(owner2)?;
 
+        Ok(())
+    }
+
+    #[test]
+    fn sequence_concurrent_policy_and_data_ops() -> Result<()> {
+        let actor1 = gen_public_key();
+        let actor2 = gen_public_key();
+        let sdata_name: XorName = rand::random();
+        let sdata_tag = 43_000u64;
+
+        // Instantiate the same Sequence on two replicas with two diff actors
+        let mut replica1 = SData::new_pub(actor1, sdata_name, sdata_tag);
+        let mut replica2 = SData::new_pub(actor2, sdata_name, sdata_tag);
+
+        // Set Actor1 as the owner in both replicas
+        let _ = replica1.set_owner(actor1.clone());
+        let _ = replica2.set_owner(actor1);
+
+        // Grant authorisation for Append to Actor2 in both replicas
+        let mut perms = BTreeMap::default();
+        let user_perms = SDataPubUserPermissions::new(/*append=*/ true, /*admin=*/ false);
+        let _ = perms.insert(SDataUser::Key(actor2), user_perms);
+
+        let _ = replica1.set_pub_permissions(perms.clone())?;
+        let _ = replica2.set_pub_permissions(perms)?;
+        // Let's assert initial state on both replicas
+        assert_eq!(replica1.entries_index(), 0);
+        assert_eq!(replica1.permissions_index(), 1);
+        assert_eq!(replica2.entries_index(), 0);
+        assert_eq!(replica2.permissions_index(), 1);
+
+        // We revoke authorisation for Actor2 locally on replica1
+        let perms_empty = BTreeMap::default();
+        let _revoke_op = replica1.set_pub_permissions(perms_empty)?;
+        // New Policy should have been set on replica1
+        assert_eq!(replica1.entries_index(), 0);
+        assert_eq!(replica1.permissions_index(), 2);
+
+        // Concurrently append an item with Actor2 on replica2
+        let item = b"item0";
+        let append_op = replica2.append(item.to_vec());
+        // Item should have been temporarilly appended on replica2
+        assert_eq!(replica2.entries_index(), 1);
+        assert_eq!(replica2.permissions_index(), 1);
+
+        // Append operation is broadcasted and applied on replica1
+        // which shall be ignored as per current policy
+        replica1.apply_crdt_op(append_op.crdt_op);
+        /*
+                // Now revoke operation is broadcasted and applied on replica2
+                replica2.apply_crdt_pub_perms_op(revoke_op.crdt_op)?;
+                // Let's assert append op was undone on replica2 due to new and retroactive policy
+                assert_eq!(replica2.entries_index(), 0);
+                assert_eq!(replica2.permissions_index(), 2);
+        */
+        Ok(())
+    }
+
+    #[test]
+    fn sequence_causality_between_data_and_policy_ops() -> Result<()> {
+        let actor1 = gen_public_key();
+        let actor2 = gen_public_key();
+        let actor3 = gen_public_key();
+        let sdata_name: XorName = rand::random();
+        let sdata_tag = 43_001u64;
+
+        // Instantiate the same Sequence on three replicas with three diff actors
+        let mut replica1 = SData::new_pub(actor1, sdata_name, sdata_tag);
+        let mut replica2 = SData::new_pub(actor2, sdata_name, sdata_tag);
+        let mut replica3 = SData::new_pub(actor3, sdata_name, sdata_tag);
+
+        // Set Actor1 as the owner in all replicas
+        let _ = replica1.set_owner(actor1.clone());
+        let _ = replica2.set_owner(actor1.clone());
+        let _ = replica3.set_owner(actor1);
+
+        // Grant authorisation for Append to Actor3 in replica1 and apply to replica3 too
+        let mut perms = BTreeMap::default();
+        let user_perms = SDataPubUserPermissions::new(/*append=*/ true, /*admin=*/ false);
+        let _ = perms.insert(SDataUser::Key(actor3), user_perms);
+
+        let grant_op = replica1.set_pub_permissions(perms.clone())?;
+        replica3.apply_crdt_pub_perms_op(grant_op.crdt_op.clone())?;
+
+        // Let's assert the state on three replicas
+        assert_eq!(replica1.entries_index(), 0);
+        assert_eq!(replica1.permissions_index(), 1);
+        assert_eq!(replica2.entries_index(), 0);
+        assert_eq!(replica2.permissions_index(), 0);
+        assert_eq!(replica3.entries_index(), 0);
+        assert_eq!(replica3.permissions_index(), 1);
+
+        // We append an item with Actor3 on replica3
+        let item = b"item0";
+        let append_op = replica3.append(item.to_vec());
+        assert_eq!(replica3.entries_index(), 1);
+
+        // Append operation is broadcasted and applied on replica1
+        replica1.apply_crdt_op(append_op.crdt_op);
+        assert_eq!(replica1.entries_index(), 1);
+        /*
+                // And now append op is broadcasted and applied on replica2
+                replica2.apply_crdt_op(append_op.crdt_op.clone());
+                // Item should have been queued on replica2 as it's not causally ready
+                assert_eq!(replica2.entries_index(), 0);
+
+                // Now grant operation is broadcasted and applied on replica2
+                replica2.apply_crdt_pub_perms_op(grant_op.crdt_op)?;
+                // Let's assert append op was now applied on replica2 due
+                // to now being causally ready with the new policy
+                assert_eq!(replica2.entries_index(), 1);
+                assert_eq!(replica2.permissions_index(), 1);
+        */
         Ok(())
     }
 }

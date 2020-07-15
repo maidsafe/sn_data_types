@@ -9,7 +9,7 @@
 
 use super::metadata::{Address, Entries, Entry, Index, Indices, Owner, Perm};
 use crate::{Error, PublicKey, Result};
-use crdts::{lseq::LSeq, CmRDT};
+use crdts::{lseq::LSeq, CmRDT, VClock};
 pub use crdts::{lseq::Op, Actor};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -17,14 +17,14 @@ use std::{
     hash::Hash,
 };
 
-/// Since in most of the cases it will be appends operations, having a small
+/// Since in most of the cases it will be append operations, having a small
 /// boundary will make the Identifiers' length to be shorter.
 const LSEQ_BOUNDARY: u64 = 1;
 /// Again, we are going to be dealing with append operations most of the time,
 /// thus a large arity be benefitial to keep Identifiers' length short.
 const LSEQ_TREE_BASE: u8 = 10; // arity of 1024 at root
 
-/// Sequence data type as a CRDT
+/// Sequence data type as a CRDT with Access Control
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd)]
 pub struct SequenceCrdt<A, P>
 where
@@ -33,13 +33,20 @@ where
 {
     /// Address on the network of this piece of data
     address: Address,
-    /// CRDT to store the actual data
+    /// CRDT to store the actual data, i.e. the items of the Sequence
     data: LSeq<Entry, A>,
-    /// This is the history of permissions matrix, with each entry representing a permissions matrix.
-    permissions: LSeq<P, A>,
-    /// This is the history of owners, with each entry representing an owner. Each single owner
-    /// could represent an individual user, or a group of users, depending on the `PublicKey` type.
+    /// History of the Policy matrix, each entry representing a version of the Policy matrix.
+    policy: LSeq<P, A>,
+    /// Current version of the Policy, it should be greater or equal to all clocks in the Policy
+    /// history. We use this to verify that operations are causally ready before applying them.
+    policy_clock: VClock<A>,
+    /// History of owners, each entry representing a version of the owner. An owner could
+    /// represent an individual user, or a group of users, depending on the `PublicKey` type.
     owners: LSeq<Owner, A>,
+    /// Overall version of the Sequence, it should be greater or equal to all clocks in
+    /// the data, as well as policy and owners history. We use this to provide context
+    /// information to remote replicas when applying the operations.
+    clock: VClock<A>,
 }
 
 impl<A, P> Display for SequenceCrdt<A, P>
@@ -69,8 +76,10 @@ where
         Self {
             address,
             data: LSeq::new_with_args(actor.clone(), LSEQ_TREE_BASE, LSEQ_BOUNDARY),
-            permissions: LSeq::new_with_args(actor.clone(), LSEQ_TREE_BASE, LSEQ_BOUNDARY),
+            policy: LSeq::new_with_args(actor.clone(), LSEQ_TREE_BASE, LSEQ_BOUNDARY),
+            policy_clock: VClock::default(),
             owners: LSeq::new_with_args(actor, LSEQ_TREE_BASE, LSEQ_BOUNDARY),
+            clock: VClock::default(),
         }
     }
 
@@ -89,19 +98,29 @@ where
         self.owners.len() as u64
     }
 
-    /// Returns the last permissions index.
+    /// Returns the last policy index.
     pub fn permissions_index(&self) -> u64 {
-        self.permissions.len() as u64
+        self.policy.len() as u64
     }
 
     /// Append a new item to the SequenceCrdt.
     pub fn append(&mut self, entry: Entry) -> Op<Entry, A> {
-        // We return the operation in case it needs to be broadcasted to other replicas
+        // We return the operation as it may need to be broadcasted to other replicas
         self.data.append(entry)
     }
 
-    /// Apply CRDT operation.
+    /// Apply a remote CRDT operation to this replica of the Sequence.
     pub fn apply_crdt_op(&mut self, op: Op<Entry, A>) {
+        let dot = op.dot();
+        /*if self.clock.get(&dot.actor) >= dot.counter {
+            // We ignore it since we've seen this op already
+            println!("WE've seen this op: {:?}", dot.counter);
+            return;
+        }*/
+
+        // Let's update the global clock
+        self.clock.apply(dot.clone());
+        // Finally, apply the CRDT operation to the data
         self.data.apply(op)
     }
 
@@ -116,19 +135,19 @@ where
         self.data.last()
     }
 
-    /// Gets a complete list of permissions.
-    pub fn permissions(&self, index: impl Into<Index>) -> Option<&P> {
-        let index = to_absolute_index(index.into(), self.permissions.len())?;
-        self.permissions.get(index)
+    /// Gets a policy from the history at `index` if it exists.
+    pub fn policy(&self, index: impl Into<Index>) -> Option<&P> {
+        let index = to_absolute_index(index.into(), self.policy.len())?;
+        self.policy.get(index)
     }
 
-    /// Returns the owner's public key and the indices at the time it was added.
+    /// Gets an owner from the history at `index` if it exists.
     pub fn owner(&self, owners_index: impl Into<Index>) -> Option<&Owner> {
         let index = to_absolute_index(owners_index.into(), self.owners.len())?;
         self.owners.get(index)
     }
 
-    /// Gets a list of keys and values with the given indices.
+    /// Gets a list of items which are within the given indices.
     pub fn in_range(&self, start: Index, end: Index) -> Option<Entries> {
         let start_index = to_absolute_index(start, self.entries_index() as usize)?;
         let end_index = to_absolute_index(end, self.entries_index() as usize)?;
@@ -153,7 +172,7 @@ where
         }
     }
 
-    /// Returns a tuple containing the last entries index, last owners index, and last permissions
+    /// Returns a tuple containing the last entries index, last owners index, and last policy
     /// indices.
     ///
     /// Always returns `Ok(Indices)`.
@@ -165,15 +184,26 @@ where
         ))
     }
 
-    /// Adds a new permissions entry.
+    /// Adds a new policy entry.
     /// The `Perm` struct should contain valid indices.
-    pub fn append_permissions(&mut self, permissions: P) -> Op<P, A> {
-        self.permissions.append(permissions)
+    pub fn append_permissions(&mut self, policy: P) -> Op<P, A> {
+        self.policy.append(policy)
     }
 
     /// Apply Permissions CRDT operation.
     pub fn apply_crdt_perms_op(&mut self, op: Op<P, A>) {
-        self.permissions.apply(op)
+        let dot = op.dot();
+        // if local policy clock = clock in OP then go ahead
+        /*if self.clock.get(&dot.actor) >= dot.counter {
+            // We ignore it since we've seen this op already
+            println!("WE've seen this perms op: {} > counter={:?}", self.clock.get(&dot.actor), dot.counter);
+            return;
+        }*/
+
+        // Let's update the global clock
+        self.clock.apply(dot.clone());
+        // Finally, apply the CRDT operation to the policy
+        self.policy.apply(op)
     }
 
     /// Adds a new owner entry.
@@ -187,6 +217,15 @@ where
 
     /// Apply Owner CRDT operation.
     pub fn apply_crdt_owner_op(&mut self, op: Op<Owner, A>) {
+        let dot = op.dot();
+        /*if self.clock.get(&dot.actor) >= dot.counter {
+            // We ignore it since we've seen this op already
+            return;
+        }*/
+
+        // Let's update the global clock
+        self.clock.apply(dot.clone());
+        // Finally, apply the CRDT operation to the owner
         self.owners.apply(op)
     }
 

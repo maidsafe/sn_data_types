@@ -185,11 +185,11 @@ pub struct Owner {
 #[derive(Copy, Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub struct PubUserPermissions {
     /// `Some(true)` if the user can append.
-    /// `Some(false)` explicitly denies this permission (even if `Anyone` has required permissions).
+    /// `Some(false)` explicitly denies this permission (even if `Anyone` has permissions).
     /// Use permissions for `Anyone` if `None`.
     append: Option<bool>,
     /// `Some(true)` if the user can manage permissions.
-    /// `Some(false)` explicitly denies this permission (even if `Anyone` has required permissions).
+    /// `Some(false)` explicitly denies this permission (even if `Anyone` has permissions).
     /// Use permissions for `Anyone` if `None`.
     manage_permissions: Option<bool>,
 }
