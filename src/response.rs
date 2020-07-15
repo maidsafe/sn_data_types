@@ -10,7 +10,7 @@
 use crate::{
     errors::ErrorDebug, AppPermissions, Coins, Error, IData, MData, MDataEntries,
     MDataPermissionSet, MDataValue, MDataValues, PublicKey, Result, SData, SDataEntries,
-    SDataEntry, SDataOwner, SDataPermissions, SDataUserPermissions, Signature, Transaction,
+    SDataEntry, SDataOwner, SDataPermissions, SDataPolicy, Signature, Transaction,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -60,10 +60,10 @@ pub enum Response {
     GetSDataRange(Result<SDataEntries>),
     /// Get Sequence last entry.
     GetSDataLastEntry(Result<(u64, SDataEntry)>),
-    /// List all Sequence permissions at the provided index.
+    /// Get the entire Sequence's policy.
+    GetSDataPolicy(Result<SDataPolicy>),
+    /// Get Sequence's permissions for a specific user.
     GetSDataPermissions(Result<SDataPermissions>),
-    /// Get Sequence permissions for a user.
-    GetSDataUserPermissions(Result<SDataUserPermissions>),
     //
     // ===== Coins =====
     //
@@ -128,8 +128,8 @@ try_from!(SData, GetSData);
 try_from!(SDataOwner, GetSDataOwner);
 try_from!(SDataEntries, GetSDataRange);
 try_from!((u64, SDataEntry), GetSDataLastEntry);
+try_from!(SDataPolicy, GetSDataPolicy);
 try_from!(SDataPermissions, GetSDataPermissions);
-try_from!(SDataUserPermissions, GetSDataUserPermissions);
 try_from!(Coins, GetBalance);
 try_from!(Transaction, Transaction);
 try_from!(
@@ -168,14 +168,10 @@ impl fmt::Debug for Response {
             GetSDataLastEntry(res) => {
                 write!(f, "Response::GetSDataLastEntry({:?})", ErrorDebug(res))
             }
+            GetSDataPolicy(res) => write!(f, "Response::GetSDataPolicy({:?})", ErrorDebug(res)),
             GetSDataPermissions(res) => {
                 write!(f, "Response::GetSDataPermissions({:?})", ErrorDebug(res))
             }
-            GetSDataUserPermissions(res) => write!(
-                f,
-                "Response::GetSDataUserPermissions({:?})",
-                ErrorDebug(res)
-            ),
             GetSDataOwner(res) => write!(f, "Response::GetSDataOwner({:?})", ErrorDebug(res)),
             // Coins
             GetBalance(res) => write!(f, "Response::GetBalance({:?})", ErrorDebug(res)),

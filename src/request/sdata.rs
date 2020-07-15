@@ -10,7 +10,7 @@
 use super::{AuthorisationKind, Type};
 use crate::{
     Error, Response, SData, SDataAddress, SDataEntry, SDataIndex, SDataMutationOperation,
-    SDataOwner, SDataPrivPermissions, SDataPubPermissions, SDataUser, XorName,
+    SDataOwner, SDataPrivPolicy, SDataPubPolicy, SDataUser, XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt};
@@ -46,10 +46,10 @@ pub enum SDataRequest {
     },
     /// Get last entry from the Sequence.
     GetLastEntry(SDataAddress),
-    /// List all current users permissions.
-    GetPermissions(SDataAddress),
+    /// Get the current access policy.
+    GetPolicy(SDataAddress),
     /// Get current permissions for a specified user(s).
-    GetUserPermissions {
+    GetPermissions {
         /// Sequence address.
         address: SDataAddress,
         /// User to get permissions for.
@@ -57,10 +57,10 @@ pub enum SDataRequest {
     },
     /// Get current owner.
     GetOwner(SDataAddress),
-    /// Set new permissions for public Sequence.
-    MutatePubPermissions(SDataMutationOperation<SDataPubPermissions>),
-    /// Set new permissions for private Sequence.
-    MutatePrivPermissions(SDataMutationOperation<SDataPrivPermissions>),
+    /// Set new policy for public Sequence.
+    MutatePubPolicy(SDataMutationOperation<SDataPubPolicy>),
+    /// Set new policy for private Sequence.
+    MutatePrivPolicy(SDataMutationOperation<SDataPrivPolicy>),
     /// Add a new `owners` entry. Only the current owner(s) can perform this action.
     MutateOwner(SDataMutationOperation<SDataOwner>),
     /// Mutate the Sequence (insert/remove entry).
@@ -76,8 +76,8 @@ impl SDataRequest {
             Get(address)
             | GetRange { address, .. }
             | GetLastEntry(address)
-            | GetPermissions(address)
-            | GetUserPermissions { address, .. }
+            | GetPolicy(address)
+            | GetPermissions { address, .. }
             | GetOwner(address) => {
                 if address.is_pub() {
                     Type::PublicGet
@@ -85,11 +85,7 @@ impl SDataRequest {
                     Type::PrivateGet
                 }
             }
-            Store(_)
-            | Delete(_)
-            | MutatePubPermissions(_)
-            | MutatePrivPermissions(_)
-            | MutateOwner(_)
+            Store(_) | Delete(_) | MutatePubPolicy(_) | MutatePrivPolicy(_) | MutateOwner(_)
             | Mutate(_) => Type::Mutation,
         }
     }
@@ -103,14 +99,10 @@ impl SDataRequest {
             Get(_) => Response::GetSData(Err(error)),
             GetRange { .. } => Response::GetSDataRange(Err(error)),
             GetLastEntry(_) => Response::GetSDataLastEntry(Err(error)),
-            GetPermissions(_) => Response::GetSDataPermissions(Err(error)),
-            GetUserPermissions { .. } => Response::GetSDataUserPermissions(Err(error)),
+            GetPolicy(_) => Response::GetSDataPolicy(Err(error)),
+            GetPermissions { .. } => Response::GetSDataPermissions(Err(error)),
             GetOwner(_) => Response::GetSDataOwner(Err(error)),
-            Store(_)
-            | Delete(_)
-            | MutatePubPermissions(_)
-            | MutatePrivPermissions(_)
-            | MutateOwner(_)
+            Store(_) | Delete(_) | MutatePubPolicy(_) | MutatePrivPolicy(_) | MutateOwner(_)
             | Mutate(_) => Response::Mutation(Err(error)),
         }
     }
@@ -119,17 +111,13 @@ impl SDataRequest {
     pub fn authorisation_kind(&self) -> AuthorisationKind {
         use SDataRequest::*;
         match *self {
-            Store(_)
-            | Delete(_)
-            | MutatePubPermissions(_)
-            | MutatePrivPermissions(_)
-            | MutateOwner(_)
+            Store(_) | Delete(_) | MutatePubPolicy(_) | MutatePrivPolicy(_) | MutateOwner(_)
             | Mutate(_) => AuthorisationKind::Mutation,
             Get(address)
             | GetRange { address, .. }
             | GetLastEntry(address)
-            | GetPermissions(address)
-            | GetUserPermissions { address, .. }
+            | GetPolicy(address)
+            | GetPermissions { address, .. }
             | GetOwner(address) => {
                 if address.is_pub() {
                     AuthorisationKind::GetPub
@@ -149,11 +137,11 @@ impl SDataRequest {
             | Delete(ref address)
             | GetRange { ref address, .. }
             | GetLastEntry(ref address) => Some(Cow::Borrowed(address.name())),
-            GetPermissions(ref address)
-            | GetUserPermissions { ref address, .. }
-            | GetOwner(ref address) => Some(Cow::Borrowed(address.name())),
-            MutatePubPermissions(ref op) => Some(Cow::Borrowed(op.address.name())),
-            MutatePrivPermissions(ref op) => Some(Cow::Borrowed(op.address.name())),
+            GetPolicy(ref address) | GetPermissions { ref address, .. } | GetOwner(ref address) => {
+                Some(Cow::Borrowed(address.name()))
+            }
+            MutatePubPolicy(ref op) => Some(Cow::Borrowed(op.address.name())),
+            MutatePrivPolicy(ref op) => Some(Cow::Borrowed(op.address.name())),
             MutateOwner(ref op) => Some(Cow::Borrowed(op.address.name())),
             Mutate(ref op) => Some(Cow::Borrowed(op.address.name())),
         }
@@ -173,11 +161,11 @@ impl fmt::Debug for SDataRequest {
                 Delete(_) => "DeleteSData",
                 GetRange { .. } => "GetSDataRange",
                 GetLastEntry(_) => "GetSDataLastEntry",
+                GetPolicy { .. } => "GetSDataPolicy",
                 GetPermissions { .. } => "GetSDataPermissions",
-                GetUserPermissions { .. } => "GetSDataUserPermissions",
                 GetOwner { .. } => "GetSDataOwner",
-                MutatePubPermissions(_) => "MutateSDataPubPermissions",
-                MutatePrivPermissions(_) => "MutateSDataPrivPermissions",
+                MutatePubPolicy(_) => "MutateSDataPubPolicy",
+                MutatePrivPolicy(_) => "MutateSDataPrivPolicy",
                 MutateOwner(_) => "MutateSDataOwner",
                 Mutate(_) => "MutateSData",
             }
