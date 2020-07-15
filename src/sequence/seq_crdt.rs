@@ -7,7 +7,7 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use super::metadata::{Address, Entries, Entry, Index, Indices, Owner, Perm};
+use super::metadata::{Address, Entries, Entry, Index, Owner, Perm};
 use crate::{Error, PublicKey, Result};
 use crdts::{lseq::LSeq, CmRDT, VClock};
 pub use crdts::{lseq::Op, Actor};
@@ -99,17 +99,21 @@ where
     }
 
     /// Returns the last policy index.
-    pub fn permissions_index(&self) -> u64 {
+    pub fn policy_index(&self) -> u64 {
         self.policy.len() as u64
     }
 
     /// Append a new item to the SequenceCrdt.
     pub fn append(&mut self, entry: Entry) -> Op<Entry, A> {
         // We return the operation as it may need to be broadcasted to other replicas
-        self.data.append(entry)
+        let op = self.data.append(entry);
+        // Let's update the global clock
+        self.clock.apply(op.dot().clone());
+
+        op
     }
 
-    /// Apply a remote CRDT operation to this replica of the Sequence.
+    /// Apply a remote data CRDT operation to this replica of the Sequence.
     pub fn apply_crdt_op(&mut self, op: Op<Entry, A>) {
         let dot = op.dot();
         /*if self.clock.get(&dot.actor) >= dot.counter {
@@ -155,9 +159,10 @@ where
         let range = self
             .data
             .iter()
+            .take(end_index - 1)
             .enumerate()
             .filter_map(|(i, entry)| {
-                if i >= start_index && i < end_index {
+                if i >= start_index {
                     Some(entry.clone())
                 } else {
                     None
@@ -172,26 +177,20 @@ where
         }
     }
 
-    /// Returns a tuple containing the last entries index, last owners index, and last policy
-    /// indices.
-    ///
-    /// Always returns `Ok(Indices)`.
-    pub fn indices(&self) -> Result<Indices> {
-        Ok(Indices::new(
-            self.entries_index(),
-            self.owners_index(),
-            self.permissions_index(),
-        ))
+    /// Sets a new Policy keeping the current one in the history.
+    /// The Policy should contain valid indices.
+    pub fn set_policy(&mut self, policy: P) -> Op<P, A> {
+        let op = self.policy.append(policy);
+        // Let's update the global clock
+        self.clock.apply(op.dot().clone());
+        // Let's update the policy global clock as well
+        self.policy_clock.apply(op.dot().clone());
+
+        op
     }
 
-    /// Adds a new policy entry.
-    /// The `Perm` struct should contain valid indices.
-    pub fn append_permissions(&mut self, policy: P) -> Op<P, A> {
-        self.policy.append(policy)
-    }
-
-    /// Apply Permissions CRDT operation.
-    pub fn apply_crdt_perms_op(&mut self, op: Op<P, A>) {
+    /// Apply a remote policy CRDT operation to this replica.
+    pub fn apply_crdt_policy_op(&mut self, op: Op<P, A>) {
         let dot = op.dot();
         // if local policy clock = clock in OP then go ahead
         /*if self.clock.get(&dot.actor) >= dot.counter {
@@ -202,20 +201,26 @@ where
 
         // Let's update the global clock
         self.clock.apply(dot.clone());
-        // Finally, apply the CRDT operation to the policy
+        // Let's update also the policy global clock
+        self.policy_clock.apply(dot.clone());
+        // Finally, apply the CRDT operation to the local replica of the policy
         self.policy.apply(op)
     }
 
-    /// Adds a new owner entry.
-    pub fn append_owner(&mut self, public_key: PublicKey) -> Op<Owner, A> {
+    /// Sets a new Owner keeping the current one in the history.
+    // TODO: make the owner to be part of the policy
+    pub fn set_owner(&mut self, public_key: PublicKey) -> Op<Owner, A> {
         self.owners.append(Owner {
             entries_index: self.entries_index(),
-            permissions_index: self.permissions_index(),
+            policy_index: self.policy_index(),
             public_key,
         })
+
+        // TODO: update global clock
     }
 
-    /// Apply Owner CRDT operation.
+    /// Apply a remote owner CRDT operation to this replica.
+    // TODO: make the owner to be part of the policy
     pub fn apply_crdt_owner_op(&mut self, op: Op<Owner, A>) {
         let dot = op.dot();
         /*if self.clock.get(&dot.actor) >= dot.counter {
