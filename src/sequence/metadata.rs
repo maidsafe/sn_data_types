@@ -19,7 +19,7 @@ pub enum Action {
     /// Append to the data.
     Append,
     /// Manage permissions.
-    ManagePermissions,
+    Admin,
 }
 
 /// List of entries.
@@ -135,40 +135,6 @@ impl From<u64> for Index {
     }
 }
 
-/// Set of data, owners, permissions indices.
-#[derive(Copy, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct Indices {
-    entries_index: u64,
-    owners_index: u64,
-    permissions_index: u64,
-}
-
-impl Indices {
-    /// Constructs a new `Indices`.
-    pub fn new(entries_index: u64, owners_index: u64, permissions_index: u64) -> Self {
-        Indices {
-            entries_index,
-            owners_index,
-            permissions_index,
-        }
-    }
-
-    /// Returns the last entry index.
-    pub fn entries_index(&self) -> u64 {
-        self.entries_index
-    }
-
-    /// Returns the last owners index.
-    pub fn owners_index(&self) -> u64 {
-        self.owners_index
-    }
-
-    /// Returns the last permissions index.
-    pub fn permissions_index(&self) -> u64 {
-        self.permissions_index
-    }
-}
-
 /// An owner could represent an individual user, or a group of users,
 /// depending on the `public_key` type.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
@@ -177,13 +143,13 @@ pub struct Owner {
     pub public_key: PublicKey,
     /// The current index of the data when this ownership change happened
     pub entries_index: u64,
-    /// The current index of the permissions when this ownership change happened
-    pub permissions_index: u64,
+    /// The current index of the policy history when this ownership change happened
+    pub policy_index: u64,
 }
 
 /// Set of public permissions for a user.
 #[derive(Copy, Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
-pub struct PubUserPermissions {
+pub struct PubPermissions {
     /// `Some(true)` if the user can append.
     /// `Some(false)` explicitly denies this permission (even if `Anyone` has permissions).
     /// Use permissions for `Anyone` if `None`.
@@ -191,26 +157,22 @@ pub struct PubUserPermissions {
     /// `Some(true)` if the user can manage permissions.
     /// `Some(false)` explicitly denies this permission (even if `Anyone` has permissions).
     /// Use permissions for `Anyone` if `None`.
-    manage_permissions: Option<bool>,
+    admin: Option<bool>,
 }
 
-impl PubUserPermissions {
+impl PubPermissions {
     /// Constructs a new public permission set.
     pub fn new(append: impl Into<Option<bool>>, manage_perms: impl Into<Option<bool>>) -> Self {
         Self {
             append: append.into(),
-            manage_permissions: manage_perms.into(),
+            admin: manage_perms.into(),
         }
     }
 
     /// Sets permissions.
-    pub fn set_perms(
-        &mut self,
-        append: impl Into<Option<bool>>,
-        manage_perms: impl Into<Option<bool>>,
-    ) {
+    pub fn set_perms(&mut self, append: impl Into<Option<bool>>, admin: impl Into<Option<bool>>) {
         self.append = append.into();
-        self.manage_permissions = manage_perms.into();
+        self.admin = admin.into();
     }
 
     /// Returns `Some(true)` if `action` is allowed and `Some(false)` if it's not permitted.
@@ -219,29 +181,29 @@ impl PubUserPermissions {
         match action {
             Action::Read => Some(true), // It's public data, so it's always allowed to read it.
             Action::Append => self.append,
-            Action::ManagePermissions => self.manage_permissions,
+            Action::Admin => self.admin,
         }
     }
 }
 
 /// Set of private permissions for a user.
 #[derive(Copy, Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
-pub struct PrivUserPermissions {
+pub struct PrivPermissions {
     /// `true` if the user can read.
     read: bool,
     /// `true` if the user can append.
     append: bool,
     /// `true` if the user can manage permissions.
-    manage_permissions: bool,
+    admin: bool,
 }
 
-impl PrivUserPermissions {
+impl PrivPermissions {
     /// Constructs a new private permission set.
     pub fn new(read: bool, append: bool, manage_perms: bool) -> Self {
         Self {
             read,
             append,
-            manage_permissions: manage_perms,
+            admin: manage_perms,
         }
     }
 
@@ -249,7 +211,7 @@ impl PrivUserPermissions {
     pub fn set_perms(&mut self, read: bool, append: bool, manage_perms: bool) {
         self.read = read;
         self.append = append;
-        self.manage_permissions = manage_perms;
+        self.admin = manage_perms;
     }
 
     /// Returns `true` if `action` is allowed.
@@ -257,7 +219,7 @@ impl PrivUserPermissions {
         match action {
             Action::Read => self.read,
             Action::Append => self.append,
-            Action::ManagePermissions => self.manage_permissions,
+            Action::Admin => self.admin,
         }
     }
 }
@@ -273,16 +235,16 @@ pub enum User {
 
 /// Public permissions.
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
-pub struct PublicPermissions {
+pub struct PubPolicy {
     /// Map of users to their public permission set.
-    pub permissions: BTreeMap<User, PubUserPermissions>,
-    /// The current index of the data when this permission change happened.
+    pub permissions: BTreeMap<User, PubPermissions>,
+    /// The current index of the data when this policy change happened.
     pub entries_index: u64,
-    /// The current index of the owners when this permission change happened.
+    /// The current index of the owners history when this policy change happened.
     pub owners_index: u64,
 }
 
-impl PublicPermissions {
+impl PubPolicy {
     /// Returns `Some(true)` if `action` is allowed for the provided user and `Some(false)` if it's
     /// not permitted. `None` means that default permissions should be applied.
     fn is_action_allowed_by_user(&self, user: &User, action: Action) -> Option<bool> {
@@ -294,12 +256,12 @@ impl PublicPermissions {
 
 /// Private permissions.
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
-pub struct PrivatePermissions {
+pub struct PrivPolicy {
     /// Map of users to their private permission set.
-    pub permissions: BTreeMap<PublicKey, PrivUserPermissions>,
-    /// The current index of the data when this permission change happened.
+    pub permissions: BTreeMap<PublicKey, PrivPermissions>,
+    /// The current index of the data when this policy change happened.
     pub entries_index: u64,
-    /// The current index of the owners when this permission change happened.
+    /// The current index of the owners history when this policy change happened.
     pub owners_index: u64,
 }
 
@@ -307,14 +269,14 @@ pub trait Perm {
     /// Returns true if `action` is allowed for the provided user.
     fn is_action_allowed(&self, requester: PublicKey, action: Action) -> Result<()>;
     /// Gets the permissions for a user if applicable.
-    fn user_permissions(&self, user: User) -> Option<UserPermissions>;
+    fn permissions(&self, user: User) -> Option<Permissions>;
     /// Gets the last entry index.
     fn entries_index(&self) -> u64;
     /// Gets the last owner index.
     fn owners_index(&self) -> u64;
 }
 
-impl Perm for PublicPermissions {
+impl Perm for PubPolicy {
     /// Returns `Ok(())` if `action` is allowed for the provided user and `Err(AccessDenied)` if
     /// this action is not permitted.
     fn is_action_allowed(&self, requester: PublicKey, action: Action) -> Result<()> {
@@ -329,10 +291,8 @@ impl Perm for PublicPermissions {
     }
 
     /// Gets the permissions for a user if applicable.
-    fn user_permissions(&self, user: User) -> Option<UserPermissions> {
-        self.permissions
-            .get(&user)
-            .map(|p| UserPermissions::Public(*p))
+    fn permissions(&self, user: User) -> Option<Permissions> {
+        self.permissions.get(&user).map(|p| Permissions::Pub(*p))
     }
 
     /// Returns the last entry index.
@@ -346,7 +306,7 @@ impl Perm for PublicPermissions {
     }
 }
 
-impl Perm for PrivatePermissions {
+impl Perm for PrivPolicy {
     /// Returns `Ok(())` if `action` is allowed for the provided user and `Err(AccessDenied)` if
     /// this action is not permitted.
     fn is_action_allowed(&self, requester: PublicKey, action: Action) -> Result<()> {
@@ -363,13 +323,10 @@ impl Perm for PrivatePermissions {
     }
 
     /// Gets the permissions for a user if applicable.
-    fn user_permissions(&self, user: User) -> Option<UserPermissions> {
+    fn permissions(&self, user: User) -> Option<Permissions> {
         match user {
             User::Anyone => None,
-            User::Key(key) => self
-                .permissions
-                .get(&key)
-                .map(|p| UserPermissions::Priv(*p)),
+            User::Key(key) => self.permissions.get(&key).map(|p| Permissions::Priv(*p)),
         }
     }
 
@@ -386,42 +343,42 @@ impl Perm for PrivatePermissions {
 
 /// Wrapper type for permissions, which can be public or private.
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
-pub enum Permissions {
+pub enum Policy {
     /// Public permissions.
-    Public(PublicPermissions),
+    Pub(PubPolicy),
     /// Private permissions.
-    Priv(PrivatePermissions),
+    Priv(PrivPolicy),
 }
 
-impl From<PrivatePermissions> for Permissions {
-    fn from(permissions: PrivatePermissions) -> Self {
-        Permissions::Priv(permissions)
+impl From<PrivPolicy> for Policy {
+    fn from(policy: PrivPolicy) -> Self {
+        Policy::Priv(policy)
     }
 }
 
-impl From<PublicPermissions> for Permissions {
-    fn from(permissions: PublicPermissions) -> Self {
-        Permissions::Public(permissions)
+impl From<PubPolicy> for Policy {
+    fn from(policy: PubPolicy) -> Self {
+        Policy::Pub(policy)
     }
 }
 
 /// Wrapper type for permissions set, which can be public or private.
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
-pub enum UserPermissions {
+pub enum Permissions {
     /// Public permissions set.
-    Public(PubUserPermissions),
+    Pub(PubPermissions),
     /// Private permissions set.
-    Priv(PrivUserPermissions),
+    Priv(PrivPermissions),
 }
 
-impl From<PrivUserPermissions> for UserPermissions {
-    fn from(permission_set: PrivUserPermissions) -> Self {
-        UserPermissions::Priv(permission_set)
+impl From<PrivPermissions> for Permissions {
+    fn from(permission_set: PrivPermissions) -> Self {
+        Permissions::Priv(permission_set)
     }
 }
 
-impl From<PubUserPermissions> for UserPermissions {
-    fn from(permission_set: PubUserPermissions) -> Self {
-        UserPermissions::Public(permission_set)
+impl From<PubPermissions> for Permissions {
+    fn from(permission_set: PubPermissions) -> Self {
+        Permissions::Pub(permission_set)
     }
 }
