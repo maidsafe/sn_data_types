@@ -1,5 +1,9 @@
 # safe-nd - Change Log
 
+## [0.10.1]
+
+- Upgrade bincode crate to v1.2.1
+
 ## [0.10.0]
 
 - Addition of Sequence CRDT
