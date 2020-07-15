@@ -150,7 +150,7 @@ All notable changes to this project will be documented in this file. See [standa
 - Make some documentation fixes and additions.
 - Add `UnseqEntryActions` methods `actions`, `into_actions`, and `add_action`.
 - Add `SeqEntryActions` methods `into_actions` and `add_action`.
-- Add `AData` methods `owners_range`, `append_seq`, `append_unseq`, `append_pub_permissions`, `append_unpub_permissions`, and `append_owner`.
+- Add `AData` methods `owners_range`, `append_seq`, `append_unseq`, `append_pub_permissions`, `append_unpub_permissions`, and `set_owner`.
 
 ## [0.2.0]
 
