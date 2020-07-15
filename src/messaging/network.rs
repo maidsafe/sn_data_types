@@ -14,12 +14,24 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
+// -------------- Network Cmds --------------
+
 ///
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NetworkCmd {
     ///
-    PropagateTransfer(DebitAgreementProof),
+    Data(NetworkDataCmd),
+    ///
+    Rewards(NetworkRewardCmd),
+    ///
+    Transfers(NetworkTransferCmd),
+}
+
+///
+#[allow(clippy::large_enum_variant)]
+#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+pub enum NetworkRewardCmd {
     /// Sent by the new section to the
     /// old section after node relocation.
     ClaimRewardCounter {
@@ -30,10 +42,24 @@ pub enum NetworkCmd {
         /// in the new section.
         new_node_id: XorName,
     },
+}
+
+///
+#[allow(clippy::large_enum_variant)]
+#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+pub enum NetworkTransferCmd {
+    ///
+    PropagateTransfer(DebitAgreementProof),
     ///
     InitiateRewardPayout(SignedTransfer),
     ///
     FinaliseRewardPayout(DebitAgreementProof),
+}
+
+///
+#[allow(clippy::large_enum_variant)]
+#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+pub enum NetworkDataCmd {
     ///
     DuplicateChunk {
         ///
@@ -44,6 +70,8 @@ pub enum NetworkCmd {
         fetch_from_holders: BTreeSet<XorName>,
     },
 }
+
+// -------------- Network Events --------------
 
 ///
 #[allow(clippy::large_enum_variant)]
@@ -170,12 +198,17 @@ impl NetworkCmd {
     pub fn dst_address(&self) -> Address {
         use Address::*;
         use NetworkCmd::*;
+        use NetworkDataCmd::*;
+        use NetworkRewardCmd::*;
+        use NetworkTransferCmd::*;
         match self {
-            DuplicateChunk { new_holder, .. } => Node(*new_holder),
-            ClaimRewardCounter { old_node_id, .. } => Section(*old_node_id),
-            InitiateRewardPayout(signed_transfer) => Section(signed_transfer.from().into()),
-            FinaliseRewardPayout(debit_agreement) => Section(debit_agreement.from().into()),
-            PropagateTransfer(debit_agreement) => Section(debit_agreement.to().into()),
+            Data(DuplicateChunk { new_holder, .. }) => Node(*new_holder),
+            Rewards(ClaimRewardCounter { old_node_id, .. }) => Section(*old_node_id),
+            Transfers(cmd) => match cmd {
+                InitiateRewardPayout(signed_transfer) => Section(signed_transfer.from().into()),
+                FinaliseRewardPayout(debit_agreement) => Section(debit_agreement.from().into()),
+                PropagateTransfer(debit_agreement) => Section(debit_agreement.to().into()),
+            },
         }
     }
 }
