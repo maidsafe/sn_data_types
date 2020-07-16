@@ -33,7 +33,7 @@ pub use self::{
     transfer::{TransferCmd, TransferQuery},
 };
 use crate::{
-    errors::ErrorDebug, AppPermissions, DebitAgreementProof, Error, IData, Map, MapEntries,
+    errors::ErrorDebug, AppPermissions, Blob, DebitAgreementProof, Error, Map, MapEntries,
     MapPermissionSet, MapValue, MapValues, Money, PublicKey, ReplicaEvent, ReplicaPublicKeySet,
     Result, SData as Sequence, SDataEntries as SequenceEntries, SDataEntry as SequenceEntry,
     SDataOwner as SequenceOwner, SDataPermissions as SequencePermissions,
@@ -446,7 +446,7 @@ pub enum QueryResponse {
     // ===== Blob =====
     //
     /// Get Blob.
-    GetBlob(Result<IData>),
+    GetBlob(Result<Blob>),
     //
     // ===== Map =====
     //
@@ -573,7 +573,7 @@ macro_rules! try_from {
     };
 }
 
-try_from!(IData, GetBlob);
+try_from!(Blob, GetBlob);
 try_from!(Map, GetMap, GetMapShell);
 try_from!(u64, GetMapVersion);
 try_from!(MapEntries, ListMapEntries);
@@ -602,7 +602,7 @@ impl fmt::Debug for QueryResponse {
         use QueryResponse::*;
 
         match self {
-            // IData
+            // Blob
             GetBlob(res) => write!(f, "QueryResponse::GetBlob({:?})", ErrorDebug(res)),
             // Map
             GetMap(res) => write!(f, "QueryResponse::GetMap({:?})", ErrorDebug(res)),
@@ -669,7 +669,7 @@ impl fmt::Debug for QueryResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{PubImmutableData as PublicBlob, UnseqMutableData};
+    use crate::{PubBlob as PublicBlob, UnseqMutableData};
     use std::convert::{TryFrom, TryInto};
     use unwrap::{unwrap, unwrap_err};
 
@@ -687,12 +687,12 @@ mod tests {
     fn try_from() {
         use QueryResponse::*;
 
-        let i_data = IData::Pub(PublicBlob::new(vec![1, 3, 1, 4]));
+        let i_data = Blob::Pub(PublicBlob::new(vec![1, 3, 1, 4]));
         let e = Error::AccessDenied;
         assert_eq!(i_data, unwrap!(GetBlob(Ok(i_data.clone())).try_into()));
         assert_eq!(
             TryFromError::Response(e.clone()),
-            unwrap_err!(IData::try_from(GetBlob(Err(e.clone()))))
+            unwrap_err!(Blob::try_from(GetBlob(Err(e.clone()))))
         );
 
         let mut data = BTreeMap::new();

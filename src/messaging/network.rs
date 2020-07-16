@@ -8,8 +8,8 @@
 // Software.
 
 use crate::{
-    AccountId, Address, DebitAgreementProof, Error, IData, IDataAddress, Result, RewardCounter,
-    Signature, SignedTransfer, TransferId, TransferValidated, XorName,
+    AccountId, Address, Blob, BlobAddress, DebitAgreementProof, Error, Result, Signature,
+    SignedTransfer, TransferId, TransferValidated, XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -65,7 +65,7 @@ pub enum NetworkDataCmd {
         ///
         new_holder: XorName,
         ///
-        address: IDataAddress,
+        address: BlobAddress,
         ///
         fetch_from_holders: BTreeSet<XorName>,
     },
@@ -80,7 +80,7 @@ pub enum NetworkEvent {
     /// Wrapper for a duplicate completion response, from a node to elders.
     DuplicationComplete {
         ///
-        chunk: IDataAddress,
+        chunk: BlobAddress,
         /// The Elder's accumulated signature
         /// over the chunk address. This is sent back
         /// to them so that any uninformed Elder knows
@@ -111,14 +111,14 @@ pub enum NetworkQuery {
         /// The holder id.
         holder: XorName,
         /// The chunk address.
-        address: IDataAddress,
+        address: BlobAddress,
     },
     /// Adult to Adult Get
     GetChunks {
         /// The holder id.
         holder: XorName,
         /// The chunk addresses.
-        addresses: BTreeSet<IDataAddress>,
+        addresses: BTreeSet<BlobAddress>,
     },
 }
 
@@ -127,9 +127,9 @@ pub enum NetworkQuery {
 #[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NetworkQueryResponse {
     /// Elder to Adult Get.
-    GetChunk(Result<IData>),
+    GetChunk(Result<Blob>),
     /// Adult to Adult Get
-    GetChunks(Result<Vec<IData>>),
+    GetChunks(Result<Vec<Blob>>),
 }
 
 ///

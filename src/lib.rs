@@ -28,9 +28,9 @@
     unused_results
 )]
 
+mod blob;
 mod errors;
 mod identity;
-mod immutable_data;
 mod keys;
 mod map;
 mod messaging;
@@ -40,16 +40,16 @@ mod sequence;
 mod transfer;
 mod utils;
 
+pub use blob::{
+    Address as BlobAddress, Data as Blob, Kind as BlobKind, PrivateData as PrivateBlob,
+    PublicData as PublicBlob, MAX_BLOB_SIZE_IN_BYTES,
+};
 pub use errors::{EntryError, Error, Result};
 pub use identity::{
     app::{FullId as AppFullId, PublicId as AppPublicId},
     client::{FullId as ClientFullId, PublicId as ClientPublicId},
     node::{FullId as NodeFullId, PublicId as NodePublicId},
     PublicId, SafeKey,
-};
-pub use immutable_data::{
-    Address as IDataAddress, Data as IData, Kind as IDataKind, PubData as PubImmutableData,
-    UnpubData as UnpubImmutableData, MAX_IMMUTABLE_DATA_SIZE_IN_BYTES,
 };
 pub use keys::{BlsKeypair, BlsKeypairShare, Keypair, PublicKey, Signature, SignatureShare};
 pub use map::{
@@ -93,9 +93,9 @@ use std::{
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone, Eq, PartialEq, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Data {
-    /// ImmutableData.
-    Immutable(IData),
-    /// Map.
+    /// Blob.
+    Immutable(Blob),
+    /// MutableData.
     Mutable(Map),
     /// Sequence.
     Sequence(SData),
@@ -117,8 +117,8 @@ impl Data {
     }
 }
 
-impl From<IData> for Data {
-    fn from(data: IData) -> Self {
+impl From<Blob> for Data {
+    fn from(data: Blob) -> Self {
         Self::Immutable(data)
     }
 }

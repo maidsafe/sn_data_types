@@ -8,7 +8,7 @@
 // Software.
 
 use super::{AuthorisationKind, CmdError, DataAuthKind, QueryResponse};
-use crate::{Error, IData as Blob, IDataAddress as BlobAddress, XorName};
+use crate::{Blob, BlobAddress, Error, XorName};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 

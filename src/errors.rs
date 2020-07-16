@@ -65,7 +65,7 @@ pub enum Error {
     /// Invalid version for performing a given mutating operation. Contains the
     /// current permissions version.
     InvalidPermissionsSuccessor(u64),
-    /// Invalid Operation such as a POST on ImmutableData
+    /// Invalid Operation such as a POST on Blob
     InvalidOperation,
     /// Mismatch between key type and signature type.
     SigningKeyTypeMismatch,
