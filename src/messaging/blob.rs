@@ -34,8 +34,8 @@ impl BlobRead {
     // pub fn get_type(&self) -> Type {
     //     use BlobRead::*;
     //     match self {
-    //         Get(BlobAddress::Pub(_)) => Type::PublicRead,
-    //         Get(BlobAddress::Unpub(_)) => Type::PrivateRead,
+    //         Get(BlobAddress::Public(_)) => Type::PublicRead,
+    //         Get(BlobAddress::Private(_)) => Type::PrivateRead,
     //     }
     // }
 
@@ -49,8 +49,8 @@ impl BlobRead {
     pub fn authorisation_kind(&self) -> AuthorisationKind {
         use BlobRead::*;
         match self {
-            Get(BlobAddress::Pub(_)) => AuthorisationKind::Data(DataAuthKind::PublicRead),
-            Get(BlobAddress::Unpub(_)) => AuthorisationKind::Data(DataAuthKind::PrivateRead),
+            Get(BlobAddress::Public(_)) => AuthorisationKind::Data(DataAuthKind::PublicRead),
+            Get(BlobAddress::Private(_)) => AuthorisationKind::Data(DataAuthKind::PrivateRead),
         }
     }
 

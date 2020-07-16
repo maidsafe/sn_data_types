@@ -9,9 +9,10 @@
 
 use super::{AuthorisationKind, CmdError, DataAuthKind, QueryResponse};
 use crate::{
-    Error, Sequence as Sequence, SequenceAddress as Address, SequenceEntry as Entry, SequenceIndex as Index,
-    SequenceOwner as Owner, SequencePrivPermissions as PrivatePermissions,
-    SequencePubPermissions as PublicPermissions, SequenceUser as User, SequenceWriteOp as WriteOp, XorName,
+    Error, Sequence, SequenceAddress as Address, SequenceEntry as Entry, SequenceIndex as Index,
+    SequenceOwner as Owner, SequencePrivatePermissions as PrivatePermissions,
+    SequencePublicPermissions as PublicPermissions, SequenceUser as User,
+    SequenceWriteOp as WriteOp, XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -68,9 +69,9 @@ pub enum SequenceWrite {
     /// Set a new owner. Only the current owner(s) can perform this action.
     SetOwner(WriteOp<Owner>),
     /// Set new permissions for public Sequence.
-    SetPubPermissions(WriteOp<PublicPermissions>),
+    SetPublicPermissions(WriteOp<PublicPermissions>),
     /// Set new permissions for private Sequence.
-    SetPrivPermissions(WriteOp<PrivatePermissions>),
+    SetPrivatePermissions(WriteOp<PrivatePermissions>),
 }
 
 impl SequenceRead {
@@ -157,8 +158,8 @@ impl SequenceWrite {
         match self {
             New(ref data) => *data.name(),
             Delete(ref address) => *address.name(),
-            SetPubPermissions(ref op) => *op.address.name(),
-            SetPrivPermissions(ref op) => *op.address.name(),
+            SetPublicPermissions(ref op) => *op.address.name(),
+            SetPrivatePermissions(ref op) => *op.address.name(),
             SetOwner(ref op) => *op.address.name(),
             Edit(ref op) => *op.address.name(),
         }
@@ -174,8 +175,8 @@ impl fmt::Debug for SequenceWrite {
             match *self {
                 New(_) => "NewSequence",
                 Delete(_) => "DeleteSequence",
-                SetPubPermissions(_) => "SetPublicPermissions",
-                SetPrivPermissions(_) => "SetPrivatePermissions",
+                SetPublicPermissions(_) => "SetPublicPermissions",
+                SetPrivatePermissions(_) => "SetPrivatePermissions",
                 SetOwner(_) => "SetOwner",
                 Edit(_) => "EditSequence",
             }

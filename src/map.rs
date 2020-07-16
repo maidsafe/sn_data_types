@@ -11,7 +11,7 @@
 //!
 //! All Map is unpublished. Map can be either sequenced or unsequenced.
 //!
-//! ## Unpublished data
+//! ## Private data
 //!
 //! Please see `append_only_data.rs` for more about unpublished versus published data.
 //!

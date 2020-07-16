@@ -35,9 +35,8 @@ pub use self::{
 use crate::{
     errors::ErrorDebug, AppPermissions, Blob, DebitAgreementProof, Error, Map, MapEntries,
     MapPermissionSet, MapValue, MapValues, Money, PublicKey, ReplicaEvent, ReplicaPublicKeySet,
-    Result, Sequence as Sequence, SequenceEntries as SequenceEntries, SequenceEntry as SequenceEntry,
-    SequenceOwner as SequenceOwner, SequencePermissions as SequencePermissions,
-    SequenceUserPermissions as SequenceUserPermissions, Signature, TransferValidated, XorName,
+    Result, Sequence, SequenceEntries, SequenceEntry, SequenceOwner, SequencePermissions,
+    SequenceUserPermissions, Signature, TransferValidated, XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -687,7 +686,7 @@ mod tests {
     fn try_from() {
         use QueryResponse::*;
 
-        let i_data = Blob::Pub(PublicBlob::new(vec![1, 3, 1, 4]));
+        let i_data = Blob::Public(PublicBlob::new(vec![1, 3, 1, 4]));
         let e = Error::AccessDenied;
         assert_eq!(i_data, unwrap!(GetBlob(Ok(i_data.clone())).try_into()));
         assert_eq!(

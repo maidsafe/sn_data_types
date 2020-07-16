@@ -85,8 +85,8 @@ impl Address {
     }
 
     /// Returns true if private.
-    pub fn is_priv(&self) -> bool {
-        self.kind().is_priv()
+    pub fn is_private(&self) -> bool {
+        self.kind().is_private()
     }
 
     /// Returns the `Address` serialised and encoded in z-base-32.
@@ -116,7 +116,7 @@ impl Kind {
     }
 
     /// Returns true if private.
-    pub fn is_priv(self) -> bool {
+    pub fn is_private(self) -> bool {
         !self.is_pub()
     }
 }
@@ -272,9 +272,9 @@ pub enum User {
     Key(PublicKey),
 }
 
-/// Published permissions.
+/// Public permissions.
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
-pub struct PubPermissions {
+pub struct PublicPermissions {
     /// Map of users to their public permission set.
     pub permissions: BTreeMap<User, PubUserPermissions>,
     /// The current index of the data when this permission change happened.
@@ -283,7 +283,7 @@ pub struct PubPermissions {
     pub owners_index: u64,
 }
 
-impl PubPermissions {
+impl PublicPermissions {
     /// Returns `Some(true)` if `action` is allowed for the provided user and `Some(false)` if it's
     /// not permitted. `None` means that default permissions should be applied.
     fn is_action_allowed_by_user(&self, user: &User, action: Action) -> Option<bool> {
@@ -295,7 +295,7 @@ impl PubPermissions {
 
 /// Private permissions.
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
-pub struct PrivPermissions {
+pub struct PrivatePermissions {
     /// Map of users to their private permission set.
     pub permissions: BTreeMap<PublicKey, PrivUserPermissions>,
     /// The current index of the data when this permission change happened.
@@ -315,7 +315,7 @@ pub trait Perm {
     fn owners_index(&self) -> u64;
 }
 
-impl Perm for PubPermissions {
+impl Perm for PublicPermissions {
     /// Returns `Ok(())` if `action` is allowed for the provided user and `Err(AccessDenied)` if
     /// this action is not permitted.
     fn is_action_allowed(&self, requester: PublicKey, action: Action) -> Result<()> {
@@ -333,7 +333,7 @@ impl Perm for PubPermissions {
     fn user_permissions(&self, user: User) -> Option<UserPermissions> {
         self.permissions
             .get(&user)
-            .map(|p| UserPermissions::Pub(*p))
+            .map(|p| UserPermissions::Public(*p))
     }
 
     /// Returns the last entry index.
@@ -347,7 +347,7 @@ impl Perm for PubPermissions {
     }
 }
 
-impl Perm for PrivPermissions {
+impl Perm for PrivatePermissions {
     /// Returns `Ok(())` if `action` is allowed for the provided user and `Err(AccessDenied)` if
     /// this action is not permitted.
     fn is_action_allowed(&self, requester: PublicKey, action: Action) -> Result<()> {
@@ -389,20 +389,20 @@ impl Perm for PrivPermissions {
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub enum Permissions {
     /// Public permissions.
-    Pub(PubPermissions),
+    Public(PublicPermissions),
     /// Private permissions.
-    Priv(PrivPermissions),
+    Priv(PrivatePermissions),
 }
 
-impl From<PrivPermissions> for Permissions {
-    fn from(permissions: PrivPermissions) -> Self {
+impl From<PrivatePermissions> for Permissions {
+    fn from(permissions: PrivatePermissions) -> Self {
         Permissions::Priv(permissions)
     }
 }
 
-impl From<PubPermissions> for Permissions {
-    fn from(permissions: PubPermissions) -> Self {
-        Permissions::Pub(permissions)
+impl From<PublicPermissions> for Permissions {
+    fn from(permissions: PublicPermissions) -> Self {
+        Permissions::Public(permissions)
     }
 }
 
@@ -410,7 +410,7 @@ impl From<PubPermissions> for Permissions {
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub enum UserPermissions {
     /// Public permissions set.
-    Pub(PubUserPermissions),
+    Public(PubUserPermissions),
     /// Private permissions set.
     Priv(PrivUserPermissions),
 }
@@ -423,6 +423,6 @@ impl From<PrivUserPermissions> for UserPermissions {
 
 impl From<PubUserPermissions> for UserPermissions {
     fn from(permission_set: PubUserPermissions) -> Self {
-        UserPermissions::Pub(permission_set)
+        UserPermissions::Public(permission_set)
     }
 }

@@ -13,7 +13,7 @@ mod seq_crdt;
 use crate::{Error, PublicKey, Result, XorName};
 pub use metadata::{
     Action, Address, Entries, Entry, Index, Indices, Kind, Owner, Perm, Permissions,
-    PrivPermissions, PrivUserPermissions, PubPermissions, PubUserPermissions, User,
+    PrivatePermissions, PrivUserPermissions, PubUserPermissions, PublicPermissions, User,
     UserPermissions,
 };
 use seq_crdt::{Op, SequenceCrdt};
@@ -28,9 +28,9 @@ use std::{
 type ActorType = PublicKey;
 
 /// Public Sequence.
-pub type PubSeqData = SequenceCrdt<ActorType, PubPermissions>;
+pub type PubSeqData = SequenceCrdt<ActorType, PublicPermissions>;
 /// Private Sequence.
-pub type PrivSeqData = SequenceCrdt<ActorType, PrivPermissions>;
+pub type PrivSeqData = SequenceCrdt<ActorType, PrivatePermissions>;
 
 impl Debug for PubSeqData {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
@@ -71,7 +71,7 @@ impl Data {
     }
 
     /// Constructs a new Private Sequence Data.
-    pub fn new_priv(actor: PublicKey, name: XorName, tag: u64) -> Self {
+    pub fn new_private(actor: PublicKey, name: XorName, tag: u64) -> Self {
         Self::Private(PrivSeqData::new(actor, Address::Private { name, tag }))
     }
 
@@ -104,8 +104,8 @@ impl Data {
     }
 
     /// Returns `true` if private.
-    pub fn is_priv(&self) -> bool {
-        self.kind().is_priv()
+    pub fn is_private(&self) -> bool {
+        self.kind().is_private()
     }
 
     /// Checks permissions for given `action` for the provided user.
@@ -218,11 +218,11 @@ impl Data {
     pub fn set_pub_permissions(
         &mut self,
         permissions: BTreeMap<User, PubUserPermissions>,
-    ) -> Result<WriteOp<PubPermissions>> {
+    ) -> Result<WriteOp<PublicPermissions>> {
         let address = *self.address();
         match self {
             Data::Public(data) => {
-                let crdt_op = data.append_permissions(PubPermissions {
+                let crdt_op = data.append_permissions(PublicPermissions {
                     entries_index: data.entries_index(),
                     owners_index: data.owners_index(),
                     permissions,
@@ -234,14 +234,14 @@ impl Data {
     }
 
     /// Adds a new permissions entry for Private Sequence.
-    pub fn set_priv_permissions(
+    pub fn set_private_permissions(
         &mut self,
         permissions: BTreeMap<PublicKey, PrivUserPermissions>,
-    ) -> Result<WriteOp<PrivPermissions>> {
+    ) -> Result<WriteOp<PrivatePermissions>> {
         let address = *self.address();
         match self {
             Data::Private(data) => {
-                let crdt_op = data.append_permissions(PrivPermissions {
+                let crdt_op = data.append_permissions(PrivatePermissions {
                     entries_index: data.entries_index(),
                     owners_index: data.owners_index(),
                     permissions,
@@ -253,7 +253,7 @@ impl Data {
     }
 
     /// Apply Public Permissions CRDT operation.
-    pub fn apply_crdt_pub_perms_op(&mut self, op: Op<PubPermissions, ActorType>) -> Result<()> {
+    pub fn apply_crdt_pub_perms_op(&mut self, op: Op<PublicPermissions, ActorType>) -> Result<()> {
         match (self, &op) {
             (Data::Public(data), Op::Insert { .. }) => {
                 data.apply_crdt_perms_op(op);
@@ -264,7 +264,10 @@ impl Data {
     }
 
     /// Apply Private Permissions CRDT operation.
-    pub fn apply_crdt_priv_perms_op(&mut self, op: Op<PrivPermissions, ActorType>) -> Result<()> {
+    pub fn apply_crdt_private_perms_op(
+        &mut self,
+        op: Op<PrivatePermissions, ActorType>,
+    ) -> Result<()> {
         match self {
             Data::Private(data) => {
                 data.apply_crdt_perms_op(op);
@@ -325,7 +328,7 @@ impl Data {
     }
 
     /// Returns public permissions, if applicable.
-    pub fn pub_permissions(&self, index: impl Into<Index>) -> Result<&PubPermissions> {
+    pub fn pub_permissions(&self, index: impl Into<Index>) -> Result<&PublicPermissions> {
         let perms = match self {
             Data::Public(data) => data.permissions(index),
             Data::Private(_) => return Err(Error::InvalidOperation),
@@ -334,7 +337,7 @@ impl Data {
     }
 
     /// Returns private permissions, if applicable.
-    pub fn priv_permissions(&self, index: impl Into<Index>) -> Result<&PrivPermissions> {
+    pub fn private_permissions(&self, index: impl Into<Index>) -> Result<&PrivatePermissions> {
         let perms = match self {
             Data::Private(data) => data.permissions(index),
             Data::Public(_) => return Err(Error::InvalidOperation),
@@ -359,8 +362,8 @@ impl From<PrivSeqData> for Data {
 mod tests {
     use crate::{
         Error, PublicKey, Result, Sequence, SequenceAddress, SequenceIndex, SequenceKind,
-        SequencePrivUserPermissions, SequencePubUserPermissions, SequenceUser, SequenceUserPermissions,
-        XorName,
+        SequencePrivUserPermissions, SequencePubUserPermissions, SequenceUser,
+        SequenceUserPermissions, XorName,
     };
     use std::collections::BTreeMap;
     use threshold_crypto::SecretKey;
@@ -379,9 +382,10 @@ mod tests {
         assert_eq!(*sequence.name(), sequence_name);
         assert_eq!(sequence.tag(), sequence_tag);
         assert!(sequence.is_pub());
-        assert!(!sequence.is_priv());
+        assert!(!sequence.is_private());
 
-        let sequence_address = SequenceAddress::from_kind(SequenceKind::Public, sequence_name, sequence_tag);
+        let sequence_address =
+            SequenceAddress::from_kind(SequenceKind::Public, sequence_name, sequence_tag);
         assert_eq!(*sequence.address(), sequence_address);
     }
 
@@ -390,14 +394,15 @@ mod tests {
         let actor = gen_public_key();
         let sequence_name: XorName = rand::random();
         let sequence_tag = 43_000;
-        let sequence = Sequence::new_priv(actor, sequence_name, sequence_tag);
+        let sequence = Sequence::new_private(actor, sequence_name, sequence_tag);
         assert_eq!(sequence.kind(), SequenceKind::Private);
         assert_eq!(*sequence.name(), sequence_name);
         assert_eq!(sequence.tag(), sequence_tag);
         assert!(!sequence.is_pub());
-        assert!(sequence.is_priv());
+        assert!(sequence.is_private());
 
-        let sequence_address = SequenceAddress::from_kind(SequenceKind::Private, sequence_name, sequence_tag);
+        let sequence_address =
+            SequenceAddress::from_kind(SequenceKind::Private, sequence_name, sequence_tag);
         assert_eq!(*sequence.address(), sequence_address);
     }
 
@@ -470,7 +475,7 @@ mod tests {
         assert_eq!(first_entry.owners_index, 0);
         assert_eq!(first_entry, replica2.pub_permissions(index_0)?);
         assert_eq!(
-            SequenceUserPermissions::Pub(user_perms1),
+            SequenceUserPermissions::Public(user_perms1),
             replica1.user_permissions(SequenceUser::Anyone, index_0)?
         );
 
@@ -481,7 +486,7 @@ mod tests {
         assert_eq!(second_entry.owners_index, 0);
         assert_eq!(second_entry, replica2.pub_permissions(index_1)?);
         assert_eq!(
-            SequenceUserPermissions::Pub(user_perms2),
+            SequenceUserPermissions::Public(user_perms2),
             replica1.user_permissions(SequenceUser::Key(actor), index_1)?
         );
 
@@ -494,8 +499,8 @@ mod tests {
         let actor2 = gen_public_key();
         let sequence_name: XorName = rand::random();
         let sequence_tag = 43_000;
-        let mut replica1 = Sequence::new_priv(actor1, sequence_name, sequence_tag);
-        let mut replica2 = Sequence::new_priv(actor2, sequence_name, sequence_tag);
+        let mut replica1 = Sequence::new_private(actor1, sequence_name, sequence_tag);
+        let mut replica2 = Sequence::new_private(actor2, sequence_name, sequence_tag);
 
         let mut perms1 = BTreeMap::default();
         let user_perms1 = SequencePrivUserPermissions::new(true, false, true);
@@ -505,33 +510,33 @@ mod tests {
         let user_perms2 = SequencePrivUserPermissions::new(false, true, false);
         let _ = perms2.insert(actor2, user_perms2);
 
-        let op1 = replica1.set_priv_permissions(perms1.clone())?;
-        let op2 = replica1.set_priv_permissions(perms2.clone())?;
+        let op1 = replica1.set_private_permissions(perms1.clone())?;
+        let op2 = replica1.set_private_permissions(perms2.clone())?;
 
         // we apply the operations in different order, to verify that doesn't affect the result
-        replica2.apply_crdt_priv_perms_op(op2.crdt_op)?;
-        replica2.apply_crdt_priv_perms_op(op1.crdt_op)?;
+        replica2.apply_crdt_private_perms_op(op2.crdt_op)?;
+        replica2.apply_crdt_private_perms_op(op1.crdt_op)?;
 
         assert_eq!(replica1.permissions_index(), 2);
         assert_eq!(replica2.permissions_index(), 2);
 
         let index_0 = SequenceIndex::FromStart(0);
-        let first_entry = replica1.priv_permissions(index_0)?;
+        let first_entry = replica1.private_permissions(index_0)?;
         assert_eq!(first_entry.permissions, perms1);
         assert_eq!(first_entry.entries_index, 0);
         assert_eq!(first_entry.owners_index, 0);
-        assert_eq!(first_entry, replica2.priv_permissions(index_0)?);
+        assert_eq!(first_entry, replica2.private_permissions(index_0)?);
         assert_eq!(
             SequenceUserPermissions::Priv(user_perms1),
             replica1.user_permissions(SequenceUser::Key(actor1), index_0)?
         );
 
         let index_1 = SequenceIndex::FromStart(1);
-        let second_entry = replica1.priv_permissions(index_1)?;
+        let second_entry = replica1.private_permissions(index_1)?;
         assert_eq!(second_entry.permissions, perms2);
         assert_eq!(second_entry.entries_index, 0);
         assert_eq!(second_entry.owners_index, 0);
-        assert_eq!(second_entry, replica2.priv_permissions(index_1)?);
+        assert_eq!(second_entry, replica2.private_permissions(index_1)?);
         assert_eq!(
             SequenceUserPermissions::Priv(user_perms2),
             replica1.user_permissions(SequenceUser::Key(actor2), index_1)?
