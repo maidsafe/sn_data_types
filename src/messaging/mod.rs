@@ -25,7 +25,7 @@ pub use self::{
     blob::{BlobRead, BlobWrite},
     cmd::Cmd,
     data::{DataCmd, DataQuery},
-    duty::{AdultDuty, Duty, ElderDuty},
+    duty::{AdultDuties, Duty, ElderDuties},
     map::{MapRead, MapWrite},
     network::*,
     query::Query,
@@ -135,19 +135,19 @@ impl MsgEnvelope {
                     MsgSender::Client { .. } => Section((*self.origin.id()).into()),
                     // From `Gateway` to `Payment`.
                     MsgSender::Node {
-                        duty: Duty::Elder(ElderDuty::Gateway),
+                        duty: Duty::Elder(ElderDuties::Gateway),
                         ..
                     } => Section(payment.from().into()),
                     // From `Payment` to `Metadata`.
                     MsgSender::Node {
-                        duty: Duty::Elder(ElderDuty::Payment),
+                        duty: Duty::Elder(ElderDuties::Payment),
                         ..
                     } => Section(cmd.dst_address()),
                     // Accumulated at `Metadata`.
                     // I.e. this means we accumulated a section signature from `Payment` Elders.
                     // (this is done at `Metadata` Elders, and the accumulated section is added to most recent sender)
                     MsgSender::Section {
-                        duty: Duty::Elder(ElderDuty::Payment),
+                        duty: Duty::Elder(ElderDuties::Payment),
                         ..
                     } => Section(cmd.dst_address()),
                     _ => {

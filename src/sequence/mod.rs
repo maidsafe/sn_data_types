@@ -13,7 +13,7 @@ mod seq_crdt;
 use crate::{Error, PublicKey, Result, XorName};
 pub use metadata::{
     Action, Address, Entries, Entry, Index, Indices, Kind, Owner, Perm, Permissions,
-    PrivatePermissions, PrivUserPermissions, PubUserPermissions, PublicPermissions, User,
+    PrivUserPermissions, PrivatePermissions, PubUserPermissions, PublicPermissions, User,
     UserPermissions,
 };
 use seq_crdt::{Op, SequenceCrdt};

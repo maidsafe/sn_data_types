@@ -13,21 +13,21 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
 pub enum Duty {
     ///
-    Adult(AdultDuty),
+    Adult(AdultDuties),
     ///
-    Elder(ElderDuty),
+    Elder(ElderDuties),
 }
 
 /// Duties of an Adult.
 #[derive(Debug, Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
-pub enum AdultDuty {
+pub enum AdultDuties {
     /// Keeping and serving chunks.
     ChunkStorage,
 }
 
 /// Duties of an Elder.
 #[derive(Debug, Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
-pub enum ElderDuty {
+pub enum ElderDuties {
     /// Interfacing with clients.
     Gateway,
     /// Metadata management.
