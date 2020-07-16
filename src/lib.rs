@@ -32,9 +32,9 @@ mod errors;
 mod identity;
 mod immutable_data;
 mod keys;
+mod map;
 mod messaging;
 mod money;
-mod mutable_data;
 mod rewards;
 mod sequence;
 mod transfer;
@@ -52,18 +52,18 @@ pub use immutable_data::{
     UnpubData as UnpubImmutableData, MAX_IMMUTABLE_DATA_SIZE_IN_BYTES,
 };
 pub use keys::{BlsKeypair, BlsKeypairShare, Keypair, PublicKey, Signature, SignatureShare};
+pub use map::{
+    Action as MapAction, Address as MapAddress, Data as Map, Entries as MapEntries,
+    EntryActions as MapEntryActions, Kind as MapKind, PermissionSet as MapPermissionSet,
+    SeqData as SeqMap, SeqEntries as MapSeqEntries, SeqEntryAction as MapSeqEntryAction,
+    SeqEntryActions as MapSeqEntryActions, SeqValue as MapSeqValue, UnseqData as UnseqMap,
+    UnseqEntries as MapUnseqEntries, UnseqEntryAction as MapUnseqEntryAction,
+    UnseqEntryActions as MapUnseqEntryActions, Value as MapValue, Values as MapValues,
+};
 pub use messaging::*;
 pub use money::Money;
-pub use mutable_data::{
-    Action as MDataAction, Address as MDataAddress, Data as MData, Entries as MDataEntries,
-    EntryActions as MDataEntryActions, Kind as MDataKind, PermissionSet as MDataPermissionSet,
-    SeqData as SeqMutableData, SeqEntries as MDataSeqEntries,
-    SeqEntryAction as MDataSeqEntryAction, SeqEntryActions as MDataSeqEntryActions,
-    SeqValue as MDataSeqValue, UnseqData as UnseqMutableData, UnseqEntries as MDataUnseqEntries,
-    UnseqEntryAction as MDataUnseqEntryAction, UnseqEntryActions as MDataUnseqEntryActions,
-    Value as MDataValue, Values as MDataValues,
-};
 pub use rewards::{RewardCounter, Work};
+
 pub use sequence::{
     Action as SDataAction, Address as SDataAddress, Data as SData, Entries as SDataEntries,
     Entry as SDataEntry, Index as SDataIndex, Indices as SDataIndices, Kind as SDataKind,
@@ -95,8 +95,8 @@ use std::{
 pub enum Data {
     /// ImmutableData.
     Immutable(IData),
-    /// MutableData.
-    Mutable(MData),
+    /// Map.
+    Mutable(Map),
     /// Sequence.
     Sequence(SData),
 }
@@ -123,8 +123,8 @@ impl From<IData> for Data {
     }
 }
 
-impl From<MData> for Data {
-    fn from(data: MData) -> Self {
+impl From<Map> for Data {
+    fn from(data: Map) -> Self {
         Self::Mutable(data)
     }
 }

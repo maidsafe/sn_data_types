@@ -9,8 +9,8 @@
 
 use super::{AuthorisationKind, CmdError, DataAuthKind, QueryResponse};
 use crate::{
-    Error, MData as Map, MDataAddress as Address, MDataEntryActions as Changes,
-    MDataPermissionSet as PermissionSet, PublicKey, XorName,
+    Error, Map, MapAddress as Address, MapEntryActions as Changes,
+    MapPermissionSet as PermissionSet, PublicKey, XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;

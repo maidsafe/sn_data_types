@@ -7,9 +7,9 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-//! MutableData
+//! Map
 //!
-//! All MutableData is unpublished. MutableData can be either sequenced or unsequenced.
+//! All Map is unpublished. Map can be either sequenced or unsequenced.
 //!
 //! ## Unpublished data
 //!
@@ -21,11 +21,11 @@
 //! dealing with conflicting mutations. However, we don't need the version for preventing replay
 //! attacks.
 //!
-//! For sequenced MutableData the client must specify the next version number of a value while
-//! modifying/deleting keys. Similarly, while modifying the MutableData shell (permissions,
-//! ownership, etc.), the next version number must be passed. For unsequenced MutableData the client
+//! For sequenced Map the client must specify the next version number of a value while
+//! modifying/deleting keys. Similarly, while modifying the Map shell (permissions,
+//! ownership, etc.), the next version number must be passed. For unsequenced Map the client
 //! does not have to pass version numbers for keys, but it still must pass the next version number
-//! while modifying the MutableData shell.
+//! while modifying the Map shell.
 
 use crate::{utils, EntryError, Error, PublicKey, Result, XorName};
 use hex_fmt::HexFmt;
@@ -37,7 +37,7 @@ use std::{
     mem,
 };
 
-/// MutableData that is unpublished on the network. This data can only be fetched by the owner or
+/// Map that is unpublished on the network. This data can only be fetched by the owner or
 /// those in the permissions fields with `Permission::Read` access.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub struct SeqData {
@@ -47,7 +47,7 @@ pub struct SeqData {
     data: SeqEntries,
     /// Maps an application key to a list of allowed or forbidden actions.
     permissions: BTreeMap<PublicKey, PermissionSet>,
-    /// Version should be increased for any changes to MutableData fields except for data.
+    /// Version should be increased for any changes to Map fields except for data.
     version: u64,
     /// Contains the public key of an owner or owners of this data.
     ///
@@ -57,11 +57,11 @@ pub struct SeqData {
 
 impl Debug for SeqData {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "SeqMutableData {:?}", self.name())
+        write!(formatter, "SeqMap {:?}", self.name())
     }
 }
 
-/// MutableData that is unpublished on the network. This data can only be fetched by the owner or
+/// Map that is unpublished on the network. This data can only be fetched by the owner or
 /// those in the permissions fields with `Permission::Read` access.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub struct UnseqData {
@@ -71,7 +71,7 @@ pub struct UnseqData {
     data: UnseqEntries,
     /// Maps an application key to a list of allowed or forbidden actions.
     permissions: BTreeMap<PublicKey, PermissionSet>,
-    /// Version should be increased for any changes to MutableData fields except for data.
+    /// Version should be increased for any changes to Map fields except for data.
     version: u64,
     /// Contains the public key of an owner or owners of this data.
     ///
@@ -81,11 +81,11 @@ pub struct UnseqData {
 
 impl Debug for UnseqData {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "UnseqMutableData {:?}", self.name())
+        write!(formatter, "UnseqMap {:?}", self.name())
     }
 }
 
-/// A value in sequenced MutableData.
+/// A value in sequenced Map.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize)]
 pub struct SeqValue {
     /// Actual data.
@@ -174,7 +174,7 @@ impl PermissionSet {
     }
 }
 
-/// Set of Actions that can be performed on the MutableData.
+/// Set of Actions that can be performed on the Map.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum Action {
     /// Permission to read entries.
@@ -189,7 +189,7 @@ pub enum Action {
     ManagePermissions,
 }
 
-macro_rules! impl_mutable_data {
+macro_rules! impl_map {
     ($flavour:ident) => {
         impl $flavour {
             /// Returns the address.
@@ -212,7 +212,7 @@ macro_rules! impl_mutable_data {
                 self.address.kind()
             }
 
-            /// Returns the version of the MutableData fields (not the data version).
+            /// Returns the version of the Map fields (not the data version).
             pub fn version(&self) -> u64 {
                 self.version
             }
@@ -227,7 +227,7 @@ macro_rules! impl_mutable_data {
                 self.data.keys().cloned().collect()
             }
 
-            /// Returns the shell of this MutableData (the fields without the data).
+            /// Returns the shell of this Map (the fields without the data).
             pub fn shell(&self) -> Self {
                 Self {
                     address: self.address.clone(),
@@ -280,7 +280,7 @@ macro_rules! impl_mutable_data {
 
             /// Inserts or updates permissions for the provided user.
             ///
-            /// Requires the new `version` of the MutableData fields. If it does not match the
+            /// Requires the new `version` of the Map fields. If it does not match the
             /// current version + 1, an error will be returned.
             pub fn set_user_permissions(
                 &mut self,
@@ -300,7 +300,7 @@ macro_rules! impl_mutable_data {
 
             /// Deletes permissions for the provided user.
             ///
-            /// Requires the new `version` of the MutableData fields. If it does not match the
+            /// Requires the new `version` of the Map fields. If it does not match the
             /// current version + 1, an error will be returned.
             pub fn del_user_permissions(&mut self, user: PublicKey, version: u64) -> Result<()> {
                 if version != self.version + 1 {
@@ -318,7 +318,7 @@ macro_rules! impl_mutable_data {
 
             /// Deletes user permissions without performing any validation.
             ///
-            /// Requires the new `version` of the MutableData fields. If it does not match the
+            /// Requires the new `version` of the Map fields. If it does not match the
             /// current version + 1, an error will be returned.
             pub fn del_user_permissions_without_validation(
                 &mut self,
@@ -337,7 +337,7 @@ macro_rules! impl_mutable_data {
 
             /// Changes the owner.
             ///
-            /// Requires the new `version` of the MutableData fields. If it does not match the
+            /// Requires the new `version` of the Map fields. If it does not match the
             /// current version + 1, an error will be returned.
             pub fn change_owner(&mut self, new_owner: PublicKey, version: u64) -> Result<()> {
                 if version != self.version + 1 {
@@ -352,7 +352,7 @@ macro_rules! impl_mutable_data {
 
             /// Changes the owner without performing any validation.
             ///
-            /// Requires the new `version` of the MutableData fields. If it does not match the
+            /// Requires the new `version` of the Map fields. If it does not match the
             /// current version + 1, an error will be returned.
             pub fn change_owner_without_validation(
                 &mut self,
@@ -380,11 +380,11 @@ macro_rules! impl_mutable_data {
     };
 }
 
-impl_mutable_data!(SeqData);
-impl_mutable_data!(UnseqData);
+impl_map!(SeqData);
+impl_map!(UnseqData);
 
 impl UnseqData {
-    /// Creates a new unsequenced MutableData.
+    /// Creates a new unsequenced Map.
     pub fn new(name: XorName, tag: u64, owner: PublicKey) -> Self {
         Self {
             address: Address::Unseq { name, tag },
@@ -395,7 +395,7 @@ impl UnseqData {
         }
     }
 
-    /// Creates a new unsequenced MutableData with entries and permissions.
+    /// Creates a new unsequenced Map with entries and permissions.
     pub fn new_with_data(
         name: XorName,
         tag: u64,
@@ -516,9 +516,9 @@ impl UnseqData {
     }
 }
 
-/// Implements functions for sequenced MutableData.
+/// Implements functions for sequenced Map.
 impl SeqData {
-    /// Creates a new sequenced MutableData.
+    /// Creates a new sequenced Map.
     pub fn new(name: XorName, tag: u64, owner: PublicKey) -> Self {
         Self {
             address: Address::Seq { name, tag },
@@ -529,7 +529,7 @@ impl SeqData {
         }
     }
 
-    /// Creates a new sequenced MutableData with entries and permissions.
+    /// Creates a new sequenced Map with entries and permissions.
     pub fn new_with_data(
         name: XorName,
         tag: u64,
@@ -662,7 +662,7 @@ impl SeqData {
     }
 }
 
-/// Kind of a MutableData.
+/// Kind of a Map.
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Kind {
     /// Unsequenced.
@@ -692,7 +692,7 @@ impl Kind {
     }
 }
 
-/// Address of an MutableData.
+/// Address of an Map.
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Address {
     /// Unsequenced namespace.
@@ -763,12 +763,12 @@ impl Address {
     }
 }
 
-/// Object storing a MutableData variant.
+/// Object storing a Map variant.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Data {
-    /// Sequenced MutableData.
+    /// Sequenced Map.
     Seq(SeqData),
-    /// Unsequenced MutableData.
+    /// Unsequenced Map.
     Unseq(UnseqData),
 }
 
@@ -1167,7 +1167,7 @@ mod tests {
     use unwrap::unwrap;
 
     #[test]
-    fn zbase32_encode_decode_mdata_address() {
+    fn zbase32_encode_decode_Map_address() {
         let name = XorName(rand::random());
         let address = Address::Seq { name, tag: 15000 };
         let encoded = address.encode_to_zbase32();

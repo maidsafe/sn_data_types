@@ -33,10 +33,9 @@ pub use self::{
     transfer::{TransferCmd, TransferQuery},
 };
 use crate::{
-    errors::ErrorDebug, AppPermissions, DebitAgreementProof, Error, IData, MData as Map,
-    MDataEntries as MapEntries, MDataPermissionSet as MapPermissionSet, MDataValue as MapValue,
-    MDataValues as MapValues, Money, PublicKey, ReplicaEvent, ReplicaPublicKeySet, Result,
-    SData as Sequence, SDataEntries as SequenceEntries, SDataEntry as SequenceEntry,
+    errors::ErrorDebug, AppPermissions, DebitAgreementProof, Error, IData, Map, MapEntries,
+    MapPermissionSet, MapValue, MapValues, Money, PublicKey, ReplicaEvent, ReplicaPublicKeySet,
+    Result, SData as Sequence, SDataEntries as SequenceEntries, SDataEntry as SequenceEntry,
     SDataOwner as SequenceOwner, SDataPermissions as SequencePermissions,
     SDataUserPermissions as SequenceUserPermissions, Signature, TransferValidated, XorName,
 };
