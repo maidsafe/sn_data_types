@@ -8,8 +8,8 @@
 // Software.
 
 use crate::{
-    AccountId, Address, Blob, BlobAddress, DebitAgreementProof, Error, Result, Signature,
-    SignedTransfer, TransferId, TransferValidated, XorName,
+    AccountId, Address, Blob, BlobAddress, DebitAgreementProof, Error, Result, RewardCounter,
+    Signature, SignedTransfer, TransferId, TransferValidated, XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -150,7 +150,7 @@ pub enum NetworkDataError {
     ///
     ChunkDuplication {
         ///
-        address: IDataAddress,
+        address: BlobAddress,
         ///
         error: Error,
     },
