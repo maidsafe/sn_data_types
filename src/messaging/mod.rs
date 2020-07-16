@@ -668,7 +668,7 @@ impl fmt::Debug for QueryResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{PubBlob as PublicBlob, UnseqMutableData};
+    use crate::{PublicBlob, UnseqMap};
     use std::convert::{TryFrom, TryInto};
     use unwrap::{unwrap, unwrap_err};
 
@@ -697,7 +697,7 @@ mod tests {
         let mut data = BTreeMap::new();
         let _ = data.insert(vec![1], vec![10]);
         let owners = PublicKey::Bls(threshold_crypto::SecretKey::random().public_key());
-        let m_data = Map::Unseq(UnseqMutableData::new_with_data(
+        let m_data = Map::Unseq(UnseqMap::new_with_data(
             *i_data.name(),
             1,
             data,
