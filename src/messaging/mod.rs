@@ -35,9 +35,9 @@ pub use self::{
 use crate::{
     errors::ErrorDebug, AppPermissions, Blob, DebitAgreementProof, Error, Map, MapEntries,
     MapPermissionSet, MapValue, MapValues, Money, PublicKey, ReplicaEvent, ReplicaPublicKeySet,
-    Result, SData as Sequence, SDataEntries as SequenceEntries, SDataEntry as SequenceEntry,
-    SDataOwner as SequenceOwner, SDataPermissions as SequencePermissions,
-    SDataUserPermissions as SequenceUserPermissions, Signature, TransferValidated, XorName,
+    Result, Sequence as Sequence, SequenceEntries as SequenceEntries, SequenceEntry as SequenceEntry,
+    SequenceOwner as SequenceOwner, SequencePermissions as SequencePermissions,
+    SequenceUserPermissions as SequenceUserPermissions, Signature, TransferValidated, XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::{

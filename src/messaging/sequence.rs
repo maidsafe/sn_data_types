@@ -9,9 +9,9 @@
 
 use super::{AuthorisationKind, CmdError, DataAuthKind, QueryResponse};
 use crate::{
-    Error, SData as Sequence, SDataAddress as Address, SDataEntry as Entry, SDataIndex as Index,
-    SDataOwner as Owner, SDataPrivPermissions as PrivatePermissions,
-    SDataPubPermissions as PublicPermissions, SDataUser as User, SDataWriteOp as WriteOp, XorName,
+    Error, Sequence as Sequence, SequenceAddress as Address, SequenceEntry as Entry, SequenceIndex as Index,
+    SequenceOwner as Owner, SequencePrivPermissions as PrivatePermissions,
+    SequencePubPermissions as PublicPermissions, SequenceUser as User, SequenceWriteOp as WriteOp, XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;

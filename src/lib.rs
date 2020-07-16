@@ -65,13 +65,13 @@ pub use money::Money;
 pub use rewards::{RewardCounter, Work};
 
 pub use sequence::{
-    Action as SDataAction, Address as SDataAddress, Data as SData, Entries as SDataEntries,
-    Entry as SDataEntry, Index as SDataIndex, Indices as SDataIndices, Kind as SDataKind,
-    Owner as SDataOwner, Permissions as SDataPermissions, PrivPermissions as SDataPrivPermissions,
-    PrivSeqData, PrivUserPermissions as SDataPrivUserPermissions,
-    PubPermissions as SDataPubPermissions, PubSeqData,
-    PubUserPermissions as SDataPubUserPermissions, User as SDataUser,
-    UserPermissions as SDataUserPermissions, WriteOp as SDataWriteOp,
+    Action as SequenceAction, Address as SequenceAddress, Data as Sequence, Entries as SequenceEntries,
+    Entry as SequenceEntry, Index as SequenceIndex, Indices as SequenceIndices, Kind as SequenceKind,
+    Owner as SequenceOwner, Permissions as SequencePermissions, PrivPermissions as SequencePrivPermissions,
+    PrivSeqData, PrivUserPermissions as SequencePrivUserPermissions,
+    PubPermissions as SequencePubPermissions, PubSeqData,
+    PubUserPermissions as SequencePubUserPermissions, User as SequenceUser,
+    UserPermissions as SequenceUserPermissions, WriteOp as SequenceWriteOp,
 };
 pub use sha3::Sha3_512 as Ed25519Digest;
 pub use transfer::*;
@@ -98,7 +98,7 @@ pub enum Data {
     /// MutableData.
     Mutable(Map),
     /// Sequence.
-    Sequence(SData),
+    Sequence(Sequence),
 }
 
 impl Data {
@@ -107,7 +107,7 @@ impl Data {
         match *self {
             Self::Immutable(ref idata) => idata.is_pub(),
             Self::Mutable(_) => false,
-            Self::Sequence(ref sdata) => sdata.is_pub(),
+            Self::Sequence(ref sequence) => sequence.is_pub(),
         }
     }
 
@@ -129,8 +129,8 @@ impl From<Map> for Data {
     }
 }
 
-impl From<SData> for Data {
-    fn from(data: SData) -> Self {
+impl From<Sequence> for Data {
+    fn from(data: Sequence) -> Self {
         Self::Sequence(data)
     }
 }
