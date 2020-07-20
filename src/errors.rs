@@ -62,10 +62,9 @@ pub enum Error {
     /// Invalid version for performing a given mutating operation. Contains the
     /// current owners version.
     InvalidOwnersSuccessor(u64),
-    /// Invalid version for performing a given mutating operation. Contains the
-    /// current permissions version.
-    InvalidPermissionsSuccessor(u64),
-    /// Invalid Operation such as a POST on Blob
+    /// Invalid mutating operation as it causality dependency is currently not satisfied
+    OpNotCausallyReady,
+    /// Invalid Operation such as a POST on ImmutableData
     InvalidOperation,
     /// Mismatch between key type and signature type.
     SigningKeyTypeMismatch,
@@ -97,6 +96,8 @@ pub enum Error {
     BalanceExists,
     /// Expected data size exceeded.
     ExceededSize,
+    /// Unexpected error.
+    Unexpected(String),
 }
 
 impl<T: Into<String>> From<T> for Error {
@@ -126,13 +127,12 @@ impl Display for Error {
                 write!(f, "Data given is not a valid successor of stored data")
             }
             Error::InvalidOwnersSuccessor(_) => {
-                // TODO
                 write!(f, "Data given is not a valid successor of stored data")
             }
-            Error::InvalidPermissionsSuccessor(_) => {
-                // TODO
-                write!(f, "Data given is not a valid successor of stored data")
-            }
+            Error::OpNotCausallyReady => write!(
+                f,
+                "Data operation depends on a different replica's state than the current"
+            ),
             Error::SigningKeyTypeMismatch => {
                 write!(f, "Mismatch between key type and signature type")
             }
@@ -156,6 +156,7 @@ impl Display for Error {
             Error::BalanceExists => write!(f, "Balance already exists"),
             Error::DuplicateMessageId => write!(f, "MessageId already exists"),
             Error::ExceededSize => write!(f, "Size of the structure exceeds the limit"),
+            Error::Unexpected(ref error) => write!(f, "Unexpected error: {}", error),
         }
     }
 }
@@ -176,7 +177,7 @@ impl error::Error for Error {
             Error::InvalidOwners => "Invalid owners",
             Error::InvalidSuccessor(_) => "Invalid data successor",
             Error::InvalidOwnersSuccessor(_) => "Invalid owners successor",
-            Error::InvalidPermissionsSuccessor(_) => "Invalid permissions successor",
+            Error::OpNotCausallyReady => "Operation's is currently not causally ready",
             Error::InvalidOperation => "Invalid operation",
             Error::SigningKeyTypeMismatch => "Key type and signature type mismatch",
             Error::InvalidSignature => "Invalid signature",
@@ -194,6 +195,7 @@ impl error::Error for Error {
             Error::BalanceExists => "Balance already exists",
             Error::DuplicateMessageId => "MessageId already exists",
             Error::ExceededSize => "Exceeded the size limit",
+            Error::Unexpected(_) => "Unexpected error",
         }
     }
 }

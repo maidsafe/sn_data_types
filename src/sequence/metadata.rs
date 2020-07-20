@@ -135,18 +135,6 @@ impl From<u64> for Index {
     }
 }
 
-/// An owner could represent an individual user, or a group of users,
-/// depending on the `public_key` type.
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
-pub struct Owner {
-    /// Public key.
-    pub public_key: PublicKey,
-    /// The current index of the data when this ownership change happened
-    pub entries_index: u64,
-    /// The current index of the policy history when this ownership change happened
-    pub policy_index: u64,
-}
-
 /// Set of public permissions for a user.
 #[derive(Copy, Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub struct PubPermissions {
@@ -236,12 +224,13 @@ pub enum User {
 /// Public permissions.
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub struct PubPolicy {
+    /// An owner could represent an individual user, or a group of users,
+    /// depending on the `public_key` type.
+    pub owner: PublicKey,
     /// Map of users to their public permission set.
     pub permissions: BTreeMap<User, PubPermissions>,
     /// The current index of the data when this policy change happened.
     pub entries_index: u64,
-    /// The current index of the owners history when this policy change happened.
-    pub owners_index: u64,
 }
 
 impl PubPolicy {
@@ -257,12 +246,13 @@ impl PubPolicy {
 /// Private permissions.
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub struct PrivPolicy {
+    /// An owner could represent an individual user, or a group of users,
+    /// depending on the `public_key` type.
+    pub owner: PublicKey,
     /// Map of users to their private permission set.
     pub permissions: BTreeMap<PublicKey, PrivPermissions>,
     /// The current index of the data when this policy change happened.
     pub entries_index: u64,
-    /// The current index of the owners history when this policy change happened.
-    pub owners_index: u64,
 }
 
 pub trait Perm {
@@ -272,21 +262,26 @@ pub trait Perm {
     fn permissions(&self, user: User) -> Option<Permissions>;
     /// Gets the last entry index.
     fn entries_index(&self) -> u64;
-    /// Gets the last owner index.
-    fn owners_index(&self) -> u64;
+    /// Returns the owner.
+    fn owner(&self) -> &PublicKey;
 }
 
 impl Perm for PubPolicy {
     /// Returns `Ok(())` if `action` is allowed for the provided user and `Err(AccessDenied)` if
     /// this action is not permitted.
     fn is_action_allowed(&self, requester: PublicKey, action: Action) -> Result<()> {
-        match self
-            .is_action_allowed_by_user(&User::Key(requester), action)
-            .or_else(|| self.is_action_allowed_by_user(&User::Anyone, action))
-        {
-            Some(true) => Ok(()),
-            Some(false) => Err(Error::AccessDenied),
-            None => Err(Error::AccessDenied),
+        // First checks if the requester is the owner.
+        if action == Action::Read || requester == self.owner {
+            Ok(())
+        } else {
+            match self
+                .is_action_allowed_by_user(&User::Key(requester), action)
+                .or_else(|| self.is_action_allowed_by_user(&User::Anyone, action))
+            {
+                Some(true) => Ok(()),
+                Some(false) => Err(Error::AccessDenied),
+                None => Err(Error::AccessDenied),
+            }
         }
     }
 
@@ -300,9 +295,9 @@ impl Perm for PubPolicy {
         self.entries_index
     }
 
-    /// Returns the last owners index.
-    fn owners_index(&self) -> u64 {
-        self.owners_index
+    /// Returns the owner.
+    fn owner(&self) -> &PublicKey {
+        &self.owner
     }
 }
 
@@ -310,15 +305,20 @@ impl Perm for PrivPolicy {
     /// Returns `Ok(())` if `action` is allowed for the provided user and `Err(AccessDenied)` if
     /// this action is not permitted.
     fn is_action_allowed(&self, requester: PublicKey, action: Action) -> Result<()> {
-        match self.permissions.get(&requester) {
-            Some(perms) => {
-                if perms.is_allowed(action) {
-                    Ok(())
-                } else {
-                    Err(Error::AccessDenied)
+        // First checks if the requester is the owner.
+        if requester == self.owner {
+            Ok(())
+        } else {
+            match self.permissions.get(&requester) {
+                Some(perms) => {
+                    if perms.is_allowed(action) {
+                        Ok(())
+                    } else {
+                        Err(Error::AccessDenied)
+                    }
                 }
+                None => Err(Error::AccessDenied),
             }
-            None => Err(Error::AccessDenied),
         }
     }
 
@@ -335,9 +335,9 @@ impl Perm for PrivPolicy {
         self.entries_index
     }
 
-    /// Returns the last owners index.
-    fn owners_index(&self) -> u64 {
-        self.owners_index
+    /// Returns the owner.
+    fn owner(&self) -> &PublicKey {
+        &self.owner
     }
 }
 

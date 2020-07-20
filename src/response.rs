@@ -10,7 +10,7 @@
 use crate::{
     errors::ErrorDebug, AppPermissions, Coins, Error, IData, MData, MDataEntries,
     MDataPermissionSet, MDataValue, MDataValues, PublicKey, Result, SData, SDataEntries,
-    SDataEntry, SDataOwner, SDataPermissions, SDataPolicy, Signature, Transaction,
+    SDataEntry, SDataPermissions, SDataPolicy, Signature, Transaction,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -55,7 +55,7 @@ pub enum Response {
     /// Get Sequence.
     GetSData(Result<SData>),
     /// Get Sequence owners.
-    GetSDataOwner(Result<SDataOwner>),
+    GetSDataOwner(Result<PublicKey>),
     /// Get Sequence entries from a range.
     GetSDataRange(Result<SDataEntries>),
     /// Get Sequence last entry.
@@ -125,7 +125,7 @@ try_from!(MDataPermissionSet, ListMDataUserPermissions);
 try_from!(BTreeMap<PublicKey, MDataPermissionSet>, ListMDataPermissions);
 try_from!(MDataValue, GetMDataValue);
 try_from!(SData, GetSData);
-try_from!(SDataOwner, GetSDataOwner);
+try_from!(PublicKey, GetSDataOwner);
 try_from!(SDataEntries, GetSDataRange);
 try_from!((u64, SDataEntry), GetSDataLastEntry);
 try_from!(SDataPolicy, GetSDataPolicy);

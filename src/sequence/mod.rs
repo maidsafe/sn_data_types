@@ -12,10 +12,10 @@ mod seq_crdt;
 
 use crate::{Error, PublicKey, Result};
 pub use metadata::{
-    Action, Address, Entries, Entry, Index, Kind, Owner, Perm, Permissions, Policy,
-    PrivPermissions, PrivPolicy, PubPermissions, PubPolicy, User,
+    Action, Address, Entries, Entry, Index, Kind, Perm, Permissions, Policy, PrivPermissions,
+    PrivPolicy, PubPermissions, PubPolicy, User,
 };
-use seq_crdt::{Op, SequenceCrdt};
+use seq_crdt::{CrdtDataOperation, CrdtPolicyOperation, Op, SequenceCrdt};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
@@ -25,6 +25,12 @@ use std::{
 use xor_name::XorName;
 // Type of data used for the 'Actor' in CRDT vector clocks
 type ActorType = PublicKey;
+
+/// Data mutation operation to apply to Sequence.
+pub type DataMutationOp<T> = CrdtDataOperation<ActorType, T>;
+
+/// Policy mutation operation to apply to Sequence.
+pub type PolicyMutationOp<T> = CrdtPolicyOperation<ActorType, T>;
 
 /// Public Sequence.
 pub type PubSeqData = SequenceCrdt<ActorType, PubPolicy>;
@@ -65,12 +71,12 @@ pub enum Data {
 
 impl Data {
     /// Constructs a new Public Sequence Data.
-    pub fn new_pub(actor: PublicKey, name: XorName, tag: u64) -> Self {
+    pub fn new_pub(actor: ActorType, name: XorName, tag: u64) -> Self {
         Self::Public(PubSeqData::new(actor, Address::Public { name, tag }))
     }
 
     /// Constructs a new Private Sequence Data.
-    pub fn new_private(actor: PublicKey, name: XorName, tag: u64) -> Self {
+    pub fn new_priv(actor: ActorType, name: XorName, tag: u64) -> Self {
         Self::Private(PrivSeqData::new(actor, Address::Private { name, tag }))
     }
 
@@ -116,22 +122,15 @@ impl Data {
     pub fn check_permission(&self, action: Action, requester: PublicKey) -> Result<()> {
         macro_rules! check_perm {
             ($data: ident, $requester: ident, $action: ident) => {
-                $data.check_is_last_owner($requester).or_else(|_| {
-                    $data
-                        .policy(Index::FromEnd(1))
-                        .ok_or(Error::AccessDenied)?
-                        .is_action_allowed($requester, $action)
-                })
+                $data
+                    .policy(Index::FromEnd(1))
+                    .ok_or(Error::AccessDenied)?
+                    .is_action_allowed($requester, $action)
             };
         }
 
         match self {
-            Data::Public(data) => {
-                if action == Action::Read {
-                    return Ok(());
-                }
-                check_perm!(data, requester, action)
-            }
+            Data::Public(data) => check_perm!(data, requester, action),
             Data::Private(data) => check_perm!(data, requester, action),
         }
     }
@@ -149,14 +148,6 @@ impl Data {
         match self {
             Data::Public(data) => data.policy_index(),
             Data::Private(data) => data.policy_index(),
-        }
-    }
-
-    /// Returns the last owners index.
-    pub fn owners_index(&self) -> u64 {
-        match self {
-            Data::Public(data) => data.owners_index(),
-            Data::Private(data) => data.owners_index(),
         }
     }
 
@@ -184,41 +175,28 @@ impl Data {
         }
     }
 
-    /// Fetches owner fo history at index.
-    pub fn owner(&self, owners_index: impl Into<Index>) -> Option<&Owner> {
-        match self {
-            Data::Public(data) => data.owner(owners_index),
-            Data::Private(data) => data.owner(owners_index),
-        }
-    }
-
     /// Appends new entry.
-    pub fn append(&mut self, entry: Entry) -> WriteOp<Entry> {
-        let crdt_op = match self {
+    pub fn append(&mut self, entry: Entry) -> DataMutationOp<Entry> {
+        match self {
             Data::Public(data) => data.append(entry),
             Data::Private(data) => data.append(entry),
-        };
-
-        WriteOp {
-            address: *self.address(),
-            crdt_op,
         }
     }
 
     /// Apply a data CRDT operation.
-    pub fn apply_crdt_op(&mut self, op: Op<Entry, ActorType>) {
+    pub fn apply_data_op(&mut self, op: DataMutationOp<Entry>) -> Result<()> {
         match self {
-            Data::Public(data) => data.apply_crdt_op(op),
-            Data::Private(data) => data.apply_crdt_op(op),
-        };
+            Data::Public(data) => data.apply_data_op(op),
+            Data::Private(data) => data.apply_data_op(op),
+        }
     }
 
     /// Sets the new policy for Public Sequence.
     pub fn set_pub_policy(
         &mut self,
+        owner: PublicKey,
         permissions: BTreeMap<User, PubPermissions>,
-    ) -> Result<MutationOperation<PubPolicy>> {
-        let address = *self.address();
+    ) -> Result<PolicyMutationOp<PubPolicy>> {
         match self {
             Data::Public(data) => {
                 let crdt_op = data.set_policy(PubPolicy {
@@ -235,40 +213,31 @@ impl Data {
     /// Sets the new policy for Private Sequence.
     pub fn set_priv_policy(
         &mut self,
+        owner: PublicKey,
         permissions: BTreeMap<PublicKey, PrivPermissions>,
-    ) -> Result<MutationOperation<PrivPolicy>> {
-        let address = *self.address();
+    ) -> Result<PolicyMutationOp<PrivPolicy>> {
         match self {
-            Data::Private(data) => {
-                let crdt_op = data.set_policy(PrivPolicy {
-                    entries_index: data.entries_index(),
-                    owners_index: data.owners_index(),
-                    permissions,
-                });
-                Ok(WriteOp { address, crdt_op })
-            }
+            Data::Private(data) => Ok(data.set_policy(PrivPolicy {
+                entries_index: data.entries_index(),
+                owner,
+                permissions,
+            })),
             Data::Public(_) => Err(Error::InvalidOperation),
         }
     }
 
     /// Apply Public Policy CRDT operation.
-    pub fn apply_crdt_pub_policy_op(&mut self, op: Op<PubPolicy, ActorType>) -> Result<()> {
-        match (self, &op) {
-            (Data::Public(data), Op::Insert { .. }) => {
-                data.apply_crdt_policy_op(op);
-                Ok(())
-            }
+    pub fn apply_pub_policy_op(&mut self, op: PolicyMutationOp<PubPolicy>) -> Result<()> {
+        match (self, &op.crdt_op) {
+            (Data::Public(data), Op::Insert { .. }) => data.apply_policy_op(op),
             _ => Err(Error::InvalidOperation),
         }
     }
 
     /// Apply Private Policy CRDT operation.
-    pub fn apply_crdt_priv_policy_op(&mut self, op: Op<PrivPolicy, ActorType>) -> Result<()> {
+    pub fn apply_priv_policy_op(&mut self, op: PolicyMutationOp<PrivPolicy>) -> Result<()> {
         match self {
-            Data::Private(data) => {
-                data.apply_crdt_policy_op(op);
-                Ok(())
-            }
+            Data::Private(data) => data.apply_policy_op(op),
             _ => Err(Error::InvalidOperation),
         }
     }
@@ -403,7 +372,7 @@ mod tests {
     }
 
     #[test]
-    fn sequence_append_entry_and_apply() {
+    fn sequence_append_entry_and_apply() -> Result<()> {
         let actor = gen_public_key();
         let sequence_name = XorName::random();
         let sequence_tag = 43_000;
@@ -417,8 +386,8 @@ mod tests {
         let op2 = replica1.append(entry2.clone());
 
         // we apply the operations in different order, to verify that doesn't affect the result
-        replica2.apply_crdt_op(op2.crdt_op);
-        replica2.apply_crdt_op(op1.crdt_op);
+        replica2.apply_data_op(op2)?;
+        replica2.apply_data_op(op1)?;
 
         assert_eq!(replica1.entries_index(), 2);
         assert_eq!(replica2.entries_index(), 2);
@@ -436,10 +405,12 @@ mod tests {
         let last_entry = replica1.last_entry();
         assert_eq!(last_entry, Some(&entry2));
         assert_eq!(last_entry, replica2.last_entry());
+
+        Ok(())
     }
 
     #[test]
-    fn sequence_public_append_perms_and_apply() -> Result<()> {
+    fn sequence_public_set_policy_and_apply() -> Result<()> {
         let actor = gen_public_key();
         let sequence_name = XorName::random();
         let sequence_tag = 43_000;
@@ -454,12 +425,12 @@ mod tests {
         let user_perms2 = SDataPubPermissions::new(false, true);
         let _ = perms2.insert(SDataUser::Key(actor), user_perms2);
 
-        let op1 = replica1.set_pub_policy(perms1.clone())?;
-        let op2 = replica1.set_pub_policy(perms2.clone())?;
+        let op1 = replica1.set_pub_policy(actor, perms1.clone())?;
+        let op2 = replica1.set_pub_policy(actor, perms2.clone())?;
 
         // we apply the operations in different order, to verify that doesn't affect the result
-        replica2.apply_crdt_pub_policy_op(op2.crdt_op)?;
-        replica2.apply_crdt_pub_policy_op(op1.crdt_op)?;
+        replica2.apply_pub_policy_op(op2)?;
+        replica2.apply_pub_policy_op(op1)?;
 
         assert_eq!(replica1.policy_index(), 2);
         assert_eq!(replica2.policy_index(), 2);
@@ -468,7 +439,7 @@ mod tests {
         let first_entry = replica1.pub_policy(index_0)?;
         assert_eq!(first_entry.permissions, perms1);
         assert_eq!(first_entry.entries_index, 0);
-        assert_eq!(first_entry.owners_index, 0);
+        assert_eq!(first_entry.owner, actor);
         assert_eq!(first_entry, replica2.pub_policy(index_0)?);
         assert_eq!(
             SDataPermissions::Pub(user_perms1),
@@ -479,7 +450,7 @@ mod tests {
         let second_entry = replica1.pub_policy(index_1)?;
         assert_eq!(second_entry.permissions, perms2);
         assert_eq!(second_entry.entries_index, 0);
-        assert_eq!(second_entry.owners_index, 0);
+        assert_eq!(second_entry.owner, actor);
         assert_eq!(second_entry, replica2.pub_policy(index_1)?);
         assert_eq!(
             SDataPermissions::Pub(user_perms2),
@@ -506,12 +477,12 @@ mod tests {
         let user_perms2 = SDataPrivPermissions::new(false, true, false);
         let _ = perms2.insert(actor2, user_perms2);
 
-        let op1 = replica1.set_priv_policy(perms1.clone())?;
-        let op2 = replica1.set_priv_policy(perms2.clone())?;
+        let op1 = replica1.set_priv_policy(actor2, perms1.clone())?;
+        let op2 = replica1.set_priv_policy(actor1, perms2.clone())?;
 
         // we apply the operations in different order, to verify that doesn't affect the result
-        replica2.apply_crdt_priv_policy_op(op2.crdt_op)?;
-        replica2.apply_crdt_priv_policy_op(op1.crdt_op)?;
+        replica2.apply_priv_policy_op(op2)?;
+        replica2.apply_priv_policy_op(op1)?;
 
         assert_eq!(replica1.policy_index(), 2);
         assert_eq!(replica2.policy_index(), 2);
@@ -520,7 +491,7 @@ mod tests {
         let first_entry = replica1.priv_policy(index_0)?;
         assert_eq!(first_entry.permissions, perms1);
         assert_eq!(first_entry.entries_index, 0);
-        assert_eq!(first_entry.owners_index, 0);
+        assert_eq!(first_entry.owner, actor2);
         assert_eq!(first_entry, replica2.priv_policy(index_0)?);
         assert_eq!(
             SDataPermissions::Priv(user_perms1),
@@ -531,7 +502,7 @@ mod tests {
         let second_entry = replica1.priv_policy(index_1)?;
         assert_eq!(second_entry.permissions, perms2);
         assert_eq!(second_entry.entries_index, 0);
-        assert_eq!(second_entry.owners_index, 0);
+        assert_eq!(second_entry.owner, actor1);
         assert_eq!(second_entry, replica2.priv_policy(index_1)?);
         assert_eq!(
             SDataPermissions::Priv(user_perms2),
@@ -598,47 +569,49 @@ mod tests {
         let mut replica1 = SData::new_pub(actor1, sdata_name, sdata_tag);
         let mut replica2 = SData::new_pub(actor2, sdata_name, sdata_tag);
 
-        // Set Actor1 as the owner in both replicas
-        let _ = replica1.set_owner(actor1.clone());
-        let _ = replica2.set_owner(actor1);
-
-        // Grant authorisation for Append to Actor2 in both replicas
+        // Set Actor1 as the owner in both replicas and
+        // grant authorisation for Append to Actor2 in both replicas
         let mut perms = BTreeMap::default();
         let user_perms = SDataPubPermissions::new(/*append=*/ true, /*admin=*/ false);
         let _ = perms.insert(SDataUser::Key(actor2), user_perms);
+        let grant_op = replica1.set_pub_policy(actor1, perms)?;
+        replica2.apply_pub_policy_op(grant_op)?;
 
-        let _ = replica1.set_pub_policy(perms.clone())?;
-        let _ = replica2.set_pub_policy(perms)?;
+        // And let's append both replicas with one first item
+        let item1 = b"item1";
+        let append_op1 = replica1.append(item1.to_vec());
+        replica2.apply_data_op(append_op1)?;
+
         // Let's assert initial state on both replicas
-        assert_eq!(replica1.entries_index(), 0);
+        assert_eq!(replica1.entries_index(), 1);
         assert_eq!(replica1.policy_index(), 1);
-        assert_eq!(replica2.entries_index(), 0);
-        assert_eq!(replica2.policy_index(), 1);
-
-        // We revoke authorisation for Actor2 locally on replica1
-        let perms_empty = BTreeMap::default();
-        let _revoke_op = replica1.set_pub_policy(perms_empty)?;
-        // New Policy should have been set on replica1
-        assert_eq!(replica1.entries_index(), 0);
-        assert_eq!(replica1.policy_index(), 2);
-
-        // Concurrently append an item with Actor2 on replica2
-        let item = b"item0";
-        let append_op = replica2.append(item.to_vec());
-        // Item should have been temporarilly appended on replica2
         assert_eq!(replica2.entries_index(), 1);
         assert_eq!(replica2.policy_index(), 1);
 
+        // We revoke authorisation for Actor2 locally on replica1
+        let revoke_op = replica1.set_pub_policy(actor1, BTreeMap::default())?;
+        // New Policy should have been set on replica1
+        assert_eq!(replica1.policy_index(), 2);
+
+        // Concurrently append an item with Actor2 on replica2
+        let item2 = b"item2";
+        let append_op2 = replica2.append(item2.to_vec());
+        // Item should be appended on replica2
+        assert_eq!(replica2.entries_index(), 2);
+
         // Append operation is broadcasted and applied on replica1
-        // which shall be ignored as per current policy
-        replica1.apply_crdt_op(append_op.crdt_op);
-        /*
-                // Now revoke operation is broadcasted and applied on replica2
-                replica2.apply_crdt_pub_policy_op(revoke_op.crdt_op)?;
-                // Let's assert append op was undone on replica2 due to new and retroactive policy
-                assert_eq!(replica2.entries_index(), 0);
-                assert_eq!(replica2.policy_index(), 2);
-        */
+        replica1.apply_data_op(append_op2)?;
+
+        // Now revoke operation is broadcasted and applied on replica2
+        replica2.apply_pub_policy_op(revoke_op)?;
+        assert_eq!(replica2.policy_index(), 2);
+
+        // Let's assert that append op2 created a branch of data on both replicas
+        // due to new policy having been applied concurrently, thus only first
+        // item shall be returned from main branch of data
+        assert_eq!(replica1.entries_index(), 1);
+        assert_eq!(replica2.entries_index(), 1);
+
         Ok(())
     }
 
@@ -655,48 +628,62 @@ mod tests {
         let mut replica2 = SData::new_pub(actor2, sdata_name, sdata_tag);
         let mut replica3 = SData::new_pub(actor3, sdata_name, sdata_tag);
 
-        // Set Actor1 as the owner in all replicas
-        let _ = replica1.set_owner(actor1.clone());
-        let _ = replica2.set_owner(actor1.clone());
-        let _ = replica3.set_owner(actor1);
+        // Set Actor1 as the owner in all replicas, with empty users permissions yet
+        let owner_op = replica1.set_pub_policy(actor1, BTreeMap::default())?;
+        replica2.apply_pub_policy_op(owner_op.clone())?;
+        replica3.apply_pub_policy_op(owner_op)?;
 
         // Grant authorisation for Append to Actor3 in replica1 and apply to replica3 too
         let mut perms = BTreeMap::default();
         let user_perms = SDataPubPermissions::new(/*append=*/ true, /*admin=*/ false);
         let _ = perms.insert(SDataUser::Key(actor3), user_perms);
-
-        let grant_op = replica1.set_pub_policy(perms.clone())?;
-        replica3.apply_crdt_pub_policy_op(grant_op.crdt_op.clone())?;
+        let grant_op = replica1.set_pub_policy(actor1, perms)?;
+        replica3.apply_pub_policy_op(grant_op.clone())?;
 
         // Let's assert the state on three replicas
         assert_eq!(replica1.entries_index(), 0);
-        assert_eq!(replica1.policy_index(), 1);
+        assert_eq!(replica1.policy_index(), 2);
         assert_eq!(replica2.entries_index(), 0);
-        assert_eq!(replica2.policy_index(), 0);
+        assert_eq!(replica2.policy_index(), 1);
         assert_eq!(replica3.entries_index(), 0);
-        assert_eq!(replica3.policy_index(), 1);
+        assert_eq!(replica3.policy_index(), 2);
 
         // We append an item with Actor3 on replica3
         let item = b"item0";
         let append_op = replica3.append(item.to_vec());
         assert_eq!(replica3.entries_index(), 1);
 
-        // Append operation is broadcasted and applied on replica1
-        replica1.apply_crdt_op(append_op.crdt_op);
+        // Append op is broadcasted and applied on replica1
+        replica1.apply_data_op(append_op.clone())?;
         assert_eq!(replica1.entries_index(), 1);
-        /*
-                // And now append op is broadcasted and applied on replica2
-                replica2.apply_crdt_op(append_op.crdt_op.clone());
-                // Item should have been queued on replica2 as it's not causally ready
-                assert_eq!(replica2.entries_index(), 0);
 
-                // Now grant operation is broadcasted and applied on replica2
-                replica2.apply_crdt_pub_policy_op(grant_op.crdt_op)?;
-                // Let's assert append op was now applied on replica2 due
-                // to now being causally ready with the new policy
-                assert_eq!(replica2.entries_index(), 1);
-                assert_eq!(replica2.policy_index(), 1);
-        */
+        // And now append op is broadcasted and applied on replica2
+        // It should be rejected on replica2 as it's not causally ready
+        match replica2.apply_data_op(append_op.clone()) {
+            Err(Error::OpNotCausallyReady) => {}
+            Err(err) => {
+                return Err(Error::Unexpected(format!(
+                    "Error returned was the unexpected one: {}",
+                    err
+                )))
+            }
+            Ok(()) => {
+                return Err(Error::Unexpected(
+                    "Data op applied unexpectedly".to_string(),
+                ))
+            }
+        }
+        assert_eq!(replica2.entries_index(), 0);
+
+        // So let's apply grant operation to replica2
+        replica2.apply_pub_policy_op(grant_op)?;
+        assert_eq!(replica2.policy_index(), 2);
+
+        // Retrying to apply append op to replica2 should be successful, due
+        // to now being causally ready with the new policy
+        replica2.apply_data_op(append_op)?;
+        assert_eq!(replica2.entries_index(), 1);
+
         Ok(())
     }
 }
