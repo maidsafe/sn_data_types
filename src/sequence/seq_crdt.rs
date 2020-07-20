@@ -13,6 +13,7 @@ use crdts::{lseq::LSeq, CmRDT, VClock};
 pub use crdts::{lseq::Op, Actor};
 use serde::{Deserialize, Serialize};
 use std::{
+    cmp::Ordering::*,
     fmt::{self, Display},
     hash::Hash,
 };
@@ -24,11 +25,22 @@ const LSEQ_BOUNDARY: u64 = 1;
 /// thus a large arity be benefitial to keep Identifiers' length short.
 const LSEQ_TREE_BASE: u8 = 10; // arity of 1024 at root
 
+/// CRDT operation applicable to other Sequence replica.
+#[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Eq, Hash)]
+pub struct CrdtOperation<A: Actor + Display + std::fmt::Debug, T> {
+    /// Address of a Sequence object on the network.
+    pub address: Address,
+    /// The operation to apply.
+    pub crdt_op: Op<T, A>,
+    /// The context this operation depends on
+    pub ctx: VClock<A>,
+}
+
 /// Sequence data type as a CRDT with Access Control
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd)]
 pub struct SequenceCrdt<A, P>
 where
-    A: Actor,
+    A: Actor + Display + std::fmt::Debug,
     P: Perm + Hash + Clone,
 {
     /// Address on the network of this piece of data
@@ -47,11 +59,13 @@ where
     /// the data, as well as policy and owners history. We use this to provide context
     /// information to remote replicas when applying the operations.
     clock: VClock<A>,
+    /// Queue of data operations not causally ready, which need to be eventually applied
+    pending: Vec<CrdtOperation<A, Entry>>,
 }
 
 impl<A, P> Display for SequenceCrdt<A, P>
 where
-    A: Actor,
+    A: Actor + Display + std::fmt::Debug,
     P: Perm + Hash + Clone,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -68,7 +82,7 @@ where
 
 impl<A, P> SequenceCrdt<A, P>
 where
-    A: Actor,
+    A: Actor + Display + std::fmt::Debug,
     P: Perm + Hash + Clone,
 {
     /// Constructs a new 'SequenceCrdt'.
@@ -80,6 +94,7 @@ where
             policy_clock: VClock::default(),
             owners: LSeq::new_with_args(actor, LSEQ_TREE_BASE, LSEQ_BOUNDARY),
             clock: VClock::default(),
+            pending: Vec::default(),
         }
     }
 
@@ -104,28 +119,39 @@ where
     }
 
     /// Append a new item to the SequenceCrdt.
-    pub fn append(&mut self, entry: Entry) -> Op<Entry, A> {
-        // We return the operation as it may need to be broadcasted to other replicas
-        let op = self.data.append(entry);
-        // Let's update the global clock
-        self.clock.apply(op.dot().clone());
+    /// Returns the CRDT op and the context it depends on
+    pub fn append(&mut self, entry: Entry) -> CrdtOperation<A, Entry> {
+        let crdt_op = self.data.append(entry);
 
-        op
+        // Let's update the global clock
+        self.clock.apply(crdt_op.dot().clone());
+        println!("APPEND: CLOCK: {}", self.clock);
+        println!("APPEND: POLICY CLOCK: {}", self.policy_clock);
+
+        // We return the operation as it may need to be broadcasted to other replicas
+        CrdtOperation {
+            address: *self.address(),
+            crdt_op,
+            ctx: self.policy_clock.clone(),
+        }
     }
 
     /// Apply a remote data CRDT operation to this replica of the Sequence.
-    pub fn apply_crdt_op(&mut self, op: Op<Entry, A>) {
-        let dot = op.dot();
-        /*if self.clock.get(&dot.actor) >= dot.counter {
-            // We ignore it since we've seen this op already
-            println!("WE've seen this op: {:?}", dot.counter);
-            return;
-        }*/
+    pub fn apply_data_op(&mut self, op: CrdtOperation<A, Entry>) {
+        let dot = op.crdt_op.dot();
+        println!("APPLY D: REMOTE CLOCK: {}", op.ctx);
+        println!("APPLY D: POLICY CLOCK: {}", self.policy_clock);
 
-        // Let's update the global clock
-        self.clock.apply(dot.clone());
-        // Finally, apply the CRDT operation to the data
-        self.data.apply(op)
+        if self.is_causally_ready(&op.ctx) {
+            // Let's update the global clock
+            self.clock.apply(dot.clone());
+            // Finally, apply the CRDT operation to the data
+            self.data.apply(op.crdt_op)
+        } else {
+            println!("Op is not causally ready: {:?}", dot.counter);
+            // Let's queue it for now
+            self.pending.push(op);
+        }
     }
 
     /// Gets the entry at `index` if it exists.
@@ -179,50 +205,89 @@ where
 
     /// Sets a new Policy keeping the current one in the history.
     /// The Policy should contain valid indices.
-    pub fn set_policy(&mut self, policy: P) -> Op<P, A> {
-        let op = self.policy.append(policy);
+    pub fn set_policy(&mut self, policy: P) -> CrdtOperation<A, P> {
+        let crdt_op = self.policy.append(policy);
         // Let's update the global clock
-        self.clock.apply(op.dot().clone());
+        self.clock.apply(crdt_op.dot().clone());
         // Let's update the policy global clock as well
-        self.policy_clock.apply(op.dot().clone());
+        self.policy_clock.apply(crdt_op.dot().clone());
 
-        op
+        println!("SET P: CLOCK: {}", self.clock);
+        println!("SET P: POLICY CLOCK: {}", self.policy_clock);
+
+        // TODO: check for applying pending ops???
+        // ...they must be depending on remote policy ops instead???
+
+        // We return the operation as it may need to be broadcasted to other replicas
+        CrdtOperation {
+            address: *self.address(),
+            crdt_op,
+            ctx: self.policy_clock.clone(),
+        }
     }
 
     /// Apply a remote policy CRDT operation to this replica.
-    pub fn apply_crdt_policy_op(&mut self, op: Op<P, A>) {
-        let dot = op.dot();
-        // if local policy clock = clock in OP then go ahead
-        /*if self.clock.get(&dot.actor) >= dot.counter {
-            // We ignore it since we've seen this op already
-            println!("WE've seen this perms op: {} > counter={:?}", self.clock.get(&dot.actor), dot.counter);
-            return;
-        }*/
+    pub fn apply_policy_op(&mut self, op: CrdtOperation<A, P>) {
+        let dot = op.crdt_op.dot();
+
+        println!("APPLY P: REMOTE CLOCK: {} - {:?}", op.ctx, dot);
 
         // Let's update the global clock
         self.clock.apply(dot.clone());
         // Let's update also the policy global clock
         self.policy_clock.apply(dot.clone());
-        // Finally, apply the CRDT operation to the local replica of the policy
-        self.policy.apply(op)
+        // Apply the CRDT operation to the local replica of the policy
+        self.policy.apply(op.crdt_op);
+
+        println!("APPLY P: CLOCK: {}", self.clock);
+        println!("APPLY P: POLICY CLOCK: {}", self.policy_clock);
+
+        // Finally, let's see if any pending op is now causally ready
+        // TODO: remove cloninig
+        self.pending = self
+            .pending
+            .clone()
+            .iter()
+            .filter_map(|op| {
+                println!("checking this op: CTX: {:?}", op.ctx);
+                if self.is_causally_ready(&op.ctx) {
+                    println!("Op is now ready!!");
+                    // We can now apply this operation
+                    self.data.apply(op.crdt_op.clone());
+                    // ...and remove it from the queue of pendings
+                    None
+                } else {
+                    println!("Op is not ready yet :(");
+                    // It's still not ready, let's keep it in the queue
+                    Some(op.clone())
+                }
+            })
+            .collect();
     }
 
     /// Sets a new Owner keeping the current one in the history.
     // TODO: make the owner to be part of the policy
-    pub fn set_owner(&mut self, public_key: PublicKey) -> Op<Owner, A> {
-        self.owners.append(Owner {
+    pub fn set_owner(&mut self, public_key: PublicKey) -> CrdtOperation<A, Owner> {
+        let crdt_op = self.owners.append(Owner {
             entries_index: self.entries_index(),
             policy_index: self.policy_index(),
             public_key,
-        })
+        });
 
-        // TODO: update global clock
+        // Let's update the global clock
+        self.clock.apply(crdt_op.dot().clone());
+
+        CrdtOperation {
+            address: *self.address(),
+            crdt_op,
+            ctx: self.policy_clock.clone(),
+        }
     }
 
     /// Apply a remote owner CRDT operation to this replica.
     // TODO: make the owner to be part of the policy
-    pub fn apply_crdt_owner_op(&mut self, op: Op<Owner, A>) {
-        let dot = op.dot();
+    pub fn apply_crdt_owner_op(&mut self, op: CrdtOperation<A, Owner>) {
+        let dot = op.crdt_op.dot();
         /*if self.clock.get(&dot.actor) >= dot.counter {
             // We ignore it since we've seen this op already
             return;
@@ -231,7 +296,7 @@ where
         // Let's update the global clock
         self.clock.apply(dot.clone());
         // Finally, apply the CRDT operation to the owner
-        self.owners.apply(op)
+        self.owners.apply(op.crdt_op)
     }
 
     /// Checks if the requester is the last owner.
@@ -250,6 +315,17 @@ where
             Ok(())
         } else {
             Err(Error::AccessDenied)
+        }
+    }
+
+    // Private helper to check if an op is causally ready
+    fn is_causally_ready(&self, ctx: &VClock<A>) -> bool {
+        if let Some(Greater) = ctx.partial_cmp(&self.policy_clock) {
+            // Operation is not causally ready as depends on a policy
+            // version we aren't aware of yet.
+            false
+        } else {
+            true
         }
     }
 }
