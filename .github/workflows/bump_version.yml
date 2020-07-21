@@ -21,7 +21,7 @@ jobs:
           fetch-depth: '0'
  
       - name: Bump Version
-        uses: joshuef/auto-rust-version-bumper@v0.10
+        uses: maidsafe/auto-rust-version-bumper@v1
         with:
           personal-access-token: $PERSONAL_ACCESS_TOKEN
 
