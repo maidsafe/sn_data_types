@@ -51,9 +51,9 @@ pub enum NodeTransferCmd {
     ///
     PropagateTransfer(DebitAgreementProof),
     ///
-    InitiateRewardPayout(SignedTransfer),
+    ValidateRewardPayout(SignedTransfer),
     ///
-    FinaliseRewardPayout(DebitAgreementProof),
+    RegisterRewardPayout(DebitAgreementProof),
 }
 
 ///
@@ -205,8 +205,8 @@ impl NodeCmd {
             Data(DuplicateChunk { new_holder, .. }) => Node(*new_holder),
             Rewards(ClaimRewardCounter { old_node_id, .. }) => Section(*old_node_id),
             Transfers(cmd) => match cmd {
-                InitiateRewardPayout(signed_transfer) => Section(signed_transfer.from().into()),
-                FinaliseRewardPayout(debit_agreement) => Section(debit_agreement.from().into()),
+                ValidateRewardPayout(signed_transfer) => Section(signed_transfer.from().into()),
+                RegisterRewardPayout(debit_agreement) => Section(debit_agreement.from().into()),
                 PropagateTransfer(debit_agreement) => Section(debit_agreement.to().into()),
             },
         }
