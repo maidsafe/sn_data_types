@@ -93,11 +93,11 @@ impl MsgEnvelope {
         //     Event { event, .. } => Client(event.authorisation_kind()),
         //     QueryResponse { query_origin, .. } => query_origin.clone(),
         //     CmdError { cmd_origin, .. } => cmd_origin.clone(),
-        //     NetworkCmd { cmd, .. } => cmd.authorisation_kind(),
-        //     NetworkEvent { event, .. } => event.authorisation_kind(),
-        //     NetworkQuery { query, .. } => query.authorisation_kind(),
-        //     NetworkCmdError { cmd_origin, .. } => cmd_origin.clone(),
-        //     NetworkQueryResponse { query_origin, .. } => query_origin.clone(),
+        //     NodeCmd { cmd, .. } => cmd.authorisation_kind(),
+        //     NodeEvent { event, .. } => event.authorisation_kind(),
+        //     NodeQuery { query, .. } => query.authorisation_kind(),
+        //     NodeCmdError { cmd_origin, .. } => cmd_origin.clone(),
+        //     NodeQueryResponse { query_origin, .. } => query_origin.clone(),
         // }
     }
 
@@ -111,11 +111,11 @@ impl MsgEnvelope {
             Event { event, .. } => Client(event.dst_address()), // TODO: needs the correct client address
             QueryResponse { query_origin, .. } => query_origin.clone(),
             CmdError { cmd_origin, .. } => cmd_origin.clone(),
-            NetworkCmd { cmd, .. } => cmd.dst_address(),
-            NetworkEvent { event, .. } => event.dst_address(),
-            NetworkQuery { query, .. } => query.dst_address(),
-            NetworkCmdError { cmd_origin, .. } => cmd_origin.clone(),
-            NetworkQueryResponse { query_origin, .. } => query_origin.clone(),
+            NodeCmd { cmd, .. } => cmd.dst_address(),
+            NodeEvent { event, .. } => event.dst_address(),
+            NodeQuery { query, .. } => query.dst_address(),
+            NodeCmdError { cmd_origin, .. } => cmd_origin.clone(),
+            NodeQueryResponse { query_origin, .. } => query_origin.clone(),
         }
     }
 
@@ -293,16 +293,16 @@ pub enum Message {
         cmd_origin: Address,
     },
     /// Cmds only sent internally in the network.
-    NetworkCmd {
-        /// NetworkCmd.
-        cmd: NetworkCmd,
+    NodeCmd {
+        /// NodeCmd.
+        cmd: NodeCmd,
         /// Message ID.
         id: MessageId,
     },
-    /// An error of a NetworkCmd.
-    NetworkCmdError {
+    /// An error of a NodeCmd.
+    NodeCmdError {
         /// The error.
-        error: NetworkCmdError,
+        error: NodeCmdError,
         /// Message ID.
         id: MessageId,
         /// ID of causing cmd.
@@ -311,25 +311,25 @@ pub enum Message {
         cmd_origin: Address,
     },
     /// Events only sent internally in the network.
-    NetworkEvent {
+    NodeEvent {
         /// Request.
-        event: NetworkEvent,
+        event: NodeEvent,
         /// Message ID.
         id: MessageId,
         /// ID of causing cmd.
         correlation_id: MessageId,
     },
     /// Queries is a read-only operation.
-    NetworkQuery {
+    NodeQuery {
         /// Query.
-        query: NetworkQuery,
+        query: NodeQuery,
         /// Message ID.
         id: MessageId,
     },
     /// The response to a query, containing the query result.
-    NetworkQueryResponse {
+    NodeQueryResponse {
         /// QueryResponse.
-        response: NetworkQueryResponse,
+        response: NodeQueryResponse,
         /// Message ID.
         id: MessageId,
         /// ID of causing query.
@@ -348,11 +348,11 @@ impl Message {
             | Self::Event { id, .. }
             | Self::QueryResponse { id, .. }
             | Self::CmdError { id, .. }
-            | Self::NetworkCmd { id, .. }
-            | Self::NetworkEvent { id, .. }
-            | Self::NetworkQuery { id, .. }
-            | Self::NetworkCmdError { id, .. }
-            | Self::NetworkQueryResponse { id, .. } => *id,
+            | Self::NodeCmd { id, .. }
+            | Self::NodeEvent { id, .. }
+            | Self::NodeQuery { id, .. }
+            | Self::NodeCmdError { id, .. }
+            | Self::NodeQueryResponse { id, .. } => *id,
         }
     }
 }

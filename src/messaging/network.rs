@@ -14,24 +14,24 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
-// -------------- Network Cmds --------------
+// -------------- Node Cmds --------------
 
 ///
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
-pub enum NetworkCmd {
+pub enum NodeCmd {
     ///
-    Data(NetworkDataCmd),
+    Data(NodeDataCmd),
     ///
-    Rewards(NetworkRewardCmd),
+    Rewards(NodeRewardCmd),
     ///
-    Transfers(NetworkTransferCmd),
+    Transfers(NodeTransferCmd),
 }
 
 ///
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
-pub enum NetworkRewardCmd {
+pub enum NodeRewardCmd {
     /// Sent by the new section to the
     /// old section after node relocation.
     ClaimRewardCounter {
@@ -47,7 +47,7 @@ pub enum NetworkRewardCmd {
 ///
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
-pub enum NetworkTransferCmd {
+pub enum NodeTransferCmd {
     ///
     PropagateTransfer(DebitAgreementProof),
     ///
@@ -59,7 +59,7 @@ pub enum NetworkTransferCmd {
 ///
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
-pub enum NetworkDataCmd {
+pub enum NodeDataCmd {
     ///
     DuplicateChunk {
         ///
@@ -71,12 +71,12 @@ pub enum NetworkDataCmd {
     },
 }
 
-// -------------- Network Events --------------
+// -------------- Node Events --------------
 
 ///
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
-pub enum NetworkEvent {
+pub enum NodeEvent {
     /// Wrapper for a duplicate completion response, from a node to elders.
     DuplicationComplete {
         ///
@@ -105,7 +105,7 @@ pub enum NetworkEvent {
 
 ///
 #[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
-pub enum NetworkQuery {
+pub enum NodeQuery {
     /// Elder to Adult Get.
     GetChunk {
         /// The holder id.
@@ -125,7 +125,7 @@ pub enum NetworkQuery {
 ///
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
-pub enum NetworkQueryResponse {
+pub enum NodeQueryResponse {
     /// Elder to Adult Get.
     GetChunk(Result<Blob>),
     /// Adult to Adult Get
@@ -135,18 +135,18 @@ pub enum NetworkQueryResponse {
 ///
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
-pub enum NetworkCmdError {
+pub enum NodeCmdError {
     ///
-    Data(NetworkDataError),
+    Data(NodeDataError),
     ///
-    Rewards(NetworkRewardError),
+    Rewards(NodeRewardError),
     ///
-    Transfers(NetworkTransferError),
+    Transfers(NodeTransferError),
 }
 
 ///
 #[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
-pub enum NetworkDataError {
+pub enum NodeDataError {
     ///
     ChunkDuplication {
         ///
@@ -158,14 +158,14 @@ pub enum NetworkDataError {
 
 ///
 #[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
-pub enum NetworkTransferError {
+pub enum NodeTransferError {
     /// The error of propagation of TransferRegistered event.
     TransferPropagation(Error),
 }
 
 ///
 #[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
-pub enum NetworkRewardError {
+pub enum NodeRewardError {
     ///
     RewardClaiming {
         ///
@@ -193,14 +193,14 @@ pub enum NetworkRewardError {
     },
 }
 
-impl NetworkCmd {
+impl NodeCmd {
     /// Returns the address of the destination for `request`.
     pub fn dst_address(&self) -> Address {
         use Address::*;
-        use NetworkCmd::*;
-        use NetworkDataCmd::*;
-        use NetworkRewardCmd::*;
-        use NetworkTransferCmd::*;
+        use NodeDataCmd::*;
+        use NodeRewardCmd::*;
+        use NodeTransferCmd::*;
+        use NodeCmd::*;
         match self {
             Data(DuplicateChunk { new_holder, .. }) => Node(*new_holder),
             Rewards(ClaimRewardCounter { old_node_id, .. }) => Section(*old_node_id),
@@ -213,11 +213,11 @@ impl NetworkCmd {
     }
 }
 
-impl NetworkEvent {
+impl NodeEvent {
     /// Returns the address of the destination for `request`.
     pub fn dst_address(&self) -> Address {
         use Address::*;
-        use NetworkEvent::*;
+        use NodeEvent::*;
         match self {
             DuplicationComplete { chunk, .. } => Section(*chunk.name()),
             RewardCounterClaimed { new_node_id, .. } => Section(*new_node_id),
@@ -226,11 +226,11 @@ impl NetworkEvent {
     }
 }
 
-impl NetworkQuery {
+impl NodeQuery {
     /// Returns the address of the destination for the query.
     pub fn dst_address(&self) -> Address {
         use Address::*;
-        use NetworkQuery::*;
+        use NodeQuery::*;
         match self {
             GetChunk { holder, .. } | GetChunks { holder, .. } => Node(*holder),
         }
