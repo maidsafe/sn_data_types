@@ -11,7 +11,7 @@ pub mod app;
 pub mod client;
 pub mod node;
 
-use crate::{utils, AppFullId, ClientFullId, PublicKey, Result, Signature, XorName};
+use crate::{utils, AppFullId, ClientFullId, Keypair, PublicKey, Result, Signature, XorName};
 use multibase::Decodable;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Debug, Display, Formatter};
@@ -30,6 +30,14 @@ impl SafeKey {
     /// Creates a client full ID.
     pub fn client(full_id: ClientFullId) -> Self {
         Self::Client(Arc::new(full_id))
+    }
+
+    /// Retrieve the underlying keypair
+    pub fn keypair(&self) -> Keypair {
+        match self {
+            Self::App(app_full_id) => app_full_id.keypair.clone(),
+            Self::Client(client_full_id) => client_full_id.keypair.clone(),
+        }
     }
 
     /// Creates an app full ID.
