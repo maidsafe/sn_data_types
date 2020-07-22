@@ -197,10 +197,10 @@ impl NodeCmd {
     /// Returns the address of the destination for `request`.
     pub fn dst_address(&self) -> Address {
         use Address::*;
+        use NodeCmd::*;
         use NodeDataCmd::*;
         use NodeRewardCmd::*;
         use NodeTransferCmd::*;
-        use NodeCmd::*;
         match self {
             Data(DuplicateChunk { new_holder, .. }) => Node(*new_holder),
             Rewards(ClaimRewardCounter { old_node_id, .. }) => Section(*old_node_id),

@@ -33,10 +33,10 @@ pub use self::{
     transfer::{TransferCmd, TransferQuery},
 };
 use crate::{
-    errors::ErrorDebug, AppPermissions, Blob, DebitAgreementProof, Error, Map, MapEntries,
-    MapPermissionSet, MapValue, MapValues, Money, PublicKey, ReplicaEvent, ReplicaPublicKeySet,
-    Result, Sequence, SequenceEntries, SequenceEntry, SequenceOwner, SequencePermissions,
-    SequenceUserPermissions, Signature, TransferValidated, XorName,
+    errors::ErrorDebug, utils, AppPermissions, Blob, BlsProof, DebitAgreementProof, Error, Map,
+    MapEntries, MapPermissionSet, MapValue, MapValues, Money, Proof, PublicKey, ReplicaEvent,
+    ReplicaPublicKeySet, Result, Sequence, SequenceEntries, SequenceEntry, SequenceOwner,
+    SequencePermissions, SequenceUserPermissions, Signature, TransferValidated, XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -55,13 +55,29 @@ pub struct MsgEnvelope {
     pub origin: MsgSender,
     /// Intermediate actors, so far, on the path of this message.
     /// Every new actor handling this message, would add itself here.
-    pub proxies: Vec<MsgSender>, // or maybe enough with just `proxy`
+    pub proxies: Vec<MsgSender>, // or maybe enough with just option of `proxy` (leaning heavily towards it now)
 }
 
 impl MsgEnvelope {
     /// Gets the message ID.
     pub fn id(&self) -> MessageId {
         self.message.id()
+    }
+
+    /// This is not quite good.
+    /// It does work for the cases we have,
+    /// but it does so without being clearly robust/flexible.
+    /// So, needs some improvement..
+    pub fn verify(&self) -> bool {
+        let data = if self.proxies.len() == 0 {
+            utils::serialise(&self.message)
+        } else {
+            let mut msg = self.clone();
+            let _ = msg.proxies.pop();
+            utils::serialise(&msg)
+        };
+        let signer = self.most_recent_sender();
+        signer.id().verify(&signer.signature(), data).is_ok()
     }
 
     /// The proxy would first sign the MsgEnvelope,
@@ -124,7 +140,7 @@ impl MsgEnvelope {
         use Cmd::*;
         match cmd {
             // temporary case, while not impl at `Authenticator`
-            Auth(_) => Section((*self.origin.id()).into()),
+            Auth(_) => Section(self.origin.id().into()),
             // always to `Payment` section
             Transfer(c) => Section(c.dst_address()),
             // Data dst (after reaching `Gateway`)
@@ -132,7 +148,7 @@ impl MsgEnvelope {
             Data { cmd, payment } => {
                 match self.most_recent_sender() {
                     // From `Client` to `Gateway`.
-                    MsgSender::Client { .. } => Section((*self.origin.id()).into()),
+                    MsgSender::Client { .. } => Section(self.origin.id().into()),
                     // From `Gateway` to `Payment`.
                     MsgSender::Node {
                         duty: Duty::Elder(ElderDuties::Gateway),
@@ -154,7 +170,7 @@ impl MsgEnvelope {
                         // this should not be a valid case
                         // just putting a default address here for now
                         // (pointing at `Gateway` seems best)
-                        Section((*self.origin.id()).into())
+                        Section(self.origin.id().into())
                     }
                 }
             }
@@ -166,56 +182,50 @@ impl MsgEnvelope {
 #[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum MsgSender {
     ///
-    Client {
-        ///
-        id: PublicKey,
-        ///
-        signature: Signature,
-    },
+    Client(Proof),
     ///
     Node {
         ///
-        id: PublicKey,
-        ///
         duty: Duty,
         ///
-        signature: Signature,
+        proof: Proof,
     },
     ///
     Section {
         ///
-        id: PublicKey,
-        ///
         duty: Duty,
         ///
-        signature: Signature,
+        proof: BlsProof,
     },
 }
 
 impl MsgSender {
     ///
-    pub fn id(&self) -> &PublicKey {
+    pub fn id(&self) -> PublicKey {
         use MsgSender::*;
         match self {
-            Client { id, .. } | Node { id, .. } | Section { id, .. } => id,
+            Client(proof) | Node { proof, .. } => proof.id(),
+            Section { proof, .. } => proof.id(),
         }
     }
+
     ///
     pub fn address(&self) -> Address {
         use MsgSender::*;
         match self {
-            Client { id, .. } => Address::Client((*id).into()),
-            Node { id, .. } => Address::Node((*id).into()),
-            Section { id, .. } => Address::Section((*id).into()),
+            Client(_) => Address::Client(self.id().into()),
+            Node { .. } => Address::Node(self.id().into()),
+            Section { .. } => Address::Section(self.id().into()),
         }
     }
+
     ///
-    pub fn signature(&self) -> &Signature {
+    pub fn signature(&self) -> Signature {
         use MsgSender::*;
         match self {
-            Client { signature, .. } | Node { signature, .. } | Section { signature, .. } => {
-                signature
-            }
+            Client(proof) => proof.signature(),
+            Node { proof, .. } => proof.signature(),
+            Section { proof, .. } => proof.signature(),
         }
     }
 }
@@ -696,7 +706,7 @@ mod tests {
 
         let mut data = BTreeMap::new();
         let _ = data.insert(vec![1], vec![10]);
-        let owners = PublicKey::Bls(threshold_crypto::SecretKey::random().public_key());
+        let owners = PublicKey::Bls(bls::SecretKey::random().public_key());
         let m_data = Map::Unseq(UnseqMap::new_with_data(
             *i_data.name(),
             1,

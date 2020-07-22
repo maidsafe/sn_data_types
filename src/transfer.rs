@@ -1,9 +1,9 @@
 use super::keys::{PublicKey, Signature, SignatureShare};
 use super::money::Money;
+use bls::PublicKeySet;
 use crdts::Dot;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
-use threshold_crypto::PublicKeySet;
 
 /// Actor id
 pub type AccountId = PublicKey;

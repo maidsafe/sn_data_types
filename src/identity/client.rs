@@ -9,15 +9,15 @@
 
 use crate::keys::{BlsKeypair, SignatureShare};
 use crate::{utils, Ed25519Digest, Error, Keypair, PublicKey, Signature, XorName};
+use bls::{
+    serde_impl::SerdeSecret,
+    SecretKey as BlsSecretKey, //SecretKeyShare as BlsSecretKeyShare,
+};
 use ed25519_dalek::Keypair as Ed25519Keypair;
 use multibase::Decodable;
 use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{self, Debug, Display, Formatter};
-use threshold_crypto::{
-    serde_impl::SerdeSecret,
-    SecretKey as BlsSecretKey, //SecretKeyShare as BlsSecretKeyShare,
-};
 
 /// A struct holding a keypair variant and the corresponding public ID for a network Client.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]

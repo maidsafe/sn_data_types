@@ -51,7 +51,10 @@ pub use identity::{
     node::{FullId as NodeFullId, PublicId as NodePublicId},
     PublicId, SafeKey,
 };
-pub use keys::{BlsKeypair, BlsKeypairShare, Keypair, PublicKey, Signature, SignatureShare};
+pub use keys::{
+    BlsKeypair, BlsKeypairShare, BlsProof, BlsProofShare, Ed25519Proof, Keypair, Proof, Proven,
+    PublicKey, Signature, SignatureShare,
+};
 pub use map::{
     Action as MapAction, Address as MapAddress, Data as Map, Entries as MapEntries,
     EntryActions as MapEntryActions, Kind as MapKind, PermissionSet as MapPermissionSet,

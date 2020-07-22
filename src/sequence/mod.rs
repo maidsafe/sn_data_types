@@ -365,8 +365,8 @@ mod tests {
         SequencePrivUserPermissions, SequencePubUserPermissions, SequenceUser,
         SequenceUserPermissions, XorName,
     };
+    use bls::SecretKey;
     use std::collections::BTreeMap;
-    use threshold_crypto::SecretKey;
 
     fn gen_public_key() -> PublicKey {
         PublicKey::Bls(SecretKey::random().public_key())

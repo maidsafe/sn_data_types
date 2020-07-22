@@ -1167,7 +1167,7 @@ mod tests {
     use unwrap::unwrap;
 
     #[test]
-    fn zbase32_encode_decode_Map_address() {
+    fn zbase32_encode_decode_map_address() {
         let name = XorName(rand::random());
         let address = Address::Seq { name, tag: 15000 };
         let encoded = address.encode_to_zbase32();

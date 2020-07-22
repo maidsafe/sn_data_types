@@ -15,7 +15,7 @@ use multibase::Decodable;
 use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Debug, Display, Formatter};
-//use threshold_crypto::SecretKeyShare as BlsSecretKeyShare;
+//use bls::SecretKeyShare as BlsSecretKeyShare;
 
 /// A struct holding a keypair variant and the corresponding public ID for a network App.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]

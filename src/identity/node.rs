@@ -9,6 +9,10 @@
 
 use crate::keys::{BlsKeypairShare, SignatureShare};
 use crate::{utils, Ed25519Digest, Error, PublicKey, Signature, XorName};
+use bls::{
+    serde_impl::SerdeSecret, PublicKeyShare as BlsPublicKeyShare,
+    SecretKeyShare as BlsSecretKeyShare,
+};
 use ed25519_dalek::{Keypair as Ed25519Keypair, PublicKey as Ed25519PublicKey};
 use hex_fmt::HexFmt;
 use multibase::Decodable;
@@ -18,10 +22,6 @@ use std::{
     cmp::Ordering,
     fmt::{self, Debug, Display, Formatter},
     hash::{Hash, Hasher},
-};
-use threshold_crypto::{
-    serde_impl::SerdeSecret, PublicKeyShare as BlsPublicKeyShare,
-    SecretKeyShare as BlsSecretKeyShare,
 };
 
 /// A struct holding an Ed25519 keypair, an optional BLS keypair share, and the corresponding public
@@ -92,14 +92,15 @@ impl FullId {
     }
 
     /// Sets the `FullId`'s BLS keypair share using the provided BLS secret key share.
-    pub fn set_bls_keys(&mut self, bls_secret_key_share: BlsSecretKeyShare) {
-        let public = bls_secret_key_share.public_key_share();
-        let secret = SerdeSecret(bls_secret_key_share);
+    pub fn set_bls_keys(&mut self, secret_share: BlsSecretKeyShare, public_set: bls::PublicKeySet) {
+        let public = secret_share.public_key_share();
+        let secret = SerdeSecret(secret_share);
         self.public_id.bls = Some(public);
         self.bls = Some(BlsKeypairShare {
             index: 0,
             secret,
             public,
+            public_key_set: public_set,
         });
     }
 
