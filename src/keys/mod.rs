@@ -343,14 +343,14 @@ impl Keypair {
     pub fn new_bls_share(
         index: usize,
         secret_share: bls::SecretKeyShare,
-        set: bls::PublicKeySet,
+        public_key_set: bls::PublicKeySet,
     ) -> Self {
         let public_share = secret_share.public_key_share();
         let keypair_share = BlsKeypairShare {
             index,
             secret: SerdeSecret(secret_share),
             public: public_share,
-            public_key_set: set,
+            public_key_set,
         };
         Self::BlsShare(keypair_share)
     }
@@ -374,6 +374,14 @@ impl Keypair {
                 let share = keypair.secret.sign(data);
                 Signature::BlsShare(SignatureShare { index, share })
             }
+        }
+    }
+
+    ///
+    pub fn bls_share(&self) -> Option<&BlsKeypairShare> {
+        match self {
+            Self::BlsShare(share) => Some(share),
+            _ => None,
         }
     }
 }
