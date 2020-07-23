@@ -376,14 +376,6 @@ impl Keypair {
             }
         }
     }
-
-    ///
-    pub fn bls_share(&self) -> Option<&BlsKeypairShare> {
-        match self {
-            Self::BlsShare(share) => Some(share),
-            _ => None,
-        }
-    }
 }
 
 /// BLS keypair.
