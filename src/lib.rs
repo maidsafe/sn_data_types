@@ -48,8 +48,7 @@ pub use errors::{EntryError, Error, Result};
 pub use identity::{
     app::{FullId as AppFullId, PublicId as AppPublicId},
     client::{FullId as ClientFullId, PublicId as ClientPublicId},
-    node::{FullId as NodeFullId, PublicId as NodePublicId},
-    node_keypairs::{NodeKeypairs, PublicKeys},
+    node::{FullId as NodeFullId, NodeKeypairs, PublicId as NodePublicId},
     PublicId, SafeKey,
 };
 pub use keys::{

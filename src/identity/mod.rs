@@ -10,7 +10,6 @@
 pub mod app;
 pub mod client;
 pub mod node;
-pub mod node_keypairs;
 
 use crate::{utils, AppFullId, ClientFullId, Keypair, PublicKey, Result, Signature, XorName};
 use multibase::Decodable;
