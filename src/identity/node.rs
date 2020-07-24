@@ -289,12 +289,17 @@ impl NodeKeypairs {
     }
 
     /// Sets the `NodeKeypairs`'s BLS keypair share using the provided BLS secret key share.
-    pub fn set_bls_keys(&mut self, secret_share: BlsSecretKeyShare, public_set: PublicKeySet) {
+    pub fn set_bls_keys(
+        &mut self,
+        index: usize,
+        secret_share: BlsSecretKeyShare,
+        public_set: PublicKeySet,
+    ) {
         let public = secret_share.public_key_share();
         let secret = SerdeSecret(secret_share);
         self.public_id.bls = Some(public);
         self.bls = Some(BlsKeypairShare {
-            index: 0,
+            index,
             secret,
             public,
             public_key_set: public_set,
