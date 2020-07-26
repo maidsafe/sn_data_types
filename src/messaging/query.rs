@@ -8,7 +8,8 @@
 // Software.
 
 use super::{
-    auth::AuthQuery, data::DataQuery, transfer::TransferQuery, AuthorisationKind, QueryResponse,
+    auth::AuthQuery, data::DataQuery, payment::PaymentQuery, transfer::TransferQuery,
+    AuthorisationKind, QueryResponse,
 };
 use crate::{Error, XorName};
 use serde::{Deserialize, Serialize};
@@ -23,6 +24,8 @@ pub enum Query {
     Data(DataQuery),
     ///
     Transfer(TransferQuery),
+    ///
+    Payment(PaymentQuery),
 }
 
 impl Query {
@@ -33,6 +36,7 @@ impl Query {
             Auth(q) => q.authorisation_kind(),
             Data(q) => q.authorisation_kind(),
             Transfer(q) => q.authorisation_kind(),
+            Payment(q) => q.authorisation_kind(),
         }
     }
 
@@ -44,6 +48,7 @@ impl Query {
             Auth(q) => q.error(error),
             Data(q) => q.error(error),
             Transfer(q) => q.error(error),
+            Payment(q) => q.error(error),
         }
     }
 
@@ -54,6 +59,7 @@ impl Query {
             Auth(q) => q.dst_address(),
             Data(q) => q.dst_address(),
             Transfer(q) => q.dst_address(),
+            Payment(q) => q.dst_address(),
         }
     }
 }
