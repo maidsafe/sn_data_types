@@ -51,9 +51,9 @@ pub enum NodeTransferCmd {
     ///
     PropagateTransfer(DebitAgreementProof),
     ///
-    ValidateRewardPayout(SignedTransfer),
+    ValidateSectionPayout(SignedTransfer),
     ///
-    RegisterRewardPayout(DebitAgreementProof),
+    RegisterSectionPayout(DebitAgreementProof),
 }
 
 ///
@@ -88,7 +88,7 @@ pub enum NodeEvent {
         proof: Signature,
     },
     ///
-    RewardPayoutValidated(TransferValidated),
+    SectionPayoutValidated(TransferValidated),
     /// Raised by the old section to the
     /// old section after node relocation.
     RewardCounterClaimed {
@@ -205,8 +205,8 @@ impl NodeCmd {
             Data(DuplicateChunk { new_holder, .. }) => Node(*new_holder),
             Rewards(ClaimRewardCounter { old_node_id, .. }) => Section(*old_node_id),
             Transfers(cmd) => match cmd {
-                ValidateRewardPayout(signed_transfer) => Section(signed_transfer.from().into()),
-                RegisterRewardPayout(debit_agreement) => Section(debit_agreement.from().into()),
+                ValidateSectionPayout(signed_transfer) => Section(signed_transfer.from().into()),
+                RegisterSectionPayout(debit_agreement) => Section(debit_agreement.from().into()),
                 PropagateTransfer(debit_agreement) => Section(debit_agreement.to().into()),
             },
         }
@@ -221,7 +221,7 @@ impl NodeEvent {
         match self {
             DuplicationComplete { chunk, .. } => Section(*chunk.name()),
             RewardCounterClaimed { new_node_id, .. } => Section(*new_node_id),
-            RewardPayoutValidated(event) => Section(event.from().into()),
+            SectionPayoutValidated(event) => Section(event.from().into()),
         }
     }
 }
