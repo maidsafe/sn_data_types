@@ -21,6 +21,8 @@ jobs:
   build:
     name: Build
     runs-on: ${{ matrix.os }}
+    if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
+
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macOS-latest]
