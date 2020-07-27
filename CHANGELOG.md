@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### 0.10.2 (2020-07-27)
+
+
+### Features
+
+* **audit:** add scheduled security audit scan ([4725d13](https://github.com/maidsafe/safe-nd/commit/4725d13ee7a473f46bf2e119d5021b6ab5f8fb71))
+
 ## 10.1.0 (2020-07-21)
 
 
