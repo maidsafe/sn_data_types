@@ -11,10 +11,11 @@ jobs:
   merge:
     runs-on: ubuntu-latest
     steps:
-    - name: Merge Version change PR
-      uses: ridedott/merge-me-action@master
-      with:
-        GITHUB_LOGIN: MaidSafe-QA
-        GITHUB_TOKEN: ${{ secrets.MERGE_BUMP_BRANCH_TOKEN }}
-        MERGE_METHOD: REBASE
+    - run: echo "Disabled for now until we're sure generated PRs are okay"
+    # - name: Merge Version change PR
+    #   uses: ridedott/merge-me-action@master
+    #   with:
+    #     GITHUB_LOGIN: MaidSafe-QA
+    #     GITHUB_TOKEN: ${{ secrets.MERGE_BUMP_BRANCH_TOKEN }}
+    #     MERGE_METHOD: REBASE
 
