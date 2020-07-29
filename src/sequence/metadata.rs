@@ -229,8 +229,6 @@ pub struct PubPolicy {
     pub owner: PublicKey,
     /// Map of users to their public permission set.
     pub permissions: BTreeMap<User, PubPermissions>,
-    /// The current index of the data when this policy change happened.
-    pub entries_index: u64,
 }
 
 impl PubPolicy {
@@ -251,8 +249,6 @@ pub struct PrivPolicy {
     pub owner: PublicKey,
     /// Map of users to their private permission set.
     pub permissions: BTreeMap<PublicKey, PrivPermissions>,
-    /// The current index of the data when this policy change happened.
-    pub entries_index: u64,
 }
 
 pub trait Perm {
@@ -260,8 +256,6 @@ pub trait Perm {
     fn is_action_allowed(&self, requester: PublicKey, action: Action) -> Result<()>;
     /// Gets the permissions for a user if applicable.
     fn permissions(&self, user: User) -> Option<Permissions>;
-    /// Gets the last entry index.
-    fn entries_index(&self) -> u64;
     /// Returns the owner.
     fn owner(&self) -> &PublicKey;
 }
@@ -288,11 +282,6 @@ impl Perm for PubPolicy {
     /// Gets the permissions for a user if applicable.
     fn permissions(&self, user: User) -> Option<Permissions> {
         self.permissions.get(&user).map(|p| Permissions::Pub(*p))
-    }
-
-    /// Returns the last entry index.
-    fn entries_index(&self) -> u64 {
-        self.entries_index
     }
 
     /// Returns the owner.
@@ -328,11 +317,6 @@ impl Perm for PrivPolicy {
             User::Anyone => None,
             User::Key(key) => self.permissions.get(&key).map(|p| Permissions::Priv(*p)),
         }
-    }
-
-    /// Returns the last entry index.
-    fn entries_index(&self) -> u64 {
-        self.entries_index
     }
 
     /// Returns the owner.

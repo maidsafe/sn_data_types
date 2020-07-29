@@ -135,16 +135,21 @@ impl Data {
         }
     }
 
-    /// Returns the last entry index.
-    pub fn entries_index(&self) -> u64 {
+    /// Returns the length of the sequence.
+    pub fn len(&self) -> u64 {
         match self {
-            Data::Public(data) => data.entries_index(),
-            Data::Private(data) => data.entries_index(),
+            Data::Public(data) => data.len(),
+            Data::Private(data) => data.len(),
         }
     }
 
-    /// Returns the last permissions index.
-    pub fn policy_index(&self) -> u64 {
+    /// Returns true if the sequence is empty.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Returns the version of last Policy.
+    pub fn policy_version(&self) -> u64 {
         match self {
             Data::Public(data) => data.policy_index(),
             Data::Private(data) => data.policy_index(),
@@ -176,7 +181,7 @@ impl Data {
     }
 
     /// Appends new entry.
-    pub fn append(&mut self, entry: Entry) -> DataMutationOp<Entry> {
+    pub fn append(&mut self, entry: Entry) -> Result<DataMutationOp<Entry>> {
         match self {
             Data::Public(data) => data.append(entry),
             Data::Private(data) => data.append(entry),
@@ -198,14 +203,7 @@ impl Data {
         permissions: BTreeMap<User, PubPermissions>,
     ) -> Result<PolicyMutationOp<PubPolicy>> {
         match self {
-            Data::Public(data) => {
-                let crdt_op = data.set_policy(PubPolicy {
-                    entries_index: data.entries_index(),
-                    owners_index: data.owners_index(),
-                    permissions,
-                });
-                Ok(WriteOp { address, crdt_op })
-            }
+            Data::Public(data) => data.set_policy(PubPolicy { owner, permissions }),
             Data::Private(_) => Err(Error::InvalidOperation),
         }
     }
@@ -217,11 +215,7 @@ impl Data {
         permissions: BTreeMap<PublicKey, PrivPermissions>,
     ) -> Result<PolicyMutationOp<PrivPolicy>> {
         match self {
-            Data::Private(data) => Ok(data.set_policy(PrivPolicy {
-                entries_index: data.entries_index(),
-                owner,
-                permissions,
-            })),
+            Data::Private(data) => data.set_policy(PrivPolicy { owner, permissions }),
             Data::Public(_) => Err(Error::InvalidOperation),
         }
     }
@@ -333,10 +327,6 @@ mod tests {
     use threshold_crypto::SecretKey;
     use xor_name::XorName;
 
-    fn gen_public_key() -> PublicKey {
-        PublicKey::Bls(SecretKey::random().public_key())
-    }
-
     #[test]
     fn sequence_create_public() {
         let actor = gen_public_key();
@@ -379,18 +369,24 @@ mod tests {
         let mut replica1 = Sequence::new_pub(actor, sequence_name, sequence_tag);
         let mut replica2 = Sequence::new_pub(actor, sequence_name, sequence_tag);
 
+        let mut perms1 = BTreeMap::default();
+        let user_perms1 = SDataPubPermissions::new(true, false);
+        let _ = perms1.insert(SDataUser::Anyone, user_perms1);
+        let policy_op = replica1.set_pub_policy(actor, perms1)?;
+        replica2.apply_pub_policy_op(policy_op)?;
+
         let entry1 = b"value0".to_vec();
         let entry2 = b"value1".to_vec();
 
-        let op1 = replica1.append(entry1.clone());
-        let op2 = replica1.append(entry2.clone());
+        let op1 = replica1.append(entry1.clone())?;
+        let op2 = replica1.append(entry2.clone())?;
 
         // we apply the operations in different order, to verify that doesn't affect the result
         replica2.apply_data_op(op2)?;
         replica2.apply_data_op(op1)?;
 
-        assert_eq!(replica1.entries_index(), 2);
-        assert_eq!(replica2.entries_index(), 2);
+        assert_eq!(replica1.len(), 2);
+        assert_eq!(replica2.len(), 2);
 
         let index_0 = SequenceIndex::FromStart(0);
         let first_entry = replica1.get(index_0);
@@ -428,17 +424,20 @@ mod tests {
         let op1 = replica1.set_pub_policy(actor, perms1.clone())?;
         let op2 = replica1.set_pub_policy(actor, perms2.clone())?;
 
-        // we apply the operations in different order, to verify that doesn't affect the result
-        replica2.apply_pub_policy_op(op2)?;
-        replica2.apply_pub_policy_op(op1)?;
+        // if we apply the operations in different order it should fail
+        // as op2 is not causally ready in replica2, it depends on op1
+        check_not_causally_ready_failure(replica2.apply_pub_policy_op(op2.clone()))?;
 
-        assert_eq!(replica1.policy_index(), 2);
-        assert_eq!(replica2.policy_index(), 2);
+        // let's apply op1 first then
+        replica2.apply_pub_policy_op(op1)?;
+        replica2.apply_pub_policy_op(op2)?;
+
+        assert_eq!(replica1.policy_version(), 2);
+        assert_eq!(replica2.policy_version(), 2);
 
         let index_0 = SDataIndex::FromStart(0);
         let first_entry = replica1.pub_policy(index_0)?;
         assert_eq!(first_entry.permissions, perms1);
-        assert_eq!(first_entry.entries_index, 0);
         assert_eq!(first_entry.owner, actor);
         assert_eq!(first_entry, replica2.pub_policy(index_0)?);
         assert_eq!(
@@ -449,7 +448,6 @@ mod tests {
         let index_1 = SDataIndex::FromStart(1);
         let second_entry = replica1.pub_policy(index_1)?;
         assert_eq!(second_entry.permissions, perms2);
-        assert_eq!(second_entry.entries_index, 0);
         assert_eq!(second_entry.owner, actor);
         assert_eq!(second_entry, replica2.pub_policy(index_1)?);
         assert_eq!(
@@ -461,7 +459,7 @@ mod tests {
     }
 
     #[test]
-    fn sequence_private_append_perms_and_apply() -> Result<()> {
+    fn sequence_private_set_policy_and_apply() -> Result<()> {
         let actor1 = gen_public_key();
         let actor2 = gen_public_key();
         let sequence_name = XorName::random();
@@ -480,17 +478,20 @@ mod tests {
         let op1 = replica1.set_priv_policy(actor2, perms1.clone())?;
         let op2 = replica1.set_priv_policy(actor1, perms2.clone())?;
 
-        // we apply the operations in different order, to verify that doesn't affect the result
-        replica2.apply_priv_policy_op(op2)?;
-        replica2.apply_priv_policy_op(op1)?;
+        // if we apply the operations in different order it should fail
+        // as op2 is not causally ready in replica2, it depends on op1
+        check_not_causally_ready_failure(replica2.apply_priv_policy_op(op2.clone()))?;
 
-        assert_eq!(replica1.policy_index(), 2);
-        assert_eq!(replica2.policy_index(), 2);
+        // let's apply op1 first then
+        replica2.apply_priv_policy_op(op1)?;
+        replica2.apply_priv_policy_op(op2)?;
+
+        assert_eq!(replica1.policy_version(), 2);
+        assert_eq!(replica2.policy_version(), 2);
 
         let index_0 = SDataIndex::FromStart(0);
         let first_entry = replica1.priv_policy(index_0)?;
         assert_eq!(first_entry.permissions, perms1);
-        assert_eq!(first_entry.entries_index, 0);
         assert_eq!(first_entry.owner, actor2);
         assert_eq!(first_entry, replica2.priv_policy(index_0)?);
         assert_eq!(
@@ -501,7 +502,6 @@ mod tests {
         let index_1 = SDataIndex::FromStart(1);
         let second_entry = replica1.priv_policy(index_1)?;
         assert_eq!(second_entry.permissions, perms2);
-        assert_eq!(second_entry.entries_index, 0);
         assert_eq!(second_entry.owner, actor1);
         assert_eq!(second_entry, replica2.priv_policy(index_1)?);
         assert_eq!(
@@ -579,38 +579,39 @@ mod tests {
 
         // And let's append both replicas with one first item
         let item1 = b"item1";
-        let append_op1 = replica1.append(item1.to_vec());
+        let append_op1 = replica1.append(item1.to_vec())?;
         replica2.apply_data_op(append_op1)?;
 
         // Let's assert initial state on both replicas
-        assert_eq!(replica1.entries_index(), 1);
-        assert_eq!(replica1.policy_index(), 1);
-        assert_eq!(replica2.entries_index(), 1);
-        assert_eq!(replica2.policy_index(), 1);
+        assert_eq!(replica1.len(), 1);
+        assert_eq!(replica1.policy_version(), 1);
+        assert_eq!(replica2.len(), 1);
+        assert_eq!(replica2.policy_version(), 1);
 
         // We revoke authorisation for Actor2 locally on replica1
         let revoke_op = replica1.set_pub_policy(actor1, BTreeMap::default())?;
         // New Policy should have been set on replica1
-        assert_eq!(replica1.policy_index(), 2);
+        assert_eq!(replica1.policy_version(), 2);
 
         // Concurrently append an item with Actor2 on replica2
         let item2 = b"item2";
-        let append_op2 = replica2.append(item2.to_vec());
+        let append_op2 = replica2.append(item2.to_vec())?;
         // Item should be appended on replica2
-        assert_eq!(replica2.entries_index(), 2);
+        assert_eq!(replica2.len(), 2);
 
-        // Append operation is broadcasted and applied on replica1
+        // Append operation is broadcasted and applied on replica1 using old Policy
         replica1.apply_data_op(append_op2)?;
+        assert_eq!(replica1.len(), 1);
 
         // Now revoke operation is broadcasted and applied on replica2
         replica2.apply_pub_policy_op(revoke_op)?;
-        assert_eq!(replica2.policy_index(), 2);
+        assert_eq!(replica2.policy_version(), 2);
+        assert_eq!(replica2.len(), 1);
 
-        // Let's assert that append op2 created a branch of data on both replicas
+        // Let's assert that append_op2 created a branch of data on both replicas
         // due to new policy having been applied concurrently, thus only first
         // item shall be returned from main branch of data
-        assert_eq!(replica1.entries_index(), 1);
-        assert_eq!(replica2.entries_index(), 1);
+        verify_data_convergence(&[&replica1, &replica2], 1);
 
         Ok(())
     }
@@ -641,49 +642,173 @@ mod tests {
         replica3.apply_pub_policy_op(grant_op.clone())?;
 
         // Let's assert the state on three replicas
-        assert_eq!(replica1.entries_index(), 0);
-        assert_eq!(replica1.policy_index(), 2);
-        assert_eq!(replica2.entries_index(), 0);
-        assert_eq!(replica2.policy_index(), 1);
-        assert_eq!(replica3.entries_index(), 0);
-        assert_eq!(replica3.policy_index(), 2);
+        assert_eq!(replica1.len(), 0);
+        assert_eq!(replica1.policy_version(), 2);
+        assert_eq!(replica2.len(), 0);
+        assert_eq!(replica2.policy_version(), 1);
+        assert_eq!(replica3.len(), 0);
+        assert_eq!(replica3.policy_version(), 2);
 
         // We append an item with Actor3 on replica3
         let item = b"item0";
-        let append_op = replica3.append(item.to_vec());
-        assert_eq!(replica3.entries_index(), 1);
+        let append_op = replica3.append(item.to_vec())?;
+        assert_eq!(replica3.len(), 1);
 
         // Append op is broadcasted and applied on replica1
         replica1.apply_data_op(append_op.clone())?;
-        assert_eq!(replica1.entries_index(), 1);
+        assert_eq!(replica1.len(), 1);
 
         // And now append op is broadcasted and applied on replica2
         // It should be rejected on replica2 as it's not causally ready
-        match replica2.apply_data_op(append_op.clone()) {
-            Err(Error::OpNotCausallyReady) => {}
-            Err(err) => {
-                return Err(Error::Unexpected(format!(
-                    "Error returned was the unexpected one: {}",
-                    err
-                )))
-            }
-            Ok(()) => {
-                return Err(Error::Unexpected(
-                    "Data op applied unexpectedly".to_string(),
-                ))
-            }
-        }
-        assert_eq!(replica2.entries_index(), 0);
+        check_not_causally_ready_failure(replica2.apply_data_op(append_op.clone()))?;
+        assert_eq!(replica2.len(), 0);
 
         // So let's apply grant operation to replica2
         replica2.apply_pub_policy_op(grant_op)?;
-        assert_eq!(replica2.policy_index(), 2);
+        assert_eq!(replica2.policy_version(), 2);
 
         // Retrying to apply append op to replica2 should be successful, due
         // to now being causally ready with the new policy
         replica2.apply_data_op(append_op)?;
-        assert_eq!(replica2.entries_index(), 1);
+        verify_data_convergence(&[&replica1, &replica2, &replica3], 1);
 
         Ok(())
+    }
+
+    #[test]
+    fn sequence_concurrent_policy_ops() -> Result<()> {
+        let actor1 = gen_public_key();
+        let actor2 = gen_public_key();
+        let sdata_name: XorName = rand::random();
+        let sdata_tag = 43_001u64;
+
+        // Instantiate the same Sequence on two replicas with two diff actors
+        let mut replica1 = SData::new_pub(actor1, sdata_name, sdata_tag);
+        let mut replica2 = SData::new_pub(actor2, sdata_name, sdata_tag);
+
+        // Set Actor1 as the owner and Actor2 with append perms in all replicas
+        let mut perms = BTreeMap::default();
+        let user_perms = SDataPubPermissions::new(/*append=*/ true, /*admin=*/ false);
+        let _ = perms.insert(SDataUser::Key(actor2), user_perms);
+        let owner_op = replica1.set_pub_policy(actor1, perms.clone())?;
+        replica2.apply_pub_policy_op(owner_op)?;
+
+        // Append item on replica1, and apply it to replica2
+        let item0 = b"item0".to_vec();
+        let append_op = replica1.append(item0)?;
+        replica2.apply_data_op(append_op)?;
+
+        // Let's assert the state on both replicas
+        assert_eq!(replica1.len(), 1);
+        assert_eq!(replica1.policy_version(), 1);
+        assert_eq!(replica2.len(), 1);
+        assert_eq!(replica2.policy_version(), 1);
+
+        // Concurrently set new policy (new owner) on both replicas
+        let owner_op_1 = replica1.set_pub_policy(actor2, perms.clone())?;
+        let owner_op_2 = replica2.set_pub_policy(actor2, perms)?;
+        // ...and concurrently append a new item on top of their own respective new policies
+        let item1_r1 = b"item1_replica1".to_vec();
+        let item1_r2 = b"item1_replica2".to_vec();
+        let append_op1 = replica1.append(item1_r1)?;
+        let append_op2 = replica2.append(item1_r2)?;
+
+        assert_eq!(replica1.len(), 2);
+        assert_eq!(replica2.len(), 2);
+
+        // Let's now apply policy the other replica
+        replica1.apply_pub_policy_op(owner_op_2)?;
+        replica2.apply_pub_policy_op(owner_op_1)?;
+
+        assert_eq!(replica1.policy_version(), 3);
+        assert_eq!(replica2.policy_version(), 3);
+
+        // Let's now apply the append ops on the other replica
+        replica1.apply_data_op(append_op2)?;
+        replica2.apply_data_op(append_op1)?;
+
+        // Let's assert the state on all replicas to assure convergence
+        // One of the items appended concurrently should not belong to
+        // the master branch of the data thus we should see only 2 items
+        verify_data_convergence(&[&replica1, &replica2], 2);
+
+        Ok(())
+    }
+
+    #[test]
+    fn sequence_old_data_op() -> Result<()> {
+        let actor1 = gen_public_key();
+        let actor2 = gen_public_key();
+        let sdata_name: XorName = rand::random();
+        let sdata_tag = 43_001u64;
+
+        // Instantiate the same Sequence on two replicas with two diff actors
+        let mut replica1 = SData::new_pub(actor1, sdata_name, sdata_tag);
+        let mut replica2 = SData::new_pub(actor2, sdata_name, sdata_tag);
+
+        // Set Actor1 as the owner and Actor2 with append perms in all replicas
+        let mut perms = BTreeMap::default();
+        let user_perms = SDataPubPermissions::new(/*append=*/ true, /*admin=*/ false);
+        let _ = perms.insert(SDataUser::Key(actor2), user_perms);
+        let owner_op = replica1.set_pub_policy(actor1, perms)?;
+        replica2.apply_pub_policy_op(owner_op)?;
+
+        // Append an item on replica1
+        let item0 = b"item0".to_vec();
+        let append_op = replica1.append(item0)?;
+
+        // A new Policy is set in replica1 and applied to replica2
+        let policy_op = replica1.set_pub_policy(actor1, BTreeMap::default())?;
+        replica2.apply_pub_policy_op(policy_op)?;
+
+        // Now the old append op is applied to replica2
+        replica2.apply_data_op(append_op)?;
+
+        assert_eq!(replica1.policy_version(), 2);
+        assert_eq!(replica2.policy_version(), 2);
+
+        verify_data_convergence(&[&replica1, &replica2], 1);
+
+        Ok(())
+    }
+
+    // Helpers for tests
+
+    fn gen_public_key() -> PublicKey {
+        PublicKey::Bls(SecretKey::random().public_key())
+    }
+
+    // check it fails due to not being causally ready
+    fn check_not_causally_ready_failure(result: Result<()>) -> Result<()> {
+        match result {
+            Err(Error::OpNotCausallyReady) => Ok(()),
+            Err(err) => Err(Error::Unexpected(format!(
+                "Error returned was the unexpected one: {}",
+                err
+            ))),
+            Ok(()) => Err(Error::Unexpected(
+                "Data op applied unexpectedly".to_string(),
+            )),
+        }
+    }
+
+    // verify data convergence on a set of replicas and with the expected length
+    fn verify_data_convergence(replicas: &[&SData], expected_len: u64) {
+        // verify replicas have the expected length
+        // also verify replicas failed to get with index beyond reported length
+        let index_beyond = SDataIndex::FromStart(expected_len);
+        for r in replicas {
+            assert_eq!(r.len(), expected_len);
+            assert_eq!(r.get(index_beyond), None);
+        }
+
+        // now verify that the items are the same in all replicas
+        for i in 0..expected_len {
+            let index = SDataIndex::FromStart(i);
+            let r0_entry = replicas[0].get(index);
+            for r in replicas {
+                assert_eq!(r0_entry, r.get(index));
+            }
+        }
     }
 }
