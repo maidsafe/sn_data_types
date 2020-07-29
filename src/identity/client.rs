@@ -13,6 +13,7 @@ use ed25519_dalek::Keypair as Ed25519Keypair;
 use multibase::Decodable;
 use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use signature::Signer;
 use std::fmt::{self, Debug, Display, Formatter};
 use threshold_crypto::{
     serde_impl::SerdeSecret, SecretKey as BlsSecretKey, SecretKeyShare as BlsSecretKeyShare,

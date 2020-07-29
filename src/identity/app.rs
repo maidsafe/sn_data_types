@@ -11,6 +11,7 @@ use crate::{utils, ClientFullId, ClientPublicId, Error, Keypair, PublicKey, Sign
 use multibase::Decodable;
 use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Serialize};
+use signature::Signer;
 use std::fmt::{self, Debug, Display, Formatter};
 use threshold_crypto::SecretKeyShare as BlsSecretKeyShare;
 use xor_name::XorName;

@@ -14,6 +14,7 @@ use hex_fmt::HexFmt;
 use multibase::Decodable;
 use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use signature::Signer;
 use std::{
     cmp::Ordering,
     fmt::{self, Debug, Display, Formatter},
