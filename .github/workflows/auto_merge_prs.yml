@@ -9,7 +9,7 @@ on: pull_request
 
 jobs:
   merge:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - name: Merge Version change PR
       uses: ridedott/merge-me-action@81667e6ae186ddbe6d3c3186d27d91afa7475e2c 
