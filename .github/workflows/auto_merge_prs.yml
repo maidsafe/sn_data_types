@@ -23,7 +23,7 @@ jobs:
       if: startsWith( env.MSG, 'chore(release):')
       uses: ridedott/merge-me-action@81667e6ae186ddbe6d3c3186d27d91afa7475e2c 
       with:
-        GITHUB_LOGIN: MaidSafe-QA
+        GITHUB_LOGIN: dirvine
         GITHUB_TOKEN: ${{ secrets.MERGE_BUMP_BRANCH_TOKEN }}
         MERGE_METHOD: REBASE
     # TODO: enable when we want dependabot (it's the default user for this action)
