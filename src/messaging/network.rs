@@ -8,8 +8,8 @@
 // Software.
 
 use crate::{
-    AccountId, Address, Blob, BlobAddress, DebitAgreementProof, Error, Result, RewardCounter,
-    Signature, SignedTransfer, TransferId, TransferValidated, XorName,
+    AccountId, Address, Blob, BlobAddress, DebitAgreementProof, Error, PublicKey, ReplicaEvent,
+    Result, RewardCounter, Signature, SignedTransfer, TransferId, TransferValidated, XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -106,6 +106,24 @@ pub enum NodeEvent {
 ///
 #[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NodeQuery {
+    ///
+    Data(NodeDataQuery),
+    ///
+    Transfers(NodeTransferQuery),
+}
+
+///
+#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+pub enum NodeTransferQuery {
+    /// Replicas starting up
+    /// need to query for events of
+    /// the existing Replicas.
+    SyncEvents(PublicKey),
+}
+
+///
+#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+pub enum NodeDataQuery {
     /// Elder to Adult Get.
     GetChunk {
         /// The holder id.
@@ -126,6 +144,26 @@ pub enum NodeQuery {
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NodeQueryResponse {
+    ///
+    Data(NodeDataQueryResponse),
+    ///
+    Transfers(NodeTransferQueryResponse),
+}
+
+///
+#[allow(clippy::large_enum_variant)]
+#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+pub enum NodeTransferQueryResponse {
+    /// Replicas starting up
+    /// need to query for events of
+    /// the existing Replicas.
+    SyncEvents(Result<Vec<ReplicaEvent>>),
+}
+
+///
+#[allow(clippy::large_enum_variant)]
+#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+pub enum NodeDataQueryResponse {
     /// Elder to Adult Get.
     GetChunk(Result<Blob>),
     /// Adult to Adult Get
@@ -230,9 +268,16 @@ impl NodeQuery {
     /// Returns the address of the destination for the query.
     pub fn dst_address(&self) -> Address {
         use Address::*;
+        use NodeDataQuery::*;
         use NodeQuery::*;
+        use NodeTransferQuery::*;
         match self {
-            GetChunk { holder, .. } | GetChunks { holder, .. } => Node(*holder),
+            Data(data_query) => match data_query {
+                GetChunk { holder, .. } | GetChunks { holder, .. } => Node(*holder),
+            },
+            Transfers(transfer_query) => match transfer_query {
+                SyncEvents(section_key) => Section((*section_key).into()),
+            },
         }
     }
 }

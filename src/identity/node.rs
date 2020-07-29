@@ -92,7 +92,7 @@ impl FullId {
     }
 
     /// Sets the `FullId`'s BLS keypair share using the provided BLS secret key share.
-    pub fn set_bls_keys(&mut self, secret_share: BlsSecretKeyShare, public_set: bls::PublicKeySet) {
+    pub fn set_bls_keys(&mut self, secret_share: BlsSecretKeyShare, public_set: PublicKeySet) {
         let public = secret_share.public_key_share();
         let secret = SerdeSecret(secret_share);
         self.public_id.bls = Some(public);
