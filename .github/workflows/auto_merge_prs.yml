@@ -17,4 +17,10 @@ jobs:
         GITHUB_LOGIN: MaidSafe-QA
         GITHUB_TOKEN: ${{ secrets.MERGE_BUMP_BRANCH_TOKEN }}
         MERGE_METHOD: REBASE
+    # TODO: enable when we want dependabot (it's the default user for this action)
+    # - name: Dependabot Merge
+    #   uses: ridedott/merge-me-action@master
+    #   with:
+    #     GITHUB_TOKEN: ${{ secrets.MERGE_BUMP_BRANCH_TOKEN }}
+    #     MERGE_METHOD: REBASE
 
