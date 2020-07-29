@@ -10,9 +10,17 @@ on: pull_request
 jobs:
   merge:
     runs-on: ubuntu-20.04
-    if: "startsWith(github.event.head_commit.message, 'chore(release):')"
     steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: '0'
+    - name: Get Commit Message
+      run: |
+        MSG=$(git log --format=%B -n 1 ${{ github.event.after }})
+        echo "::set-env name=COMMIT_MESSAGE::${MSG}"
+    - run: echo $MSG
     - name: Merge Version change PR
+      if: startsWith( env.MSG, 'chore(release):')
       uses: ridedott/merge-me-action@81667e6ae186ddbe6d3c3186d27d91afa7475e2c 
       with:
         GITHUB_LOGIN: MaidSafe-QA
