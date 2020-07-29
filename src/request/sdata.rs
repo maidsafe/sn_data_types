@@ -10,7 +10,7 @@
 use super::{AuthorisationKind, Type};
 use crate::{
     Error, Response, SData, SDataAddress, SDataDataMutationOp, SDataEntry, SDataIndex,
-    SDataPrivPolicy, SDataPubPolicy, SDataUser, XorName,
+    SDataPolicyMutationOp, SDataPrivPolicy, SDataPubPolicy, SDataUser, XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt};
@@ -56,9 +56,9 @@ pub enum SDataRequest {
         user: SDataUser,
     },
     /// Set new policy for public Sequence.
-    MutatePubPolicy(SDataDataMutationOp<SDataPubPolicy>),
+    MutatePubPolicy(SDataPolicyMutationOp<SDataPubPolicy>),
     /// Set new policy for private Sequence.
-    MutatePrivPolicy(SDataDataMutationOp<SDataPrivPolicy>),
+    MutatePrivPolicy(SDataPolicyMutationOp<SDataPrivPolicy>),
     /// Mutate the Sequence (insert/remove entry).
     Mutate(SDataDataMutationOp<SDataEntry>),
 }
