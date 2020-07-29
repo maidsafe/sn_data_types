@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Merge Version change PR
-      uses: ridedott/merge-me-action@master
+      uses: ridedott/merge-me-action@81667e6ae186ddbe6d3c3186d27d91afa7475e2c 
       with:
         GITHUB_LOGIN: MaidSafe-QA
         GITHUB_TOKEN: ${{ secrets.MERGE_BUMP_BRANCH_TOKEN }}
