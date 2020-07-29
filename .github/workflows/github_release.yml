@@ -5,6 +5,7 @@ on:
     tags:
       - v*
 
+jobs:
   release:
     # only if we have a tag
     name: Release
