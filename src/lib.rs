@@ -69,8 +69,9 @@ pub use request::{
 pub use response::{Response, TryFromError};
 pub use sequence::{
     Action as SDataAction, Address as SDataAddress, Data as SData,
-    DataMutationOp as SDataDataMutationOp, Entries as SDataEntries, Entry as SDataEntry,
-    Index as SDataIndex, Kind as SDataKind, Permissions as SDataPermissions, Policy as SDataPolicy,
+    DataMutationOp as SDataDataMutationOp, DataMutationOp as SDataPolicyMutationOp,
+    Entries as SDataEntries, Entry as SDataEntry, Index as SDataIndex, Kind as SDataKind,
+    Permissions as SDataPermissions, Policy as SDataPolicy,
     PrivPermissions as SDataPrivPermissions, PrivPolicy as SDataPrivPolicy, PrivSeqData,
     PubPermissions as SDataPubPermissions, PubPolicy as SDataPubPolicy, PubSeqData,
     User as SDataUser,
