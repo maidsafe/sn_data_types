@@ -71,7 +71,7 @@ impl MsgEnvelope {
     /// but it does so without being clearly robust/flexible.
     /// So, needs some improvement..
     pub fn verify(&self) -> bool {
-        let data = if self.proxies.len() == 0 {
+        let data = if self.proxies.is_empty() {
             utils::serialise(&self.message)
         } else {
             let mut msg = self.clone();

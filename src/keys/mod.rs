@@ -405,7 +405,7 @@ mod tests {
     use super::*;
     use crate::utils;
     use bincode::deserialize as deserialise;
-    use bls::{self, IntoFr};
+    use bls::{self};
 
     fn gen_keypairs() -> Vec<Keypair> {
         let mut rng = rand::thread_rng();
