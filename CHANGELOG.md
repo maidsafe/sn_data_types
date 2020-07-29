@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### 0.10.4 (2020-07-29)
+
+
+### Features
+
+* automerge update ([c55da4d](https://github.com/maidsafe/safe-nd/commit/c55da4d6731492523a3874fac17bcc539bca296f))
+* **audit:** add scheduled security audit scan ([4725d13](https://github.com/maidsafe/safe-nd/commit/4725d13ee7a473f46bf2e119d5021b6ab5f8fb71))
+
 ### 0.10.3 (2020-07-28)
 
 
