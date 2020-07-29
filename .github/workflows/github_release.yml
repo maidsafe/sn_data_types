@@ -1,4 +1,4 @@
-name: Crete GitHub Release
+name: Create GitHub Release
 
 on:
   create:
