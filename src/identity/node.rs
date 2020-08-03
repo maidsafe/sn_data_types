@@ -8,21 +8,23 @@
 // Software.
 
 use crate::keys::{BlsKeypairShare, SignatureShare};
-use crate::{utils, Ed25519Digest, Error, PublicKey, Signature, XorName};
-use bls::{
-    serde_impl::SerdeSecret, PublicKeySet, PublicKeyShare as BlsPublicKeyShare,
-    SecretKeyShare as BlsSecretKeyShare,
-};
+use crate::{utils, Error, PublicKey, Signature};
 use ed25519_dalek::{Keypair as Ed25519Keypair, PublicKey as Ed25519PublicKey};
 use hex_fmt::HexFmt;
 use multibase::Decodable;
 use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use signature::Signer;
 use std::{
     cmp::Ordering,
     fmt::{self, Debug, Display, Formatter},
     hash::{Hash, Hasher},
 };
+use threshold_crypto::{
+    serde_impl::SerdeSecret, PublicKeySet, PublicKeyShare as BlsPublicKeyShare,
+    SecretKeyShare as BlsSecretKeyShare,
+};
+use xor_name::XorName;
 
 /// A struct holding an Ed25519 keypair, an optional BLS keypair share, and the corresponding public
 /// ID for a network Node.
@@ -36,7 +38,7 @@ pub struct FullId {
 impl FullId {
     /// Constructs a `FullId` with a random Ed25519 keypair and no BLS keys.
     pub fn new<T: CryptoRng + Rng>(rng: &mut T) -> Self {
-        let ed25519 = Ed25519Keypair::generate::<Ed25519Digest, _>(rng);
+        let ed25519 = Ed25519Keypair::generate(rng);
         let name = PublicKey::Ed25519(ed25519.public).into();
         let public_id = PublicId {
             name,
@@ -52,7 +54,7 @@ impl FullId {
 
     /// Constructs a `FullId` whose name is in the interval [start, end] (both endpoints inclusive).
     pub fn within_range<T: CryptoRng + Rng>(start: &XorName, end: &XorName, rng: &mut T) -> Self {
-        let mut ed25519 = Ed25519Keypair::generate::<Ed25519Digest, _>(rng);
+        let mut ed25519 = Ed25519Keypair::generate(rng);
         loop {
             let name = PublicKey::Ed25519(ed25519.public).into();
             if name >= *start && name <= *end {
@@ -67,7 +69,7 @@ impl FullId {
                     public_id,
                 };
             }
-            ed25519 = Ed25519Keypair::generate::<Ed25519Digest, _>(rng);
+            ed25519 = Ed25519Keypair::generate(rng);
         }
     }
 
@@ -78,7 +80,7 @@ impl FullId {
 
     /// Creates a detached Ed25519 signature of `data`.
     pub fn sign_using_ed25519<T: AsRef<[u8]>>(&self, data: T) -> Signature {
-        Signature::Ed25519(self.ed25519.sign::<Ed25519Digest>(data.as_ref()))
+        Signature::Ed25519(self.ed25519.sign(data.as_ref()))
     }
 
     /// Creates a detached BLS signature share of `data` if the `self` holds a BLS keypair share.
@@ -210,7 +212,7 @@ pub struct NodeKeypairs {
 impl NodeKeypairs {
     /// Constructs a `NodeKeypairs` with a random Ed25519 keypair and no BLS keys.
     pub fn new<T: CryptoRng + Rng>(rng: &mut T) -> Self {
-        let ed25519 = Ed25519Keypair::generate::<Ed25519Digest, _>(rng);
+        let ed25519 = Ed25519Keypair::generate(rng);
         let name = PublicKey::Ed25519(ed25519.public).into();
         let public_id = PublicId {
             name,
@@ -226,7 +228,7 @@ impl NodeKeypairs {
 
     /// Constructs a `NodeKeypairs` whose name is in the interval [start, end] (both endpoints inclusive).
     pub fn within_range<T: CryptoRng + Rng>(start: &XorName, end: &XorName, rng: &mut T) -> Self {
-        let mut ed25519 = Ed25519Keypair::generate::<Ed25519Digest, _>(rng);
+        let mut ed25519 = Ed25519Keypair::generate(rng);
         loop {
             let name = PublicKey::Ed25519(ed25519.public).into();
             if name >= *start && name <= *end {
@@ -241,7 +243,7 @@ impl NodeKeypairs {
                     public_id,
                 };
             }
-            ed25519 = Ed25519Keypair::generate::<Ed25519Digest, _>(rng);
+            ed25519 = Ed25519Keypair::generate(rng);
         }
     }
 
@@ -275,7 +277,7 @@ impl NodeKeypairs {
 
     /// Creates a detached Ed25519 signature of `data`.
     pub fn sign_using_ed25519<T: AsRef<[u8]>>(&self, data: T) -> Signature {
-        Signature::Ed25519(self.ed25519.sign::<Ed25519Digest>(data.as_ref()))
+        Signature::Ed25519(self.ed25519.sign(data.as_ref()))
     }
 
     /// Creates a detached BLS signature share of `data` if the `self` holds a BLS keypair share.

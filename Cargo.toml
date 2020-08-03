@@ -11,15 +11,18 @@ version = "0.10.1"
 
 [dependencies]
 bincode = "1.2.1"
-ed25519-dalek = "~0.9.1"
-hex_fmt = "~0.3.0"
+ed25519-dalek = "1.0.0-pre.4"
 multibase = "~0.6.0"
-rand = "~0.6"
+hex_fmt = "~0.3.0"
+rand = "~0.7.3"
 crdts = "4.1.0"
 sha3 = "~0.8.2"
-bls = { package = "threshold_crypto", version = "~0.3.2" }
+threshold_crypto = "~0.4.0"
 tiny-keccak = "~1.5.0"
 unwrap = "~1.2.1"
+xor_name = "1"
+ed25519 = "1.0.1"
+signature = "1.1.0"
 
   [dependencies.serde]
   version = "1.0.91"
@@ -27,7 +30,7 @@ unwrap = "~1.2.1"
 
 [dev-dependencies]
 hex = "~0.3.2"
-rand_xorshift = "~0.1.1"
+rand_xorshift = "~0.2.0"
 
 [features]
 default = [ "ed25519-dalek/serde" ]

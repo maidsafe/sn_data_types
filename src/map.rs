@@ -27,7 +27,7 @@
 //! does not have to pass version numbers for keys, but it still must pass the next version number
 //! while modifying the Map shell.
 
-use crate::{utils, EntryError, Error, PublicKey, Result, XorName};
+use crate::{utils, EntryError, Error, PublicKey, Result};
 use hex_fmt::HexFmt;
 use multibase::Decodable;
 use serde::{Deserialize, Serialize};
@@ -36,6 +36,7 @@ use std::{
     fmt::{self, Debug, Formatter},
     mem,
 };
+use xor_name::XorName;
 
 /// Map that is unpublished on the network. This data can only be fetched by the owner or
 /// those in the permissions fields with `Permission::Read` access.

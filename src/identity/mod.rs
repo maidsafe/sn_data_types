@@ -187,7 +187,7 @@ mod tests {
     fn zbase32_encode_decode_node_public_id() {
         let mut rng = rand::thread_rng();
         let mut id = node::FullId::new(&mut rng);
-        let bls_secret_key = bls::SecretKeySet::random(1, &mut rng);
+        let bls_secret_key = threshold_crypto::SecretKeySet::random(1, &mut rng);
         id.set_bls_keys(
             bls_secret_key.secret_key_share(0),
             bls_secret_key.public_keys(),

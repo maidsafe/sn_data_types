@@ -8,16 +8,18 @@
 // Software.
 
 use crate::keys::{BlsKeypair, SignatureShare};
-use crate::{utils, Ed25519Digest, Error, Keypair, PublicKey, Signature, XorName};
-use bls::{
-    serde_impl::SerdeSecret,
-    SecretKey as BlsSecretKey, //SecretKeyShare as BlsSecretKeyShare,
-};
+use crate::{utils, Error, Keypair, PublicKey, Signature};
 use ed25519_dalek::Keypair as Ed25519Keypair;
 use multibase::Decodable;
 use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use signature::Signer;
 use std::fmt::{self, Debug, Display, Formatter};
+use threshold_crypto::{
+    serde_impl::SerdeSecret,
+    SecretKey as BlsSecretKey, //SecretKeyShare as BlsSecretKeyShare,
+};
+use xor_name::XorName;
 
 /// A struct holding a keypair variant and the corresponding public ID for a network Client.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -63,7 +65,7 @@ impl FullId {
     /// Creates a detached signature of `data`.
     pub fn sign<T: AsRef<[u8]>>(&self, data: T) -> Signature {
         match &self.keypair {
-            Keypair::Ed25519(keys) => Signature::Ed25519(keys.sign::<Ed25519Digest>(data.as_ref())),
+            Keypair::Ed25519(keys) => Signature::Ed25519(keys.sign(data.as_ref())),
             Keypair::Bls(keys) => Signature::Bls(keys.secret.inner().sign(data)),
             Keypair::BlsShare(keys) => Signature::BlsShare(SignatureShare {
                 index: keys.index,

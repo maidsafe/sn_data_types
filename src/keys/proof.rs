@@ -105,9 +105,9 @@ impl Hash for Ed25519Proof {
 #[derive(Clone, Hash, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct BlsProof {
     /// The public key.
-    pub public_key: bls::PublicKey,
+    pub public_key: threshold_crypto::PublicKey,
     /// The signature corresponding to the public key.
-    pub signature: bls::Signature,
+    pub signature: threshold_crypto::Signature,
 }
 
 impl BlsProof {
@@ -131,19 +131,19 @@ impl BlsProof {
 #[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BlsProofShare {
     /// BLS public key set.
-    pub public_key_set: bls::PublicKeySet,
+    pub public_key_set: threshold_crypto::PublicKeySet,
     /// Index of the node that created this proof share.
     pub index: usize,
     /// BLS signature share corresponding to the `index`-th public key share of the public key set.
-    pub signature_share: bls::SignatureShare,
+    pub signature_share: threshold_crypto::SignatureShare,
 }
 
 impl BlsProofShare {
     /// Creates new proof share.
     pub fn new(
-        public_key_set: bls::PublicKeySet,
+        public_key_set: threshold_crypto::PublicKeySet,
         index: usize,
-        secret_key_share: &bls::SecretKeyShare,
+        secret_key_share: &threshold_crypto::SecretKeyShare,
         payload: &[u8],
     ) -> Self {
         Self {
