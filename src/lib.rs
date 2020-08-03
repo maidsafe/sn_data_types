@@ -82,17 +82,9 @@ pub use sha3::Sha3_512 as Ed25519Digest;
 pub use transfer::*;
 pub use utils::verify_signature;
 
-use hex_fmt::HexFmt;
-use multibase::Decodable;
-use rand::{
-    distributions::{Distribution, Standard},
-    Rng,
-};
 use serde::{Deserialize, Serialize};
-use std::{
-    fmt::{self, Debug, Display, Formatter},
-    net::SocketAddr,
-};
+use std::{fmt::Debug, net::SocketAddr};
+use xor_name::XorName;
 
 /// Object storing a data variant.
 #[allow(clippy::large_enum_variant)]
@@ -155,51 +147,6 @@ pub struct AppPermissions {
     pub read_transfer_history: bool,
 }
 
-/// Constant byte length of `XorName`.
-pub const XOR_NAME_LEN: usize = 32;
-
-/// A [`XOR_NAME_BITS`](constant.XOR_NAME_BITS.html)-bit number, viewed as a point in XOR space.
-///
-/// This wraps an array of [`XOR_NAME_LEN`](constant.XOR_NAME_LEN.html) bytes, i.e. a number
-/// between 0 and 2<sup>`XOR_NAME_BITS`</sup> - 1.
-///
-/// XOR space is the space of these numbers, with the [XOR metric][1] as a notion of distance,
-/// i. e. the points with IDs `x` and `y` are considered to have distance `x xor y`.
-///
-/// [1]: https://en.wikipedia.org/wiki/Kademlia#System_details
-#[derive(Clone, Copy, Default, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
-pub struct XorName(pub [u8; XOR_NAME_LEN]);
-
-impl XorName {
-    /// Returns the `XorName` serialised and encoded in z-base-32.
-    pub fn encode_to_zbase32(&self) -> String {
-        utils::encode(&self)
-    }
-
-    /// Creates from z-base-32 encoded string.
-    pub fn decode_from_zbase32<I: Decodable>(encoded: I) -> Result<Self> {
-        utils::decode(encoded)
-    }
-}
-
-impl Debug for XorName {
-    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "{:<8}", HexFmt(&self.0))
-    }
-}
-
-impl Display for XorName {
-    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        Debug::fmt(self, formatter)
-    }
-}
-
-impl Distribution<XorName> for Standard {
-    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> XorName {
-        XorName(rng.gen())
-    }
-}
-
 /// Handshake requests sent from clients to vaults to establish new connections and verify a client's
 /// key (to prevent replay attacks).
 #[derive(Serialize, Deserialize)]
@@ -225,18 +172,4 @@ pub enum HandshakeResponse {
     Challenge(PublicId, Vec<u8>),
     /// Sent by nodes as a response to an invalid `HandshakeRequest::Join` (when a client attempts to join a wrong section).
     InvalidSection,
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::XorName;
-    use unwrap::unwrap;
-
-    #[test]
-    fn zbase32_encode_decode_xorname() {
-        let name = XorName(rand::random());
-        let encoded = name.encode_to_zbase32();
-        let decoded = unwrap!(XorName::decode_from_zbase32(&encoded));
-        assert_eq!(name, decoded);
-    }
 }

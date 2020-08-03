@@ -38,7 +38,7 @@ use crate::{
     errors::ErrorDebug, utils, AppPermissions, Blob, BlsProof, DebitAgreementProof, Error, Map,
     MapEntries, MapPermissionSet, MapValue, MapValues, Money, Proof, PublicKey, ReplicaEvent,
     ReplicaPublicKeySet, Result, Sequence, SequenceEntries, SequenceEntry, SequenceOwner,
-    SequencePermissions, SequenceUserPermissions, Signature, TransferValidated, XorName,
+    SequencePermissions, SequenceUserPermissions, Signature, TransferValidated,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -46,7 +46,7 @@ use std::{
     convert::TryFrom,
     fmt,
 };
-
+use xor_name::XorName;
 ///
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
@@ -380,7 +380,7 @@ pub struct MessageId(pub XorName);
 impl MessageId {
     /// Generates a new `MessageId` with random content.
     pub fn new() -> Self {
-        Self(rand::random())
+        Self(XorName::default())
     }
 }
 
@@ -714,7 +714,7 @@ mod tests {
 
         let mut data = BTreeMap::new();
         let _ = data.insert(vec![1], vec![10]);
-        let owners = PublicKey::Bls(bls::SecretKey::random().public_key());
+        let owners = PublicKey::Bls(threshold_crypto::SecretKey::random().public_key());
         let m_data = Map::Unseq(UnseqMap::new_with_data(
             *i_data.name(),
             1,

@@ -335,11 +335,11 @@ impl From<PublicData> for Data {
 mod tests {
     use super::{utils, Address, PrivateData, PublicData, PublicKey, XorName};
     use bincode::deserialize as deserialise;
-    use bls::SecretKey;
     use hex::encode;
     use rand::{self, Rng, SeedableRng};
     use rand_xorshift::XorShiftRng;
     use std::{env, iter, thread};
+    use threshold_crypto::SecretKey;
     use unwrap::unwrap;
 
     #[test]
