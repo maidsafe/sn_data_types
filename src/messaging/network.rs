@@ -9,7 +9,7 @@
 
 use crate::{
     AccountId, Address, Blob, BlobAddress, DebitAgreementProof, Error, PublicKey, ReplicaEvent,
-    Result, RewardCounter, Signature, SignedTransfer, TransferId, TransferValidated, XorName,
+    Result, Signature, SignedTransfer, TransferId, TransferValidated, XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -23,25 +23,7 @@ pub enum NodeCmd {
     ///
     Data(NodeDataCmd),
     ///
-    Rewards(NodeRewardCmd),
-    ///
     Transfers(NodeTransferCmd),
-}
-
-///
-#[allow(clippy::large_enum_variant)]
-#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
-pub enum NodeRewardCmd {
-    /// Sent by the new section to the
-    /// old section after node relocation.
-    ClaimRewardCounter {
-        /// The id of the node
-        /// in the old section.
-        old_node_id: XorName,
-        /// The id of the node
-        /// in the new section.
-        new_node_id: XorName,
-    },
 }
 
 ///
@@ -89,18 +71,6 @@ pub enum NodeEvent {
     },
     ///
     SectionPayoutValidated(TransferValidated),
-    /// Raised by the old section to the
-    /// old section after node relocation.
-    RewardCounterClaimed {
-        /// The id of the node
-        /// in the new section.
-        new_node_id: XorName,
-        /// The account for which
-        /// the rewards are accumulated.
-        account_id: AccountId,
-        /// Accumulated work & reward
-        counter: RewardCounter,
-    },
 }
 
 ///
@@ -109,7 +79,25 @@ pub enum NodeQuery {
     ///
     Data(NodeDataQuery),
     ///
+    Rewards(NodeRewardQuery),
+    ///
     Transfers(NodeTransferQuery),
+}
+
+/// Reward query that is sent between sections.
+#[allow(clippy::large_enum_variant)]
+#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+pub enum NodeRewardQuery {
+    /// Sent by the new section to the
+    /// old section after node relocation.
+    GetAccountId {
+        /// The id of the node
+        /// in the old section.
+        old_node_id: XorName,
+        /// The id of the node
+        /// in the new section.
+        new_node_id: XorName,
+    },
 }
 
 ///
@@ -118,7 +106,7 @@ pub enum NodeTransferQuery {
     /// Replicas starting up
     /// need to query for events of
     /// the existing Replicas.
-    SyncEvents(PublicKey),
+    GetReplicaEvents(PublicKey),
 }
 
 ///
@@ -147,7 +135,19 @@ pub enum NodeQueryResponse {
     ///
     Data(NodeDataQueryResponse),
     ///
+    Rewards(NodeRewardQueryResponse),
+    ///
     Transfers(NodeTransferQueryResponse),
+}
+
+///
+#[allow(clippy::large_enum_variant)]
+#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+pub enum NodeRewardQueryResponse {
+    /// Returns the account id
+    /// together with the new node id,
+    /// that followed with the original query.
+    GetAccountId(Result<(PublicKey, XorName)>),
 }
 
 ///
@@ -157,7 +157,7 @@ pub enum NodeTransferQueryResponse {
     /// Replicas starting up
     /// need to query for events of
     /// the existing Replicas.
-    SyncEvents(Result<Vec<ReplicaEvent>>),
+    GetReplicaEvents(Result<Vec<ReplicaEvent>>),
 }
 
 ///
@@ -237,11 +237,9 @@ impl NodeCmd {
         use Address::*;
         use NodeCmd::*;
         use NodeDataCmd::*;
-        use NodeRewardCmd::*;
         use NodeTransferCmd::*;
         match self {
             Data(DuplicateChunk { new_holder, .. }) => Node(*new_holder),
-            Rewards(ClaimRewardCounter { old_node_id, .. }) => Section(*old_node_id),
             Transfers(cmd) => match cmd {
                 ValidateSectionPayout(signed_transfer) => Section(signed_transfer.from().into()),
                 RegisterSectionPayout(debit_agreement) => Section(debit_agreement.from().into()),
@@ -258,7 +256,6 @@ impl NodeEvent {
         use NodeEvent::*;
         match self {
             DuplicationComplete { chunk, .. } => Section(*chunk.name()),
-            RewardCounterClaimed { new_node_id, .. } => Section(*new_node_id),
             SectionPayoutValidated(event) => Section(event.from().into()),
         }
     }
@@ -270,14 +267,16 @@ impl NodeQuery {
         use Address::*;
         use NodeDataQuery::*;
         use NodeQuery::*;
+        use NodeRewardQuery::*;
         use NodeTransferQuery::*;
         match self {
             Data(data_query) => match data_query {
                 GetChunk { holder, .. } | GetChunks { holder, .. } => Node(*holder),
             },
             Transfers(transfer_query) => match transfer_query {
-                SyncEvents(section_key) => Section((*section_key).into()),
+                GetReplicaEvents(section_key) => Section((*section_key).into()),
             },
+            Rewards(GetAccountId { old_node_id, .. }) => Section(*old_node_id),
         }
     }
 }
