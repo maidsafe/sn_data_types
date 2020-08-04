@@ -380,7 +380,7 @@ pub struct MessageId(pub XorName);
 impl MessageId {
     /// Generates a new `MessageId` with random content.
     pub fn new() -> Self {
-        Self(XorName::default())
+        Self(XorName::random())
     }
 }
 
