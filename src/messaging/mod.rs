@@ -15,7 +15,6 @@ mod data;
 mod duty;
 mod map;
 mod network;
-mod payment;
 mod query;
 mod sequence;
 mod transfer;
@@ -29,7 +28,6 @@ pub use self::{
     duty::{AdultDuties, Duty, ElderDuties},
     map::{MapRead, MapWrite},
     network::*,
-    payment::PaymentQuery,
     query::Query,
     sequence::{SequenceRead, SequenceWrite},
     transfer::{TransferCmd, TransferQuery},
@@ -504,11 +502,6 @@ pub enum QueryResponse {
     /// Get key transfer history.
     GetHistory(Result<Vec<ReplicaEvent>>),
     //
-    // ===== Payment =====
-    //
-    /// Returns the StoreCost and the Section pubkey it is valid with.
-    GetStoreCost(Result<(PublicKey, Money)>),
-    //
     // ===== Account =====
     //
     /// Get an encrypted account.
@@ -669,8 +662,6 @@ impl fmt::Debug for QueryResponse {
             }
             GetBalance(res) => write!(f, "QueryResponse::GetBalance({:?})", ErrorDebug(res)),
             GetHistory(res) => write!(f, "QueryResponse::GetHistory({:?})", ErrorDebug(res)),
-            // Payment
-            GetStoreCost(res) => write!(f, "QueryResponse::GetStoreCost({:?})", ErrorDebug(res)),
             // Account
             GetAccount(res) => write!(f, "QueryResponse::GetAccount({:?})", ErrorDebug(res)),
             // Client Auth
