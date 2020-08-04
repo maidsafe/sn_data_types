@@ -375,7 +375,7 @@ mod tests {
     #[test]
     fn sequence_create_public() {
         let actor = gen_public_key();
-        let sequence_name = XorName::default();
+        let sequence_name = XorName::random();
         let sequence_tag = 43_000;
         let sequence = Sequence::new_pub(actor, sequence_name, sequence_tag);
         assert_eq!(sequence.kind(), SequenceKind::Public);
@@ -392,7 +392,7 @@ mod tests {
     #[test]
     fn sequence_create_private() {
         let actor = gen_public_key();
-        let sequence_name = XorName::default();
+        let sequence_name = XorName::random();
         let sequence_tag = 43_000;
         let sequence = Sequence::new_private(actor, sequence_name, sequence_tag);
         assert_eq!(sequence.kind(), SequenceKind::Private);
@@ -409,7 +409,7 @@ mod tests {
     #[test]
     fn sequence_append_entry_and_apply() {
         let actor = gen_public_key();
-        let sequence_name = XorName::default();
+        let sequence_name = XorName::random();
         let sequence_tag = 43_000;
         let mut replica1 = Sequence::new_pub(actor, sequence_name, sequence_tag);
         let mut replica2 = Sequence::new_pub(actor, sequence_name, sequence_tag);
@@ -445,7 +445,7 @@ mod tests {
     #[test]
     fn sequence_public_append_perms_and_apply() -> Result<()> {
         let actor = gen_public_key();
-        let sequence_name = XorName::default();
+        let sequence_name = XorName::random();
         let sequence_tag = 43_000;
         let mut replica1 = Sequence::new_pub(actor, sequence_name, sequence_tag);
         let mut replica2 = Sequence::new_pub(actor, sequence_name, sequence_tag);
@@ -497,7 +497,7 @@ mod tests {
     fn sequence_private_append_perms_and_apply() -> Result<()> {
         let actor1 = gen_public_key();
         let actor2 = gen_public_key();
-        let sequence_name = XorName::default();
+        let sequence_name = XorName::random();
         let sequence_tag = 43_000;
         let mut replica1 = Sequence::new_private(actor1, sequence_name, sequence_tag);
         let mut replica2 = Sequence::new_private(actor2, sequence_name, sequence_tag);
@@ -548,7 +548,7 @@ mod tests {
     #[test]
     fn sequence_append_owner_and_apply() -> Result<()> {
         let actor = gen_public_key();
-        let sequence_name = XorName::default();
+        let sequence_name = XorName::random();
         let sequence_tag = 43_000;
         let mut replica1 = Sequence::new_pub(actor, sequence_name, sequence_tag);
         let mut replica2 = Sequence::new_pub(actor, sequence_name, sequence_tag);
