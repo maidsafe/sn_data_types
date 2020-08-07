@@ -7,68 +7,14 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-pub mod app;
 pub mod client;
 pub mod node;
 
-use crate::{utils, AppFullId, ClientFullId, Keypair, PublicKey, Result, Signature, XorName};
+use crate::{utils, ClientFullId, Keypair, PublicKey, Result, Signature, XorName};
 use multibase::Decodable;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Debug, Display, Formatter};
 use std::sync::Arc;
-
-/// An enum representing the Full Id variants for a Client or App.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum SafeKey {
-    /// Represents an application authorised by a client.
-    App(Arc<AppFullId>),
-    /// Represents a network client.
-    Client(Arc<ClientFullId>),
-}
-
-impl SafeKey {
-    /// Creates a client full ID.
-    pub fn client(full_id: ClientFullId) -> Self {
-        Self::Client(Arc::new(full_id))
-    }
-
-    /// Retrieve the underlying keypair
-    pub fn keypair(&self) -> Keypair {
-        match self {
-            Self::App(app_full_id) => app_full_id.keypair.clone(),
-            Self::Client(client_full_id) => client_full_id.keypair.clone(),
-        }
-    }
-
-    /// Creates an app full ID.
-    pub fn app(full_id: AppFullId) -> Self {
-        Self::App(Arc::new(full_id))
-    }
-
-    /// Signs a given message using the App / Client full id as required.
-    pub fn sign(&self, msg: &[u8]) -> Signature {
-        match self {
-            Self::App(app_full_id) => app_full_id.sign(msg),
-            Self::Client(client_full_id) => client_full_id.sign(msg),
-        }
-    }
-
-    /// Returns a corresponding public ID.
-    pub fn public_id(&self) -> PublicId {
-        match self {
-            Self::App(app_full_id) => PublicId::App(app_full_id.public_id().clone()),
-            Self::Client(client_full_id) => PublicId::Client(client_full_id.public_id().clone()),
-        }
-    }
-
-    /// Returns a corresponding public key.
-    pub fn public_key(&self) -> PublicKey {
-        match self {
-            Self::App(app_full_id) => *app_full_id.public_id().public_key(),
-            Self::Client(client_full_id) => *client_full_id.public_id().public_key(),
-        }
-    }
-}
 
 /// An enum representing the identity of a network Node or Client.
 ///
@@ -79,8 +25,6 @@ pub enum PublicId {
     Node(node::PublicId),
     /// The public identity of a network Client.
     Client(client::PublicId),
-    /// The public identity of a network App.
-    App(app::PublicId),
 }
 
 impl PublicId {
@@ -89,7 +33,6 @@ impl PublicId {
         match self {
             Self::Node(pub_id) => pub_id.name(),
             Self::Client(pub_id) => pub_id.name(),
-            Self::App(pub_id) => pub_id.owner_name(),
         }
     }
 
@@ -111,21 +54,11 @@ impl PublicId {
         }
     }
 
-    /// Returns the app public id, if applicable.
-    pub fn app_public_id(&self) -> Option<&app::PublicId> {
-        if let Self::App(id) = self {
-            Some(id)
-        } else {
-            None
-        }
-    }
-
     /// Returns the entity's public key, if applicable.
     pub fn public_key(&self) -> PublicKey {
         match self {
             Self::Node(pub_id) => (*pub_id.ed25519_public_key()).into(),
             Self::Client(pub_id) => *pub_id.public_key(),
-            Self::App(pub_id) => *pub_id.public_key(),
         }
     }
 
@@ -145,7 +78,6 @@ impl Debug for PublicId {
         match self {
             Self::Node(pub_id) => write!(formatter, "{:?}", pub_id),
             Self::Client(pub_id) => write!(formatter, "{:?}", pub_id),
-            Self::App(pub_id) => write!(formatter, "{:?}", pub_id),
         }
     }
 }
@@ -199,20 +131,6 @@ mod tests {
             *id.public_id()
         );
         assert!(node::PublicId::decode_from_zbase32("7djsk38").is_err());
-    }
-
-    #[test]
-    fn zbase32_encode_decode_app_public_id() {
-        let mut rng = rand::thread_rng();
-        let owner = ClientFullId::new_ed25519(&mut rng);
-        let id = app::FullId::new_ed25519(&mut rng, owner.public_id().clone());
-        assert_eq!(
-            unwrap!(app::PublicId::decode_from_zbase32(
-                &id.public_id().encode_to_zbase32()
-            )),
-            *id.public_id()
-        );
-        assert!(app::PublicId::decode_from_zbase32("7od8fh2").is_err());
     }
 
     #[test]
