@@ -152,9 +152,9 @@ pub struct AppPermissions {
 #[derive(Serialize, Deserialize)]
 pub enum HandshakeRequest {
     /// Sent by clients as an initial bootstrap request, and then for subsequent bootstrap attempts.
-    Bootstrap(PublicId),
+    Bootstrap(PublicKey),
     /// Sent to destination nodes as a response to `HandshakeResponse::Join`.
-    Join(PublicId),
+    Join(PublicKey),
     /// Response to `HandshakeResponse::Challenge` sent by a vault.
     ChallengeResult(Signature),
 }
@@ -169,7 +169,7 @@ pub enum HandshakeResponse {
     /// Sent by nodes when a client reaches its destination section.
     Join(Vec<(XorName, SocketAddr)>),
     /// Sent by nodes as a response to a valid `HandshakeRequest::Join`.
-    Challenge(PublicId, Vec<u8>),
+    Challenge(PublicKey, Vec<u8>),
     /// Sent by nodes as a response to an invalid `HandshakeRequest::Join` (when a client attempts to join a wrong section).
     InvalidSection,
 }

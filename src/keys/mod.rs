@@ -41,6 +41,13 @@ pub enum PublicKey {
     BlsShare(threshold_crypto::PublicKeyShare),
 }
 
+impl std::str::FromStr for PublicKey {
+    type Err = Error;
+    fn from_str(s: &str) -> std::result::Result<Self, <Self as std::str::FromStr>::Err> {
+        s.parse::<PublicKey>()
+    }
+}
+
 impl PublicKey {
     /// Returns the ed25519 key, if applicable.
     pub fn ed25519(&self) -> Option<ed25519_dalek::PublicKey> {
