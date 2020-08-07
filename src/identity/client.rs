@@ -24,7 +24,7 @@ use xor_name::XorName;
 /// A struct holding a keypair variant and the corresponding public ID for a network Client.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct FullId {
-    pub(super) keypair: Keypair,
+    keypair: Keypair,
     public_id: PublicId,
 }
 
@@ -77,6 +77,16 @@ impl FullId {
     /// Returns the public ID.
     pub fn public_id(&self) -> &PublicId {
         &self.public_id
+    }
+
+    /// Returns the PublicKey of the PublicId.
+    pub fn public_key(&self) -> &PublicKey {
+        &self.public_id.public_key()
+    }
+
+    /// Returns a reference to the Keypair
+    pub fn keypair(&self) -> &Keypair {
+        &self.keypair
     }
 }
 
