@@ -20,10 +20,24 @@ use std::collections::BTreeSet;
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NodeCmd {
+    /// Cmds related to the running of a node.
+    System(NodeSystemCmd),
     ///
     Data(NodeDataCmd),
     ///
     Transfers(NodeTransferCmd),
+}
+
+/// Cmds related to the running of a node.
+#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+pub enum NodeSystemCmd {
+    /// Register a wallet for reward payouts.
+    RegisterWallet {
+        /// The wallet to which rewards will be paid out by the network.
+        wallet: PublicKey,
+        /// The section where this wallet is to be registered (NB: this is the section of the node id).
+        section: XorName,
+    },
 }
 
 ///
@@ -239,6 +253,7 @@ impl NodeCmd {
         use NodeDataCmd::*;
         use NodeTransferCmd::*;
         match self {
+            System(NodeSystemCmd::RegisterWallet { section, .. }) => Section(*section),
             Data(DuplicateChunk { new_holder, .. }) => Node(*new_holder),
             Transfers(cmd) => match cmd {
                 ValidateSectionPayout(signed_transfer) => Section(signed_transfer.from().into()),
