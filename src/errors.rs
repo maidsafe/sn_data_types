@@ -15,7 +15,7 @@ use std::{
     result,
 };
 
-/// A specialised `Result` type for safecoin.
+/// A specialised `Result` type.
 pub type Result<T> = result::Result<T, Error>;
 
 /// Error debug struct

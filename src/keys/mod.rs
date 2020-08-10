@@ -30,6 +30,7 @@ use std::{
 use threshold_crypto::{self, serde_impl::SerdeSecret};
 use unwrap::unwrap;
 use xor_name::{XorName, XOR_NAME_LEN};
+
 /// Wrapper for different public key types.
 #[derive(Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
 pub enum PublicKey {
@@ -39,13 +40,6 @@ pub enum PublicKey {
     Bls(threshold_crypto::PublicKey),
     /// BLS public key share.
     BlsShare(threshold_crypto::PublicKeyShare),
-}
-
-impl std::str::FromStr for PublicKey {
-    type Err = Error;
-    fn from_str(s: &str) -> std::result::Result<Self, <Self as std::str::FromStr>::Err> {
-        s.parse::<PublicKey>()
-    }
 }
 
 impl PublicKey {
