@@ -25,7 +25,7 @@ pub use self::{
     blob::{BlobRead, BlobWrite},
     cmd::Cmd,
     data::{DataCmd, DataQuery},
-    duty::{AdultDuties, Duty, ElderDuties},
+    duty::{AdultDuties, Duty, ElderDuties, NodeDuties},
     map::{MapRead, MapWrite},
     network::*,
     query::Query,

@@ -16,6 +16,15 @@ pub enum Duty {
     Adult(AdultDuties),
     ///
     Elder(ElderDuties),
+    ///
+    Node(NodeDuties),
+}
+
+/// Duties of a Node.
+#[derive(Debug, Hash, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
+pub enum NodeDuties {
+    /// Config of a node, such as reward wallet.
+    NodeConfig,
 }
 
 /// Duties of an Adult.
