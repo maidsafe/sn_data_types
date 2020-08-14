@@ -21,8 +21,7 @@ serde = { version = "1.0.91", features = ["derive"] }
 threshold_crypto = "~0.4.0"
 tiny-keccak = "~1.5.0"
 unwrap = "~1.2.1"
-# xor_name = "1"
-xor_name = {git="https://github.com/joshuef/xor-name.git", branch="AddRandom"}
+xor_name = "1"
 ed25519 = "1.0.1"
 signature = "1.1.0"
 
@@ -32,3 +31,7 @@ rand_xorshift = "~0.2.0"
 
 [features]
 simulated-payouts = []
+
+
+[patch.crates-io]
+xor_name = { git = "https://github.com/maidsafe/xor-name.git" }
