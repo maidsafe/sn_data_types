@@ -11,12 +11,13 @@ version = "0.10.1"
 
 [dependencies]
 bincode = "1.2.1"
-ed25519-dalek = "1.0.0-pre.4"
+ed25519-dalek = { version = "1.0.0-pre.4", features = ["serde"] }
 multibase = "~0.6.0"
 hex_fmt = "~0.3.0"
 rand = "~0.7.3"
 crdts = "4.1.0"
 sha3 = "~0.8.2"
+serde = { version = "1.0.91", features = ["derive"] }
 threshold_crypto = "~0.4.0"
 tiny-keccak = "~1.5.0"
 unwrap = "~1.2.1"
@@ -25,14 +26,9 @@ xor_name = {git="https://github.com/joshuef/xor-name.git", branch="AddRandom"}
 ed25519 = "1.0.1"
 signature = "1.1.0"
 
-[dependencies.serde]
-version = "1.0.91"
-features = [ "derive" ]
-
 [dev-dependencies]
 hex = "~0.3.2"
 rand_xorshift = "~0.2.0"
 
 [features]
-default = [ "ed25519-dalek/serde" ]
 simulated-payouts = []
