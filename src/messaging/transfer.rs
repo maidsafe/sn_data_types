@@ -7,14 +7,14 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-#![allow(unused_imports)] // NB: Only while we have #[cfg(feature = "simulated-payouts")]
-
 use super::{
     AuthorisationKind, CmdError, MiscAuthKind, MoneyAuthKind, QueryResponse, TransferError,
 };
-use crate::{DebitAgreementProof, Error, PublicKey, SignedTransfer, Transfer, XorName};
+#[cfg(feature = "simulated-payouts")]
+use crate::Transfer;
+use crate::{DebitAgreementProof, Error, PublicKey, SignedTransfer, XorName};
 use serde::{Deserialize, Serialize};
-use std::{borrow::Cow, fmt};
+use std::fmt;
 
 /// Money cmd that is sent to network.
 #[allow(clippy::large_enum_variant)]
