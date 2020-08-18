@@ -279,6 +279,14 @@ impl Data {
         self.address().name()
     }
 
+    /// Returns the owner if private blob.
+    pub fn owner(&self) -> Option<&PublicKey> {
+        match self {
+            Data::Private(data) => Some(data.owner()),
+            _ => None,
+        }
+    }
+
     /// Returns the kind.
     pub fn kind(&self) -> Kind {
         self.address().kind()
