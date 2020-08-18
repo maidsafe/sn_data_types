@@ -1,4 +1,4 @@
-name: Version Bump and Tag
+name: Version bump and create PR for changes
 
 on:
   # Trigger the workflow on push only for the master branch
@@ -8,21 +8,17 @@ on:
 
 env:
   NODE_ENV: 'development'
-  PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
 
 jobs:
-  bump:
-    runs-on: ubuntu-latest
+  update_changelog:
+    runs-on: ubuntu-20.04
+    # Dont run if we're on a release commit
     if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
     steps:
       - uses: actions/checkout@v2
         with:
           fetch-depth: '0'
- 
       - name: Bump Version
-        uses: maidsafe/auto-rust-version-bumper@v1.1
+        uses: maidsafe/rust-version-bump-branch-creator@v2
         with:
-          personal-access-token: $PERSONAL_ACCESS_TOKEN
-
-  
-  
+          token: ${{ secrets.BRANCH_CREATOR_TOKEN }}

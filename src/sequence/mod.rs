@@ -363,10 +363,11 @@ mod tests {
     use crate::{
         Error, PublicKey, Result, Sequence, SequenceAddress, SequenceIndex, SequenceKind,
         SequencePrivUserPermissions, SequencePubUserPermissions, SequenceUser,
-        SequenceUserPermissions, XorName,
+        SequenceUserPermissions,
     };
     use std::collections::BTreeMap;
     use threshold_crypto::SecretKey;
+    use xor_name::XorName;
 
     fn gen_public_key() -> PublicKey {
         PublicKey::Bls(SecretKey::random().public_key())

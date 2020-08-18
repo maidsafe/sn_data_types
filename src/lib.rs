@@ -86,6 +86,7 @@ pub use sequence::{
     PublicPermissions as SequencePublicPermissions, User as SequenceUser,
     UserPermissions as SequenceUserPermissions, WriteOp as SequenceWriteOp,
 };
+use serde::{Deserialize, Serialize};
 pub use sha3::Sha3_512 as Ed25519Digest;
 pub use transfer::*;
 pub use utils::verify_signature;

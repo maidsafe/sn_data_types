@@ -2,6 +2,70 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### 0.11.1 (2020-07-29)
+
+
+### Features
+
+* **CD:** Automatically create a github release w/ latest changes ([8845a2d](https://github.com/maidsafe/safe-nd/commit/8845a2daee79498be620f2a5d01bdf51e8591bfa))
+* **CD:** Enable auto merge of generated release PRs ([7fe369d](https://github.com/maidsafe/safe-nd/commit/7fe369d31856a83081a4c87626c94d9d935dabfb))
+* automerge update ([c55da4d](https://github.com/maidsafe/safe-nd/commit/c55da4d6731492523a3874fac17bcc539bca296f))
+* **audit:** add scheduled security audit scan ([4725d13](https://github.com/maidsafe/safe-nd/commit/4725d13ee7a473f46bf2e119d5021b6ab5f8fb71))
+
+
+### Bug Fixes
+
+* **ci:** release action update. ([33aa4ae](https://github.com/maidsafe/safe-nd/commit/33aa4ae4e281e11d1e0241e6be4c36e2b5daff95))
+
+### 0.11.0 (2020-07-29)
+
+
+### Features
+
+* **CD:** Automatically create a github release w/ latest changes ([8845a2d](https://github.com/maidsafe/safe-nd/commit/8845a2daee79498be620f2a5d01bdf51e8591bfa))
+* **CD:** Enable auto merge of generated release PRs ([7fe369d](https://github.com/maidsafe/safe-nd/commit/7fe369d31856a83081a4c87626c94d9d935dabfb))
+* automerge update ([c55da4d](https://github.com/maidsafe/safe-nd/commit/c55da4d6731492523a3874fac17bcc539bca296f))
+* **audit:** add scheduled security audit scan ([4725d13](https://github.com/maidsafe/safe-nd/commit/4725d13ee7a473f46bf2e119d5021b6ab5f8fb71))
+
+
+### Bug Fixes
+
+* **ci:** release action update. ([33aa4ae](https://github.com/maidsafe/safe-nd/commit/33aa4ae4e281e11d1e0241e6be4c36e2b5daff95))
+
+
+### Others
+
+* ***deps*** update threshold_crypto and add refactor code accordingly ([f6c748d](https://github.com/maidsafe/safe-nd/commit/f6c748d94cb696f69607aee0b1147d04ecda97ea))
+
+* ***deps*** update rand and ed25519-dalek crate ([84f76af](https://github.com/maidsafe/safe-nd/commit/84f76af68df6c23dd634b9af0ac8ecb66429636c))
+
+* ***deps*** reuse XorName from the xor-name crate ([95258f2](https://github.com/maidsafe/safe-nd/commit/95258f2e81822d8549e9f75ba1cc8fe5bb7a38f1))
+
+
+
+### 0.10.4 (2020-07-29)
+
+
+### Features
+
+* automerge update ([c55da4d](https://github.com/maidsafe/safe-nd/commit/c55da4d6731492523a3874fac17bcc539bca296f))
+* **audit:** add scheduled security audit scan ([4725d13](https://github.com/maidsafe/safe-nd/commit/4725d13ee7a473f46bf2e119d5021b6ab5f8fb71))
+
+### 0.10.3 (2020-07-28)
+
+
+### Features
+
+* automerge update ([c55da4d](https://github.com/maidsafe/safe-nd/commit/c55da4d6731492523a3874fac17bcc539bca296f))
+* **audit:** add scheduled security audit scan ([4725d13](https://github.com/maidsafe/safe-nd/commit/4725d13ee7a473f46bf2e119d5021b6ab5f8fb71))
+
+### 0.10.2 (2020-07-27)
+
+
+### Features
+
+* **audit:** add scheduled security audit scan ([4725d13](https://github.com/maidsafe/safe-nd/commit/4725d13ee7a473f46bf2e119d5021b6ab5f8fb71))
+
 ## 10.1.0 (2020-07-21)
 
 
