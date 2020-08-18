@@ -91,7 +91,6 @@ pub use sha3::Sha3_512 as Ed25519Digest;
 pub use transfer::*;
 pub use utils::verify_signature;
 
-use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, net::SocketAddr};
 use xor_name::XorName;
 
