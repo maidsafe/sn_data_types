@@ -8,7 +8,7 @@
 // Software.
 
 use crate::{Error, Message, MessageId, PublicKey, Result, Signature};
-use multibase::{self, Base, Decodable};
+use multibase::{self, Base};
 use serde::{de::DeserializeOwned, Serialize};
 use unwrap::unwrap;
 
@@ -31,14 +31,14 @@ pub(crate) fn serialise<T: Serialize>(data: &T) -> Vec<u8> {
 /// Wrapper for z-Base-32 multibase::encode.
 pub(crate) fn encode<T: Serialize>(data: &T) -> String {
     let serialised = serialise(&data);
-    multibase::encode(Base::Base32z, &serialised)
+    multibase::encode(Base::Base32Z, &serialised)
 }
 
 /// Wrapper for z-Base-32 multibase::decode.
-pub(crate) fn decode<I: Decodable, O: DeserializeOwned>(encoded: I) -> Result<O> {
+pub(crate) fn decode<I: AsRef<str>, O: DeserializeOwned>(encoded: I) -> Result<O> {
     let (base, decoded) =
         multibase::decode(encoded).map_err(|e| Error::FailedToParse(e.to_string()))?;
-    if base != Base::Base32z {
+    if base != Base::Base32Z {
         return Err(Error::FailedToParse(format!(
             "Expected z-base-32 encoding, but got {:?}",
             base

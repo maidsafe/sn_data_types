@@ -29,7 +29,6 @@
 
 use crate::{utils, EntryError, Error, PublicKey, Result};
 use hex_fmt::HexFmt;
-use multibase::Decodable;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{btree_map::Entry, BTreeMap, BTreeSet},
@@ -759,7 +758,7 @@ impl Address {
     }
 
     /// Creates from z-base-32 encoded string.
-    pub fn decode_from_zbase32<T: Decodable>(encoded: T) -> Result<Self> {
+    pub fn decode_from_zbase32<T: AsRef<str>>(encoded: T) -> Result<Self> {
         utils::decode(encoded)
     }
 }
