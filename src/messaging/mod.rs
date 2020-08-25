@@ -88,10 +88,8 @@ impl MsgEnvelope {
     /// The proxy would first sign the MsgEnvelope,
     /// and then call this method to add itself
     /// (public key + the signature) to the envelope.
-    pub fn with_proxy(&self, proxy: MsgSender) -> MsgEnvelope {
-        let mut clone = self.clone();
-        clone.proxies.push(proxy);
-        clone
+    pub fn add_proxy(&mut self, proxy: MsgSender) {
+        self.proxies.push(proxy);
     }
 
     ///
