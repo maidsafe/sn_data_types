@@ -64,7 +64,7 @@ impl TransferCmd {
     /// Returns the type of authorisation needed for the request.
     pub fn authorisation_kind(&self) -> AuthorisationKind {
         use TransferCmd::*;
-        match self.clone() {
+        match self {
             RegisterTransfer(_) => AuthorisationKind::None, // the proof has the authority within it
             ValidateTransfer(_) => AuthorisationKind::Misc(MiscAuthKind::WriteAndTransfer),
             #[cfg(feature = "simulated-payouts")]
@@ -126,7 +126,7 @@ impl TransferQuery {
     /// Returns the type of authorisation needed for the query.
     pub fn authorisation_kind(&self) -> AuthorisationKind {
         use TransferQuery::*;
-        match self.clone() {
+        match self {
             GetBalance(_) => AuthorisationKind::Money(MoneyAuthKind::ReadBalance), // current state
             GetReplicaKeys(_) => AuthorisationKind::None, // current replica keys
             GetHistory { .. } => AuthorisationKind::Money(MoneyAuthKind::ReadHistory), // history of incoming transfers
