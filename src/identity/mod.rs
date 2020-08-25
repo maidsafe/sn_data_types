@@ -11,7 +11,6 @@ pub mod client;
 pub mod node;
 
 use crate::{utils, PublicKey, Result, XorName};
-use multibase::Decodable;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Debug, Display, Formatter};
 
@@ -67,7 +66,7 @@ impl PublicId {
     }
 
     /// Creates from z-base-32 encoded string.
-    pub fn decode_from_zbase32<T: Decodable>(encoded: T) -> Result<Self> {
+    pub fn decode_from_zbase32<T: AsRef<str>>(encoded: T) -> Result<Self> {
         utils::decode(encoded)
     }
 }

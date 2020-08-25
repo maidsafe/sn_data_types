@@ -17,7 +17,6 @@ mod proof;
 
 use crate::{utils, Error, Result};
 use hex_fmt::HexFmt;
-use multibase::Decodable;
 pub use proof::{BlsProof, BlsProofShare, Ed25519Proof, Proof, Proven};
 use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Serialize};
@@ -94,7 +93,7 @@ impl PublicKey {
     }
 
     /// Creates from z-base-32 encoded string.
-    pub fn decode_from_zbase32<I: Decodable>(encoded: I) -> Result<Self> {
+    pub fn decode_from_zbase32<I: AsRef<str>>(encoded: I) -> Result<Self> {
         utils::decode(encoded)
     }
 }

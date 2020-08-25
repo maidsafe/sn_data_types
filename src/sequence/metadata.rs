@@ -8,7 +8,6 @@
 // Software.
 
 use crate::{utils, Error, PublicKey, Result, XorName};
-use multibase::Decodable;
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fmt::Debug, hash::Hash};
 
@@ -95,7 +94,7 @@ impl Address {
     }
 
     /// Creates from z-base-32 encoded string.
-    pub fn decode_from_zbase32<I: Decodable>(encoded: I) -> Result<Self> {
+    pub fn decode_from_zbase32<I: AsRef<str>>(encoded: I) -> Result<Self> {
         utils::decode(encoded)
     }
 }

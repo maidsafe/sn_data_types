@@ -10,7 +10,6 @@
 use crate::keys::{BlsKeypair, SignatureShare};
 use crate::{utils, Error, Keypair, PublicKey, Signature};
 use ed25519_dalek::Keypair as Ed25519Keypair;
-use multibase::Decodable;
 use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use signature::Signer;
@@ -152,7 +151,7 @@ impl PublicId {
     }
 
     /// Creates from z-base-32 encoded string.
-    pub fn decode_from_zbase32<T: Decodable>(encoded: T) -> Result<Self, Error> {
+    pub fn decode_from_zbase32<T: AsRef<str>>(encoded: T) -> Result<Self, Error> {
         utils::decode(encoded)
     }
 }

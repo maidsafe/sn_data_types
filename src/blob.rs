@@ -9,7 +9,6 @@
 
 use crate::{utils, Error, PublicKey, XorName};
 use bincode::serialized_size;
-use multibase::Decodable;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::{
     fmt::{self, Debug, Formatter},
@@ -251,7 +250,7 @@ impl Address {
     }
 
     /// Creates from z-base-32 encoded string.
-    pub fn decode_from_zbase32<T: Decodable>(encoded: T) -> Result<Self, Error> {
+    pub fn decode_from_zbase32<T: AsRef<str>>(encoded: T) -> Result<Self, Error> {
         utils::decode(encoded)
     }
 }
