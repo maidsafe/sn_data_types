@@ -9,8 +9,8 @@
 
 use super::{AuthorisationKind, CmdError, DataAuthKind, QueryResponse};
 use crate::{
-    Error, Sequence, SequenceAddress as Address, SequenceEntry as Entry, SequenceIndex as Index,
-    SequenceOwner as Owner, SequencePrivatePermissions as PrivatePermissions,
+    Error, PublicKey, Sequence, SequenceAddress as Address, SequenceEntry as Entry,
+    SequenceIndex as Index, SequencePrivatePermissions as PrivatePermissions,
     SequencePublicPermissions as PublicPermissions, SequenceUser as User,
     SequenceWriteOp as WriteOp, XorName,
 };
@@ -67,7 +67,7 @@ pub enum SequenceWrite {
     /// owner(s) can perform this action.
     Delete(Address),
     /// Set a new owner. Only the current owner(s) can perform this action.
-    SetOwner(WriteOp<Owner>),
+    SetOwner(WriteOp<PublicKey>),
     /// Set new permissions for public Sequence.
     SetPublicPermissions(WriteOp<PublicPermissions>),
     /// Set new permissions for private Sequence.
@@ -84,7 +84,7 @@ impl SequenceRead {
             GetRange { .. } => QueryResponse::GetSequenceRange(Err(error)),
             GetLastEntry(_) => QueryResponse::GetSequenceLastEntry(Err(error)),
             GetPermissions(_) => QueryResponse::GetSequencePermissions(Err(error)),
-            GetUserPermissions { .. } => QueryResponse::GetSequenceUserPermissions(Err(error)),
+            GetUserPermissions { .. } => QueryResponse::GetSequencePermissions(Err(error)),
             GetOwner(_) => QueryResponse::GetSequenceOwner(Err(error)),
         }
     }

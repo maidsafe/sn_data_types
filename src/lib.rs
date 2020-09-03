@@ -76,13 +76,13 @@ pub use money::Money;
 pub use rewards::{RewardCounter, Work};
 
 pub use sequence::{
-    Action as SDataAction, Address as SDataAddress, Data as SData,
-    DataMutationOp as SDataDataMutationOp, DataMutationOp as SDataPolicyMutationOp,
-    Entries as SDataEntries, Entry as SDataEntry, Index as SDataIndex, Kind as SDataKind,
-    Permissions as SDataPermissions, Policy as SDataPolicy,
-    PrivPermissions as SDataPrivPermissions, PrivPolicy as SDataPrivPolicy, PrivSeqData,
-    PubPermissions as SDataPubPermissions, PubPolicy as SDataPubPolicy, PubSeqData,
-    User as SDataUser,
+    Action as SequenceAction, Address as SequenceAddress, Data as Sequence,
+    DataWriteOp as SequenceDataWriteOp, Entries as SequenceEntries, Entry as SequenceEntry,
+    Index as SequenceIndex, Kind as SequenceKind, Permissions as SequencePermissions,
+    Policy as SequencePolicy, PrivatePermissions as SequencePrivatePermissions,
+    PrivatePolicy as SequencePrivatePolicy, PrivateSeqData,
+    PublicPermissions as SequencePublicPermissions, PublicPolicy as SequencePublicPolicy,
+    PublicSeqData, User as SequenceUser, WriteOp as SequenceWriteOp,
 };
 use serde::{Deserialize, Serialize};
 pub use sha3::Sha3_512 as Ed25519Digest;
