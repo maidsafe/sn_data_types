@@ -4,9 +4,9 @@ description = "Safe Network Data Types"
 edition = "2018"
 homepage = "https://maidsafe.net"
 license = "MIT OR BSD-3-Clause"
-name = "safe-nd"
+name = "sn_data_types"
 readme = "README.md"
-repository = "https://github.com/maidsafe/safe-nd"
+repository = "https://github.com/maidsafe/sn_data_types"
 version = "0.11.6"
 
 [dependencies]
