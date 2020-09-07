@@ -21,7 +21,7 @@ jobs:
         - run: echo ::set-env name=RELEASE_VERSION::$(git log -1 --pretty=%B)
         # parse out non-tag text
         - run: echo ::set-env name=RELEASE_VERSION::$( echo $RELEASE_VERSION | sed 's/chore(release)://' )
-        #remove spaces
-        - run: echo ::set-env name=RELEASE_VERSION::$(echo $RELEASE_VERSION | tr -d '[:space:]')
+        # remove spaces, but add back in `v` to tag, which is needed for standard-version
+        - run: echo ::set-env name=RELEASE_VERSION::v$(echo $RELEASE_VERSION | tr -d '[:space:]')
         - run: echo $RELEASE_VERSION
         - run: git tag $RELEASE_VERSION && git push --tags
