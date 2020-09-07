@@ -1,15 +1,17 @@
 name: Create GitHub Release
 
+
 on:
-  create:
-    tags:
-      - v*
+  push:
+    branches:
+      - master
 
 jobs:
   release:
     # only if we have a tag
     name: Release
     runs-on: ubuntu-20.04
+    if: "startsWith(github.event.head_commit.message, 'chore(release):')"
 
     steps:
       - uses: actions/checkout@v2
