@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.11.9](https://github.com/maidsafe/sn_data_types/compare/v0.11.8...v0.11.9) (2020-09-07)
+
+
+### Bug Fixes
+
+* **seq:** Update PolicyWrite to use new PolicyOp ([13b8ca6](https://github.com/maidsafe/sn_data_types/commit/13b8ca6985ed68545200ec3ca5cef714b278e160))
+
 ### 0.11.8 (2020-09-07)
 
 
