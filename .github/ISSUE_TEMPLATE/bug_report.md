@@ -30,7 +30,7 @@ If applicable, add screenshots to help explain your problem.
  - OS: [e.g. Ubuntu 18.04]
  - Shell: [e.g. Zsh]
  - Rust: [e.g. 1.42.0 stable]
- - safe-nd crate version [e.g. 0.8.0]
+ - sn_data_types crate version [e.g. 0.8.0]
  - Browser [e.g. chrome, safari]
  - Version [e.g. 22]
  - etc
