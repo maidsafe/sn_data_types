@@ -11,34 +11,10 @@ All notable changes to this project will be documented in this file. See [standa
 
 ### 0.11.8 (2020-09-07)
 
-
-### Features
-
-* **audit:** add scheduled security audit scan ([4725d13](https://github.com/maidsafe/sn_data_types/commit/4725d13ee7a473f46bf2e119d5021b6ab5f8fb71))
-* **blob:** get some owner pk for blob ([6c0a0a1](https://github.com/maidsafe/sn_data_types/commit/6c0a0a1dd859db44c84934e24ecd86ba3195fcca))
-* **CD:** Automatically create a github release w/ latest changes ([8845a2d](https://github.com/maidsafe/sn_data_types/commit/8845a2daee79498be620f2a5d01bdf51e8591bfa))
-* **CD:** Enable auto merge of generated release PRs ([7fe369d](https://github.com/maidsafe/sn_data_types/commit/7fe369d31856a83081a4c87626c94d9d935dabfb))
-* **duties:** add node duty, with node config ([72c595d](https://github.com/maidsafe/sn_data_types/commit/72c595d8de4fea8cf98c6780c184209c6b996f65))
-* **farming:** add payment query for store cost ([214c00b](https://github.com/maidsafe/sn_data_types/commit/214c00b48346640b37c3a5c4af57fffa1f1449fd))
-* **keypairs:** add new type to replace FullId ([5a17929](https://github.com/maidsafe/sn_data_types/commit/5a179297cbf0a29200ac6a8abfc9bffacd1c0872))
-* **keypairs:** add new type to replace FullId ([2dee6d7](https://github.com/maidsafe/sn_data_types/commit/2dee6d771903c82cc83c41e7b60cf0de610daef2))
-* **msgs:** add node transfer query ([809bfa8](https://github.com/maidsafe/sn_data_types/commit/809bfa823d971d2ab19c32b1ce26f89f6d82662c))
-* **rewards:** register a node wallet for rewards ([7eef548](https://github.com/maidsafe/sn_data_types/commit/7eef5480e779ec974df0957cdb1067e5e5474428))
-* **sequence:** support data ops to be concurrent with policy ops ([743198c](https://github.com/maidsafe/sn_data_types/commit/743198c277c1948b49863eee77115a78b6be1e69))
-* Add SafeKey abstraction over id types ([46c7e88](https://github.com/maidsafe/sn_data_types/commit/46c7e88df8ea71b30757b67f2e92462f0d3f9946))
-* automerge update ([c55da4d](https://github.com/maidsafe/sn_data_types/commit/c55da4d6731492523a3874fac17bcc539bca296f))
-* get keypair from safekey easily ([f44c935](https://github.com/maidsafe/sn_data_types/commit/f44c935802d1d18677e8a487acb25b199f7e6418))
-* remove SafeKey struct and app funcs ([00c77cb](https://github.com/maidsafe/sn_data_types/commit/00c77cb7e1a187a9f19acb1f22e68262fddeebdd))
-
-
 ### Bug Fixes
 
 * **CD:** Re-add 'v' to tag to enable proper standard-version and changelog generation ([6c9bdb3](https://github.com/maidsafe/sn_data_types/commit/6c9bdb33c67f39b87d131e07885d148ab5d31fb1))
-* cleanup changelog ([0b41ba2](https://github.com/maidsafe/sn_data_types/commit/0b41ba24b6f1ad4d39a91eb3013356df991847ca))
-* **ci:** release action update. ([33aa4ae](https://github.com/maidsafe/sn_data_types/commit/33aa4ae4e281e11d1e0241e6be4c36e2b5daff95))
-* **nodekeypairs:** include index when setting bls ([765fcb3](https://github.com/maidsafe/sn_data_types/commit/765fcb34b2eaeeb029b30c3e2dfb757e9ae1e5ca))
-* **tests:** test imports updated for blob/map ([87664f9](https://github.com/maidsafe/sn_data_types/commit/87664f9827323d03ac3cc566b84d73b55d2a0a22))
-* **xorname:** use random xornames ([1d55b55](https://github.com/maidsafe/sn_data_types/commit/1d55b55bea2b1410b5ff667c642246b0234619ef))
+
 
 ### 0.11.7 (2020-09-07)
 

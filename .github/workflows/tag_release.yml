@@ -8,6 +8,7 @@ on:
 
 env:
   NODE_ENV: 'development'
+  GITHUB_TOKEN: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
 
 jobs:
   tag:
@@ -24,4 +25,12 @@ jobs:
         # remove spaces, but add back in `v` to tag, which is needed for standard-version
         - run: echo ::set-env name=RELEASE_VERSION::v$(echo $RELEASE_VERSION | tr -d '[:space:]')
         - run: echo $RELEASE_VERSION
-        - run: git tag $RELEASE_VERSION && git push --tags
+        - run: git tag $RELEASE_VERSION
+
+        - name: Setup git for push
+          run: |
+            git remote add github "$REPO"
+            git config --local user.email "action@github.com"
+            git config --local user.name "GitHub Action"
+        - name: Push tags to master
+          run: git push "https://$GITHUB_ACTOR:$GITHUB_TOKEN@github.com/$GITHUB_REPOSITORY" HEAD:master --tags
