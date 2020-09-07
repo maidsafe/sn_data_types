@@ -10,9 +10,9 @@
 use super::{AuthorisationKind, CmdError, DataAuthKind, QueryResponse};
 use crate::{
     Error, PublicKey, Sequence, SequenceAddress as Address, SequenceEntry as Entry,
-    SequenceIndex as Index, SequencePrivatePermissions as PrivatePermissions,
-    SequencePublicPermissions as PublicPermissions, SequenceUser as User,
-    SequenceWriteOp as WriteOp, XorName,
+    SequenceIndex as Index, SequencePolicyWriteOp, SequencePrivatePolicy as PrivatePolicy,
+    SequencePublicPolicy as PublicPolicy, SequenceUser as User, SequenceWriteOp as WriteOp,
+    XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -69,9 +69,9 @@ pub enum SequenceWrite {
     /// Set a new owner. Only the current owner(s) can perform this action.
     SetOwner(WriteOp<PublicKey>),
     /// Set new permissions for public Sequence.
-    SetPublicPermissions(WriteOp<PublicPermissions>),
+    SetPublicPermissions(SequencePolicyWriteOp<PublicPolicy>),
     /// Set new permissions for private Sequence.
-    SetPrivatePermissions(WriteOp<PrivatePermissions>),
+    SetPrivatePermissions(SequencePolicyWriteOp<PrivatePolicy>),
 }
 
 impl SequenceRead {
