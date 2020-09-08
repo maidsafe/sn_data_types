@@ -41,7 +41,7 @@ use crate::{
     errors::ErrorDebug, utils, AppPermissions, Blob, BlsProof, DebitAgreementProof, Error, Map,
     MapEntries, MapPermissionSet, MapValue, MapValues, Money, Proof, PublicKey, ReplicaEvent,
     ReplicaPublicKeySet, Result, Sequence, SequenceEntries, SequenceEntry, SequencePermissions,
-    Signature, TransferValidated,
+    SequencePrivatePolicy, SequencePublicPolicy, Signature, TransferValidated,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -471,8 +471,12 @@ pub enum QueryResponse {
     GetSequenceRange(Result<SequenceEntries>),
     /// Get Sequence last entry.
     GetSequenceLastEntry(Result<(u64, SequenceEntry)>),
+    /// Get public Sequence permissions for a user.
+    GetSequencePublicPolicy(Result<SequencePublicPolicy>),
+    /// Get private Sequence permissions for a user.
+    GetSequencePrivatePolicy(Result<SequencePrivatePolicy>),
     /// Get Sequence permissions for a user.
-    GetSequencePermissions(Result<SequencePermissions>),
+    GetSequenceUserPermissions(Result<SequencePermissions>),
     //
     // ===== Money =====
     //
@@ -576,7 +580,9 @@ try_from!(Sequence, GetSequence);
 try_from!(PublicKey, GetSequenceOwner);
 try_from!(SequenceEntries, GetSequenceRange);
 try_from!((u64, SequenceEntry), GetSequenceLastEntry);
-try_from!(SequencePermissions, GetSequencePermissions);
+try_from!(SequencePublicPolicy, GetSequencePublicPolicy);
+try_from!(SequencePrivatePolicy, GetSequencePrivatePolicy);
+try_from!(SequencePermissions, GetSequenceUserPermissions);
 try_from!(Money, GetBalance);
 try_from!(ReplicaPublicKeySet, GetReplicaKeys);
 try_from!(Vec<ReplicaEvent>, GetHistory);
@@ -623,9 +629,19 @@ impl fmt::Debug for QueryResponse {
                 "QueryResponse::GetSequenceLastEntry({:?})",
                 ErrorDebug(res)
             ),
-            GetSequencePermissions(res) => write!(
+            GetSequenceUserPermissions(res) => write!(
                 f,
-                "QueryResponse::GetSequencePermissions({:?})",
+                "QueryResponse::GetSequenceUserPermissions({:?})",
+                ErrorDebug(res)
+            ),
+            GetSequencePublicPolicy(res) => write!(
+                f,
+                "QueryResponse::GetSequencePublicPolicy({:?})",
+                ErrorDebug(res)
+            ),
+            GetSequencePrivatePolicy(res) => write!(
+                f,
+                "QueryResponse::GetSequencePrivatePolicy({:?})",
                 ErrorDebug(res)
             ),
             GetSequenceOwner(res) => {
