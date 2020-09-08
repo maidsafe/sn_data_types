@@ -32,7 +32,6 @@ jobs:
 
       - name: Release generation
         uses: softprops/action-gh-release@91409e712cf565ce9eff10c87a8d1b11b81757ae
-        if: startsWith(github.ref, 'refs/tags/')
         env:
           GITHUB_TOKEN: ${{ secrets.MERGE_BUMP_BRANCH_TOKEN }}
         with:
