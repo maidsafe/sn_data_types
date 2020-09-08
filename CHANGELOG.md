@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.11.12](https://github.com/maidsafe/sn_data_types/compare/v0.11.11...v0.11.12) (2020-09-08)
+
+
+### Bug Fixes
+
+* **seq:** updates to seq after policy changes. ([13d0861](https://github.com/maidsafe/sn_data_types/commit/13d086169f4fb14b76c7a3fe4a13c0a4ebdace96))
+
 ### [0.11.11](https://github.com/maidsafe/sn_data_types/compare/v0.11.10...v0.11.11) (2020-09-07)
 
 ### [0.11.10](https://github.com/maidsafe/sn_data_types/compare/v0.11.9...v0.11.10) (2020-09-07)
