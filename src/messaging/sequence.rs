@@ -39,8 +39,10 @@ pub enum SequenceRead {
     },
     /// Get last entry from the Sequence.
     GetLastEntry(Address),
-    /// List all current users permissions.
-    GetPermissions(Address),
+    /// List current policy
+    GetPublicPolicy(Address),
+    /// List current policy
+    GetPrivatePolicy(Address),
     /// Get current permissions for a specified user(s).
     GetUserPermissions {
         /// Sequence address.
@@ -80,8 +82,9 @@ impl SequenceRead {
             Get(_) => QueryResponse::GetSequence(Err(error)),
             GetRange { .. } => QueryResponse::GetSequenceRange(Err(error)),
             GetLastEntry(_) => QueryResponse::GetSequenceLastEntry(Err(error)),
-            GetPermissions(_) => QueryResponse::GetSequencePermissions(Err(error)),
-            GetUserPermissions { .. } => QueryResponse::GetSequencePermissions(Err(error)),
+            GetPublicPolicy(_) => QueryResponse::GetSequencePublicPolicy(Err(error)),
+            GetPrivatePolicy(_) => QueryResponse::GetSequencePrivatePolicy(Err(error)),
+            GetUserPermissions { .. } => QueryResponse::GetSequenceUserPermissions(Err(error)),
             GetOwner(_) => QueryResponse::GetSequenceOwner(Err(error)),
         }
     }
@@ -93,7 +96,8 @@ impl SequenceRead {
             Get(address)
             | GetRange { address, .. }
             | GetLastEntry(address)
-            | GetPermissions(address)
+            | GetPublicPolicy(address)
+            | GetPrivatePolicy(address)
             | GetUserPermissions { address, .. }
             | GetOwner(address) => {
                 if address.is_pub() {
@@ -112,7 +116,8 @@ impl SequenceRead {
             Get(ref address)
             | GetRange { ref address, .. }
             | GetLastEntry(ref address)
-            | GetPermissions(ref address)
+            | GetPublicPolicy(ref address)
+            | GetPrivatePolicy(ref address)
             | GetUserPermissions { ref address, .. }
             | GetOwner(ref address) => *address.name(),
         }
@@ -129,7 +134,8 @@ impl fmt::Debug for SequenceRead {
                 Get(_) => "GetSequence",
                 GetRange { .. } => "GetSequenceRange",
                 GetLastEntry(_) => "GetSequenceLastEntry",
-                GetPermissions { .. } => "GetSequencePermissions",
+                GetPublicPolicy { .. } => "GetSequencePublicPolicy",
+                GetPrivatePolicy { .. } => "GetSequencePrivatePolicy",
                 GetUserPermissions { .. } => "GetUserPermissions",
                 GetOwner { .. } => "GetOwner",
             }
