@@ -83,7 +83,6 @@ pub use sequence::{
     PrivatePermissions as SequencePrivatePermissions, PrivatePolicy as SequencePrivatePolicy,
     PrivateSeqData, PublicPermissions as SequencePublicPermissions,
     PublicPolicy as SequencePublicPolicy, PublicSeqData, User as SequenceUser,
-    WriteOp as SequenceWriteOp,
 };
 use serde::{Deserialize, Serialize};
 pub use sha3::Sha3_512 as Ed25519Digest;
