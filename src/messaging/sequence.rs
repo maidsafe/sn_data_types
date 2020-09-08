@@ -9,10 +9,9 @@
 
 use super::{AuthorisationKind, CmdError, DataAuthKind, QueryResponse};
 use crate::{
-    Error, PublicKey, Sequence, SequenceAddress as Address, SequenceEntry as Entry,
+    Error, Sequence, SequenceAddress as Address, SequenceDataWriteOp, SequenceEntry as Entry,
     SequenceIndex as Index, SequencePolicyWriteOp, SequencePrivatePolicy as PrivatePolicy,
-    SequencePublicPolicy as PublicPolicy, SequenceUser as User, SequenceWriteOp as WriteOp,
-    XorName,
+    SequencePublicPolicy as PublicPolicy, SequenceUser as User, XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -60,18 +59,16 @@ pub enum SequenceWrite {
     /// Create a new Sequence on the network.
     New(Sequence),
     /// Edit the Sequence (insert/remove entry).
-    Edit(WriteOp<Entry>),
+    Edit(SequenceDataWriteOp<Entry>),
     /// Delete a private Sequence.
     ///
     /// This operation MUST return an error if applied to public Sequence. Only the current
     /// owner(s) can perform this action.
     Delete(Address),
-    /// Set a new owner. Only the current owner(s) can perform this action.
-    SetOwner(WriteOp<PublicKey>),
-    /// Set new permissions for public Sequence.
-    SetPublicPermissions(SequencePolicyWriteOp<PublicPolicy>),
-    /// Set new permissions for private Sequence.
-    SetPrivatePermissions(SequencePolicyWriteOp<PrivatePolicy>),
+    /// Set new policy for public Sequence.
+    SetPublicPolicy(SequencePolicyWriteOp<PublicPolicy>),
+    /// Set new policy for private Sequence.
+    SetPrivatePolicy(SequencePolicyWriteOp<PrivatePolicy>),
 }
 
 impl SequenceRead {
@@ -158,9 +155,9 @@ impl SequenceWrite {
         match self {
             New(ref data) => *data.name(),
             Delete(ref address) => *address.name(),
-            SetPublicPermissions(ref op) => *op.address.name(),
-            SetPrivatePermissions(ref op) => *op.address.name(),
-            SetOwner(ref op) => *op.address.name(),
+            SetPublicPolicy(ref op) => *op.address.name(),
+            SetPrivatePolicy(ref op) => *op.address.name(),
+            // SetOwner(ref op) => *op.address.name(),
             Edit(ref op) => *op.address.name(),
         }
     }
@@ -175,9 +172,9 @@ impl fmt::Debug for SequenceWrite {
             match *self {
                 New(_) => "NewSequence",
                 Delete(_) => "DeleteSequence",
-                SetPublicPermissions(_) => "SetPublicPermissions",
-                SetPrivatePermissions(_) => "SetPrivatePermissions",
-                SetOwner(_) => "SetOwner",
+                SetPublicPolicy(_) => "SetPublicPolicy",
+                SetPrivatePolicy(_) => "SetPrivatePolicy",
+                // SetOwner(_) => "SetOwner",
                 Edit(_) => "EditSequence",
             }
         )

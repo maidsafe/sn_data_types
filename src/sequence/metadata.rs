@@ -281,7 +281,7 @@ impl Perm for PublicPolicy {
 
     /// Gets the permissions for a user if applicable.
     fn permissions(&self, user: User) -> Option<Permissions> {
-        self.permissions.get(&user).map(|p| Permissions::Pub(*p))
+        self.permissions.get(&user).map(|p| Permissions::Public(*p))
     }
 
     /// Returns the owner.
@@ -315,7 +315,7 @@ impl Perm for PrivatePolicy {
     fn permissions(&self, user: User) -> Option<Permissions> {
         match user {
             User::Anyone => None,
-            User::Key(key) => self.permissions.get(&key).map(|p| Permissions::Priv(*p)),
+            User::Key(key) => self.permissions.get(&key).map(|p| Permissions::Private(*p)),
         }
     }
 
@@ -329,20 +329,20 @@ impl Perm for PrivatePolicy {
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub enum Policy {
     /// Public permissions.
-    Pub(PublicPolicy),
+    Public(PublicPolicy),
     /// Private permissions.
-    Priv(PrivatePolicy),
+    Private(PrivatePolicy),
 }
 
 impl From<PrivatePolicy> for Policy {
     fn from(policy: PrivatePolicy) -> Self {
-        Policy::Priv(policy)
+        Policy::Private(policy)
     }
 }
 
 impl From<PublicPolicy> for Policy {
     fn from(policy: PublicPolicy) -> Self {
-        Policy::Pub(policy)
+        Policy::Public(policy)
     }
 }
 
@@ -350,19 +350,19 @@ impl From<PublicPolicy> for Policy {
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub enum Permissions {
     /// Public permissions set.
-    Pub(PublicPermissions),
+    Public(PublicPermissions),
     /// Private permissions set.
-    Priv(PrivatePermissions),
+    Private(PrivatePermissions),
 }
 
 impl From<PrivatePermissions> for Permissions {
     fn from(permission_set: PrivatePermissions) -> Self {
-        Permissions::Priv(permission_set)
+        Permissions::Private(permission_set)
     }
 }
 
 impl From<PublicPermissions> for Permissions {
     fn from(permission_set: PublicPermissions) -> Self {
-        Permissions::Pub(permission_set)
+        Permissions::Public(permission_set)
     }
 }

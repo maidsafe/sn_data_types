@@ -52,13 +52,13 @@ impl Debug for PrivateSeqData {
 /// Write operation to apply to Sequence.
 /// This is used for all kind of CRDT operations made on the Sequence,
 /// i.e. not only on the data but also on the permissions and owner info.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd, Eq, Hash)]
-pub struct WriteOp<T> {
-    /// Address of a Sequence object on the network.
-    pub address: Address,
-    /// The operation to apply.
-    pub crdt_op: Op<T, ActorType>,
-}
+// #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd, Eq, Hash)]
+// pub struct WriteOp<T> {
+//     /// Address of a Sequence object on the network.
+//     pub address: Address,
+//     /// The operation to apply.
+//     pub crdt_op: Op<T, ActorType>,
+// }
 
 /// Object storing a Sequence variant.
 #[derive(Clone, Eq, PartialEq, PartialOrd, Hash, Serialize, Deserialize, Debug)]
@@ -197,7 +197,7 @@ impl Data {
     }
 
     /// Sets the new policy for Public Sequence.
-    pub fn set_pub_policy(
+    pub fn set_public_policy(
         &mut self,
         owner: PublicKey,
         permissions: BTreeMap<User, PublicPermissions>,
@@ -209,7 +209,7 @@ impl Data {
     }
 
     /// Sets the new policy for Private Sequence.
-    pub fn set_priv_policy(
+    pub fn set_private_policy(
         &mut self,
         owner: PublicKey,
         permissions: BTreeMap<PublicKey, PrivatePermissions>,
@@ -229,7 +229,7 @@ impl Data {
     }
 
     /// Apply Private Policy CRDT operation.
-    pub fn apply_priv_policy_op(&mut self, op: PolicyWriteOp<PrivatePolicy>) -> Result<()> {
+    pub fn apply_private_policy_op(&mut self, op: PolicyWriteOp<PrivatePolicy>) -> Result<()> {
         match self {
             Data::Private(data) => data.apply_policy_op(op),
             _ => Err(Error::InvalidOperation),
@@ -264,7 +264,7 @@ impl Data {
     }
 
     /// Returns private policy, if applicable.
-    pub fn priv_policy(&self, version: impl Into<Index>) -> Result<&PrivatePolicy> {
+    pub fn private_policy(&self, version: impl Into<Index>) -> Result<&PrivatePolicy> {
         let perms = match self {
             Data::Private(data) => data.policy(version),
             Data::Public(_) => return Err(Error::InvalidOperation),
@@ -340,7 +340,7 @@ mod tests {
         let mut perms1 = BTreeMap::default();
         let user_perms1 = SequencePublicPermissions::new(true, false);
         let _ = perms1.insert(SequenceUser::Anyone, user_perms1);
-        let policy_op = replica1.set_pub_policy(actor, perms1)?;
+        let policy_op = replica1.set_public_policy(actor, perms1)?;
         replica2.apply_pub_policy_op(policy_op)?;
 
         let entry1 = b"value0".to_vec();
@@ -389,8 +389,8 @@ mod tests {
         let user_perms2 = SequencePublicPermissions::new(false, true);
         let _ = perms2.insert(SequenceUser::Key(actor), user_perms2);
 
-        let op1 = replica1.set_pub_policy(actor, perms1.clone())?;
-        let op2 = replica1.set_pub_policy(actor, perms2.clone())?;
+        let op1 = replica1.set_public_policy(actor, perms1.clone())?;
+        let op2 = replica1.set_public_policy(actor, perms2.clone())?;
 
         // if we apply the operations in different order it should fail
         // as op2 is not causally ready in replica2, it depends on op1
@@ -409,7 +409,7 @@ mod tests {
         assert_eq!(first_entry.owner, actor);
         assert_eq!(first_entry, replica2.pub_policy(index_0)?);
         assert_eq!(
-            SequencePermissions::Pub(user_perms1),
+            SequencePermissions::Public(user_perms1),
             replica1.permissions(SequenceUser::Anyone, index_0)?
         );
 
@@ -419,7 +419,7 @@ mod tests {
         assert_eq!(second_entry.owner, actor);
         assert_eq!(second_entry, replica2.pub_policy(index_1)?);
         assert_eq!(
-            SequencePermissions::Pub(user_perms2),
+            SequencePermissions::Public(user_perms2),
             replica1.permissions(SequenceUser::Key(actor), index_1)?
         );
 
@@ -443,37 +443,37 @@ mod tests {
         let user_perms2 = SequencePrivatePermissions::new(false, true, false);
         let _ = perms2.insert(actor2, user_perms2);
 
-        let op1 = replica1.set_priv_policy(actor2, perms1.clone())?;
-        let op2 = replica1.set_priv_policy(actor1, perms2.clone())?;
+        let op1 = replica1.set_private_policy(actor2, perms1.clone())?;
+        let op2 = replica1.set_private_policy(actor1, perms2.clone())?;
 
         // if we apply the operations in different order it should fail
         // as op2 is not causally ready in replica2, it depends on op1
-        check_not_causally_ready_failure(replica2.apply_priv_policy_op(op2.clone()))?;
+        check_not_causally_ready_failure(replica2.apply_private_policy_op(op2.clone()))?;
 
         // let's apply op1 first then
-        replica2.apply_priv_policy_op(op1)?;
-        replica2.apply_priv_policy_op(op2)?;
+        replica2.apply_private_policy_op(op1)?;
+        replica2.apply_private_policy_op(op2)?;
 
         assert_eq!(replica1.policy_version(), 2);
         assert_eq!(replica2.policy_version(), 2);
 
         let index_0 = SequenceIndex::FromStart(0);
-        let first_entry = replica1.priv_policy(index_0)?;
+        let first_entry = replica1.private_policy(index_0)?;
         assert_eq!(first_entry.permissions, perms1);
         assert_eq!(first_entry.owner, actor2);
-        assert_eq!(first_entry, replica2.priv_policy(index_0)?);
+        assert_eq!(first_entry, replica2.private_policy(index_0)?);
         assert_eq!(
-            SequencePermissions::Priv(user_perms1),
+            SequencePermissions::Private(user_perms1),
             replica1.permissions(SequenceUser::Key(actor1), index_0)?
         );
 
         let index_1 = SequenceIndex::FromStart(1);
-        let second_entry = replica1.priv_policy(index_1)?;
+        let second_entry = replica1.private_policy(index_1)?;
         assert_eq!(second_entry.permissions, perms2);
         assert_eq!(second_entry.owner, actor1);
-        assert_eq!(second_entry, replica2.priv_policy(index_1)?);
+        assert_eq!(second_entry, replica2.private_policy(index_1)?);
         assert_eq!(
-            SequencePermissions::Priv(user_perms2),
+            SequencePermissions::Private(user_perms2),
             replica1.permissions(SequenceUser::Key(actor2), index_1)?
         );
 
@@ -497,7 +497,7 @@ mod tests {
         let user_perms =
             SequencePublicPermissions::new(/*append=*/ true, /*admin=*/ false);
         let _ = perms.insert(SequenceUser::Key(actor2), user_perms);
-        let grant_op = replica1.set_pub_policy(actor1, perms)?;
+        let grant_op = replica1.set_public_policy(actor1, perms)?;
         replica2.apply_pub_policy_op(grant_op)?;
 
         // And let's append both replicas with one first item
@@ -512,7 +512,7 @@ mod tests {
         assert_eq!(replica2.policy_version(), 1);
 
         // We revoke authorisation for Actor2 locally on replica1
-        let revoke_op = replica1.set_pub_policy(actor1, BTreeMap::default())?;
+        let revoke_op = replica1.set_public_policy(actor1, BTreeMap::default())?;
         // New Policy should have been set on replica1
         assert_eq!(replica1.policy_version(), 2);
 
@@ -553,7 +553,7 @@ mod tests {
         let mut replica3 = Sequence::new_public(actor3, sdata_name, sdata_tag);
 
         // Set Actor1 as the owner in all replicas, with empty users permissions yet
-        let owner_op = replica1.set_pub_policy(actor1, BTreeMap::default())?;
+        let owner_op = replica1.set_public_policy(actor1, BTreeMap::default())?;
         replica2.apply_pub_policy_op(owner_op.clone())?;
         replica3.apply_pub_policy_op(owner_op)?;
 
@@ -562,7 +562,7 @@ mod tests {
         let user_perms =
             SequencePublicPermissions::new(/*append=*/ true, /*admin=*/ false);
         let _ = perms.insert(SequenceUser::Key(actor3), user_perms);
-        let grant_op = replica1.set_pub_policy(actor1, perms)?;
+        let grant_op = replica1.set_public_policy(actor1, perms)?;
         replica3.apply_pub_policy_op(grant_op.clone())?;
 
         // Let's assert the state on three replicas
@@ -615,7 +615,7 @@ mod tests {
         let user_perms =
             SequencePublicPermissions::new(/*append=*/ true, /*admin=*/ false);
         let _ = perms.insert(SequenceUser::Key(actor2), user_perms);
-        let owner_op = replica1.set_pub_policy(actor1, perms.clone())?;
+        let owner_op = replica1.set_public_policy(actor1, perms.clone())?;
         replica2.apply_pub_policy_op(owner_op)?;
 
         // Append item on replica1, and apply it to replica2
@@ -630,8 +630,8 @@ mod tests {
         assert_eq!(replica2.policy_version(), 1);
 
         // Concurrently set new policy (new owner) on both replicas
-        let owner_op_1 = replica1.set_pub_policy(actor2, perms.clone())?;
-        let owner_op_2 = replica2.set_pub_policy(actor2, perms)?;
+        let owner_op_1 = replica1.set_public_policy(actor2, perms.clone())?;
+        let owner_op_2 = replica2.set_public_policy(actor2, perms)?;
         // ...and concurrently append a new item on top of their own respective new policies
         let item1_r1 = b"item1_replica1".to_vec();
         let item1_r2 = b"item1_replica2".to_vec();
@@ -676,7 +676,7 @@ mod tests {
         let user_perms =
             SequencePublicPermissions::new(/*append=*/ true, /*admin=*/ false);
         let _ = perms.insert(SequenceUser::Key(actor2), user_perms);
-        let owner_op = replica1.set_pub_policy(actor1, perms)?;
+        let owner_op = replica1.set_public_policy(actor1, perms)?;
         replica2.apply_pub_policy_op(owner_op)?;
 
         // Append an item on replica1
@@ -684,7 +684,7 @@ mod tests {
         let append_op = replica1.append(item0)?;
 
         // A new Policy is set in replica1 and applied to replica2
-        let policy_op = replica1.set_pub_policy(actor1, BTreeMap::default())?;
+        let policy_op = replica1.set_public_policy(actor1, BTreeMap::default())?;
         replica2.apply_pub_policy_op(policy_op)?;
 
         // Now the old append op is applied to replica2
