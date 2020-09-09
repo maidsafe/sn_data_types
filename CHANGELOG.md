@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.11.16](https://github.com/maidsafe/sn_data_types/compare/v0.11.15...v0.11.16) (2020-09-09)
+
+
+### Bug Fixes
+
+* **cd:** use cleaner naming for release changelog generation ([ff0867e](https://github.com/maidsafe/sn_data_types/commit/ff0867e3458901c09ad95504e3b920ea06aa08db))
+
 ### [0.11.15](https://github.com/maidsafe/sn_data_types/compare/v0.11.14...v0.11.15) (2020-09-09)
 
 ### Bug Fixes
