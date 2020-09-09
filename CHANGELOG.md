@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.11.14](https://github.com/maidsafe/sn_data_types/compare/v0.11.13...v0.11.14) (2020-09-09)
+
+
+### Bug Fixes
+
+* **CD:** use branch creator token for creating tags ([ddfd304](https://github.com/maidsafe/sn_data_types/commit/ddfd3049068dc8b00b6cb48b29e0b224ee2a6459))
+
 ### [0.11.13](https://github.com/maidsafe/sn_data_types/compare/v0.11.12...v0.11.13) (2020-09-08)
 
 
