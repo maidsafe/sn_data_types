@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.11.15](https://github.com/maidsafe/sn_data_types/compare/v0.11.14...v0.11.15) (2020-09-09)
+
+
+### Bug Fixes
+
+* **CD:** use token option for checkout@2 ([dc8422b](https://github.com/maidsafe/sn_data_types/commit/dc8422bd28d242cf27580829e9e8623fc97163c1))
+
 ### [0.11.14](https://github.com/maidsafe/sn_data_types/compare/v0.11.13...v0.11.14) (2020-09-09)
 
 
