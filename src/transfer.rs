@@ -5,11 +5,8 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use threshold_crypto::PublicKeySet;
 
-/// Actor id
-pub type AccountId = PublicKey;
-
 /// Transfer ID.
-pub type TransferId = Dot<AccountId>;
+pub type TransferId = Dot<PublicKey>;
 
 /// A transfer of money between two keys.
 #[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Serialize, Deserialize, Debug)]
@@ -17,7 +14,7 @@ pub struct Transfer {
     /// Transfer ID, containing source key.
     pub id: TransferId,
     /// The destination to transfer to.
-    pub to: AccountId,
+    pub to: PublicKey,
     /// The amount to transfer.
     pub amount: Money,
 }
@@ -34,7 +31,7 @@ impl Transfer {
     }
 
     /// Get the sender of this transfer
-    pub fn from(&self) -> AccountId {
+    pub fn from(&self) -> PublicKey {
         self.id.actor
     }
 
