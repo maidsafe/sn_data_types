@@ -8,8 +8,8 @@
 // Software.
 
 use crate::{
-    AccountId, Address, Blob, BlobAddress, DebitAgreementProof, Error, PublicKey, ReplicaEvent,
-    Result, Signature, SignedTransfer, TransferId, TransferValidated, XorName,
+    Address, Blob, BlobAddress, DebitAgreementProof, Error, PublicKey, ReplicaEvent, Result,
+    Signature, SignedTransfer, TransferId, TransferValidated, XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -104,7 +104,7 @@ pub enum NodeQuery {
 pub enum NodeRewardQuery {
     /// Sent by the new section to the
     /// old section after node relocation.
-    GetAccountId {
+    GetWalletId {
         /// The id of the node
         /// in the old section.
         old_node_id: XorName,
@@ -158,10 +158,10 @@ pub enum NodeQueryResponse {
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NodeRewardQueryResponse {
-    /// Returns the account id
+    /// Returns the wallet address
     /// together with the new node id,
     /// that followed with the original query.
-    GetAccountId(Result<(PublicKey, XorName)>),
+    GetWalletId(Result<(PublicKey, XorName)>),
 }
 
 ///
@@ -221,7 +221,7 @@ pub enum NodeRewardError {
     ///
     RewardClaiming {
         ///
-        account_id: AccountId,
+        wallet: PublicKey,
         ///
         error: Error,
     },
@@ -230,7 +230,7 @@ pub enum NodeRewardError {
         ///
         id: TransferId,
         ///
-        account: AccountId,
+        wallet: PublicKey,
         ///
         error: Error,
     },
@@ -239,7 +239,7 @@ pub enum NodeRewardError {
         ///
         id: TransferId,
         ///
-        account: AccountId,
+        wallet: PublicKey,
         ///
         error: Error,
     },
@@ -291,7 +291,7 @@ impl NodeQuery {
             Transfers(transfer_query) => match transfer_query {
                 GetReplicaEvents(section_key) => Section((*section_key).into()),
             },
-            Rewards(GetAccountId { old_node_id, .. }) => Section(*old_node_id),
+            Rewards(GetWalletId { old_node_id, .. }) => Section(*old_node_id),
         }
     }
 }
