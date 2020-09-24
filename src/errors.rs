@@ -72,7 +72,7 @@ pub enum Error {
     InvalidSignature,
     /// Received a request with a duplicate MessageId
     DuplicateMessageId,
-    /// Network error occurring at Vault level which has no bearing on clients, e.g. serialisation
+    /// Network error occurring at Node level which has no bearing on clients, e.g. serialisation
     /// failure or database failure
     NetworkOther(String),
     /// While parsing, precision would be lost.
@@ -137,7 +137,7 @@ impl Display for Error {
                 write!(f, "Mismatch between key type and signature type")
             }
             Error::InvalidSignature => write!(f, "Failed signature validation"),
-            Error::NetworkOther(ref error) => write!(f, "Error on Vault network: {}", error),
+            Error::NetworkOther(ref error) => write!(f, "Error on Node network: {}", error),
             Error::LossOfPrecision => {
                 write!(f, "Lost precision on the amount of money during parsing")
             }

@@ -153,7 +153,7 @@ pub struct AppPermissions {
     pub read_transfer_history: bool,
 }
 
-/// Handshake requests sent from clients to vaults to establish new connections and verify a client's
+/// Handshake requests sent from clients to nodes to establish new connections and verify a client's
 /// key (to prevent replay attacks).
 #[derive(Serialize, Deserialize)]
 pub enum HandshakeRequest {
@@ -161,11 +161,11 @@ pub enum HandshakeRequest {
     Bootstrap(PublicKey),
     /// Sent to destination nodes as a response to `HandshakeResponse::Join`.
     Join(PublicKey),
-    /// Response to `HandshakeResponse::Challenge` sent by a vault.
+    /// Response to `HandshakeResponse::Challenge` sent by a node.
     ChallengeResult(Signature),
 }
 
-/// Handshake responses sent from vaults to clients.
+/// Handshake responses sent from nodes to clients.
 #[allow(clippy::large_enum_variant)]
 #[derive(Serialize, Deserialize)]
 pub enum HandshakeResponse {

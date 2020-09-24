@@ -51,7 +51,7 @@ pub struct SeqData {
     version: u64,
     /// Contains the public key of an owner or owners of this data.
     ///
-    /// Data Handlers in vaults enforce that a mutation request has a valid signature of the owner.
+    /// Data Handlers in nodes enforce that a mutation request has a valid signature of the owner.
     owner: PublicKey,
 }
 
@@ -75,7 +75,7 @@ pub struct UnseqData {
     version: u64,
     /// Contains the public key of an owner or owners of this data.
     ///
-    /// Data Handlers in vaults enforce that a mutation request has a valid signature of the owner.
+    /// Data Handlers in nodes enforce that a mutation request has a valid signature of the owner.
     owner: PublicKey,
 }
 
