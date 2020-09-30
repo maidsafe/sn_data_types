@@ -120,7 +120,12 @@ pub enum NodeTransferQuery {
     /// Replicas starting up
     /// need to query for events of
     /// the existing Replicas.
-    GetReplicaEvents(PublicKey),
+    GetReplicaEvents {
+        /// The current Section Key
+        section_key: PublicKey,
+        /// XorName of the elder requesting Events
+        requester: XorName,
+    },
 }
 
 ///
@@ -289,7 +294,7 @@ impl NodeQuery {
                 GetChunk { holder, .. } | GetChunks { holder, .. } => Node(*holder),
             },
             Transfers(transfer_query) => match transfer_query {
-                GetReplicaEvents(section_key) => Section((*section_key).into()),
+                GetReplicaEvents { section_key, .. } => Section((*section_key).into()),
             },
             Rewards(GetWalletId { old_node_id, .. }) => Section(*old_node_id),
         }
