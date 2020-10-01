@@ -135,6 +135,31 @@ impl MsgSender {
     pub fn verify(&self, payload: &[u8]) -> bool {
         self.entity.try_verify(&self.sig, payload)
     }
+
+    ///
+    pub fn is_client(&self) -> bool {
+        matches!(self.entity, Entity::Client(_))
+    }
+
+    ///
+    pub fn is_any_node(&self) -> bool {
+        matches!(self.entity, Entity::AnyNode { .. })
+    }
+
+    ///
+    pub fn is_adult(&self) -> bool {
+        matches!(self.entity, Entity::AdultNode { .. })
+    }
+
+    ///
+    pub fn is_elder(&self) -> bool {
+        matches!(self.entity, Entity::ElderNode { .. })
+    }
+
+    ///
+    pub fn is_section(&self) -> bool {
+        matches!(self.entity, Entity::Section { .. })
+    }
 }
 
 impl Entity {
