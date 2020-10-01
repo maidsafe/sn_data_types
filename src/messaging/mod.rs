@@ -35,7 +35,7 @@ pub use self::{
         NodeTransferQuery, NodeTransferQueryResponse,
     },
     query::Query,
-    sender::{Address, MsgSender},
+    sender::{Address, MsgSender, TransientElderKey, TransientSectionKey},
     sequence::{SequenceRead, SequenceWrite},
     transfer::{TransferCmd, TransferQuery},
 };

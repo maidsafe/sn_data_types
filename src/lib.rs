@@ -68,7 +68,8 @@ pub use messaging::{
     NodeDataQueryResponse, NodeDuties, NodeEvent, NodeQuery, NodeQueryResponse, NodeRewardError,
     NodeRewardQuery, NodeRewardQueryResponse, NodeSystemCmd, NodeTransferCmd, NodeTransferError,
     NodeTransferQuery, NodeTransferQueryResponse, Query, QueryResponse, SequenceRead,
-    SequenceWrite, TransferCmd, TransferError, TransferQuery, TryFromError, MAX_LOGIN_PACKET_BYTES,
+    SequenceWrite, TransferCmd, TransferError, TransferQuery, TransientElderKey,
+    TransientSectionKey, TryFromError, MAX_LOGIN_PACKET_BYTES,
 };
 pub use money::Money;
 pub use rewards::{RewardCounter, Work};

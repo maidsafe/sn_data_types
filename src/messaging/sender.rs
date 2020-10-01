@@ -9,7 +9,7 @@
 
 pub use xor_name::Prefix;
 
-use crate::{utils, AdultDuties, Duty, ElderDuties, PublicKey, Signature};
+use crate::{utils, AdultDuties, Duty, ElderDuties, PublicKey, Result, Signature, SignatureShare};
 use ed25519_dalek::PublicKey as Ed25519PublicKey;
 use ed25519_dalek::Signature as Ed25519Signature;
 use serde::{Deserialize, Serialize};
@@ -19,28 +19,43 @@ use std::{
     hash::{Hash, Hasher},
 };
 use threshold_crypto::{
-    PublicKey as BlsPublicKey, PublicKeyShare as BlsPublicKeyShare, Signature as BlsSignature,
+    PublicKey as BlsPublicKey, PublicKeySet as BlsPublicKeySet,
+    PublicKeyShare as BlsPublicKeyShare, Signature as BlsSignature,
     SignatureShare as BlsSignatureShare,
 };
 use xor_name::XorName;
 
-///
+/// A msg sender in the larger network (clients + nodes),
+/// provides its identification by specifying type of entity,
+/// and providing a signature over it.
 #[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub struct MsgSender {
     entity: Entity,
     sig: EntitySignature,
 }
 
+/// An identifier of a section, as
+/// of a specific Elder constellation, thereby making it transient.
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
-pub struct SectionKey {
-    prefix: Prefix,
-    bls_key: BlsPublicKey,
+pub struct TransientSectionKey {
+    /// The xorspace related id.
+    pub name: XorName,
+    /// The group sig related id.
+    pub bls_key: BlsPublicKey,
 }
 
+/// An identifier of an Elder, as
+/// of a specific Elder constellation, thereby making it transient.
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
-pub struct ElderKey {
-    node_id: Ed25519PublicKey,
-    bls_key: BlsPublicKeyShare,
+pub struct TransientElderKey {
+    /// The xorspace related id for the node.
+    pub node_id: Ed25519PublicKey,
+    /// Part of the group sig related id.
+    pub bls_key: BlsPublicKeyShare,
+    /// Part of the group sig related id.
+    pub bls_share_index: usize,
+    /// Part of the group sig related id.
+    pub bls_public_key_set: BlsPublicKeySet,
 }
 
 /// An entity in the messaging ecosystem.
@@ -54,9 +69,9 @@ pub enum Entity {
     ///
     AdultNode(Ed25519PublicKey, AdultDuties),
     ///
-    ElderNode(ElderKey, ElderDuties),
+    ElderNode(TransientElderKey, ElderDuties),
     ///
-    Section(SectionKey, ElderDuties),
+    Section(TransientSectionKey, ElderDuties),
 }
 
 ///
@@ -110,6 +125,50 @@ impl Address {
 }
 
 impl MsgSender {
+    ///
+    pub fn client(key: PublicKey, sig: Signature) -> Result<Self> {
+        Ok(Self {
+            entity: Entity::Client(key),
+            sig: EntitySignature::Client(sig),
+        })
+    }
+
+    ///
+    pub fn any_node(key: Ed25519PublicKey, duty: Duty, sig: Ed25519Signature) -> Result<Self> {
+        Ok(Self {
+            entity: Entity::AnyNode(key, duty),
+            sig: EntitySignature::Node(sig),
+        })
+    }
+
+    ///
+    pub fn adult(key: Ed25519PublicKey, duty: AdultDuties, sig: Ed25519Signature) -> Result<Self> {
+        Ok(Self {
+            entity: Entity::AdultNode(key, duty),
+            sig: EntitySignature::Node(sig),
+        })
+    }
+
+    ///
+    pub fn elder(
+        key: TransientElderKey,
+        duty: ElderDuties,
+        sig: BlsSignatureShare,
+    ) -> Result<Self> {
+        Ok(Self {
+            entity: Entity::ElderNode(key, duty),
+            sig: EntitySignature::Elder(sig),
+        })
+    }
+
+    ///
+    pub fn section(key: TransientSectionKey, duty: ElderDuties, sig: BlsSignature) -> Result<Self> {
+        Ok(Self {
+            entity: Entity::Section(key, duty),
+            sig: EntitySignature::Section(sig),
+        })
+    }
+
     /// The id of the sender.
     pub fn id(&self) -> EntityId {
         self.entity.id()
@@ -134,6 +193,30 @@ impl MsgSender {
     /// Verifies a payload as sent by this sender.
     pub fn verify(&self, payload: &[u8]) -> bool {
         self.entity.try_verify(&self.sig, payload)
+    }
+
+    /// If sender is Elder
+    pub fn group_key_set(&self) -> Option<BlsPublicKeySet> {
+        if let Entity::ElderNode(key, _) = &self.entity {
+            Some(key.bls_public_key_set.clone())
+        } else {
+            None
+        }
+    }
+
+    /// If sender is Elder
+    pub fn group_sig_share(&self) -> Option<SignatureShare> {
+        if let Entity::ElderNode(key, _) = &self.entity {
+            if let EntitySignature::Elder(sig) = &self.sig {
+                return Some(SignatureShare {
+                    index: key.bls_share_index,
+                    share: sig.clone(),
+                });
+            } else {
+                unreachable!("Should not be possible to instantiate such a combination.")
+            }
+        }
+        None
     }
 
     ///
@@ -182,7 +265,7 @@ impl Entity {
             Client(key) => Address::Client((*key).into()),
             AnyNode(key, ..) | AdultNode(key, ..) => Address::Node(PublicKey::Ed25519(*key).into()),
             ElderNode(key, ..) => Address::Node(PublicKey::Ed25519(key.node_id).into()),
-            Section(key, ..) => Address::Section(key.prefix.name()),
+            Section(key, ..) => Address::Section(key.name),
         }
     }
 
