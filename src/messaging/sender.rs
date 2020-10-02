@@ -124,6 +124,17 @@ impl Address {
     }
 }
 
+impl EntityId {
+    ///
+    pub fn public_key(&self) -> PublicKey {
+        match self {
+            Self::Client(key) => *key,
+            Self::Node(key) => PublicKey::Ed25519(*key),
+            Self::Section(key) => PublicKey::Bls(*key),
+        }
+    }
+}
+
 impl MsgSender {
     ///
     pub fn client(key: PublicKey, sig: Signature) -> Result<Self> {
