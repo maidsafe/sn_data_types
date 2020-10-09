@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.11.19](https://github.com/maidsafe/sn_data_types/compare/v0.11.18...v0.11.19) (2020-10-08)
+
+
+### Features
+
+* **msg_sender:** expose sender type query api ([1841c3f](https://github.com/maidsafe/sn_data_types/commit/1841c3f61316244022a70ed789fd4fb9d3613cc4))
+* **msg_sender:** expose sig share and key set api ([814193e](https://github.com/maidsafe/sn_data_types/commit/814193ebd5739adaeacdbed9d1ecc22865c68e4f))
+* **sender:** expose entityid public_key api ([c715c3c](https://github.com/maidsafe/sn_data_types/commit/c715c3c81cb8da8d45aaa3ca3e0da8a5bb02967b))
+
+
+### Bug Fixes
+
+* **sender_malarkey:** just fix it ([733beae](https://github.com/maidsafe/sn_data_types/commit/733beae651e2cde02e24597a8e57c992ff2e502b))
+
 ### [0.11.18](https://github.com/maidsafe/sn_data_types/compare/v0.11.17...v0.11.18) (2020-09-28)
 
 ### [0.11.17](https://github.com/maidsafe/sn_data_types/compare/v0.11.16...v0.11.17) (2020-09-15)

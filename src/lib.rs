@@ -50,10 +50,8 @@ pub use identity::{
     node::{FullId as NodeFullId, NodeKeypairs, PublicId as NodePublicId},
     PublicId,
 };
-pub use keys::{
-    BlsKeypair, BlsKeypairShare, BlsProof, BlsProofShare, Ed25519Proof, Keypair, Proof, Proven,
-    PublicKey, Signature, SignatureShare,
-};
+
+pub use keys::{BlsKeypair, BlsKeypairShare, Keypair, PublicKey, Signature, SignatureShare};
 pub use map::{
     Action as MapAction, Address as MapAddress, Data as Map, Entries as MapEntries,
     EntryActions as MapEntryActions, Kind as MapKind, PermissionSet as MapPermissionSet,
@@ -70,7 +68,8 @@ pub use messaging::{
     NodeDataQueryResponse, NodeDuties, NodeEvent, NodeQuery, NodeQueryResponse, NodeRewardError,
     NodeRewardQuery, NodeRewardQueryResponse, NodeSystemCmd, NodeTransferCmd, NodeTransferError,
     NodeTransferQuery, NodeTransferQueryResponse, Query, QueryResponse, SequenceRead,
-    SequenceWrite, TransferCmd, TransferError, TransferQuery, TryFromError, MAX_LOGIN_PACKET_BYTES,
+    SequenceWrite, TransferCmd, TransferError, TransferQuery, TransientElderKey,
+    TransientSectionKey, TryFromError, MAX_LOGIN_PACKET_BYTES,
 };
 pub use money::Money;
 pub use rewards::{RewardCounter, Work};

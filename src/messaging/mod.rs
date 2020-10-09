@@ -16,6 +16,7 @@ mod duty;
 mod map;
 mod network;
 mod query;
+mod sender;
 mod sequence;
 mod transfer;
 
@@ -34,14 +35,15 @@ pub use self::{
         NodeTransferQuery, NodeTransferQueryResponse,
     },
     query::Query,
+    sender::{Address, MsgSender, TransientElderKey, TransientSectionKey},
     sequence::{SequenceRead, SequenceWrite},
     transfer::{TransferCmd, TransferQuery},
 };
 use crate::{
-    errors::ErrorDebug, utils, AppPermissions, Blob, BlsProof, DebitAgreementProof, Error, Map,
-    MapEntries, MapPermissionSet, MapValue, MapValues, Money, Proof, PublicKey, ReplicaEvent,
-    ReplicaPublicKeySet, Result, Sequence, SequenceEntries, SequenceEntry, SequencePermissions,
-    SequencePrivatePolicy, SequencePublicPolicy, Signature, TransferValidated,
+    errors::ErrorDebug, utils, AppPermissions, Blob, DebitAgreementProof, Error, Map, MapEntries,
+    MapPermissionSet, MapValue, MapValues, Money, PublicKey, ReplicaEvent, ReplicaPublicKeySet,
+    Result, Sequence, SequenceEntries, SequenceEntry, SequencePermissions, SequencePrivatePolicy,
+    SequencePublicPolicy, Signature, TransferValidated,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -50,6 +52,7 @@ use std::{
     fmt,
 };
 use xor_name::XorName;
+
 ///
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
@@ -81,8 +84,8 @@ impl MsgEnvelope {
             let _ = msg.proxies.pop();
             utils::serialise(&msg)
         };
-        let signer = self.most_recent_sender();
-        signer.id().verify(&signer.signature(), data).is_ok()
+        let sender = self.most_recent_sender();
+        sender.verify(&data)
     }
 
     /// The proxy would first sign the MsgEnvelope,
@@ -101,135 +104,66 @@ impl MsgEnvelope {
     }
 
     ///
-    pub fn destination(&self) -> Address {
+    pub fn destination(&self) -> Result<Address> {
         use Address::*;
         use Message::*;
         match &self.message {
             Cmd { cmd, .. } => self.cmd_dst(cmd),
-            Query { query, .. } => Section(query.dst_address()),
-            Event { event, .. } => Client(event.dst_address()), // TODO: needs the correct client address
-            QueryResponse { query_origin, .. } => query_origin.clone(),
-            CmdError { cmd_origin, .. } => cmd_origin.clone(),
-            NodeCmd { cmd, .. } => cmd.dst_address(),
-            NodeEvent { event, .. } => event.dst_address(),
-            NodeQuery { query, .. } => query.dst_address(),
-            NodeCmdError { cmd_origin, .. } => cmd_origin.clone(),
-            NodeQueryResponse { query_origin, .. } => query_origin.clone(),
+            Query { query, .. } => Ok(Section(query.dst_address())),
+            Event { event, .. } => Ok(Client(event.dst_address())), // TODO: needs the correct client address
+            QueryResponse { query_origin, .. } => Ok(query_origin.clone()),
+            CmdError { cmd_origin, .. } => Ok(cmd_origin.clone()),
+            NodeCmd { cmd, .. } => Ok(cmd.dst_address()),
+            NodeEvent { event, .. } => Ok(event.dst_address()),
+            NodeQuery { query, .. } => Ok(query.dst_address()),
+            NodeCmdError { cmd_origin, .. } => Ok(cmd_origin.clone()),
+            NodeQueryResponse { query_origin, .. } => Ok(query_origin.clone()),
         }
     }
 
-    fn cmd_dst(&self, cmd: &Cmd) -> Address {
+    fn cmd_dst(&self, cmd: &Cmd) -> Result<Address> {
         use Address::*;
         use Cmd::*;
         match cmd {
             // temporary case, while not impl at `Authenticator`
-            Auth(_) => Section(self.origin.id().into()),
+            Auth(_) => Ok(Section(self.origin.address().xorname())),
             // always to `Payment` section
-            Transfer(c) => Section(c.dst_address()),
+            Transfer(c) => Ok(Section(c.dst_address())),
             // Data dst (after reaching `Gateway`)
             // is `Payment` and then `Metadata`.
             Data { cmd, payment } => {
-                match self.most_recent_sender() {
+                let sender = self.most_recent_sender();
+                match sender.address() {
                     // From `Client` to `Gateway`.
-                    MsgSender::Client { .. } => Section(self.origin.id().into()),
-                    // From `Gateway` to `Payment`.
-                    MsgSender::Node {
-                        duty: Duty::Elder(ElderDuties::Gateway),
-                        ..
-                    } => Section(payment.from().into()),
-                    // From `Payment` to `Metadata`.
-                    MsgSender::Node {
-                        duty: Duty::Elder(ElderDuties::Payment),
-                        ..
-                    } => Section(cmd.dst_address()),
-                    // Accumulated at `Metadata`.
-                    // I.e. this means we accumulated a section signature from `Payment` Elders.
-                    // (this is done at `Metadata` Elders, and the accumulated section is added to most recent sender)
-                    MsgSender::Section {
-                        duty: Duty::Elder(ElderDuties::Payment),
-                        ..
-                    } => Section(cmd.dst_address()),
-                    _ => {
-                        // this should not be a valid case
-                        // just putting a default address here for now
-                        // (pointing at `Gateway` seems best)
-                        Section(self.origin.id().into())
+                    Client(xorname) => Ok(Section(xorname)),
+                    Node(_) => {
+                        match sender.duty() {
+                            // From `Gateway` to `Payment`.
+                            Some(Duty::Elder(ElderDuties::Gateway)) => {
+                                Ok(Section(payment.from().into()))
+                            }
+                            // From `Payment` to `Metadata`.
+                            Some(Duty::Elder(ElderDuties::Payment)) => {
+                                Ok(Section(cmd.dst_address()))
+                            }
+                            // As it reads; simply no such recipient ;)
+                            _ => Err(Error::NoSuchRecipient),
+                        }
+                    }
+                    Section(_) => {
+                        match sender.duty() {
+                            // Accumulated at `Metadata`.
+                            // I.e. this means we accumulated a section signature from `Payment` Elders.
+                            // (this is done at `Metadata` Elders, and the accumulated section is added to most recent sender)
+                            Some(Duty::Elder(ElderDuties::Payment)) => {
+                                Ok(Section(cmd.dst_address()))
+                            }
+                            // As it reads; simply no such recipient ;)
+                            _ => Err(Error::NoSuchRecipient),
+                        }
                     }
                 }
             }
-        }
-    }
-}
-
-///
-#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
-pub enum MsgSender {
-    ///
-    Client(Proof),
-    ///
-    Node {
-        ///
-        duty: Duty,
-        ///
-        proof: Proof,
-    },
-    ///
-    Section {
-        ///
-        duty: Duty,
-        ///
-        proof: BlsProof,
-    },
-}
-
-impl MsgSender {
-    ///
-    pub fn id(&self) -> PublicKey {
-        use MsgSender::*;
-        match self {
-            Client(proof) | Node { proof, .. } => proof.id(),
-            Section { proof, .. } => proof.id(),
-        }
-    }
-
-    ///
-    pub fn address(&self) -> Address {
-        use MsgSender::*;
-        match self {
-            Client(_) => Address::Client(self.id().into()),
-            Node { .. } => Address::Node(self.id().into()),
-            Section { .. } => Address::Section(self.id().into()),
-        }
-    }
-
-    ///
-    pub fn signature(&self) -> Signature {
-        use MsgSender::*;
-        match self {
-            Client(proof) => proof.signature(),
-            Node { proof, .. } => proof.signature(),
-            Section { proof, .. } => proof.signature(),
-        }
-    }
-}
-
-///
-#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
-pub enum Address {
-    ///
-    Client(XorName),
-    ///
-    Node(XorName),
-    ///
-    Section(XorName),
-}
-
-impl Address {
-    /// Extracts the underlying XorName.
-    pub fn xorname(&self) -> XorName {
-        use Address::*;
-        match self {
-            Client(xorname) | Node(xorname) | Section(xorname) => *xorname,
         }
     }
 }
