@@ -104,12 +104,10 @@ mod tests {
         );
 
         let node_id = node::FullId::new(&mut rng);
-        assert!(match client::PublicId::decode_from_zbase32(
-            &node_id.public_id().encode_to_zbase32()
-        ) {
-            Err(Error::FailedToParse(_)) => true,
-            _ => false,
-        });
+        assert!(matches!(
+            client::PublicId::decode_from_zbase32(&node_id.public_id().encode_to_zbase32()),
+            Err(Error::FailedToParse(_))
+        ));
         assert!(client::PublicId::decode_from_zbase32("sdkjf832939fjs").is_err());
     }
 
