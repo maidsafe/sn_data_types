@@ -26,6 +26,7 @@ Cargo.lock
 *.bk
 *.swp
 *.sublime-*
+*.idea/
 
 # Manual
 .cargo/
