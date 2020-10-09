@@ -323,11 +323,11 @@ where
     /// Gets a list of items which are within the given indices.
     pub fn in_range(&self, start: Index, end: Index) -> Option<Entries> {
         let start_index = to_absolute_index(start, self.len() as usize)?;
-        let end_index = to_absolute_index(end, self.len() as usize)?;
+        let num_items = to_absolute_index(end, self.len() as usize)?; // end_index
 
         self.current_lseq().map(|lseq| {
             lseq.iter()
-                .take(end_index - 1)
+                .take(num_items)
                 .enumerate()
                 .take_while(|(i, _)| i >= &start_index)
                 .map(|(_, entry)| entry.clone())
