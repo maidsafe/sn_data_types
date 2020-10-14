@@ -420,6 +420,8 @@ pub enum QueryResponse {
     GetBalance(Result<Money>),
     /// Get key transfer history.
     GetHistory(Result<Vec<ReplicaEvent>>),
+    /// Get Store Cost.
+    GetStoreCost(Result<Money>),
     //
     // ===== Account =====
     //
@@ -587,6 +589,7 @@ impl fmt::Debug for QueryResponse {
             }
             GetBalance(res) => write!(f, "QueryResponse::GetBalance({:?})", ErrorDebug(res)),
             GetHistory(res) => write!(f, "QueryResponse::GetHistory({:?})", ErrorDebug(res)),
+            GetStoreCost(res) => write!(f, "QueryResponse::GetStoreCost({:?})", ErrorDebug(res)),
             // Account
             GetAccount(res) => write!(f, "QueryResponse::GetAccount({:?})", ErrorDebug(res)),
             // Client Auth
