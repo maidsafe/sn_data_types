@@ -363,6 +363,23 @@ impl Keypair {
         }
     }
 
+    /// Returns the secret key associated with this keypair.
+    pub fn secret_key(&self) -> Result<SecretKey> {
+        match self {
+            Self::Ed25519(keypair) => {
+                let bytes = keypair.secret.to_bytes();
+                match ed25519_dalek::SecretKey::from_bytes(&bytes) {
+                    Ok(sk) => Ok(SecretKey::Ed25519(sk)),
+                    Err(_) => Err(Error::Unexpected(
+                        "Could not deserialise Ed25519 secret key".to_string(),
+                    )),
+                }
+            }
+            Self::Bls(keypair) => Ok(SecretKey::Bls(keypair.secret.clone())),
+            Self::BlsShare(keypair) => Ok(SecretKey::BlsShare(keypair.secret.clone())),
+        }
+    }
+
     /// Signs with the underlying keypair.
     pub fn sign(&self, data: &[u8]) -> Signature {
         match self {
@@ -374,6 +391,27 @@ impl Keypair {
                 Signature::BlsShare(SignatureShare { index, share })
             }
         }
+    }
+}
+
+impl From<threshold_crypto::SecretKey> for Keypair {
+    fn from(sk: threshold_crypto::SecretKey) -> Self {
+        let public = sk.public_key();
+        let keypair = BlsKeypair {
+            secret: SerdeSecret(sk),
+            public,
+        };
+        Self::Bls(keypair)
+    }
+}
+
+impl From<ed25519_dalek::SecretKey> for Keypair {
+    fn from(secret: ed25519_dalek::SecretKey) -> Self {
+        let public: ed25519_dalek::PublicKey = (&secret).into();
+
+        let keypair = ed25519_dalek::Keypair { public, secret };
+
+        Self::Ed25519(keypair)
     }
 }
 
@@ -397,6 +435,23 @@ pub struct BlsKeypairShare {
     pub public: threshold_crypto::PublicKeyShare,
     /// Public key set. Necessary for producing proofs.
     pub public_key_set: threshold_crypto::PublicKeySet,
+}
+
+/// Wrapper for different secret key types.
+#[derive(Debug, Serialize, Deserialize)]
+pub enum SecretKey {
+    /// Ed25519 keypair.
+    Ed25519(ed25519_dalek::SecretKey),
+    /// BLS keypair.
+    Bls(SerdeSecret<threshold_crypto::SecretKey>),
+    /// BLS keypair share.
+    BlsShare(SerdeSecret<threshold_crypto::SecretKeyShare>),
+}
+
+impl Display for SecretKey {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        Debug::fmt(self, formatter)
+    }
 }
 
 #[cfg(test)]
