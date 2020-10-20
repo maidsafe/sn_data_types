@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.11.23](https://github.com/maidsafe/sn_data_types/compare/v0.11.22...v0.11.23) (2020-10-20)
+
+
+### Features
+
+* **keys:** converting to more generic data types for keypair sk pk ([037b4c4](https://github.com/maidsafe/sn_data_types/commit/037b4c4d8284d05ea2761111b173222bd6277919))
+
 ### [0.11.22](https://github.com/maidsafe/sn_data_types/compare/v0.11.21...v0.11.22) (2020-10-19)
 
 ### [0.11.21](https://github.com/maidsafe/sn_data_types/compare/v0.11.20...v0.11.21) (2020-10-09)
