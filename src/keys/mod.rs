@@ -440,11 +440,11 @@ pub struct BlsKeypairShare {
 /// Wrapper for different secret key types.
 #[derive(Debug, Serialize, Deserialize)]
 pub enum SecretKey {
-    /// Ed25519 keypair.
+    /// Ed25519 secretkey.
     Ed25519(ed25519_dalek::SecretKey),
-    /// BLS keypair.
+    /// BLS secretkey.
     Bls(SerdeSecret<threshold_crypto::SecretKey>),
-    /// BLS keypair share.
+    /// BLS secretkey share.
     BlsShare(SerdeSecret<threshold_crypto::SecretKeyShare>),
 }
 
