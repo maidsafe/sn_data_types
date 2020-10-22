@@ -20,7 +20,7 @@ use threshold_crypto::{serde_impl::SerdeSecret, SecretKey as BlsSecretKey};
 use xor_name::XorName;
 
 /// A struct holding a keypair variant and the corresponding public ID for a network Client.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct FullId {
     keypair: Keypair,
     public_id: PublicId,

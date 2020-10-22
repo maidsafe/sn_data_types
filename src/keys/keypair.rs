@@ -34,18 +34,6 @@ pub enum Keypair {
     BlsShare(BlsKeypairShare),
 }
 
-// Need to manually implement this due to a missing impl in `Ed25519::Keypair`.
-impl Clone for Keypair {
-    fn clone(&self) -> Self {
-        match self {
-            Self::Ed25519(keypair) => Self::Ed25519(unwrap!(ed25519_dalek::Keypair::from_bytes(
-                &keypair.to_bytes()
-            ))),
-            Self::Bls(keypair) => Self::Bls(keypair.clone()),
-            Self::BlsShare(keypair) => Self::BlsShare(keypair.clone()),
-        }
-    }
-}
 
 impl Debug for Keypair {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
@@ -77,6 +65,16 @@ impl PartialEq for Keypair {
 impl Eq for Keypair {}
 
 impl Keypair {
+    pub fn clone(&self) -> Result<Self> {
+        let sk = match self {
+            Self::Ed25519(sk) => Self::Ed25519(ed25519_dalek::Keypair::from_bytes(
+                &sk.to_bytes()
+            ).map_err(|_|"Cannot serialise esd25519 Keypair in order to clone.")?),
+            Self::Bls(sk) => Self::Bls(sk.clone()),
+            Self::BlsShare(sk) => Self::BlsShare(sk.clone()),
+        };
+        Ok(sk)
+    }
     /// Constructs a random Ed25519 public keypair.
     pub fn new_ed25519<T: CryptoRng + Rng>(rng: &mut T) -> Self {
         let keypair = ed25519_dalek::Keypair::generate(rng);
@@ -220,10 +218,6 @@ mod tests {
                 bls_secret_key.public_keys(),
             ),
         ]
-    }
-
-    fn gen_keys() -> Vec<PublicKey> {
-        gen_keypairs().iter().map(PublicKey::from).collect()
     }
 
     // Test serialising and deserialising key pairs.
