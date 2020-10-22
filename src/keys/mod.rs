@@ -454,6 +454,12 @@ impl Display for SecretKey {
     }
 }
 
+impl From<threshold_crypto::SecretKey> for SecretKey {
+    fn from(sk: threshold_crypto::SecretKey) -> Self {
+        Self::Bls(SerdeSecret(sk))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
