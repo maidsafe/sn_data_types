@@ -21,7 +21,6 @@ use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Debug, Formatter};
 use threshold_crypto::{self, serde_impl::SerdeSecret};
-use unwrap::unwrap;
 
 /// Wrapper for different keypair types.
 #[derive(Serialize, Deserialize)]
@@ -32,19 +31,6 @@ pub enum Keypair {
     Bls(BlsKeypair),
     /// BLS keypair share.
     BlsShare(BlsKeypairShare),
-}
-
-// Need to manually implement this due to a missing impl in `Ed25519::Keypair`.
-impl Clone for Keypair {
-    fn clone(&self) -> Self {
-        match self {
-            Self::Ed25519(keypair) => Self::Ed25519(unwrap!(ed25519_dalek::Keypair::from_bytes(
-                &keypair.to_bytes()
-            ))),
-            Self::Bls(keypair) => Self::Bls(keypair.clone()),
-            Self::BlsShare(keypair) => Self::BlsShare(keypair.clone()),
-        }
-    }
 }
 
 impl Debug for Keypair {
@@ -161,10 +147,32 @@ impl From<threshold_crypto::SecretKey> for Keypair {
     }
 }
 
+impl From<&threshold_crypto::SecretKey> for Keypair {
+    fn from(sk: &threshold_crypto::SecretKey) -> Self {
+        let public = sk.public_key();
+        let keypair = BlsKeypair {
+            secret: SerdeSecret(sk.clone()),
+            public,
+        };
+        Self::Bls(keypair)
+    }
+}
+
 impl From<SerdeSecret<threshold_crypto::SecretKey>> for Keypair {
     fn from(sk: SerdeSecret<threshold_crypto::SecretKey>) -> Self {
         let public = sk.public_key();
         let keypair = BlsKeypair { secret: sk, public };
+        Self::Bls(keypair)
+    }
+}
+
+impl From<&SerdeSecret<threshold_crypto::SecretKey>> for Keypair {
+    fn from(sk: &SerdeSecret<threshold_crypto::SecretKey>) -> Self {
+        let public = sk.public_key();
+        let keypair = BlsKeypair {
+            secret: sk.clone(),
+            public,
+        };
         Self::Bls(keypair)
     }
 }
@@ -206,7 +214,6 @@ mod tests {
     use super::*;
     use crate::utils;
     use bincode::deserialize as deserialise;
-    use threshold_crypto::{self};
 
     fn gen_keypairs() -> Vec<Keypair> {
         let mut rng = rand::thread_rng();
@@ -222,20 +229,18 @@ mod tests {
         ]
     }
 
-    fn gen_keys() -> Vec<PublicKey> {
-        gen_keypairs().iter().map(PublicKey::from).collect()
-    }
-
     // Test serialising and deserialising key pairs.
     #[test]
-    fn serialisation_key_pair() {
+    fn serialisation_key_pair() -> Result<()> {
         let keypairs = gen_keypairs();
 
         for keypair in keypairs {
             let encoded = utils::serialise(&keypair);
-            let decoded: Keypair = unwrap!(deserialise(&encoded));
+            let decoded: Keypair = deserialise(&encoded).map_err(|_| "Error deserialising key")?;
 
             assert_eq!(decoded, keypair);
         }
+
+        Ok(())
     }
 }

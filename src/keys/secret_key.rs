@@ -16,8 +16,6 @@
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Debug, Display, Formatter};
 use threshold_crypto::{self, serde_impl::SerdeSecret};
-use unwrap::unwrap;
-
 // TODO: remove clones. We need to restructure to hold keypair ones and only require references for this.
 /// Wrapper for different secret key types.
 #[derive(Debug, Serialize, Deserialize)]
@@ -28,18 +26,6 @@ pub enum SecretKey {
     Bls(SerdeSecret<threshold_crypto::SecretKey>),
     /// BLS secretkey share.
     BlsShare(SerdeSecret<threshold_crypto::SecretKeyShare>),
-}
-
-impl Clone for SecretKey {
-    fn clone(&self) -> Self {
-        match self {
-            Self::Ed25519(sk) => Self::Ed25519(unwrap!(ed25519_dalek::SecretKey::from_bytes(
-                &sk.to_bytes()
-            ))),
-            Self::Bls(sk) => Self::Bls(sk.clone()),
-            Self::BlsShare(sk) => Self::BlsShare(sk.clone()),
-        }
-    }
 }
 
 impl Display for SecretKey {
