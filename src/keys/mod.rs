@@ -14,11 +14,13 @@
 //! secret key.
 
 mod keypair;
+mod node_keypairs;
 mod public_key;
 mod secret_key;
 mod signature;
 
 pub use self::signature::*;
 pub use keypair::*;
+pub use node_keypairs::*;
 pub use public_key::*;
 pub use secret_key::*;

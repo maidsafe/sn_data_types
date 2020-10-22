@@ -175,21 +175,16 @@ impl Account {
 #[cfg(test)]
 mod tests {
     use super::{Account, MAX_LOGIN_PACKET_BYTES};
-    use crate::{ClientFullId, Error};
+    use crate::{Error, Keypair};
 
     #[test]
     fn exceed_size_limit() {
-        let our_id = ClientFullId::new_ed25519(&mut rand::thread_rng());
+        let our_id = Keypair::new_ed25519(&mut rand::thread_rng());
 
         let acc_data = vec![0; MAX_LOGIN_PACKET_BYTES + 1];
         let signature = our_id.sign(&acc_data);
 
-        let res = Account::new(
-            rand::random(),
-            *our_id.public_id().public_key(),
-            acc_data,
-            signature,
-        );
+        let res = Account::new(rand::random(), our_id.public_key(), acc_data, signature);
 
         match res {
             Err(Error::ExceededSize) => (),
@@ -200,14 +195,14 @@ mod tests {
 
     #[test]
     fn valid() {
-        let our_id = ClientFullId::new_ed25519(&mut rand::thread_rng());
+        let our_id = Keypair::new_ed25519(&mut rand::thread_rng());
 
         let acc_data = vec![1; 16];
         let signature = our_id.sign(&acc_data);
 
         let res = Account::new(
             rand::random(),
-            *our_id.public_id().public_key(),
+            our_id.public_key(),
             acc_data.clone(),
             signature,
         );

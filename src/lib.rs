@@ -30,7 +30,6 @@
 
 mod blob;
 mod errors;
-mod identity;
 mod keys;
 mod map;
 mod messaging;
@@ -45,14 +44,10 @@ pub use blob::{
     PublicData as PublicBlob, MAX_BLOB_SIZE_IN_BYTES,
 };
 pub use errors::{EntryError, Error, Result};
-pub use identity::{
-    client::{FullId as ClientFullId, PublicId as ClientPublicId},
-    node::{FullId as NodeFullId, NodeKeypairs, PublicId as NodePublicId},
-    PublicId,
-};
 
 pub use keys::{
-    BlsKeypair, BlsKeypairShare, Keypair, PublicKey, SecretKey, Signature, SignatureShare,
+    BlsKeypair, BlsKeypairShare, Keypair, NodeKeypairs, PublicKey, SecretKey, Signature,
+    SignatureShare,
 };
 pub use map::{
     Action as MapAction, Address as MapAddress, Data as Map, Entries as MapEntries,
