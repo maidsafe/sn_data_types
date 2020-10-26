@@ -34,7 +34,6 @@ pub enum Keypair {
     BlsShare(BlsKeypairShare),
 }
 
-
 impl Debug for Keypair {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         write!(formatter, "Keypair::")?;
@@ -67,9 +66,10 @@ impl Eq for Keypair {}
 impl Keypair {
     pub fn clone(&self) -> Result<Self> {
         let sk = match self {
-            Self::Ed25519(sk) => Self::Ed25519(ed25519_dalek::Keypair::from_bytes(
-                &sk.to_bytes()
-            ).map_err(|_|"Cannot serialise esd25519 Keypair in order to clone.")?),
+            Self::Ed25519(sk) => Self::Ed25519(
+                ed25519_dalek::Keypair::from_bytes(&sk.to_bytes())
+                    .map_err(|_| "Cannot serialise esd25519 Keypair in order to clone.")?,
+            ),
             Self::Bls(sk) => Self::Bls(sk.clone()),
             Self::BlsShare(sk) => Self::BlsShare(sk.clone()),
         };
