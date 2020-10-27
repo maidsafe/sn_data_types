@@ -72,10 +72,9 @@ impl Keypair {
     /// Constructs a random BLS public keypair.
     pub fn new_bls<T: CryptoRng + Rng>(rng: &mut T) -> Self {
         let bls_secret_key: threshold_crypto::SecretKey = rng.gen();
-        let bls_public_key = bls_secret_key.public_key();
         let keypair = BlsKeypair {
-            secret: SerdeSecret(bls_secret_key),
-            public: bls_public_key,
+            secret: SerdeSecret(bls_secret_key.clone()),
+            public: bls_secret_key.public_key(),
         };
         Self::Bls(keypair)
     }
@@ -86,14 +85,12 @@ impl Keypair {
         secret_share: threshold_crypto::SecretKeyShare,
         public_key_set: threshold_crypto::PublicKeySet,
     ) -> Self {
-        let public_share = secret_share.public_key_share();
-        let keypair_share = BlsKeypairShare {
+        Self::BlsShare(BlsKeypairShare {
             index,
-            secret: SerdeSecret(secret_share),
-            public: public_share,
+            secret: SerdeSecret(secret_share.clone()),
+            public: secret_share.public_key_share(),
             public_key_set,
-        };
-        Self::BlsShare(keypair_share)
+        })
     }
 
     /// Returns the public key associated with this keypair.
@@ -127,21 +124,19 @@ impl Keypair {
         match self {
             Self::Ed25519(keypair) => Signature::Ed25519(keypair.sign(&data)),
             Self::Bls(keypair) => Signature::Bls(keypair.secret.sign(data)),
-            Self::BlsShare(keypair) => {
-                let index = keypair.index;
-                let share = keypair.secret.sign(data);
-                Signature::BlsShare(SignatureShare { index, share })
-            }
+            Self::BlsShare(keypair) => Signature::BlsShare(SignatureShare {
+                index: keypair.index,
+                share: keypair.secret.sign(data),
+            }),
         }
     }
 }
 
 impl From<threshold_crypto::SecretKey> for Keypair {
     fn from(sk: threshold_crypto::SecretKey) -> Self {
-        let public = sk.public_key();
         let keypair = BlsKeypair {
-            secret: SerdeSecret(sk),
-            public,
+            secret: SerdeSecret(sk.clone()),
+            public: sk.public_key(),
         };
         Self::Bls(keypair)
     }
@@ -149,10 +144,9 @@ impl From<threshold_crypto::SecretKey> for Keypair {
 
 impl From<&threshold_crypto::SecretKey> for Keypair {
     fn from(sk: &threshold_crypto::SecretKey) -> Self {
-        let public = sk.public_key();
         let keypair = BlsKeypair {
             secret: SerdeSecret(sk.clone()),
-            public,
+            public: sk.public_key(),
         };
         Self::Bls(keypair)
     }
@@ -160,18 +154,18 @@ impl From<&threshold_crypto::SecretKey> for Keypair {
 
 impl From<SerdeSecret<threshold_crypto::SecretKey>> for Keypair {
     fn from(sk: SerdeSecret<threshold_crypto::SecretKey>) -> Self {
-        let public = sk.public_key();
-        let keypair = BlsKeypair { secret: sk, public };
-        Self::Bls(keypair)
+        Self::Bls(BlsKeypair {
+            secret: sk.clone(),
+            public: sk.public_key(),
+        })
     }
 }
 
 impl From<&SerdeSecret<threshold_crypto::SecretKey>> for Keypair {
     fn from(sk: &SerdeSecret<threshold_crypto::SecretKey>) -> Self {
-        let public = sk.public_key();
         let keypair = BlsKeypair {
             secret: sk.clone(),
-            public,
+            public: sk.public_key(),
         };
         Self::Bls(keypair)
     }
@@ -179,9 +173,10 @@ impl From<&SerdeSecret<threshold_crypto::SecretKey>> for Keypair {
 
 impl From<ed25519_dalek::SecretKey> for Keypair {
     fn from(secret: ed25519_dalek::SecretKey) -> Self {
-        let public: ed25519_dalek::PublicKey = (&secret).into();
-
-        let keypair = ed25519_dalek::Keypair { public, secret };
+        let keypair = ed25519_dalek::Keypair {
+            public: (&secret).into(),
+            secret,
+        };
 
         Self::Ed25519(keypair)
     }
