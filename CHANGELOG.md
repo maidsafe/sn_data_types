@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.11.24](https://github.com/maidsafe/sn_data_types/compare/v0.11.23...v0.11.24) (2020-10-27)
+
+
+### Features
+
+* **keys:** Keypair refactor + remove PublicIds ([6577a09](https://github.com/maidsafe/sn_data_types/commit/6577a09fbd9509b5d4a483ba266b23e81848955c))
+* **sk:** from helper for bls SecretKey to add SerdeSecret ([1698367](https://github.com/maidsafe/sn_data_types/commit/1698367e014225df6238fbebbb34a7ed90e75e01))
+
 ### [0.11.23](https://github.com/maidsafe/sn_data_types/compare/v0.11.22...v0.11.23) (2020-10-20)
 
 
