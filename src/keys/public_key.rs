@@ -186,7 +186,6 @@ mod tests {
     use crate::utils;
     use bincode::deserialize as deserialise;
     use threshold_crypto::{self};
-    use unwrap::unwrap;
 
     fn gen_keypairs() -> Vec<Keypair> {
         let mut rng = rand::thread_rng();
@@ -207,29 +206,32 @@ mod tests {
     }
 
     #[test]
-    fn zbase32_encode_decode_public_key() {
-        use unwrap::unwrap;
-
+    fn zbase32_encode_decode_public_key() -> Result<()> {
         let keys = gen_keys();
 
         for key in keys {
             assert_eq!(
                 key,
-                unwrap!(PublicKey::decode_from_zbase32(&key.encode_to_zbase32()))
+                PublicKey::decode_from_zbase32(&key.encode_to_zbase32())?
             );
         }
+
+        Ok(())
     }
 
     // Test serialising and deserialising public keys.
     #[test]
-    fn serialisation_public_key() {
+    fn serialisation_public_key() -> Result<()> {
         let keys = gen_keys();
 
         for key in keys {
             let encoded = utils::serialise(&key);
-            let decoded: PublicKey = unwrap!(deserialise(&encoded));
+            let decoded: PublicKey =
+                deserialise(&encoded).map_err(|_| "Error deserialising key")?;
 
             assert_eq!(decoded, key);
         }
+
+        Ok(())
     }
 }
