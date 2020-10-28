@@ -1378,25 +1378,40 @@ mod tests {
         Ok(())
     }
 
-    /// Generate a vec of Sequence replicas of some length
-    fn generate_replicas(quantity: i32, xorname: XorName, tag: u64) -> Result<Vec<Sequence>> {
-        let mut replicas: Vec<Sequence> = vec![];
+    // Generate a Sequence replica
+    fn generate_a_replica(owner: PublicKey, xorname: XorName, tag: u64) -> Result<Sequence> {
+        let mut seq = Sequence::new_public(owner, xorname, tag);
+        let perms = BTreeMap::default();
+        let owner_op = seq.set_public_policy(owner, perms)?;
+        seq.apply_public_policy_op(owner_op)?;
+
+        Ok(seq)
+    }
+
+    // Generate a vec of Sequence replicas of some length
+    fn generate_replicas(max_quantity: usize) -> impl Strategy<Value = Vec<Sequence>> {
         let owner = gen_public_key();
+        let xorname = XorName::random();
+        let tag = 45_000u64;
+        let replica = generate_a_replica(owner, xorname, tag).unwrap();
+        prop::collection::vec(Just(replica), 1..max_quantity + 1)
+    }
 
-        for _ in 0..quantity {
-            let mut seq = Sequence::new_public(owner, xorname, tag);
-            let perms = BTreeMap::default();
-            let owner_op = seq.set_public_policy(owner, perms)?;
-            seq.apply_public_policy_op(owner_op)?;
-            replicas.push(seq)
-        }
+    // Generate a Sequence entry
+    fn generate_seq_entry() -> impl Strategy<Value = Vec<u8>> {
+        "\\PC*".prop_map(|s| s.into_bytes())
+    }
 
-        Ok(replicas)
+    // Generate a vec of Sequence entries
+    fn generate_dataset(max_quantity: usize) -> impl Strategy<Value = Vec<Vec<u8>>> {
+        prop::collection::vec(generate_seq_entry(), 1..max_quantity + 1)
     }
 
     proptest! {
         #[test]
-        fn proptest_seq_doesnt_crash_with_random_data(s in "\\PC*".prop_map(|s| s.into_bytes())) {
+        fn proptest_seq_doesnt_crash_with_random_data(
+            s in generate_seq_entry()
+        ) {
             let actor1 = gen_public_key();
             let sequence_name = XorName::random();
 
@@ -1419,9 +1434,10 @@ mod tests {
 
         }
 
-
         #[test]
-        fn proptest_seq_converge_with_many_random_data( dataset in prop::collection::vec("\\PC*", 1..1000) ) {
+        fn proptest_seq_converge_with_many_random_data(
+            dataset in generate_dataset(1000)
+        ) {
 
             let actor1 = gen_public_key();
             let sequence_name = XorName::random();
@@ -1441,7 +1457,6 @@ mod tests {
 
             // insert our data at replicas
             for data in dataset {
-                let data = data.into_bytes();
                 // Append an item on replica1
                 let append_op1 = replica1.append(data)?;
 
@@ -1453,19 +1468,15 @@ mod tests {
 
         }
 
-
         #[test]
-        fn proptest_seq_converge_with_many_random_data_across_arbitrary_number_of_replicas( dataset in prop::collection::vec("\\PC*", 1..500), number_of_replicas in 1..50 ) {
-
+        fn proptest_seq_converge_with_many_random_data_across_arbitrary_number_of_replicas(
+            dataset in generate_dataset(500),
+            mut replicas in generate_replicas(50)
+        ) {
             let dataset_length = dataset.len() as u64;
-            let sequence_name = XorName::random();
-            let tag = 43_001u64;
-            let mut replicas = generate_replicas(number_of_replicas, sequence_name, tag)?;
 
             // insert our data at replicas
             for data in dataset {
-                let data = data.into_bytes();
-
                 for replica in &mut replicas {
                     let append_op = replica.append(data.clone())?;
 
@@ -1480,19 +1491,14 @@ mod tests {
 
 
         #[test]
-        fn proptest_converge_with_shuffled_data_set_across_arbitrary_number_of_replicas( dataset in prop::collection::vec("\\PC*", 1..100), number_of_replicas in 1..500 ) {
-
+        fn proptest_converge_with_shuffled_data_set_across_arbitrary_number_of_replicas(
+            dataset in generate_dataset(100),
+            mut replicas in generate_replicas(500)
+        ) {
             let dataset_length = dataset.len() as u64;
-
-            let sequence_name = XorName::random();
-            let tag = 43_001u64;
-            let mut replicas = generate_replicas(number_of_replicas, sequence_name, tag)?;
-
 
             // insert our data at replicas
             for data in dataset {
-                let data = data.into_bytes();
-
                 // first we generate standard data ops
                 for replica in &mut replicas {
                     let append_op = replica.append(data.clone())?;
