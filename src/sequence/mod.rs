@@ -407,11 +407,13 @@ impl Data {
 #[cfg(test)]
 mod tests {
     use crate::{
-        Error, PublicKey, Result, Sequence, SequenceAddress, SequenceIndex, SequenceKind,
+        Error, Keypair, PublicKey, Result, Sequence, SequenceAddress, SequenceIndex, SequenceKind,
         SequencePermissions, SequencePrivatePermissions, SequencePublicPermissions, SequenceUser,
     };
+    use proptest::prelude::*;
+    use rand::rngs::OsRng;
+    use rand::seq::SliceRandom;
     use std::collections::BTreeMap;
-    use threshold_crypto::SecretKey;
     use xor_name::XorName;
 
     #[test]
@@ -1000,7 +1002,7 @@ mod tests {
         // Let's assert that append_op2 created a branch of data on both replicas
         // due to new policy having been applied concurrently, thus only first
         // item shall be returned from main branch of data
-        verify_data_convergence(&[&replica1, &replica2], 1)?;
+        verify_data_convergence(vec![replica1, replica2], 1);
 
         Ok(())
     }
@@ -1065,7 +1067,7 @@ mod tests {
         // Retrying to apply append op to replica2 should be successful, due
         // to now being causally ready with the new policy
         replica2.apply_data_op(append_op)?;
-        verify_data_convergence(&[&replica1, &replica2, &replica3], 1)?;
+        verify_data_convergence(vec![replica1, replica2, replica3], 1);
 
         Ok(())
     }
@@ -1128,7 +1130,7 @@ mod tests {
         // Let's assert the state on all replicas to assure convergence
         // One of the items appended concurrently should not belong to
         // the master branch of the data thus we should see only 2 items
-        verify_data_convergence(&[&replica1, &replica2], 2)?;
+        verify_data_convergence(vec![replica1, replica2], 2);
 
         Ok(())
     }
@@ -1320,8 +1322,9 @@ mod tests {
 
     // Helpers for tests
 
-    fn generate_public_key() -> PublicKey {
-        PublicKey::Bls(SecretKey::random().public_key())
+    fn gen_public_key() -> PublicKey {
+        let keypair = Keypair::new_ed25519(&mut OsRng);
+        keypair.public_key()
     }
 
     // check it fails due to not being causally ready
@@ -1373,5 +1376,145 @@ mod tests {
         }
 
         Ok(())
+    }
+
+    /// Generate a vec of Sequence replicas of some length
+    fn generate_replicas(quantity: i32, xorname: XorName, tag: u64) -> Result<Vec<Sequence>> {
+        let mut replicas: Vec<Sequence> = vec![];
+        let owner = gen_public_key();
+
+        for _ in 0..quantity {
+            let mut seq = Sequence::new_public(owner, xorname, tag);
+            let perms = BTreeMap::default();
+            let owner_op = seq.set_public_policy(owner, perms)?;
+            seq.apply_public_policy_op(owner_op)?;
+            replicas.push(seq)
+        }
+
+        Ok(replicas)
+    }
+
+    proptest! {
+        #[test]
+        fn proptest_seq_doesnt_crash_with_random_data(s in "\\PC*".prop_map(|s| s.into_bytes())) {
+            let actor1 = gen_public_key();
+            let sequence_name = XorName::random();
+
+            let sdata_tag = 43_001u64;
+
+            // Instantiate the same Sequence on two replicas with two diff actors
+            let mut replica1 = Sequence::new_public(actor1, sequence_name, sdata_tag);
+            let mut replica2 = Sequence::new_public(actor1, sequence_name, sdata_tag);
+
+            // Set Actor1 as the owner
+            let perms = BTreeMap::default();
+            let owner_op = replica1.set_public_policy(actor1, perms)?;
+            replica2.apply_public_policy_op(owner_op)?;
+
+            // Append an item on replicas
+            let append_op1 = replica1.append(s.clone())?;
+            let append_op2 = replica2.append(s)?;
+
+            replica1.apply_data_op(append_op1)?;
+            replica2.apply_data_op(append_op2)?;
+
+            verify_data_convergence(vec![replica1, replica2], 1);
+
+        }
+
+
+        #[test]
+        fn proptest_seq_converge_with_many_random_data( dataset in prop::collection::vec("\\PC*", 1..1000) ) {
+
+            let actor1 = gen_public_key();
+            let sequence_name = XorName::random();
+
+            let sdata_tag = 43_001u64;
+
+            // Instantiate the same Sequence on two replicas with two diff actors
+            let mut replica1 = Sequence::new_public(actor1, sequence_name, sdata_tag);
+            let mut replica2 = Sequence::new_public(actor1, sequence_name, sdata_tag);
+
+            // Set Actor1 as the owner
+            let perms = BTreeMap::default();
+            let owner_op = replica1.set_public_policy(actor1, perms)?;
+            replica2.apply_public_policy_op(owner_op)?;
+
+            let dataset_length = dataset.len() as u64;
+
+            // insert our data at replicas
+            for data in dataset {
+                let data = data.into_bytes();
+                // Append an item on replica1
+                let append_op1 = replica1.append(data.clone())?;
+                let append_op2 = replica2.append(data)?;
+
+                replica1.apply_data_op(append_op1)?;
+                replica2.apply_data_op(append_op2)?;
+            }
+
+            verify_data_convergence(vec![replica1, replica2], dataset_length);
+
+        }
+
+
+        #[test]
+        fn proptest_seq_converge_with_many_random_data_across_arbitrary_number_of_replicas( dataset in prop::collection::vec("\\PC*", 1..500), number_of_replicas in 1..50 ) {
+
+            let dataset_length = dataset.len() as u64;
+            let sequence_name = XorName::random();
+            let tag = 43_001u64;
+            let mut replicas = generate_replicas(number_of_replicas, sequence_name, tag)?;
+
+            // insert our data at replicas
+            for data in dataset {
+                let data = data.into_bytes();
+
+                for replica in &mut replicas {
+                    let append_op = replica.append(data.clone())?;
+
+                    replica.apply_data_op(append_op)?;
+
+                }
+            }
+
+            verify_data_convergence(replicas, dataset_length);
+
+        }
+
+
+        #[test]
+        fn proptest_converge_with_shuffled_data_set_across_arbitrary_number_of_replicas( dataset in prop::collection::vec("\\PC*", 1..100), number_of_replicas in 1..500 ) {
+
+            let dataset_length = dataset.len() as u64;
+
+            let sequence_name = XorName::random();
+            let tag = 43_001u64;
+            let mut replicas = generate_replicas(number_of_replicas, sequence_name, tag)?;
+
+
+            // insert our data at replicas
+            for data in dataset {
+                let data = data.into_bytes();
+
+                // first we generate standard data ops
+                for replica in &mut replicas {
+                    let append_op = replica.append(data.clone())?;
+                    let mut ops = vec![];
+                    ops.push(append_op);
+                    ops.shuffle(&mut OsRng);
+
+                    for op in ops {
+
+                        replica.apply_data_op(op)?;
+                    }
+
+                }
+
+            }
+
+            verify_data_convergence(replicas, dataset_length);
+
+        }
     }
 }
