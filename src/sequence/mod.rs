@@ -1378,23 +1378,28 @@ mod tests {
         Ok(())
     }
 
-    // Generate a Sequence replica
-    fn generate_a_replica(owner: PublicKey, xorname: XorName, tag: u64) -> Result<Sequence> {
-        let mut seq = Sequence::new_public(owner, xorname, tag);
-        let perms = BTreeMap::default();
-        let owner_op = seq.set_public_policy(owner, perms)?;
-        seq.apply_public_policy_op(owner_op)?;
-
-        Ok(seq)
-    }
-
     // Generate a vec of Sequence replicas of some length
     fn generate_replicas(max_quantity: usize) -> impl Strategy<Value = Vec<Sequence>> {
-        let owner = gen_public_key();
         let xorname = XorName::random();
         let tag = 45_000u64;
-        let replica = generate_a_replica(owner, xorname, tag).unwrap();
-        prop::collection::vec(Just(replica), 1..max_quantity + 1)
+        let owner = gen_public_key();
+
+        (1..max_quantity + 1).prop_map(move |quantity| {
+            let mut replicas = Vec::with_capacity(quantity);
+            for _ in 0..quantity {
+                let actor = gen_public_key();
+                let replica = Sequence::new_public(actor, xorname, tag);
+                replicas.push(replica);
+            }
+
+            // set the same owner in all replicas
+            let perms = BTreeMap::default();
+            let owner_op = replicas[0].set_public_policy(owner, perms).unwrap();
+            for r in replicas.iter_mut() {
+                r.apply_public_policy_op(owner_op.clone()).unwrap();
+            }
+            replicas
+        })
     }
 
     // Generate a Sequence entry
@@ -1427,7 +1432,7 @@ mod tests {
             replica2.apply_public_policy_op(owner_op)?;
 
             // Append an item on replicas
-            let append_op = replica1.append(s.clone())?;
+            let append_op = replica1.append(s)?;
             replica2.apply_data_op(append_op)?;
 
             verify_data_convergence(vec![replica1, replica2], 1);
@@ -1520,6 +1525,42 @@ mod tests {
 
             verify_data_convergence(replicas, dataset_length);
 
+        }
+
+
+
+        #[test]
+        fn proptest_converge_with_shuffled_ops_from_many_replicas_across_arbitrary_number_of_replicas(
+            dataset in generate_dataset(1000),
+            mut replicas in generate_replicas(100)
+        ) {
+            let dataset_length = dataset.len() as u64;
+
+            // generate an ops set using random replica for each data
+            let mut ops = vec![];
+            for data in dataset {
+                if let Some(replica) = replicas.choose_mut(&mut OsRng)
+                {
+                    let op = replica.append(data)?;
+                    ops.push(op);
+                }
+            }
+
+            let opslen = ops.len() as u64;
+            prop_assert_eq!(dataset_length, opslen);
+
+            // now we randomly shuffle ops and apply at each replica
+            for replica in &mut replicas {
+
+                let ops = ops.clone();
+
+                for op in ops {
+                    replica.apply_data_op(op)?;
+                }
+
+            }
+
+            verify_data_convergence(replicas, dataset_length);
         }
     }
 }
