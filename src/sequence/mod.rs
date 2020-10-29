@@ -1458,10 +1458,10 @@ mod tests {
             // insert our data at replicas
             for data in dataset {
                 // Append an item on replica1
-                let append_op1 = replica1.append(data)?;
+                let append_op = replica1.append(data)?;
 
-                // no apply that op to replica 2
-                replica2.apply_data_op(append_op1)?;
+                // now apply that op to replica 2
+                replica2.apply_data_op(append_op)?;
             }
 
             verify_data_convergence(vec![replica1, replica2], dataset_length);
@@ -1477,11 +1477,12 @@ mod tests {
 
             // insert our data at replicas
             for data in dataset {
+                // first generate an op from one replica...
+                let op = replicas[0].append(data)?;
+
+                // then apply this to all replicas
                 for replica in &mut replicas {
-                    let append_op = replica.append(data.clone())?;
-
-                    replica.apply_data_op(append_op)?;
-
+                    replica.apply_data_op(op.clone())?;
                 }
             }
 
