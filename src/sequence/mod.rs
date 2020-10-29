@@ -1412,11 +1412,8 @@ mod tests {
             replica2.apply_public_policy_op(owner_op)?;
 
             // Append an item on replicas
-            let append_op1 = replica1.append(s.clone())?;
-            let append_op2 = replica2.append(s)?;
-
-            replica1.apply_data_op(append_op1)?;
-            replica2.apply_data_op(append_op2)?;
+            let append_op = replica1.append(s.clone())?;
+            replica2.apply_data_op(append_op)?;
 
             verify_data_convergence(vec![replica1, replica2], 1);
 
@@ -1446,11 +1443,10 @@ mod tests {
             for data in dataset {
                 let data = data.into_bytes();
                 // Append an item on replica1
-                let append_op1 = replica1.append(data.clone())?;
-                let append_op2 = replica2.append(data)?;
+                let append_op1 = replica1.append(data)?;
 
-                replica1.apply_data_op(append_op1)?;
-                replica2.apply_data_op(append_op2)?;
+                // no apply that op to replica 2
+                replica2.apply_data_op(append_op1)?;
             }
 
             verify_data_convergence(vec![replica1, replica2], dataset_length);
