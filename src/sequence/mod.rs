@@ -1492,26 +1492,28 @@ mod tests {
 
 
         #[test]
-        fn proptest_converge_with_shuffled_data_set_across_arbitrary_number_of_replicas(
+        fn proptest_converge_with_shuffled_op_set_across_arbitrary_number_of_replicas(
             dataset in generate_dataset(100),
             mut replicas in generate_replicas(500)
         ) {
             let dataset_length = dataset.len() as u64;
 
-            // insert our data at replicas
+            // generate an ops set from one replica
+            let mut ops = vec![];
+
             for data in dataset {
-                // first we generate standard data ops
-                for replica in &mut replicas {
-                    let append_op = replica.append(data.clone())?;
-                    let mut ops = vec![];
-                    ops.push(append_op);
-                    ops.shuffle(&mut OsRng);
+                let op = replicas[0].append(data)?;
+                ops.push(op);
+            }
 
-                    for op in ops {
+            // now we randomly shuffle ops and apply at each replica
+            for replica in &mut replicas {
+                let mut ops = ops.clone();
+                ops.shuffle(&mut OsRng);
 
-                        replica.apply_data_op(op)?;
-                    }
+                for op in ops {
 
+                    replica.apply_data_op(op)?;
                 }
 
             }
