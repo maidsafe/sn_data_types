@@ -1552,15 +1552,80 @@ mod tests {
             // now we randomly shuffle ops and apply at each replica
             for replica in &mut replicas {
 
-                let ops = ops.clone();
+                let mut ops = ops.clone();
+                ops.shuffle(&mut OsRng);
 
                 for op in ops {
                     replica.apply_data_op(op)?;
                 }
-
             }
 
             verify_data_convergence(replicas, dataset_length);
+        }
+
+        #[test]
+        fn proptest_converge_with_shuffled_ops_including_bad_ops_which_error_and_are_not_applied(
+            dataset in generate_dataset(1000),
+            // should be same number as dataset
+            bogus_dataset in generate_dataset(1000),
+            mut replicas in generate_replicas(100),
+
+        ) {
+            let dataset_length = dataset.len();
+            let bogus_dataset_length = bogus_dataset.len();
+            let number_replicas = replicas.len();
+
+            // set up a replica that has nothing to do with the rest, random xor... different owner...
+            let xorname = XorName::random();
+            let tag = 45_000u64;
+            let owner = gen_public_key();
+            let actor = gen_public_key();
+            let mut bogus_replica = Sequence::new_public(actor, xorname, tag);
+            let perms = BTreeMap::default();
+            let _ = bogus_replica.set_public_policy(owner, perms).unwrap();
+
+            // generate the real ops set using random replica for each data
+            let mut ops = vec![];
+            for data in dataset {
+                if let Some(replica) = replicas.choose_mut(&mut OsRng)
+                {
+                    let op = replica.append(data)?;
+                    ops.push(op);
+                }
+            }
+
+            // add bogus ops frombogus replica + bogus data
+            for data in bogus_dataset {
+                let bogus_op = bogus_replica.append(data)?;
+                    ops.push(bogus_op);
+            }
+
+
+
+            let opslen = ops.len();
+            prop_assert_eq!(dataset_length + bogus_dataset_length, opslen);
+
+            let mut err_count = vec![];
+            // now we randomly shuffle ops and apply at each replica
+            for replica in &mut replicas {
+                let mut ops = ops.clone();
+                ops.shuffle(&mut OsRng);
+
+                for op in ops {
+                    match replica.apply_data_op(op) {
+                        Ok(_) => {},
+                        // record all errors to check this matches bogus data
+                        Err(error) => {err_count.push(error)},
+
+                    }
+                }
+            }
+
+            // check we get an error per bogus datum per replica
+            assert_eq!(err_count.len(), bogus_dataset_length * number_replicas);
+
+            verify_data_convergence(replicas, dataset_length as u64);
+
         }
     }
 }
