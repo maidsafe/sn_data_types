@@ -1564,6 +1564,43 @@ mod tests {
         }
 
         #[test]
+        fn proptest_converge_with_shuffled_ops_from_many_while_dropping_some_at_random(
+            dataset in generate_dataset(1000),
+            mut replicas in generate_replicas(100),
+        ) {
+            let dataset_length = dataset.len() as u64;
+
+            // generate an ops set using random replica for each data
+            let mut ops = vec![];
+            for data in dataset {
+                if let Some(replica) = replicas.choose_mut(&mut OsRng)
+                {
+                    let op = replica.append(data)?;
+                    ops.push(op);
+                }
+            }
+
+            let opslen = ops.len() as u64;
+            prop_assert_eq!(dataset_length, opslen);
+
+            // now we randomly shuffle ops and apply at each replica
+            for replica in &mut replicas {
+
+                let mut ops = ops.clone();
+                ops.shuffle(&mut OsRng);
+
+                for op in ops {
+                    let delivery_chance : u32 = OsRng.gen_range(0, 10);
+                    if delivery_chance > 3 {
+                        replica.apply_data_op(op)?;
+                    } 
+                }
+            }
+
+            verify_data_convergence(replicas, dataset_length);
+        }
+
+        #[test]
         fn proptest_converge_with_shuffled_ops_including_bad_ops_which_error_and_are_not_applied(
             dataset in generate_dataset(1000),
             // should be same number as dataset
