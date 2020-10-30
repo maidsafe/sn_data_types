@@ -1563,6 +1563,58 @@ mod tests {
             verify_data_convergence(replicas, dataset_length);
         }
 
+
+
+        #[test]
+        fn proptest_dropped_data_can_be_reapplied_and_we_converge(
+            dataset in prop::collection::vec(generate_seq_entry(), 100..1001)
+
+        ) {
+
+            let actor1 = gen_public_key();
+            let actor2 = gen_public_key();
+            let sequence_name = XorName::random();
+
+            let sdata_tag = 43_001u64;
+
+            // Instantiate the same Sequence on two replicas
+            let mut replica1 = Sequence::new_public(actor1, sequence_name, sdata_tag);
+            let mut replica2 = Sequence::new_public(actor2, sequence_name, sdata_tag);
+
+            // Set Actor1 as the owner
+            let perms = BTreeMap::default();
+            let owner_op = replica1.set_public_policy(actor1, perms)?;
+            replica2.apply_public_policy_op(owner_op)?;
+
+            let dataset_length = dataset.len() as u64;
+
+            let mut ops = vec![];
+            for data in dataset {
+                    let op = replica1.append(data)?;
+                    ops.push(op);
+            }
+
+            for op in ops.clone() {
+                let delivery_chance : u32 = OsRng.gen_range(0, 10);
+                if delivery_chance < 2 {
+                    replica2.apply_data_op(op)?;
+                }
+            }
+
+            // shere we statistically should have dropped some messages
+            assert_ne!(replica2.len(), replica1.len());
+
+            // reapply all ops
+            for op in ops {
+                    replica2.apply_data_op(op)?;
+            }
+
+            // now we converge
+            verify_data_convergence(vec![replica1, replica2], dataset_length);
+
+        }
+
+
         #[test]
         fn proptest_converge_with_shuffled_ops_from_many_while_dropping_some_at_random(
             dataset in generate_dataset(1000),
@@ -1593,10 +1645,15 @@ mod tests {
                     let delivery_chance : u32 = OsRng.gen_range(0, 10);
                     if delivery_chance > 3 {
                         replica.apply_data_op(op)?;
-                    } 
+                    }
                 }
             }
 
+            // TODO: Currently this wont converge. Data is missing.
+            // We need to be attempting to apply ops which are known to be not causally ready...
+            // We can get errors there by dropping from sync with one replica...
+            //
+            // Q: how to expand this across many replicas and simulate dropping messages? Is that wortwhile here at the data itself...?
             verify_data_convergence(replicas, dataset_length);
         }
 
