@@ -134,7 +134,7 @@ impl Display for Error {
             }
             Error::OpNotCausallyReady => write!(
                 f,
-                "Data operation depends on a different replica's state than the current"
+                "Data operation depends on a different causal state than the current"
             ),
             Error::SigningKeyTypeMismatch => {
                 write!(f, "Mismatch between key type and signature type")

@@ -278,6 +278,8 @@ where
                     Error::Unexpected("The data is an unexpected inconsistent state".to_string())
                 })?;
 
+                // FIXME: Check that we actually have perms to be adding a new policy here, based on prev one...
+
                 match item_id {
                     None => {
                         // The Policy doesn't depend on any item thus we copy the entire Sequence
