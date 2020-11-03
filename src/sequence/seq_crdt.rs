@@ -7,7 +7,7 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use super::metadata::{Address, Entries, Entry, Index, Perm};
+use crate::metadata::{Address, Index, Perm};
 use crate::{Error, PublicKey, Result};
 pub use crdts::{lseq::Op, Actor};
 use crdts::{
@@ -22,25 +22,11 @@ use std::{
     hash::Hash,
 };
 
-
-/// An action on Data data type.
-#[derive(Clone, Copy, Eq, PartialEq)]
-pub enum Action {
-    /// Read from the data.
-    Read,
-    /// Append to the data.
-    Append,
-    /// Manage permissions.
-    Admin,
-}
-
 /// List of entries.
 pub type Entries = Vec<Entry>;
 
 /// An entry in a Data.
 pub type Entry = Vec<u8>;
-
-
 
 /// Since in most of the cases it will be append operations, having a small
 /// boundary will make the Identifiers' length to be shorter.

@@ -9,8 +9,17 @@
 
 use super::{AuthorisationKind, CmdError, DataAuthKind, QueryResponse};
 use crate::{
-    Error, Map, MapAddress as Address, MapEntryActions as Changes,
-    MapPermissionSet as PermissionSet, PublicKey, XorName,
+    Error,
+    Map,
+    MapAddress as Address,
+    MapPolicyWriteOp,
+    MapPrivatePolicy,
+    MapPublicPolicy,
+    MapWriteOp,
+    // MapEntryActions as Changes,
+    // MapPermissionSet as PermissionSet,
+    PublicKey,
+    XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -56,33 +65,38 @@ pub enum MapWrite {
     New(Map),
     /// Delete instance.
     Delete(Address),
-    /// Edit entries.
-    Edit {
-        /// Map address.
-        address: Address,
-        /// Changes to apply.
-        changes: Changes,
-    },
-    /// Delete user permissions.
-    DelUserPermissions {
-        /// Map address.
-        address: Address,
-        /// User to delete permissions for.
-        user: PublicKey,
-        /// Version to delete.
-        version: u64,
-    },
-    /// Set user permissions.
-    SetUserPermissions {
-        /// Map address.
-        address: Address,
-        /// User to set permissions for.
-        user: PublicKey,
-        /// New permissions.
-        permissions: PermissionSet,
-        /// Version to set.
-        version: u64,
-    },
+    /// Edit the Map (insert/remove entry).
+    Edit(MapWriteOp),
+    // Edit {
+    //     /// Map address.
+    //     address: Address,
+    //     /// Changes operation to apply.
+    //     changes: MapWriteOp,
+    // },
+    /// Set new policy for public Map.
+    SetPublicPolicy(MapPolicyWriteOp<MapPublicPolicy>),
+    /// Set new policy for private Map.
+    SetPrivatePolicy(MapPolicyWriteOp<MapPrivatePolicy>),
+    // / Delete user permissions.
+    // DelUserPermissions {
+    //     /// Map address.
+    //     address: Address,
+    //     /// User to delete permissions for.
+    //     user: PublicKey,
+    //     /// Version to delete.
+    //     version: u64,
+    // },
+    // /// Set user permissions.
+    // SetUserPermissions {
+    //     /// Map address.
+    //     address: Address,
+    //     /// User to set permissions for.
+    //     user: PublicKey,
+    //     /// New permissions.
+    //     permissions: PermissionSet,
+    //     /// Version to set.
+    //     version: u64,
+    // },
 }
 
 impl MapRead {
@@ -174,10 +188,10 @@ impl MapWrite {
         use MapWrite::*;
         match self {
             New(ref data) => *data.name(),
-            Delete(ref address)
-            | SetUserPermissions { ref address, .. }
-            | DelUserPermissions { ref address, .. }
-            | Edit { ref address, .. } => *address.name(),
+            Delete(ref address) => *address.name(),
+            SetPublicPolicy(ref op) => *op.address.name(),
+            SetPrivatePolicy(ref op) => *op.address.name(),
+            Edit(ref op) => *op.address.name(),
         }
     }
 }
@@ -191,8 +205,8 @@ impl fmt::Debug for MapWrite {
             match *self {
                 New(_) => "NewMap",
                 Delete(_) => "DeleteMap",
-                SetUserPermissions { .. } => "SetMapUserPermissions",
-                DelUserPermissions { .. } => "DelMapUserPermissions",
+                SetPublicPolicy { .. } => "SetMapPublicPolicy",
+                SetPrivatePolicy { .. } => "DelMapPrivatePolicy",
                 Edit { .. } => "EditMap",
             }
         )

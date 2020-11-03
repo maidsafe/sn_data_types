@@ -11,13 +11,13 @@ use crate::{utils, Error, PublicKey, Result, XorName};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fmt::Debug, hash::Hash};
 
-/// An action on Data data type.
+/// An action on Data type.
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub enum Action {
     /// Read from the data.
     Read,
-    /// Append to the data.
-    Append,
+    /// Update the data.
+    Update,
     /// Manage permissions.
     Admin,
 }
@@ -138,10 +138,10 @@ impl From<u64> for Index {
 /// Set of public permissions for a user.
 #[derive(Copy, Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub struct PublicPermissions {
-    /// `Some(true)` if the user can append.
+    /// `Some(true)` if the user can update.
     /// `Some(false)` explicitly denies this permission (even if `Anyone` has permissions).
     /// Use permissions for `Anyone` if `None`.
-    append: Option<bool>,
+    update: Option<bool>,
     /// `Some(true)` if the user can manage permissions.
     /// `Some(false)` explicitly denies this permission (even if `Anyone` has permissions).
     /// Use permissions for `Anyone` if `None`.
@@ -150,16 +150,16 @@ pub struct PublicPermissions {
 
 impl PublicPermissions {
     /// Constructs a new public permission set.
-    pub fn new(append: impl Into<Option<bool>>, manage_perms: impl Into<Option<bool>>) -> Self {
+    pub fn new(update: impl Into<Option<bool>>, manage_perms: impl Into<Option<bool>>) -> Self {
         Self {
-            append: append.into(),
+            update: update.into(),
             admin: manage_perms.into(),
         }
     }
 
     /// Sets permissions.
-    pub fn set_perms(&mut self, append: impl Into<Option<bool>>, admin: impl Into<Option<bool>>) {
-        self.append = append.into();
+    pub fn set_perms(&mut self, update: impl Into<Option<bool>>, admin: impl Into<Option<bool>>) {
+        self.update = update.into();
         self.admin = admin.into();
     }
 
@@ -168,7 +168,7 @@ impl PublicPermissions {
     pub fn is_allowed(self, action: Action) -> Option<bool> {
         match action {
             Action::Read => Some(true), // It's public data, so it's always allowed to read it.
-            Action::Append => self.append,
+            Action::Update => self.update,
             Action::Admin => self.admin,
         }
     }
@@ -179,26 +179,26 @@ impl PublicPermissions {
 pub struct PrivatePermissions {
     /// `true` if the user can read.
     read: bool,
-    /// `true` if the user can append.
-    append: bool,
+    /// `true` if the user can update.
+    update: bool,
     /// `true` if the user can manage permissions.
     admin: bool,
 }
 
 impl PrivatePermissions {
     /// Constructs a new private permission set.
-    pub fn new(read: bool, append: bool, manage_perms: bool) -> Self {
+    pub fn new(read: bool, update: bool, manage_perms: bool) -> Self {
         Self {
             read,
-            append,
+            update,
             admin: manage_perms,
         }
     }
 
     /// Sets permissions.
-    pub fn set_perms(&mut self, read: bool, append: bool, manage_perms: bool) {
+    pub fn set_perms(&mut self, read: bool, update: bool, manage_perms: bool) {
         self.read = read;
-        self.append = append;
+        self.update = update;
         self.admin = manage_perms;
     }
 
@@ -206,7 +206,7 @@ impl PrivatePermissions {
     pub fn is_allowed(self, action: Action) -> bool {
         match action {
             Action::Read => self.read,
-            Action::Append => self.append,
+            Action::Update => self.update,
             Action::Admin => self.admin,
         }
     }

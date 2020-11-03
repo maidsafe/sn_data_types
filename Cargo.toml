@@ -39,3 +39,6 @@ proptest = "0.10.1"
 
 [features]
 simulated-payouts = [ ]
+
+[patch.crates-io]
+crdts = {path="../rust-crdt"}

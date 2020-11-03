@@ -9,9 +9,18 @@
 
 use super::{AuthorisationKind, CmdError, DataAuthKind, QueryResponse};
 use crate::{
-    Error, Sequence, SequenceAddress as Address, SequenceDataWriteOp, SequenceEntry as Entry,
-    SequenceIndex as Index, SequencePolicyWriteOp, SequencePrivatePolicy as PrivatePolicy,
-    SequencePublicPolicy as PublicPolicy, SequenceUser as User, XorName,
+    Error,
+    Sequence,
+    SequenceAddress as Address,
+    SequenceDataWriteOp,
+    SequenceEntry as Entry,
+    SequenceIndex as Index,
+    SequencePolicyWriteOp,
+    SequencePrivatePolicy as PrivatePolicy,
+    SequencePublicPolicy as PublicPolicy,
+    //  SequenceUser as User,
+    User,
+    XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;

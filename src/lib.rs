@@ -33,12 +33,12 @@ mod errors;
 mod keys;
 mod map;
 mod messaging;
+mod metadata;
 mod money;
 mod rewards;
 mod sequence;
 mod transfer;
 mod utils;
-mod metadata;
 
 pub use blob::{
     Address as BlobAddress, Data as Blob, Kind as BlobKind, PrivateData as PrivateBlob,
@@ -50,18 +50,15 @@ pub use keys::{
     BlsKeypair, BlsKeypairShare, Keypair, NodeKeypairs, PublicKey, SecretKey, Signature,
     SignatureShare,
 };
-// pub use metadata::{
-//     Address as MetaDataAddress, Index, Kind, Perm, Permissions, Policy, PrivatePermissions,
-//     PrivatePolicy, PublicPermissions, PublicPolicy, User,
-// };
-// pub use map::{
-//     Action as MapAction, Address as MapAddress, Data as Map, Entries as MapEntries,
-//     EntryActions as MapEntryActions, Kind as MapKind, PermissionSet as MapPermissionSet,
-//     SeqData as SeqMap, SeqEntries as MapSeqEntries, SeqEntryAction as MapSeqEntryAction,
-//     SeqEntryActions as MapSeqEntryActions, SeqValue as MapSeqValue, UnseqData as UnseqMap,
-//     UnseqEntries as MapUnseqEntries, UnseqEntryAction as MapUnseqEntryAction,
-//     UnseqEntryActions as MapUnseqEntryActions, Value as MapValue, Values as MapValues,
-// };
+pub use metadata::{Kind, User};
+
+pub use map::{
+    Action as MapAction, Address as MapAddress, Data as Map, DataWriteOp as MapWriteOp,
+    Entries as MapEntries, Key as MapKey, Keys as MapKeys, MapPermissions, MapPrivatePermissions,
+    MapPrivatePolicy, MapPublicPermissions, MapPublicPolicy, PolicyWriteOp as MapPolicyWriteOp,
+    Value as MapValue, Values as MapValues,
+};
+
 pub use messaging::{
     Account, AccountRead, AccountWrite, Address, AdultDuties, AuthCmd, AuthQuery,
     AuthorisationKind, BlobRead, BlobWrite, Cmd, CmdError, DataAuthKind, DataCmd, DataQuery, Duty,
@@ -79,11 +76,9 @@ pub use rewards::{RewardCounter, Work};
 pub use sequence::{
     Action as SequenceAction, Address as SequenceAddress, Data as Sequence,
     DataWriteOp as SequenceDataWriteOp, Entries as SequenceEntries, Entry as SequenceEntry,
-    Index as SequenceIndex, Kind as SequenceKind, Permissions as SequencePermissions,
-    Policy as SequencePolicy, PolicyWriteOp as SequencePolicyWriteOp,
-    PrivatePermissions as SequencePrivatePermissions, PrivatePolicy as SequencePrivatePolicy,
-    PrivateSeqData, PublicPermissions as SequencePublicPermissions,
-    PublicPolicy as SequencePublicPolicy, PublicSeqData, User as SequenceUser,
+    Index as SequenceIndex, PolicyWriteOp as SequencePolicyWriteOp, PrivateSeqData, PublicSeqData,
+    SequencePermissions, SequencePrivatePermissions, SequencePrivatePolicy,
+    SequencePublicPermissions, SequencePublicPolicy,
 };
 use serde::{Deserialize, Serialize};
 pub use sha3::Sha3_512 as Ed25519Digest;
