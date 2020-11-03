@@ -11,7 +11,7 @@ use crate::{utils, Error, PublicKey, Result, XorName};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fmt::Debug, hash::Hash};
 
-/// An action on Sequence data type.
+/// An action on Data data type.
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub enum Action {
     /// Read from the data.
@@ -25,20 +25,20 @@ pub enum Action {
 /// List of entries.
 pub type Entries = Vec<Entry>;
 
-/// An entry in a Sequence.
+/// An entry in a Data.
 pub type Entry = Vec<u8>;
 
-/// Address of a Sequence.
+/// Address of a Data.
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Address {
-    /// Public sequence namespace.
+    /// Public namespace.
     Public {
         /// Name.
         name: XorName,
         /// Tag.
         tag: u64,
     },
-    /// Private sequence namespace.
+    /// Private namespace.
     Private {
         /// Name.
         name: XorName,
@@ -99,12 +99,12 @@ impl Address {
     }
 }
 
-/// Kind of a Sequence.
+/// Kind of a Data.
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Kind {
-    /// Public sequence.
+    /// Public.
     Public,
-    /// Private sequence.
+    /// Private.
     Private,
 }
 
@@ -212,7 +212,7 @@ impl PrivatePermissions {
     }
 }
 
-/// User that can access Sequence.
+/// User that can access Data.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Debug)]
 pub enum User {
     /// Any user.

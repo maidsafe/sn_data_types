@@ -8,12 +8,12 @@
 // Software.
 
 use super::metadata::{Address, Entries, Entry, Index, Perm};
-use crate::{Error, PublicKey, Result};
-pub use crdts::{lseq::Op, Actor};
-use crdts::{
-    lseq::{ident::Identifier, Entry as LSeqEntry, LSeq},
-    CmRDT,
-};
+use crate::{Error, Result};
+pub use crdts::{map::Op, Actor};
+// use crdts::{
+//     map::{ident::Identifier, Entry as MapEntry, Map},
+//     CmRDT,
+// };
 use serde::{Deserialize, Serialize};
 use std::{
     cmp::Ordering::{Equal, Greater, Less},
@@ -22,88 +22,62 @@ use std::{
     hash::Hash,
 };
 
+// /// Since in most of the cases it will be append operations, having a small
+// /// boundary will make the Identifiers' length to be shorter.
+// const LSEQ_BOUNDARY: u64 = 1;
+// /// Again, we are going to be dealing with append operations most of the time,
+// /// thus a large arity be benefitial to keep Identifiers' length short.
+// const LSEQ_TREE_BASE: u8 = 10; // arity of 1024 at root
 
-/// An action on Data data type.
-#[derive(Clone, Copy, Eq, PartialEq)]
-pub enum Action {
-    /// Read from the data.
-    Read,
-    /// Append to the data.
-    Append,
-    /// Manage permissions.
-    Admin,
-}
-
-/// List of entries.
-pub type Entries = Vec<Entry>;
-
-/// An entry in a Data.
-pub type Entry = Vec<u8>;
-
-
-
-/// Since in most of the cases it will be append operations, having a small
-/// boundary will make the Identifiers' length to be shorter.
-const LSEQ_BOUNDARY: u64 = 1;
-/// Again, we are going to be dealing with append operations most of the time,
-/// thus a large arity be benefitial to keep Identifiers' length short.
-const LSEQ_TREE_BASE: u8 = 10; // arity of 1024 at root
-
-/// CRDT Data operation applicable to other Sequence replica.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, PartialOrd, Eq, Hash)]
+/// CRDT Data operation applicable to other Map replicas.
+#[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Eq, Hash)]
 pub struct CrdtDataOperation<A: Actor + Display + std::fmt::Debug, T> {
-    /// Address of a Sequence object on the network.
+    /// Address of a Map object on the network.
     pub address: Address,
     /// The data operation to apply.
     pub crdt_op: Op<T, A>,
-    /// The PublicKey of the entity that generated the operation
-    pub source: PublicKey,
     /// The context (policy) this operation depends on
     pub ctx: Identifier<A>,
 }
 
-/// CRDT Policy operation applicable to other Sequence replica.
+/// CRDT Policy operation applicable to other Map replica.
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Eq, Hash)]
 pub struct CrdtPolicyOperation<A: Actor + Display + std::fmt::Debug, P> {
-    /// Address of a Sequence object on the network.
+    /// Address of a Map object on the network.
     pub address: Address,
     /// The policy operation to apply.
     pub crdt_op: Op<(P, Option<Identifier<A>>), A>,
-    /// The PublicKey of the entity that generated the operation
-    pub source: PublicKey,
     /// The context (previous policy) this operation depends on
     pub ctx: Option<(Identifier<A>, Option<Identifier<A>>)>,
 }
 
-/// Sequence data type as a CRDT with Access Control
+/// Map data type as a CRDT with Access Control
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd)]
-pub struct SequenceCrdt<A, P>
+pub struct MapCrdt<A, P>
 where
     A: Actor + Display + std::fmt::Debug,
     P: Perm + Hash + Clone,
 {
-    /// Actor of this piece of data
-    pub(crate) actor: A,
     /// Address on the network of this piece of data
     address: Address,
-    /// CRDT to store the actual data, i.e. the items of the Sequence.
-    /// We keep different LSeqs (diverted copies) for each Policy, which allows us to create
-    /// branches of the Sequence when data ops that depend on old policies are applied.
-    data: BTreeMap<Identifier<A>, LSeq<Entry, A>>,
+    /// CRDT to store the actual data, i.e. the items of the Map.
+    /// We keep different Maps (diverted copies) for each Policy, which allows us to create
+    /// branches of the Map when data ops that depend on old policies are applied.
+    data: BTreeMap<Identifier<A>, Map<Entry, A>>,
     /// History of the Policy matrix, each entry representing a version of the Policy matrix
-    /// and the last item in the Sequence when this Policy was applied.
-    policy: LSeq<(P, Option<Identifier<A>>), A>,
+    /// and the last item in the Map when this Policy was applied.
+    policy: Map<(P, Option<Identifier<A>>), A>,
 }
 
-impl<A, P> Display for SequenceCrdt<A, P>
+impl<A, P> Display for MapCrdt<A, P>
 where
     A: Actor + Display + std::fmt::Debug,
     P: Perm + Hash + Clone,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[")?;
-        if let Some(lseq) = self.current_lseq() {
-            for (i, entry) in lseq.iter().enumerate() {
+        if let Some(map) = self.current_map() {
+            for (i, entry) in map.iter().enumerate() {
                 if i > 0 {
                     write!(f, ", ")?;
                 }
@@ -114,18 +88,17 @@ where
     }
 }
 
-impl<A, P> SequenceCrdt<A, P>
+impl<A, P> MapCrdt<A, P>
 where
     A: Actor + Display + std::fmt::Debug,
     P: Perm + Hash + Clone,
 {
-    /// Constructs a new 'SequenceCrdt'.
+    /// Constructs a new 'MapCrdt'.
     pub fn new(actor: A, address: Address) -> Self {
         Self {
-            actor: actor.clone(),
             address,
             data: BTreeMap::default(),
-            policy: LSeq::new_with_args(actor, LSEQ_TREE_BASE, LSEQ_BOUNDARY),
+            policy: Map::new_with_args(actor, LSEQ_TREE_BASE, LSEQ_BOUNDARY),
         }
     }
 
@@ -136,29 +109,21 @@ where
 
     /// Returns the length of the sequence.
     pub fn len(&self) -> u64 {
-        if let Some(lseq) = self.current_lseq() {
-            lseq.len() as u64
+        if let Some(map) = self.current_map() {
+            map.len() as u64
         } else {
             0
         }
     }
 
-    /// Returns the index of last policy if there is at least a Policy.
-    pub fn policy_index(&self) -> Option<u64> {
-        if self.policy.is_empty() {
-            None
-        } else {
-            Some((self.policy.len() - 1) as u64)
-        }
+    /// Returns the last policy index.
+    pub fn policy_index(&self) -> u64 {
+        self.policy.len() as u64
     }
 
-    /// Append a new item to the SequenceCrdt and returns the CRDT operation
-    pub fn append(
-        &mut self,
-        entry: Entry,
-        source: PublicKey,
-    ) -> Result<CrdtDataOperation<A, Entry>> {
-        // Retrieve the LSeq corresponding to the current Policy,
+    /// Append a new item to the MapCrdt and returns the CRDT operation
+    pub fn append(&mut self, entry: Entry) -> Result<CrdtDataOperation<A, Entry>> {
+        // Retrieve the Map corresponding to the current Policy,
         // or create and insert one if there is none.
         let address = *self.address();
 
@@ -169,15 +134,14 @@ where
                 None => Err(Error::Unexpected(
                     "The data is an unexpected inconsistent state".to_string(),
                 )),
-                Some(lseq) => {
-                    // Append the entry to the LSeq corresponding to current Policy
-                    let crdt_op = lseq.append(entry);
+                Some(map) => {
+                    // Append the entry to the Map corresponding to current Policy
+                    let crdt_op = map.append(entry);
 
                     // We return the operation as it may need to be broadcasted to other replicas
                     Ok(CrdtDataOperation {
                         address,
                         crdt_op,
-                        source,
                         ctx: cur_policy.id.clone(),
                     })
                 }
@@ -185,13 +149,14 @@ where
         }
     }
 
-    /// Apply a remote data CRDT operation to this replica of the Sequence.
+    /// Apply a remote data CRDT operation to this replica of the Map.
     pub fn apply_data_op(&mut self, op: CrdtDataOperation<A, Entry>) -> Result<()> {
         let policy_id = op.ctx.clone();
-        if self.policy_by_id(&policy_id).is_some() {
-            // We have to apply the op to all branches/copies of the Sequence as it may
+
+        if self.policy.find_entry(&policy_id).is_some() {
+            // We have to apply the op to all branches/copies of the Map as it may
             // be an old operation which appends an item to the master branch of items
-            for LSeqEntry {
+            for MapEntry {
                 id,
                 val: (_, item_id),
                 ..
@@ -212,15 +177,15 @@ where
                 };
 
                 if should_apply_op {
-                    // Retrieve the LSeq corresponding this Policy
-                    let lseq = self.data.get_mut(id).ok_or_else(|| {
+                    // Retrieve the Map corresponding this Policy
+                    let map = self.data.get_mut(id).ok_or_else(|| {
                         Error::Unexpected(
                             "The data is an unexpected inconsistent state".to_string(),
                         )
                     })?;
 
-                    // Apply the CRDT operation to the LSeq data
-                    lseq.apply(op.crdt_op.clone());
+                    // Apply the CRDT operation to the Map data
+                    map.apply(op.crdt_op.clone());
                 }
             }
 
@@ -235,41 +200,37 @@ where
     }
 
     /// Sets a new Policy keeping the current one in the history.
-    pub fn set_policy(
-        &mut self,
-        policy: P,
-        source: PublicKey,
-    ) -> Result<CrdtPolicyOperation<A, P>> {
-        let (new_lseq, prev_policy_id) = match self.policy.last_entry() {
+    pub fn set_policy(&mut self, policy: P) -> Result<CrdtPolicyOperation<A, P>> {
+        let (new_map, prev_policy_id) = match self.policy.last_entry() {
             None => {
-                // Create an empty LSeq since there are no items yet for this Policy
+                // Create an empty Map since there are no items yet for this Policy
                 let actor = self.policy.actor();
                 (
-                    LSeq::new_with_args(actor, LSEQ_TREE_BASE, LSEQ_BOUNDARY),
+                    Map::new_with_args(actor, LSEQ_TREE_BASE, LSEQ_BOUNDARY),
                     None,
                 )
             }
             Some(cur_policy) => match self.data.get(&cur_policy.id) {
-                Some(lseq) => (lseq.clone(), Some(cur_policy.id.clone())),
+                Some(map) => (map.clone(), Some(cur_policy.id.clone())),
                 None => {
-                    // Create an empty LSeq since there are no items yet for this Policy
+                    // Create an empty Map since there are no items yet for this Policy
                     let actor = self.policy.actor();
                     (
-                        LSeq::new_with_args(actor, LSEQ_TREE_BASE, LSEQ_BOUNDARY),
+                        Map::new_with_args(actor, LSEQ_TREE_BASE, LSEQ_BOUNDARY),
                         Some(cur_policy.id.clone()),
                     )
                 }
             },
         };
 
-        // Last item in current Sequence to be used as causal info for new Policy
-        let cur_last_item = new_lseq.last_entry().map(|entry| entry.id.clone());
+        // Last item in current Map to be used as causal info for new Policy
+        let cur_last_item = new_map.last_entry().map(|entry| entry.id.clone());
 
         // Append the new Policy to the history
         let crdt_op = self.policy.append((policy, cur_last_item.clone()));
 
         let policy_id = crdt_op.id().clone();
-        let _ = self.data.insert(policy_id, new_lseq);
+        let _ = self.data.insert(policy_id, new_map);
 
         // Causality info for this Policy op includes current Policy and item Identifiers
         let ctx = prev_policy_id.map(|policy_id| (policy_id, cur_last_item));
@@ -278,14 +239,13 @@ where
         Ok(CrdtPolicyOperation {
             address: *self.address(),
             crdt_op,
-            source,
             ctx,
         })
     }
 
     /// Apply a remote policy CRDT operation to this replica.
     pub fn apply_policy_op(&mut self, op: CrdtPolicyOperation<A, P>) -> Result<()> {
-        let new_lseq = if let Some((policy_id, item_id)) = op.ctx {
+        let new_map = if let Some((policy_id, item_id)) = op.ctx {
             // policy op has a context/causality info,
             // let's check it's causally ready for applying
             if self.policy.find_entry(&policy_id).is_none() {
@@ -293,8 +253,8 @@ where
                 // so the sender can retry later and/or send the missing ops
                 return Err(Error::OpNotCausallyReady);
             } else {
-                // Retrieve the LSeq corresponding to the Policy this op depends on,
-                let lseq = self.data.get(&policy_id).ok_or_else(|| {
+                // Retrieve the Map corresponding to the Policy this op depends on,
+                let map = self.data.get(&policy_id).ok_or_else(|| {
                     Error::Unexpected("The data is an unexpected inconsistent state".to_string())
                 })?;
 
@@ -302,42 +262,42 @@ where
 
                 match item_id {
                     None => {
-                        // The Policy doesn't depend on any item thus we copy the entire Sequence
-                        lseq.clone()
+                        // The Policy doesn't depend on any item thus we copy the entire Map
+                        map.clone()
                     }
                     Some(id) => {
                         // The Policy depends on specific item Id, create a copy with only
                         // items which Identifier is less than or equal to such Id.
-                        // Note this logic is essentially copying the Sequence and undoing
+                        // Note this logic is essentially copying the Map and undoing
                         // some Append ops which shall be filtered out based on their Id.
                         let actor = self.policy.actor();
-                        let mut new_lseq =
-                            LSeq::new_with_args(actor, LSEQ_TREE_BASE, LSEQ_BOUNDARY);
+                        let mut new_map =
+                            Map::new_with_args(actor, LSEQ_TREE_BASE, LSEQ_BOUNDARY);
 
-                        lseq.iter_entries().for_each(|entry| {
+                        map.iter_entries().for_each(|entry| {
                             if entry.id <= id {
                                 let op = Op::Insert {
                                     id: entry.id.clone(),
                                     dot: entry.dot.clone(),
                                     val: entry.val.clone(),
                                 };
-                                new_lseq.apply(op);
+                                new_map.apply(op);
                             }
                         });
 
-                        new_lseq
+                        new_map
                     }
                 }
             }
         } else {
-            // Create an empty LSeq since there are no items yet for this Policy
+            // Create an empty Map since there are no items yet for this Policy
             let actor = self.policy.actor();
-            LSeq::new_with_args(actor, LSEQ_TREE_BASE, LSEQ_BOUNDARY)
+            Map::new_with_args(actor, LSEQ_TREE_BASE, LSEQ_BOUNDARY)
         };
 
         let policy_id = op.crdt_op.id();
         if !self.data.contains_key(policy_id) {
-            let _ = self.data.insert(policy_id.clone(), new_lseq);
+            let _ = self.data.insert(policy_id.clone(), new_map);
         }
 
         // Apply the CRDT operation to the local replica of the policy
@@ -349,28 +309,18 @@ where
     /// Gets the entry at `index` if it exists.
     pub fn get(&self, index: Index) -> Option<&Entry> {
         let i = to_absolute_index(index, self.len() as usize)?;
-        self.current_lseq().and_then(|lseq| lseq.get(i))
+        self.current_map().and_then(|map| map.get(i))
     }
 
     /// Gets the last entry.
     pub fn last_entry(&self) -> Option<&Entry> {
-        self.current_lseq().and_then(|lseq| lseq.last())
-    }
-
-    /// Gets last policy from the history if there is at least one.
-    pub fn policy(&self) -> Option<&P> {
-        self.policy_at(Index::FromEnd(1))
+        self.current_map().and_then(|map| map.last())
     }
 
     /// Gets a policy from the history at `index` if it exists.
-    pub fn policy_at(&self, index: impl Into<Index>) -> Option<&P> {
+    pub fn policy(&self, index: impl Into<Index>) -> Option<&P> {
         let i = to_absolute_index(index.into(), self.policy.len())?;
         self.policy.get(i).map(|p| &p.0)
-    }
-
-    /// Gets a policy from the history looking it up by its Identfier.
-    pub(crate) fn policy_by_id(&self, id: &Identifier<A>) -> Option<&P> {
-        self.policy.find_entry(id).map(|entry| &entry.val.0)
     }
 
     /// Gets a list of items which are within the given indices.
@@ -378,8 +328,8 @@ where
         let start_index = to_absolute_index(start, self.len() as usize)?;
         let num_items = to_absolute_index(end, self.len() as usize)?; // end_index
 
-        self.current_lseq().map(|lseq| {
-            lseq.iter()
+        self.current_map().map(|map| {
+            map.iter()
                 .take(num_items)
                 .enumerate()
                 .take_while(|(i, _)| i >= &start_index)
@@ -388,8 +338,8 @@ where
         })
     }
 
-    // Private helper to return the LSeq correspondng to current/last Policy and Id
-    fn current_lseq(&self) -> Option<&LSeq<Entry, A>> {
+    // Private helper to return the Map correspondng to current/last Policy and Id
+    fn current_map(&self) -> Option<&Map<Entry, A>> {
         self.policy
             .last_entry()
             .and_then(|cur_policy| self.data.get(&cur_policy.id))

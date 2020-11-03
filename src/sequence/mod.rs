@@ -7,16 +7,14 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-mod metadata;
 mod seq_crdt;
 
 use crate::{Error, PublicKey, Result};
-use crdts::lseq::ident::Identifier;
-pub use metadata::{
-    Action, Address, Entries, Entry, Index, Kind, Perm, Permissions, Policy, PrivatePermissions,
+pub use crate::metadata::{
+    Address, Index, Kind, Perm, Permissions, Policy, PrivatePermissions,
     PrivatePolicy, PublicPermissions, PublicPolicy, User,
 };
-use seq_crdt::{CrdtDataOperation, CrdtPolicyOperation, Op, SequenceCrdt};
+use seq_crdt::{Entry, Entries, CrdtDataOperation, CrdtPolicyOperation, Op, SequenceCrdt};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
@@ -24,6 +22,8 @@ use std::{
     hash::Hash,
 };
 use xor_name::XorName;
+
+
 
 // Type of data used for the 'Actor' in CRDT vector clocks
 type ActorType = PublicKey;

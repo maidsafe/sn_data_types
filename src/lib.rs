@@ -38,6 +38,7 @@ mod rewards;
 mod sequence;
 mod transfer;
 mod utils;
+mod metadata;
 
 pub use blob::{
     Address as BlobAddress, Data as Blob, Kind as BlobKind, PrivateData as PrivateBlob,
@@ -49,14 +50,18 @@ pub use keys::{
     BlsKeypair, BlsKeypairShare, Keypair, NodeKeypairs, PublicKey, SecretKey, Signature,
     SignatureShare,
 };
-pub use map::{
-    Action as MapAction, Address as MapAddress, Data as Map, Entries as MapEntries,
-    EntryActions as MapEntryActions, Kind as MapKind, PermissionSet as MapPermissionSet,
-    SeqData as SeqMap, SeqEntries as MapSeqEntries, SeqEntryAction as MapSeqEntryAction,
-    SeqEntryActions as MapSeqEntryActions, SeqValue as MapSeqValue, UnseqData as UnseqMap,
-    UnseqEntries as MapUnseqEntries, UnseqEntryAction as MapUnseqEntryAction,
-    UnseqEntryActions as MapUnseqEntryActions, Value as MapValue, Values as MapValues,
-};
+// pub use metadata::{
+//     Address as MetaDataAddress, Index, Kind, Perm, Permissions, Policy, PrivatePermissions,
+//     PrivatePolicy, PublicPermissions, PublicPolicy, User,
+// };
+// pub use map::{
+//     Action as MapAction, Address as MapAddress, Data as Map, Entries as MapEntries,
+//     EntryActions as MapEntryActions, Kind as MapKind, PermissionSet as MapPermissionSet,
+//     SeqData as SeqMap, SeqEntries as MapSeqEntries, SeqEntryAction as MapSeqEntryAction,
+//     SeqEntryActions as MapSeqEntryActions, SeqValue as MapSeqValue, UnseqData as UnseqMap,
+//     UnseqEntries as MapUnseqEntries, UnseqEntryAction as MapUnseqEntryAction,
+//     UnseqEntryActions as MapUnseqEntryActions, Value as MapValue, Values as MapValues,
+// };
 pub use messaging::{
     Account, AccountRead, AccountWrite, Address, AdultDuties, AuthCmd, AuthQuery,
     AuthorisationKind, BlobRead, BlobWrite, Cmd, CmdError, DataAuthKind, DataCmd, DataQuery, Duty,
@@ -94,8 +99,8 @@ use xor_name::XorName;
 pub enum Data {
     /// Blob.
     Immutable(Blob),
-    /// MutableData.
-    Mutable(Map),
+    /// Map.
+    Map(Map),
     /// Sequence.
     Sequence(Sequence),
 }
@@ -105,7 +110,7 @@ impl Data {
     pub fn is_pub(&self) -> bool {
         match *self {
             Self::Immutable(ref idata) => idata.is_pub(),
-            Self::Mutable(_) => false,
+            Self::Map(_) => false,
             Self::Sequence(ref sequence) => sequence.is_pub(),
         }
     }
@@ -124,7 +129,7 @@ impl From<Blob> for Data {
 
 impl From<Map> for Data {
     fn from(data: Map) -> Self {
-        Self::Mutable(data)
+        Self::Map(data)
     }
 }
 
