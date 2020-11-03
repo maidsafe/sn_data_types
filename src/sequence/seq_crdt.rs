@@ -30,7 +30,7 @@ const LSEQ_BOUNDARY: u64 = 1;
 const LSEQ_TREE_BASE: u8 = 10; // arity of 1024 at root
 
 /// CRDT Data operation applicable to other Sequence replica.
-#[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Eq, Hash)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, PartialOrd, Eq, Hash)]
 pub struct CrdtDataOperation<A: Actor + Display + std::fmt::Debug, T> {
     /// Address of a Sequence object on the network.
     pub address: Address,
@@ -58,6 +58,8 @@ where
     A: Actor + Display + std::fmt::Debug,
     P: Perm + Hash + Clone,
 {
+    /// Actor of this piece of data
+    pub(crate) actor: A,
     /// Address on the network of this piece of data
     address: Address,
     /// CRDT to store the actual data, i.e. the items of the Sequence.
@@ -96,6 +98,7 @@ where
     /// Constructs a new 'SequenceCrdt'.
     pub fn new(actor: A, address: Address) -> Self {
         Self {
+            actor: actor.clone(),
             address,
             data: BTreeMap::default(),
             policy: LSeq::new_with_args(actor, LSEQ_TREE_BASE, LSEQ_BOUNDARY),
@@ -116,9 +119,13 @@ where
         }
     }
 
-    /// Returns the last policy index.
-    pub fn policy_index(&self) -> u64 {
-        self.policy.len() as u64
+    /// Returns the index of last policy if there is at least a Policy.
+    pub fn policy_index(&self) -> Option<u64> {
+        if self.policy.is_empty() {
+            None
+        } else {
+            Some((self.policy.len() - 1) as u64)
+        }
     }
 
     /// Append a new item to the SequenceCrdt and returns the CRDT operation
@@ -152,7 +159,7 @@ where
     /// Apply a remote data CRDT operation to this replica of the Sequence.
     pub fn apply_data_op(&mut self, op: CrdtDataOperation<A, Entry>) -> Result<()> {
         let policy_id = op.ctx.clone();
-        if self.policy.find_entry(&policy_id).is_some() {
+        if self.policy_by_id(&policy_id).is_some() {
             // We have to apply the op to all branches/copies of the Sequence as it may
             // be an old operation which appends an item to the master branch of items
             for LSeqEntry {
@@ -314,10 +321,20 @@ where
         self.current_lseq().and_then(|lseq| lseq.last())
     }
 
+    /// Gets last policy from the history if there is at least one.
+    pub fn policy(&self) -> Option<&P> {
+        self.policy_at(Index::FromEnd(1))
+    }
+
     /// Gets a policy from the history at `index` if it exists.
-    pub fn policy(&self, index: impl Into<Index>) -> Option<&P> {
+    pub fn policy_at(&self, index: impl Into<Index>) -> Option<&P> {
         let i = to_absolute_index(index.into(), self.policy.len())?;
         self.policy.get(i).map(|p| &p.0)
+    }
+
+    /// Gets a policy from the history looking it up by its Identfier.
+    pub(crate) fn policy_by_id(&self, id: &Identifier<A>) -> Option<&P> {
+        self.policy.find_entry(id).map(|entry| &entry.val.0)
     }
 
     /// Gets a list of items which are within the given indices.
