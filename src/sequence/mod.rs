@@ -1658,6 +1658,111 @@ mod tests {
 
         }
 
+
+        #[test]
+        fn proptest_we_converge_with_ownership_and_perms_changes(
+            // 100 min to ensure we get some other ops in shuffle (statistically)
+            dataset in prop::collection::vec((generate_seq_entry(), any::<u8>()), 100..1000)
+        ) {
+
+            let actor1 = gen_public_key();
+            let actor2 = gen_public_key();
+            let sequence_name = XorName::random();
+
+            let sdata_tag = 43_001u64;
+
+            // Instantiate the same Sequence on two replicas
+            let mut replica1 = Sequence::new_public(actor1, sequence_name, sdata_tag);
+            let mut replica2 = Sequence::new_public(actor2, sequence_name, sdata_tag);
+
+            // Set Actor1 as the owner
+            let perms = BTreeMap::default();
+            let owner_op = replica1.set_public_policy(actor1, perms)?;
+            replica2.apply_public_policy_op(owner_op)?;
+
+            let dataset_length = dataset.len() as u64;
+
+            let mut ops = vec![];
+            for (data, policy_change_chance) in dataset {
+                    let op = replica1.append(data)?;
+                    ops.push(OpType::Data(op));
+                    let new_owner = gen_public_key();
+
+                    if policy_change_chance < u8::MAX / 8 {
+                        let mut perms = BTreeMap::default();
+                        let user_perms =
+                            SequencePublicPermissions::new(/*append=*/ true, /*admin=*/ false);
+                        let _ = perms.insert(SequenceUser::Key(actor1), user_perms);
+                        let owner_op = replica1.set_public_policy(new_owner, perms)?;
+
+                        ops.push(OpType::Owner(owner_op));
+
+                    }
+
+                    // randomly disallow writes from our original key
+                    if policy_change_chance < u8::MAX / 4 && policy_change_chance > u8::MAX / 8 {
+                        let mut perms = BTreeMap::default();
+                        let user_perms =
+                            SequencePublicPermissions::new(/*append=*/ false, /*admin=*/ false);
+                        let _ = perms.insert(SequenceUser::Key(new_owner), user_perms);
+                        let owner_op = replica1.set_public_policy(new_owner, perms)?;
+
+                        ops.push(OpType::Owner(owner_op));
+
+                    }
+
+                    // randomly allow writes from our original key
+                    if policy_change_chance < u8::MAX / 2 && policy_change_chance > u8::MAX / 4 {
+                        let mut perms = BTreeMap::default();
+                        let user_perms =
+                            SequencePublicPermissions::new(/*append=*/ true, /*admin=*/ false);
+                        let _ = perms.insert(SequenceUser::Key(actor1), user_perms);
+                        let owner_op = replica1.set_public_policy(new_owner, perms)?;
+
+                        ops.push(OpType::Owner(owner_op));
+
+                    }
+            }
+            let mut suffled_ops = ops.clone();
+            suffled_ops.shuffle(&mut OsRng);
+
+            for op in suffled_ops.clone() {
+                match op {
+                    OpType::Data(op) => {
+                        // TODO: current out of order ops fail...
+                        // 1. there is no permission check on if the op is allowed
+                        // 2. The permission depends on the prev one, which _if it is missing_, we should get back an error stating
+                        // missing policy requirements (lazy messaging) to resend those ops.
+                        let _ = replica2.apply_data_op(op);
+                    },
+                    OpType::Owner(op) => {
+                        // Don't care about failed ops just now due to causality changes... the solution at the 
+                        // app layer is to request missing ops + reapply them (which we effectively do below)
+                        let _ = replica2.apply_public_policy_op(op);
+                    },
+                }
+            }
+
+            // be sure we're missing ops at the moment...
+            assert_ne!(replica2.len(), replica1.len());
+
+            // reapply any potentially failed ops
+            for op in ops.clone() {
+                match op {
+                    OpType::Data(op) => {
+                        replica2.apply_data_op(op)?;
+                    },
+                    OpType::Owner(op) => {
+                        replica2.apply_public_policy_op(op)?;
+                    },
+                }
+            }
+
+            // now we converge
+            verify_data_convergence(vec![replica1, replica2], dataset_length);
+
+        }
+
         #[test]
         fn proptest_dropped_data_can_be_reapplied_and_we_converge(
             dataset in gen_dataset_and_probability(1000),
