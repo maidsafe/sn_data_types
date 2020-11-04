@@ -31,15 +31,13 @@ use xor_name::XorName;
 #[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub struct MsgSender {
     entity: Entity,
-    sig: EntitySignature,
+    sig: Option<EntitySignature>,
 }
 
 /// An identifier of a section, as
 /// of a specific Elder constellation, thereby making it transient.
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub struct TransientSectionKey {
-    /// The xorspace related id.
-    pub name: XorName,
     /// The group sig related id.
     pub bls_key: BlsPublicKey,
 }
@@ -140,7 +138,7 @@ impl MsgSender {
     pub fn client(key: PublicKey, sig: Signature) -> Result<Self> {
         Ok(Self {
             entity: Entity::Client(key),
-            sig: EntitySignature::Client(sig),
+            sig: Some(EntitySignature::Client(sig)),
         })
     }
 
@@ -148,7 +146,7 @@ impl MsgSender {
     pub fn any_node(key: Ed25519PublicKey, duty: Duty, sig: Ed25519Signature) -> Result<Self> {
         Ok(Self {
             entity: Entity::AnyNode(key, duty),
-            sig: EntitySignature::Node(sig),
+            sig: Some(EntitySignature::Node(sig)),
         })
     }
 
@@ -156,7 +154,7 @@ impl MsgSender {
     pub fn adult(key: Ed25519PublicKey, duty: AdultDuties, sig: Ed25519Signature) -> Result<Self> {
         Ok(Self {
             entity: Entity::AdultNode(key, duty),
-            sig: EntitySignature::Node(sig),
+            sig: Some(EntitySignature::Node(sig)),
         })
     }
 
@@ -168,15 +166,15 @@ impl MsgSender {
     ) -> Result<Self> {
         Ok(Self {
             entity: Entity::ElderNode(key, duty),
-            sig: EntitySignature::Elder(sig),
+            sig: Some(EntitySignature::Elder(sig)),
         })
     }
 
     ///
-    pub fn section(key: TransientSectionKey, duty: ElderDuties, sig: BlsSignature) -> Result<Self> {
+    pub fn section(key: TransientSectionKey, duty: ElderDuties) -> Result<Self> {
         Ok(Self {
             entity: Entity::Section(key, duty),
-            sig: EntitySignature::Section(sig),
+            sig: None,
         })
     }
 
@@ -203,7 +201,7 @@ impl MsgSender {
 
     /// Verifies a payload as sent by this sender.
     pub fn verify(&self, payload: &[u8]) -> bool {
-        self.entity.try_verify(&self.sig, payload)
+        self.entity.try_verify(self.sig.clone(), payload)
     }
 
     /// If sender is Elder
@@ -218,7 +216,7 @@ impl MsgSender {
     /// If sender is Elder
     pub fn group_sig_share(&self) -> Option<SignatureShare> {
         if let Entity::ElderNode(key, _) = &self.entity {
-            if let EntitySignature::Elder(sig) = &self.sig {
+            if let Some(EntitySignature::Elder(sig)) = &self.sig {
                 return Some(SignatureShare {
                     index: key.bls_share_index,
                     share: sig.clone(),
@@ -276,44 +274,38 @@ impl Entity {
             Client(key) => Address::Client((*key).into()),
             AnyNode(key, ..) | AdultNode(key, ..) => Address::Node(PublicKey::Ed25519(*key).into()),
             ElderNode(key, ..) => Address::Node(PublicKey::Ed25519(key.node_id).into()),
-            Section(key, ..) => Address::Section(key.name),
+            Section(key, ..) => Address::Section(PublicKey::Bls(key.bls_key).into()),
         }
     }
 
     ///
-    pub fn try_verify(&self, sig: &EntitySignature, data: &[u8]) -> bool {
+    pub fn try_verify(&self, sig: Option<EntitySignature>, data: &[u8]) -> bool {
         use Entity::*;
         match self {
             Client(key) => {
-                if let EntitySignature::Client(sig) = sig {
-                    key.verify(sig, data).is_ok()
+                if let Some(EntitySignature::Client(sig)) = sig {
+                    key.verify(&sig, data).is_ok()
                 } else {
                     false
                 }
             }
             AnyNode(key, ..) | AdultNode(key, ..) => {
-                if let EntitySignature::Node(sig) = sig {
-                    key.verify(data, sig).is_ok()
+                if let Some(EntitySignature::Node(sig)) = sig {
+                    key.verify(data, &sig).is_ok()
                 } else {
                     false
                 }
             }
             ElderNode(key, ..) => {
-                if let EntitySignature::Elder(sig) = sig {
-                    key.bls_key.verify(sig, data)
-                } else if let EntitySignature::Node(sig) = sig {
-                    key.node_id.verify(data, sig).is_ok()
+                if let Some(EntitySignature::Elder(sig)) = sig {
+                    key.bls_key.verify(&sig, data)
+                } else if let Some(EntitySignature::Node(sig)) = sig {
+                    key.node_id.verify(data, &sig).is_ok()
                 } else {
                     false
                 }
             }
-            Section(key, ..) => {
-                if let EntitySignature::Section(sig) = sig {
-                    key.bls_key.verify(sig, data)
-                } else {
-                    false
-                }
-            }
+            Section(..) => true,
         }
     }
 }
