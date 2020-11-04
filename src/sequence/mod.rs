@@ -546,6 +546,153 @@ mod tests {
     }
 
     #[test]
+    fn sequence_public_set_policy_and_append_fails_when_no_perms_for_actor() -> Result<()> {
+        let actor1 = generate_public_key();
+        let actor2 = generate_public_key();
+        let sequence_name = XorName::random();
+        let sequence_tag = 43_000;
+        let mut replica1 = Sequence::new_public(actor1, sequence_name, sequence_tag);
+        let mut replica2 = Sequence::new_public(actor2, sequence_name, sequence_tag);
+
+        let mut perms1 = BTreeMap::default();
+        let user_perms1 = SequencePublicPermissions::new(true, false);
+        let _ = perms1.insert(SequenceUser::Key(actor1), user_perms1);
+
+        let mut perms2 = BTreeMap::default();
+        let user_perms2 = SequencePublicPermissions::new(false, false);
+        let _ = perms2.insert(SequenceUser::Key(actor2), user_perms2);
+
+        let op1 = replica1.set_public_policy(actor1, perms1.clone())?;
+        let op2 = replica1.set_public_policy(actor1, perms2.clone())?;
+
+        // let's apply op perms...
+        replica2.apply_public_policy_op(op1)?;
+        replica2.apply_public_policy_op(op2)?;
+
+        assert_eq!(replica1.policy_version(), Some(1));
+        assert_eq!(replica2.policy_version(), Some(1));
+
+        // And let's append to both replicas with one first item
+        let item1 = b"item1";
+        let item2 = b"item2";
+        let append_op1 = replica1.append(item1.to_vec())?;
+        replica2.apply_data_op(append_op1)?;
+
+        let _ = match replica2.append(item2.to_vec()) {
+            Ok(_) => Err(Error::Unexpected(
+                "replica 2 has no append perms".to_string(),
+            )),
+            Err(_) => Ok(()),
+        }?;
+
+        assert_eq!(replica1.len(), replica2.len());
+
+        Ok(())
+    }
+
+    #[test]
+    fn sequence_public_set_policy_and_append_succeeds_when_perms_updated_for_actor() -> Result<()> {
+        let actor1 = generate_public_key();
+        let actor2 = generate_public_key();
+        let sequence_name = XorName::random();
+        let sequence_tag = 43_000;
+        let mut replica1 = Sequence::new_public(actor1, sequence_name, sequence_tag);
+        let mut replica2 = Sequence::new_public(actor2, sequence_name, sequence_tag);
+
+        let mut perms1 = BTreeMap::default();
+        let user_perms1 = SequencePublicPermissions::new(true, false);
+        let _ = perms1.insert(SequenceUser::Key(actor1), user_perms1);
+
+        let mut perms2 = BTreeMap::default();
+        let user_perms2 = SequencePublicPermissions::new(false, false);
+        let _ = perms2.insert(SequenceUser::Key(actor2), user_perms2);
+
+        let op1 = replica1.set_public_policy(actor1, perms1.clone())?;
+        let op2 = replica1.set_public_policy(actor1, perms2.clone())?;
+
+        // let's apply op perms...
+        replica2.apply_public_policy_op(op1)?;
+        replica2.apply_public_policy_op(op2)?;
+
+        assert_eq!(replica1.policy_version(), Some(1));
+        assert_eq!(replica2.policy_version(), Some(1));
+
+        // And let's append to both replicas with one first item
+        let item1 = b"item1";
+        let item2 = b"item2";
+        let append_op1 = replica1.append(item1.to_vec())?;
+        replica2.apply_data_op(append_op1)?;
+
+        let _ = match replica2.append(item2.to_vec()) {
+            Ok(_) => Err(Error::Unexpected(
+                "replica 2 has no append perms".to_string(),
+            )),
+            Err(_) => Ok(()),
+        }?;
+
+        // Now lets update the policy and try appending again
+
+        let mut perms3 = BTreeMap::default();
+        let user_perms3 = SequencePublicPermissions::new(true, false);
+        let _ = perms3.insert(SequenceUser::Key(actor2), user_perms3);
+
+        let op1 = replica1.set_public_policy(actor1, perms3.clone())?;
+        replica2.apply_public_policy_op(op1)?;
+
+        let append_op = replica2.append(item2.to_vec())?;
+        replica1.apply_data_op(append_op)?;
+
+        assert_eq!(replica1.len(), replica2.len());
+
+        Ok(())
+    }
+
+    #[test]
+    fn sequence_private_set_policy_and_append_fails_when_no_perms_for_actor() -> Result<()> {
+        let actor1 = generate_public_key();
+        let actor2 = generate_public_key();
+        let sequence_name = XorName::random();
+        let sequence_tag = 43_000;
+        let mut replica1 = Sequence::new_private(actor1, sequence_name, sequence_tag);
+        let mut replica2 = Sequence::new_private(actor2, sequence_name, sequence_tag);
+
+        let mut perms1 = BTreeMap::default();
+        let user_perms1 = SequencePrivatePermissions::new(true, false, true);
+        let _ = perms1.insert(actor1, user_perms1);
+
+        let mut perms2 = BTreeMap::default();
+        let user_perms2 = SequencePrivatePermissions::new(false, false, false);
+        let _ = perms2.insert(actor2, user_perms2);
+
+        let op1 = replica1.set_private_policy(actor2, perms1.clone())?;
+        let op2 = replica1.set_private_policy(actor1, perms2.clone())?;
+
+        // let's apply op perms...
+        replica2.apply_private_policy_op(op1)?;
+        replica2.apply_private_policy_op(op2)?;
+
+        assert_eq!(replica1.policy_version(), Some(1));
+        assert_eq!(replica2.policy_version(), Some(1));
+
+        // And let's append to both replicas with one first item
+        let item1 = b"item1";
+        let item2 = b"item2";
+        let append_op1 = replica1.append(item1.to_vec())?;
+        replica2.apply_data_op(append_op1)?;
+
+        let _ = match replica2.append(item2.to_vec()) {
+            Ok(_) => Err(Error::Unexpected(
+                "replica 2 has no append perms".to_string(),
+            )),
+            Err(_) => Ok(()),
+        }?;
+
+        assert_eq!(replica1.len(), replica2.len());
+
+        Ok(())
+    }
+
+    #[test]
     fn sequence_private_set_policy_and_get_read_fails_when_no_perms_for_actor() -> Result<()> {
         let actor1 = generate_public_key();
         let actor2 = generate_public_key();
