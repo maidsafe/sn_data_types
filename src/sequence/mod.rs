@@ -546,7 +546,7 @@ mod tests {
     }
 
     #[test]
-    fn sequence_private_set_policy_and_read_fails_when_no_perms_for_actor() -> Result<()> {
+    fn sequence_private_set_policy_and_get_read_fails_when_no_perms_for_actor() -> Result<()> {
         let actor1 = generate_public_key();
         let actor2 = generate_public_key();
         let sequence_name = XorName::random();
@@ -588,6 +588,107 @@ mod tests {
         };
 
         match replica2.get(SequenceIndex::FromStart(0)) {
+            Ok(_) => Err(Error::Unexpected("Should not be able to read".to_string())),
+            Err(_) => Ok(()),
+        }?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn sequence_private_set_policy_and_last_entry_read_fails_when_no_perms_for_actor() -> Result<()>
+    {
+        let actor1 = generate_public_key();
+        let actor2 = generate_public_key();
+        let sequence_name = XorName::random();
+        let sequence_tag = 43_000;
+        let mut replica1 = Sequence::new_private(actor1, sequence_name, sequence_tag);
+        let mut replica2 = Sequence::new_private(actor2, sequence_name, sequence_tag);
+
+        let mut perms1 = BTreeMap::default();
+        let user_perms1 = SequencePrivatePermissions::new(true, false, true);
+        let _ = perms1.insert(actor1, user_perms1);
+
+        let mut perms2 = BTreeMap::default();
+        let user_perms2 = SequencePrivatePermissions::new(false, false, false);
+        let _ = perms2.insert(actor2, user_perms2);
+
+        let op1 = replica1.set_private_policy(actor2, perms1.clone())?;
+        let op2 = replica1.set_private_policy(actor1, perms2.clone())?;
+
+        // let's apply op perms...
+        replica2.apply_private_policy_op(op1)?;
+        replica2.apply_private_policy_op(op2)?;
+
+        assert_eq!(replica1.policy_version(), Some(1));
+        assert_eq!(replica2.policy_version(), Some(1));
+
+        // And let's append to both replicas with one first item
+        let item1 = b"item1";
+        let append_op1 = replica1.append(item1.to_vec())?;
+        replica2.apply_data_op(append_op1)?;
+
+        // lets check replica1 can read that, and replica2 not...
+        let _ = match replica1.last_entry()? {
+            Some(data) => assert_eq!(data, b"item1"),
+            None => {
+                return Err(Error::Unexpected(
+                    "replica one should be able to read item1 here".to_string(),
+                ))
+            }
+        };
+
+        match replica2.last_entry() {
+            Ok(_) => Err(Error::Unexpected("Should not be able to read".to_string())),
+            Err(_) => Ok(()),
+        }?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn sequence_private_set_policy_and_range_read_fails_when_no_perms_for_actor() -> Result<()> {
+        let actor1 = generate_public_key();
+        let actor2 = generate_public_key();
+        let sequence_name = XorName::random();
+        let sequence_tag = 43_000;
+        let mut replica1 = Sequence::new_private(actor1, sequence_name, sequence_tag);
+        let mut replica2 = Sequence::new_private(actor2, sequence_name, sequence_tag);
+
+        let mut perms1 = BTreeMap::default();
+        let user_perms1 = SequencePrivatePermissions::new(true, false, true);
+        let _ = perms1.insert(actor1, user_perms1);
+
+        let mut perms2 = BTreeMap::default();
+        let user_perms2 = SequencePrivatePermissions::new(false, false, false);
+        let _ = perms2.insert(actor2, user_perms2);
+
+        let op1 = replica1.set_private_policy(actor2, perms1.clone())?;
+        let op2 = replica1.set_private_policy(actor1, perms2.clone())?;
+
+        // let's apply op perms...
+        replica2.apply_private_policy_op(op1)?;
+        replica2.apply_private_policy_op(op2)?;
+
+        assert_eq!(replica1.policy_version(), Some(1));
+        assert_eq!(replica2.policy_version(), Some(1));
+
+        // And let's append to both replicas with one first item
+        let item1 = b"item1";
+        let append_op1 = replica1.append(item1.to_vec())?;
+        replica2.apply_data_op(append_op1)?;
+
+        // lets check replica1 can read that, and replica2 not...
+        let _ = match replica1.in_range(SequenceIndex::FromStart(0), SequenceIndex::FromStart(1))? {
+            Some(data) => assert_eq!(data[0], b"item1"),
+            None => {
+                return Err(Error::Unexpected(
+                    "replica one should be able to read item1 here".to_string(),
+                ))
+            }
+        };
+
+        match replica2.in_range(SequenceIndex::FromStart(0), SequenceIndex::FromStart(1)) {
             Ok(_) => Err(Error::Unexpected("Should not be able to read".to_string())),
             Err(_) => Ok(()),
         }?;
