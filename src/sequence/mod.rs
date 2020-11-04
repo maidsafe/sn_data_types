@@ -759,7 +759,24 @@ mod tests {
             Ok(_) => Ok(()),
         }?;
 
-        // finally check the policy ahs been updated
+        match replica2.last_entry()? {
+            None => Err(Error::Unexpected("Should be able to read now".to_string())),
+            Some(data) => {
+                assert_eq!(data, b"item1");
+
+                Ok(())
+            }
+        }?;
+
+        match replica2.in_range(SequenceIndex::FromStart(0), SequenceIndex::FromStart(1))? {
+            None => Err(Error::Unexpected("Should be able to read now".to_string())),
+            Some(data) => {
+                assert_eq!(data[0], b"item1");
+                Ok(())
+            }
+        }?;
+
+        // finally check the policy has been updated
         assert_eq!(replica1.policy_version(), Some(2));
         assert_eq!(replica2.policy_version(), Some(2));
 
@@ -1138,7 +1155,6 @@ mod tests {
 
     /*
         TODO: missing tests:
-        - test read permissions with all read APIs ??
         - test Append and Admin permissions, with public and private Seq
         - test permissions with BLS shared secrets for shared Seq
         - review to confirm if tests for old and falsified policy ops are correct
