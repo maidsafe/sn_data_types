@@ -140,27 +140,33 @@ impl Data {
     }
 
     /// Gets a list of items which are within the given indices.
-    pub fn in_range(&self, start: Index, end: Index) -> Option<Entries> {
-        match self {
+    pub fn in_range(&self, start: Index, end: Index) -> Result<Option<Entries>> {
+        self.check_self_permission(Action::Read)?;
+
+        Ok(match self {
             Data::Public(data) => data.in_range(start, end),
             Data::Private(data) => data.in_range(start, end),
-        }
+        })
     }
 
     /// Returns a value at 'index', if present.
-    pub fn get(&self, index: Index) -> Option<&Vec<u8>> {
-        match self {
+    pub fn get(&self, index: Index) -> Result<Option<&Vec<u8>>> {
+        self.check_self_permission(Action::Read)?;
+
+        Ok(match self {
             Data::Public(data) => data.get(index),
             Data::Private(data) => data.get(index),
-        }
+        })
     }
 
     /// Returns the last entry, if present.
-    pub fn last_entry(&self) -> Option<&Entry> {
-        match self {
+    pub fn last_entry(&self) -> Result<Option<&Entry>> {
+        self.check_self_permission(Action::Read)?;
+
+        Ok(match self {
             Data::Public(data) => data.last_entry(),
             Data::Private(data) => data.last_entry(),
-        }
+        })
     }
 
     /// Appends new entry.
@@ -416,18 +422,18 @@ mod tests {
         assert_eq!(replica2.len(), 2);
 
         let index_0 = SequenceIndex::FromStart(0);
-        let first_entry = replica1.get(index_0);
+        let first_entry = replica1.get(index_0)?;
         assert_eq!(first_entry, Some(&entry1));
-        assert_eq!(first_entry, replica2.get(index_0));
+        assert_eq!(first_entry, replica2.get(index_0)?);
 
         let index_1 = SequenceIndex::FromStart(1);
-        let second_entry = replica1.get(index_1);
+        let second_entry = replica1.get(index_1)?;
         assert_eq!(second_entry, Some(&entry2));
-        assert_eq!(second_entry, replica2.get(index_1));
+        assert_eq!(second_entry, replica2.get(index_1)?);
 
-        let last_entry = replica1.last_entry();
+        let last_entry = replica1.last_entry()?;
         assert_eq!(last_entry, Some(&entry2));
-        assert_eq!(last_entry, replica2.last_entry());
+        assert_eq!(last_entry, replica2.last_entry()?);
 
         Ok(())
     }
@@ -540,6 +546,126 @@ mod tests {
     }
 
     #[test]
+    fn sequence_private_set_policy_and_read_fails_when_no_perms_for_actor() -> Result<()> {
+        let actor1 = generate_public_key();
+        let actor2 = generate_public_key();
+        let sequence_name = XorName::random();
+        let sequence_tag = 43_000;
+        let mut replica1 = Sequence::new_private(actor1, sequence_name, sequence_tag);
+        let mut replica2 = Sequence::new_private(actor2, sequence_name, sequence_tag);
+
+        let mut perms1 = BTreeMap::default();
+        let user_perms1 = SequencePrivatePermissions::new(true, false, true);
+        let _ = perms1.insert(actor1, user_perms1);
+
+        let mut perms2 = BTreeMap::default();
+        let user_perms2 = SequencePrivatePermissions::new(false, false, false);
+        let _ = perms2.insert(actor2, user_perms2);
+
+        let op1 = replica1.set_private_policy(actor2, perms1.clone())?;
+        let op2 = replica1.set_private_policy(actor1, perms2.clone())?;
+
+        // let's apply op perms...
+        replica2.apply_private_policy_op(op1)?;
+        replica2.apply_private_policy_op(op2)?;
+
+        assert_eq!(replica1.policy_version(), Some(1));
+        assert_eq!(replica2.policy_version(), Some(1));
+
+        // And let's append to both replicas with one first item
+        let item1 = b"item1";
+        let append_op1 = replica1.append(item1.to_vec())?;
+        replica2.apply_data_op(append_op1)?;
+
+        // lets check replica1 can read that, and replica2 not...
+        let _ = match replica1.get(SequenceIndex::FromStart(0))? {
+            Some(data) => assert_eq!(data, b"item1"),
+            None => {
+                return Err(Error::Unexpected(
+                    "replica one should be able to read item1 here".to_string(),
+                ))
+            }
+        };
+
+        match replica2.get(SequenceIndex::FromStart(0)) {
+            Ok(_) => Err(Error::Unexpected("Should not be able to read".to_string())),
+            Err(_) => Ok(()),
+        }?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn sequence_private_set_policy_and_read_possible_after_update() -> Result<()> {
+        let actor1 = generate_public_key();
+        let actor2 = generate_public_key();
+        let sequence_name = XorName::random();
+        let sequence_tag = 43_000;
+        let mut replica1 = Sequence::new_private(actor1, sequence_name, sequence_tag);
+        let mut replica2 = Sequence::new_private(actor2, sequence_name, sequence_tag);
+
+        let mut perms1 = BTreeMap::default();
+        let user_perms1 = SequencePrivatePermissions::new(true, false, true);
+        let _ = perms1.insert(actor1, user_perms1);
+
+        let mut perms2 = BTreeMap::default();
+        let user_perms2 = SequencePrivatePermissions::new(false, false, false);
+        let _ = perms2.insert(actor2, user_perms2);
+
+        let op1 = replica1.set_private_policy(actor2, perms1.clone())?;
+        let op2 = replica1.set_private_policy(actor1, perms2.clone())?;
+
+        // let's apply op perms...
+        replica2.apply_private_policy_op(op1)?;
+        replica2.apply_private_policy_op(op2)?;
+
+        assert_eq!(replica1.policy_version(), Some(1));
+        assert_eq!(replica2.policy_version(), Some(1));
+
+        // And let's append to both replicas with one first item
+        let item1 = b"item1";
+        let append_op1 = replica1.append(item1.to_vec())?;
+        replica2.apply_data_op(append_op1)?;
+
+        // lets check replica1 can read that, and replica2 not...
+        let _ = match replica1.get(SequenceIndex::FromStart(0))? {
+            Some(data) => assert_eq!(data, b"item1"),
+            None => {
+                return Err(Error::Unexpected(
+                    "replica one should be able to read item1 here".to_string(),
+                ))
+            }
+        };
+
+        match replica2.get(SequenceIndex::FromStart(0)) {
+            Ok(_) => Err(Error::Unexpected("Should not be able to read".to_string())),
+            Err(_) => Ok(()),
+        }?;
+
+        // set readable for replica 2 once more
+        let mut perms3 = BTreeMap::default();
+        let user_perms3 = SequencePrivatePermissions::new(true, false, false);
+        let _ = perms3.insert(actor2, user_perms3);
+
+        let updated_perms_op = replica1.set_private_policy(actor1, perms3.clone())?;
+
+        // let's apply op perms...
+        replica2.apply_private_policy_op(updated_perms_op)?;
+
+        let _ = replica1.get(SequenceIndex::FromStart(0))?;
+        match replica2.get(SequenceIndex::FromStart(0)) {
+            Err(_) => Err(Error::Unexpected("Should be able to read now".to_string())),
+            Ok(_) => Ok(()),
+        }?;
+
+        // finally check the policy ahs been updated
+        assert_eq!(replica1.policy_version(), Some(2));
+        assert_eq!(replica2.policy_version(), Some(2));
+
+        Ok(())
+    }
+
+    #[test]
     fn sequence_concurrent_policy_and_data_ops() -> Result<()> {
         let actor1 = generate_public_key();
         let actor2 = generate_public_key();
@@ -593,7 +719,7 @@ mod tests {
         // Let's assert that append_op2 created a branch of data on both replicas
         // due to new policy having been applied concurrently, thus only first
         // item shall be returned from main branch of data
-        verify_data_convergence(&[&replica1, &replica2], 1);
+        verify_data_convergence(&[&replica1, &replica2], 1)?;
 
         Ok(())
     }
@@ -658,7 +784,7 @@ mod tests {
         // Retrying to apply append op to replica2 should be successful, due
         // to now being causally ready with the new policy
         replica2.apply_data_op(append_op)?;
-        verify_data_convergence(&[&replica1, &replica2, &replica3], 1);
+        verify_data_convergence(&[&replica1, &replica2, &replica3], 1)?;
 
         Ok(())
     }
@@ -721,7 +847,7 @@ mod tests {
         // Let's assert the state on all replicas to assure convergence
         // One of the items appended concurrently should not belong to
         // the master branch of the data thus we should see only 2 items
-        verify_data_convergence(&[&replica1, &replica2], 2);
+        verify_data_convergence(&[&replica1, &replica2], 2)?;
 
         Ok(())
     }
@@ -759,7 +885,7 @@ mod tests {
         assert_eq!(replica1.policy_version(), Some(1));
         assert_eq!(replica2.policy_version(), Some(1));
 
-        verify_data_convergence(&[&replica1, &replica2], 1);
+        verify_data_convergence(&[&replica1, &replica2], 1)?;
 
         Ok(())
     }
@@ -953,22 +1079,24 @@ mod tests {
     }
 
     // verify data convergence on a set of replicas and with the expected length
-    fn verify_data_convergence(replicas: &[&Sequence], expected_len: u64) {
+    fn verify_data_convergence(replicas: &[&Sequence], expected_len: u64) -> Result<()> {
         // verify replicas have the expected length
         // also verify replicas failed to get with index beyond reported length
         let index_beyond = SequenceIndex::FromStart(expected_len);
         for r in replicas {
             assert_eq!(r.len(), expected_len);
-            assert_eq!(r.get(index_beyond), None);
+            assert_eq!(r.get(index_beyond)?, None);
         }
 
         // now verify that the items are the same in all replicas
         for i in 0..expected_len {
             let index = SequenceIndex::FromStart(i);
-            let r0_entry = replicas[0].get(index);
+            let r0_entry = replicas[0].get(index)?;
             for r in replicas {
-                assert_eq!(r0_entry, r.get(index));
+                assert_eq!(r0_entry, r.get(index)?);
             }
         }
+
+        Ok(())
     }
 }
