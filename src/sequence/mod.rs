@@ -119,24 +119,30 @@ impl Data {
     }
 
     /// Returns the length of the sequence.
-    pub fn len(&self) -> u64 {
-        match self {
+    pub fn len(&self) -> Result<u64> {
+        self.check_self_permission(Action::Read)?;
+
+        Ok(match self {
             Data::Public(data) => data.len(),
             Data::Private(data) => data.len(),
-        }
+        })
     }
 
     /// Returns true if the sequence is empty.
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
+    pub fn is_empty(&self) -> Result<bool> {
+        self.check_self_permission(Action::Read)?;
+
+        Ok(self.len()? == 0)
     }
 
     /// Returns the version of last Policy.
-    pub fn policy_version(&self) -> Option<u64> {
-        match self {
+    pub fn policy_version(&self) -> Result<Option<u64>> {
+        self.check_self_permission(Action::Read)?;
+
+        Ok(match self {
             Data::Public(data) => data.policy_index(),
             Data::Private(data) => data.policy_index(),
-        }
+        })
     }
 
     /// Gets a list of items which are within the given indices.
@@ -418,8 +424,8 @@ mod tests {
         replica2.apply_data_op(op2)?;
         replica2.apply_data_op(op1)?;
 
-        assert_eq!(replica1.len(), 2);
-        assert_eq!(replica2.len(), 2);
+        assert_eq!(replica1.len()?, 2);
+        assert_eq!(replica2.len()?, 2);
 
         let index_0 = SequenceIndex::FromStart(0);
         let first_entry = replica1.get(index_0)?;
@@ -465,8 +471,8 @@ mod tests {
         replica2.apply_public_policy_op(op1)?;
         replica2.apply_public_policy_op(op2)?;
 
-        assert_eq!(replica1.policy_version(), Some(1));
-        assert_eq!(replica2.policy_version(), Some(1));
+        assert_eq!(replica1.policy_version()?, Some(1));
+        assert_eq!(replica2.policy_version()?, Some(1));
 
         let index_0 = SequenceIndex::FromStart(0);
         let first_entry = replica1.public_policy(index_0)?;
@@ -519,8 +525,8 @@ mod tests {
         replica2.apply_private_policy_op(op1)?;
         replica2.apply_private_policy_op(op2)?;
 
-        assert_eq!(replica1.policy_version(), Some(1));
-        assert_eq!(replica2.policy_version(), Some(1));
+        assert_eq!(replica1.policy_version()?, Some(1));
+        check_op_not_allowed_failure(replica2.policy_version())?;
 
         let index_0 = SequenceIndex::FromStart(0);
         let first_entry = replica1.private_policy(index_0)?;
@@ -562,15 +568,15 @@ mod tests {
         let user_perms2 = SequencePublicPermissions::new(false, false);
         let _ = perms2.insert(SequenceUser::Key(actor2), user_perms2);
 
-        let op1 = replica1.set_public_policy(actor1, perms1.clone())?;
-        let op2 = replica1.set_public_policy(actor1, perms2.clone())?;
+        let op1 = replica1.set_public_policy(actor1, perms1)?;
+        let op2 = replica1.set_public_policy(actor1, perms2)?;
 
         // let's apply op perms...
         replica2.apply_public_policy_op(op1)?;
         replica2.apply_public_policy_op(op2)?;
 
-        assert_eq!(replica1.policy_version(), Some(1));
-        assert_eq!(replica2.policy_version(), Some(1));
+        assert_eq!(replica1.policy_version()?, Some(1));
+        assert_eq!(replica2.policy_version()?, Some(1));
 
         // And let's append to both replicas with one first item
         let item1 = b"item1";
@@ -578,14 +584,9 @@ mod tests {
         let append_op1 = replica1.append(item1.to_vec())?;
         replica2.apply_data_op(append_op1)?;
 
-        let _ = match replica2.append(item2.to_vec()) {
-            Ok(_) => Err(Error::Unexpected(
-                "replica 2 has no append perms".to_string(),
-            )),
-            Err(_) => Ok(()),
-        }?;
+        check_op_not_allowed_failure(replica2.append(item2.to_vec()))?;
 
-        assert_eq!(replica1.len(), replica2.len());
+        assert_eq!(replica1.len()?, replica2.len()?);
 
         Ok(())
     }
@@ -607,15 +608,15 @@ mod tests {
         let user_perms2 = SequencePublicPermissions::new(false, false);
         let _ = perms2.insert(SequenceUser::Key(actor2), user_perms2);
 
-        let op1 = replica1.set_public_policy(actor1, perms1.clone())?;
-        let op2 = replica1.set_public_policy(actor1, perms2.clone())?;
+        let op1 = replica1.set_public_policy(actor1, perms1)?;
+        let op2 = replica1.set_public_policy(actor1, perms2)?;
 
         // let's apply op perms...
         replica2.apply_public_policy_op(op1)?;
         replica2.apply_public_policy_op(op2)?;
 
-        assert_eq!(replica1.policy_version(), Some(1));
-        assert_eq!(replica2.policy_version(), Some(1));
+        assert_eq!(replica1.policy_version()?, Some(1));
+        assert_eq!(replica2.policy_version()?, Some(1));
 
         // And let's append to both replicas with one first item
         let item1 = b"item1";
@@ -623,12 +624,7 @@ mod tests {
         let append_op1 = replica1.append(item1.to_vec())?;
         replica2.apply_data_op(append_op1)?;
 
-        let _ = match replica2.append(item2.to_vec()) {
-            Ok(_) => Err(Error::Unexpected(
-                "replica 2 has no append perms".to_string(),
-            )),
-            Err(_) => Ok(()),
-        }?;
+        check_op_not_allowed_failure(replica2.append(item2.to_vec()))?;
 
         // Now lets update the policy and try appending again
 
@@ -636,13 +632,13 @@ mod tests {
         let user_perms3 = SequencePublicPermissions::new(true, false);
         let _ = perms3.insert(SequenceUser::Key(actor2), user_perms3);
 
-        let op1 = replica1.set_public_policy(actor1, perms3.clone())?;
+        let op1 = replica1.set_public_policy(actor1, perms3)?;
         replica2.apply_public_policy_op(op1)?;
 
         let append_op = replica2.append(item2.to_vec())?;
         replica1.apply_data_op(append_op)?;
 
-        assert_eq!(replica1.len(), replica2.len());
+        assert_eq!(replica1.len()?, replica2.len()?);
 
         Ok(())
     }
@@ -664,15 +660,15 @@ mod tests {
         let user_perms2 = SequencePrivatePermissions::new(false, false, false);
         let _ = perms2.insert(actor2, user_perms2);
 
-        let op1 = replica1.set_private_policy(actor2, perms1.clone())?;
-        let op2 = replica1.set_private_policy(actor1, perms2.clone())?;
+        let op1 = replica1.set_private_policy(actor2, perms1)?;
+        let op2 = replica1.set_private_policy(actor1, perms2)?;
 
         // let's apply op perms...
         replica2.apply_private_policy_op(op1)?;
         replica2.apply_private_policy_op(op2)?;
 
-        assert_eq!(replica1.policy_version(), Some(1));
-        assert_eq!(replica2.policy_version(), Some(1));
+        assert_eq!(replica1.policy_version()?, Some(1));
+        check_op_not_allowed_failure(replica2.policy_version())?;
 
         // And let's append to both replicas with one first item
         let item1 = b"item1";
@@ -680,14 +676,9 @@ mod tests {
         let append_op1 = replica1.append(item1.to_vec())?;
         replica2.apply_data_op(append_op1)?;
 
-        let _ = match replica2.append(item2.to_vec()) {
-            Ok(_) => Err(Error::Unexpected(
-                "replica 2 has no append perms".to_string(),
-            )),
-            Err(_) => Ok(()),
-        }?;
+        check_op_not_allowed_failure(replica2.append(item2.to_vec()))?;
 
-        assert_eq!(replica1.len(), replica2.len());
+        // TODO: assert reading from replica2 with pk from replica1
 
         Ok(())
     }
@@ -709,35 +700,26 @@ mod tests {
         let user_perms2 = SequencePrivatePermissions::new(false, false, false);
         let _ = perms2.insert(actor2, user_perms2);
 
-        let op1 = replica1.set_private_policy(actor2, perms1.clone())?;
-        let op2 = replica1.set_private_policy(actor1, perms2.clone())?;
+        let op1 = replica1.set_private_policy(actor2, perms1)?;
+        let op2 = replica1.set_private_policy(actor1, perms2)?;
 
         // let's apply op perms...
         replica2.apply_private_policy_op(op1)?;
         replica2.apply_private_policy_op(op2)?;
 
-        assert_eq!(replica1.policy_version(), Some(1));
-        assert_eq!(replica2.policy_version(), Some(1));
+        assert_eq!(replica1.policy_version()?, Some(1));
+        check_op_not_allowed_failure(replica2.policy_version())?;
 
         // And let's append to both replicas with one first item
-        let item1 = b"item1";
-        let append_op1 = replica1.append(item1.to_vec())?;
+        let item1 = b"item1".to_vec();
+        let append_op1 = replica1.append(item1.clone())?;
         replica2.apply_data_op(append_op1)?;
 
         // lets check replica1 can read that, and replica2 not...
-        let _ = match replica1.get(SequenceIndex::FromStart(0))? {
-            Some(data) => assert_eq!(data, b"item1"),
-            None => {
-                return Err(Error::Unexpected(
-                    "replica one should be able to read item1 here".to_string(),
-                ))
-            }
-        };
+        let data = replica1.get(SequenceIndex::FromStart(0))?;
+        assert_eq!(data, Some(&item1));
 
-        match replica2.get(SequenceIndex::FromStart(0)) {
-            Ok(_) => Err(Error::Unexpected("Should not be able to read".to_string())),
-            Err(_) => Ok(()),
-        }?;
+        check_op_not_allowed_failure(replica2.get(SequenceIndex::FromStart(0)))?;
 
         Ok(())
     }
@@ -760,35 +742,26 @@ mod tests {
         let user_perms2 = SequencePrivatePermissions::new(false, false, false);
         let _ = perms2.insert(actor2, user_perms2);
 
-        let op1 = replica1.set_private_policy(actor2, perms1.clone())?;
-        let op2 = replica1.set_private_policy(actor1, perms2.clone())?;
+        let op1 = replica1.set_private_policy(actor2, perms1)?;
+        let op2 = replica1.set_private_policy(actor1, perms2)?;
 
         // let's apply op perms...
         replica2.apply_private_policy_op(op1)?;
         replica2.apply_private_policy_op(op2)?;
 
-        assert_eq!(replica1.policy_version(), Some(1));
-        assert_eq!(replica2.policy_version(), Some(1));
+        assert_eq!(replica1.policy_version()?, Some(1));
+        check_op_not_allowed_failure(replica2.policy_version())?;
 
         // And let's append to both replicas with one first item
-        let item1 = b"item1";
-        let append_op1 = replica1.append(item1.to_vec())?;
+        let item1 = b"item1".to_vec();
+        let append_op1 = replica1.append(item1.clone())?;
         replica2.apply_data_op(append_op1)?;
 
         // lets check replica1 can read that, and replica2 not...
-        let _ = match replica1.last_entry()? {
-            Some(data) => assert_eq!(data, b"item1"),
-            None => {
-                return Err(Error::Unexpected(
-                    "replica one should be able to read item1 here".to_string(),
-                ))
-            }
-        };
+        let data = replica1.last_entry()?;
+        assert_eq!(data, Some(&item1));
 
-        match replica2.last_entry() {
-            Ok(_) => Err(Error::Unexpected("Should not be able to read".to_string())),
-            Err(_) => Ok(()),
-        }?;
+        check_op_not_allowed_failure(replica2.last_entry())?;
 
         Ok(())
     }
@@ -810,35 +783,28 @@ mod tests {
         let user_perms2 = SequencePrivatePermissions::new(false, false, false);
         let _ = perms2.insert(actor2, user_perms2);
 
-        let op1 = replica1.set_private_policy(actor2, perms1.clone())?;
-        let op2 = replica1.set_private_policy(actor1, perms2.clone())?;
+        let op1 = replica1.set_private_policy(actor2, perms1)?;
+        let op2 = replica1.set_private_policy(actor1, perms2)?;
 
         // let's apply op perms...
         replica2.apply_private_policy_op(op1)?;
         replica2.apply_private_policy_op(op2)?;
 
-        assert_eq!(replica1.policy_version(), Some(1));
-        assert_eq!(replica2.policy_version(), Some(1));
+        assert_eq!(replica1.policy_version()?, Some(1));
+        check_op_not_allowed_failure(replica2.policy_version())?;
 
         // And let's append to both replicas with one first item
-        let item1 = b"item1";
-        let append_op1 = replica1.append(item1.to_vec())?;
+        let item1 = b"item1".to_vec();
+        let append_op1 = replica1.append(item1.clone())?;
         replica2.apply_data_op(append_op1)?;
 
         // lets check replica1 can read that, and replica2 not...
-        let _ = match replica1.in_range(SequenceIndex::FromStart(0), SequenceIndex::FromStart(1))? {
-            Some(data) => assert_eq!(data[0], b"item1"),
-            None => {
-                return Err(Error::Unexpected(
-                    "replica one should be able to read item1 here".to_string(),
-                ))
-            }
-        };
+        let data = replica1.in_range(SequenceIndex::FromStart(0), SequenceIndex::FromStart(1))?;
+        assert_eq!(data, Some(vec![item1]));
 
-        match replica2.in_range(SequenceIndex::FromStart(0), SequenceIndex::FromStart(1)) {
-            Ok(_) => Err(Error::Unexpected("Should not be able to read".to_string())),
-            Err(_) => Ok(()),
-        }?;
+        check_op_not_allowed_failure(
+            replica2.in_range(SequenceIndex::FromStart(0), SequenceIndex::FromStart(1)),
+        )?;
 
         Ok(())
     }
@@ -860,72 +826,49 @@ mod tests {
         let user_perms2 = SequencePrivatePermissions::new(false, false, false);
         let _ = perms2.insert(actor2, user_perms2);
 
-        let op1 = replica1.set_private_policy(actor2, perms1.clone())?;
-        let op2 = replica1.set_private_policy(actor1, perms2.clone())?;
+        let op1 = replica1.set_private_policy(actor2, perms1)?;
+        let op2 = replica1.set_private_policy(actor1, perms2)?;
 
         // let's apply op perms...
         replica2.apply_private_policy_op(op1)?;
         replica2.apply_private_policy_op(op2)?;
 
-        assert_eq!(replica1.policy_version(), Some(1));
-        assert_eq!(replica2.policy_version(), Some(1));
+        assert_eq!(replica1.policy_version()?, Some(1));
+        check_op_not_allowed_failure(replica2.policy_version())?;
 
         // And let's append to both replicas with one first item
-        let item1 = b"item1";
-        let append_op1 = replica1.append(item1.to_vec())?;
+        let item1 = b"item1".to_vec();
+        let append_op1 = replica1.append(item1.clone())?;
         replica2.apply_data_op(append_op1)?;
 
         // lets check replica1 can read that, and replica2 not...
-        let _ = match replica1.get(SequenceIndex::FromStart(0))? {
-            Some(data) => assert_eq!(data, b"item1"),
-            None => {
-                return Err(Error::Unexpected(
-                    "replica one should be able to read item1 here".to_string(),
-                ))
-            }
-        };
+        let data = replica1.get(SequenceIndex::FromStart(0))?;
+        assert_eq!(data, Some(&item1));
 
-        match replica2.get(SequenceIndex::FromStart(0)) {
-            Ok(_) => Err(Error::Unexpected("Should not be able to read".to_string())),
-            Err(_) => Ok(()),
-        }?;
+        check_op_not_allowed_failure(replica2.get(SequenceIndex::FromStart(0)))?;
 
         // set readable for replica 2 once more
         let mut perms3 = BTreeMap::default();
         let user_perms3 = SequencePrivatePermissions::new(true, false, false);
         let _ = perms3.insert(actor2, user_perms3);
 
-        let updated_perms_op = replica1.set_private_policy(actor1, perms3.clone())?;
+        let updated_perms_op = replica1.set_private_policy(actor1, perms3)?;
 
         // let's apply op perms...
         replica2.apply_private_policy_op(updated_perms_op)?;
 
         let _ = replica1.get(SequenceIndex::FromStart(0))?;
-        match replica2.get(SequenceIndex::FromStart(0)) {
-            Err(_) => Err(Error::Unexpected("Should be able to read now".to_string())),
-            Ok(_) => Ok(()),
-        }?;
+        let data = replica2.get(SequenceIndex::FromStart(0))?;
 
-        match replica2.last_entry()? {
-            None => Err(Error::Unexpected("Should be able to read now".to_string())),
-            Some(data) => {
-                assert_eq!(data, b"item1");
+        assert_eq!(data, replica2.last_entry()?);
+        assert_eq!(data, Some(&item1));
 
-                Ok(())
-            }
-        }?;
-
-        match replica2.in_range(SequenceIndex::FromStart(0), SequenceIndex::FromStart(1))? {
-            None => Err(Error::Unexpected("Should be able to read now".to_string())),
-            Some(data) => {
-                assert_eq!(data[0], b"item1");
-                Ok(())
-            }
-        }?;
+        let data = replica2.in_range(SequenceIndex::FromStart(0), SequenceIndex::FromStart(1))?;
+        assert_eq!(data, Some(vec![item1]));
 
         // finally check the policy has been updated
-        assert_eq!(replica1.policy_version(), Some(2));
-        assert_eq!(replica2.policy_version(), Some(2));
+        assert_eq!(replica1.policy_version()?, Some(2));
+        assert_eq!(replica2.policy_version()?, Some(2));
 
         Ok(())
     }
@@ -956,30 +899,30 @@ mod tests {
         replica2.apply_data_op(append_op1)?;
 
         // Let's assert initial state on both replicas
-        assert_eq!(replica1.len(), 1);
-        assert_eq!(replica1.policy_version(), Some(0));
-        assert_eq!(replica2.len(), 1);
-        assert_eq!(replica2.policy_version(), Some(0));
+        assert_eq!(replica1.len()?, 1);
+        assert_eq!(replica1.policy_version()?, Some(0));
+        assert_eq!(replica2.len()?, 1);
+        assert_eq!(replica2.policy_version()?, Some(0));
 
         // We revoke authorisation for Actor2 locally on replica1
         let revoke_op = replica1.set_public_policy(actor1, BTreeMap::default())?;
         // New Policy should have been set on replica1
-        assert_eq!(replica1.policy_version(), Some(1));
+        assert_eq!(replica1.policy_version()?, Some(1));
 
         // Concurrently append an item with Actor2 on replica2
         let item2 = b"item2";
         let append_op2 = replica2.append(item2.to_vec())?;
         // Item should be appended on replica2
-        assert_eq!(replica2.len(), 2);
+        assert_eq!(replica2.len()?, 2);
 
         // Append operation is broadcasted and applied on replica1 using old Policy
         replica1.apply_data_op(append_op2)?;
-        assert_eq!(replica1.len(), 1);
+        assert_eq!(replica1.len()?, 1);
 
         // Now revoke operation is broadcasted and applied on replica2
         replica2.apply_public_policy_op(revoke_op)?;
-        assert_eq!(replica2.policy_version(), Some(1));
-        assert_eq!(replica2.len(), 1);
+        assert_eq!(replica2.policy_version()?, Some(1));
+        assert_eq!(replica2.len()?, 1);
 
         // Let's assert that append_op2 created a branch of data on both replicas
         // due to new policy having been applied concurrently, thus only first
@@ -1021,30 +964,30 @@ mod tests {
         replica3.apply_public_policy_op(grant_op.clone())?;
 
         // Let's assert the state on three replicas
-        assert_eq!(replica1.len(), 0);
-        assert_eq!(replica1.policy_version(), Some(1));
-        assert_eq!(replica2.len(), 0);
-        assert_eq!(replica2.policy_version(), Some(0));
-        assert_eq!(replica3.len(), 0);
-        assert_eq!(replica3.policy_version(), Some(1));
+        assert_eq!(replica1.len()?, 0);
+        assert_eq!(replica1.policy_version()?, Some(1));
+        assert_eq!(replica2.len()?, 0);
+        assert_eq!(replica2.policy_version()?, Some(0));
+        assert_eq!(replica3.len()?, 0);
+        assert_eq!(replica3.policy_version()?, Some(1));
 
         // We append an item with Actor3 on replica3
         let item = b"item0";
         let append_op = replica3.append(item.to_vec())?;
-        assert_eq!(replica3.len(), 1);
+        assert_eq!(replica3.len()?, 1);
 
         // Append op is broadcasted and applied on replica1
         replica1.apply_data_op(append_op.clone())?;
-        assert_eq!(replica1.len(), 1);
+        assert_eq!(replica1.len()?, 1);
 
         // And now append op is broadcasted and applied on replica2
         // It should be rejected on replica2 as it's not causally ready
         check_not_causally_ready_failure(replica2.apply_data_op(append_op.clone()))?;
-        assert_eq!(replica2.len(), 0);
+        assert_eq!(replica2.len()?, 0);
 
         // So let's apply grant operation to replica2
         replica2.apply_public_policy_op(grant_op)?;
-        assert_eq!(replica2.policy_version(), Some(1));
+        assert_eq!(replica2.policy_version()?, Some(1));
 
         // Retrying to apply append op to replica2 should be successful, due
         // to now being causally ready with the new policy
@@ -1079,10 +1022,10 @@ mod tests {
         replica2.apply_data_op(append_op)?;
 
         // Let's assert the state on both replicas
-        assert_eq!(replica1.len(), 1);
-        assert_eq!(replica1.policy_version(), Some(0));
-        assert_eq!(replica2.len(), 1);
-        assert_eq!(replica2.policy_version(), Some(0));
+        assert_eq!(replica1.len()?, 1);
+        assert_eq!(replica1.policy_version()?, Some(0));
+        assert_eq!(replica2.len()?, 1);
+        assert_eq!(replica2.policy_version()?, Some(0));
 
         // Concurrently set new policy (new random owner) with Append and Admin perms
         // for both actors on both replicas
@@ -1095,15 +1038,15 @@ mod tests {
         let append_op1 = replica1.append(item1_r1)?;
         let append_op2 = replica2.append(item1_r2)?;
 
-        assert_eq!(replica1.len(), 2);
-        assert_eq!(replica2.len(), 2);
+        assert_eq!(replica1.len()?, 2);
+        assert_eq!(replica2.len()?, 2);
 
         // Let's now apply the policy op to the other replica
         replica1.apply_public_policy_op(owner_op_2)?;
         replica2.apply_public_policy_op(owner_op_1)?;
 
-        assert_eq!(replica1.policy_version(), Some(2));
-        assert_eq!(replica2.policy_version(), Some(2));
+        assert_eq!(replica1.policy_version()?, Some(2));
+        assert_eq!(replica2.policy_version()?, Some(2));
 
         // Let's now apply the append ops on the other replica
         replica1.apply_data_op(append_op2)?;
@@ -1147,8 +1090,8 @@ mod tests {
         // Now the old append op is applied to replica2
         replica2.apply_data_op(append_op)?;
 
-        assert_eq!(replica1.policy_version(), Some(1));
-        assert_eq!(replica2.policy_version(), Some(1));
+        assert_eq!(replica1.policy_version()?, Some(1));
+        assert_eq!(replica2.policy_version()?, Some(1));
 
         verify_data_convergence(&[&replica1, &replica2], 1)?;
 
@@ -1188,7 +1131,7 @@ mod tests {
         let old_owner_op = replica1.set_public_policy(actor3, perms.clone())?;
 
         // Set Actor2 as the new owner in replica2 (policy2)
-        let owner_op = replica2.set_public_policy(actor2, perms.clone())?;
+        let owner_op = replica2.set_public_policy(actor2, perms)?;
 
         // Now apply the old policy op to replica2, which should be applied as
         // an old policy even if the current/latest policy doesn't allow actor1 to change policy
@@ -1198,8 +1141,8 @@ mod tests {
         replica1.apply_public_policy_op(owner_op)?;
 
         // Let's assert the state on both replicas
-        assert_eq!(replica1.policy_version(), Some(2));
-        assert_eq!(replica2.policy_version(), Some(2));
+        assert_eq!(replica1.policy_version()?, Some(2));
+        assert_eq!(replica2.policy_version()?, Some(2));
 
         // Let's assert the owners set in policy1 and policy2
         // are actor1 and actor2 respectivelly
@@ -1260,8 +1203,8 @@ mod tests {
         replica2.apply_public_policy_op(owner_op)?;
 
         // Let's assert the state on both replicas
-        assert_eq!(replica1.policy_version(), Some(1));
-        assert_eq!(replica2.policy_version(), Some(1));
+        assert_eq!(replica1.policy_version()?, Some(1));
+        assert_eq!(replica2.policy_version()?, Some(1));
 
         // Now replica1 shouldn't be allowed to set a new policy since
         // it's not the owner anymore, thus we use the cloned replica
@@ -1287,8 +1230,8 @@ mod tests {
         check_op_not_allowed_failure(replica2.apply_public_policy_op(owner_op))?;
 
         // Let's assert the state on both replicas
-        assert_eq!(replica1.policy_version(), Some(1));
-        assert_eq!(replica2.policy_version(), Some(1));
+        assert_eq!(replica1.policy_version()?, Some(1));
+        assert_eq!(replica2.policy_version()?, Some(1));
 
         // Let's assert the owners set in policy1 and policy2
         // are actor1 and actor2 respectivelly
@@ -1329,14 +1272,14 @@ mod tests {
     }
 
     // check it fails due to not having permissions
-    fn check_op_not_allowed_failure(result: Result<()>) -> Result<()> {
+    fn check_op_not_allowed_failure<T>(result: Result<T>) -> Result<()> {
         match result {
             Err(Error::AccessDenied) => Ok(()),
             Err(err) => Err(Error::Unexpected(format!(
                 "Error returned was the unexpected one for a non-allowed op: {}",
                 err
             ))),
-            Ok(()) => Err(Error::Unexpected(
+            Ok(_) => Err(Error::Unexpected(
                 "Data op applied unexpectedly, op not allowed was expected".to_string(),
             )),
         }
@@ -1348,7 +1291,7 @@ mod tests {
         // also verify replicas failed to get with index beyond reported length
         let index_beyond = SequenceIndex::FromStart(expected_len);
         for r in replicas {
-            assert_eq!(r.len(), expected_len);
+            assert_eq!(r.len()?, expected_len);
             assert_eq!(r.get(index_beyond)?, None);
         }
 
