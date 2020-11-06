@@ -8,7 +8,7 @@
 // Software.
 
 use super::metadata::{Address, Entries, Entry, Index, Perm};
-use crate::{Error, Result};
+use crate::{Error, PublicKey, Result};
 pub use crdts::{lseq::Op, Actor};
 use crdts::{
     lseq::{ident::Identifier, Entry as LSeqEntry, LSeq},
@@ -36,6 +36,8 @@ pub struct CrdtDataOperation<A: Actor + Display + std::fmt::Debug, T> {
     pub address: Address,
     /// The data operation to apply.
     pub crdt_op: Op<T, A>,
+    /// The PublicKey of the replica that generated the operation
+    pub pk: PublicKey,
     /// The context (policy) this operation depends on
     pub ctx: Identifier<A>,
 }
@@ -47,6 +49,8 @@ pub struct CrdtPolicyOperation<A: Actor + Display + std::fmt::Debug, P> {
     pub address: Address,
     /// The policy operation to apply.
     pub crdt_op: Op<(P, Option<Identifier<A>>), A>,
+    /// The PublicKey of the replica that generated the operation
+    pub pk: PublicKey,
     /// The context (previous policy) this operation depends on
     pub ctx: Option<(Identifier<A>, Option<Identifier<A>>)>,
 }
@@ -129,7 +133,7 @@ where
     }
 
     /// Append a new item to the SequenceCrdt and returns the CRDT operation
-    pub fn append(&mut self, entry: Entry) -> Result<CrdtDataOperation<A, Entry>> {
+    pub fn append(&mut self, entry: Entry, pk: PublicKey) -> Result<CrdtDataOperation<A, Entry>> {
         // Retrieve the LSeq corresponding to the current Policy,
         // or create and insert one if there is none.
         let address = *self.address();
@@ -149,6 +153,7 @@ where
                     Ok(CrdtDataOperation {
                         address,
                         crdt_op,
+                        pk,
                         ctx: cur_policy.id.clone(),
                     })
                 }
@@ -206,7 +211,7 @@ where
     }
 
     /// Sets a new Policy keeping the current one in the history.
-    pub fn set_policy(&mut self, policy: P) -> Result<CrdtPolicyOperation<A, P>> {
+    pub fn set_policy(&mut self, policy: P, pk: PublicKey) -> Result<CrdtPolicyOperation<A, P>> {
         let (new_lseq, prev_policy_id) = match self.policy.last_entry() {
             None => {
                 // Create an empty LSeq since there are no items yet for this Policy
@@ -245,6 +250,7 @@ where
         Ok(CrdtPolicyOperation {
             address: *self.address(),
             crdt_op,
+            pk,
             ctx,
         })
     }
