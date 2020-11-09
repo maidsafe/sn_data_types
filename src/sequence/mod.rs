@@ -291,7 +291,13 @@ impl Data {
     }
 
     /// Returns user permissions, if applicable.
-    pub fn permissions(
+    pub fn permissions(&self, user: User, requester: Option<PublicKey>) -> Result<Permissions> {
+        let version = self.policy_version(None)?.ok_or(Error::PolicyNotSet)?;
+        self.permissions_at(user, version, requester)
+    }
+
+    /// Returns user permissions at provided index in the history, if applicable.
+    pub fn permissions_at(
         &self,
         user: User,
         version: impl Into<Index>,
@@ -315,8 +321,14 @@ impl Data {
         Ok(user_perm)
     }
 
-    /// Returns public policy, if applicable.
-    pub fn public_policy(&self, version: impl Into<Index>) -> Result<&PublicPolicy> {
+    /// Returns the current public policy, if applicable.
+    pub fn public_policy(&self) -> Result<&PublicPolicy> {
+        let version = self.policy_version(None)?.ok_or(Error::PolicyNotSet)?;
+        self.public_policy_at(version)
+    }
+
+    /// Returns the public policy at provided index in the history, if applicable.
+    pub fn public_policy_at(&self, version: impl Into<Index>) -> Result<&PublicPolicy> {
         let perms = match &self.data {
             SeqData::Public(data) => data.policy_at(version),
             SeqData::Private(_) => return Err(Error::InvalidOperation),
@@ -324,8 +336,14 @@ impl Data {
         perms.ok_or(Error::NoSuchEntry)
     }
 
-    /// Returns private policy, if applicable.
-    pub fn private_policy(
+    /// Returns the current private policy, if applicable.
+    pub fn private_policy(&self, requester: Option<PublicKey>) -> Result<&PrivatePolicy> {
+        let version = self.policy_version(None)?.ok_or(Error::PolicyNotSet)?;
+        self.private_policy_at(version, requester)
+    }
+
+    /// Returns the private policy at provided index in the history, if applicable.
+    pub fn private_policy_at(
         &self,
         version: impl Into<Index>,
         requester: Option<PublicKey>,
@@ -385,19 +403,7 @@ impl Data {
         }
     }
 }
-/*
-impl From<PublicSeqData> for Data {
-    fn from(data: PublicSeqData) -> Self {
-        Data::Public(data)
-    }
-}
 
-impl From<PrivateSeqData> for Data {
-    fn from(data: PrivateSeqData) -> Self {
-        Data::Private(data)
-    }
-}
-*/
 #[cfg(test)]
 mod tests {
     use crate::{
@@ -517,23 +523,23 @@ mod tests {
         assert_eq!(replica2.policy_version(None)?, Some(1));
 
         let index_0 = SequenceIndex::FromStart(0);
-        let first_entry = replica1.public_policy(index_0)?;
+        let first_entry = replica1.public_policy_at(index_0)?;
         assert_eq!(first_entry.permissions, perms1);
         assert_eq!(first_entry.owner, actor);
-        assert_eq!(first_entry, replica2.public_policy(index_0)?);
+        assert_eq!(first_entry, replica2.public_policy_at(index_0)?);
         assert_eq!(
             SequencePermissions::Public(user_perms1),
-            replica1.permissions(SequenceUser::Anyone, index_0, None)?
+            replica1.permissions_at(SequenceUser::Anyone, index_0, None)?
         );
 
         let index_1 = SequenceIndex::FromStart(1);
-        let second_entry = replica1.public_policy(index_1)?;
+        let second_entry = replica1.public_policy_at(index_1)?;
         assert_eq!(second_entry.permissions, perms2);
         assert_eq!(second_entry.owner, actor);
-        assert_eq!(second_entry, replica2.public_policy(index_1)?);
+        assert_eq!(second_entry, replica2.public_policy_at(index_1)?);
         assert_eq!(
             SequencePermissions::Public(user_perms2),
-            replica1.permissions(SequenceUser::Key(actor), index_1, None)?
+            replica1.permissions_at(SequenceUser::Key(actor), index_1, None)?
         );
 
         Ok(())
@@ -571,23 +577,23 @@ mod tests {
         assert_eq!(replica2.policy_version(None)?, Some(1));
 
         let index_0 = SequenceIndex::FromStart(0);
-        let first_entry = replica1.private_policy(index_0, None)?;
+        let first_entry = replica1.private_policy_at(index_0, None)?;
         assert_eq!(first_entry.permissions, perms1);
         assert_eq!(first_entry.owner, actor2);
-        assert_eq!(first_entry, replica2.private_policy(index_0, None)?);
+        assert_eq!(first_entry, replica2.private_policy_at(index_0, None)?);
         assert_eq!(
             SequencePermissions::Private(user_perms1),
-            replica1.permissions(SequenceUser::Key(actor1), index_0, None)?
+            replica1.permissions_at(SequenceUser::Key(actor1), index_0, None)?
         );
 
         let index_1 = SequenceIndex::FromStart(1);
-        let second_entry = replica1.private_policy(index_1, None)?;
+        let second_entry = replica1.private_policy_at(index_1, None)?;
         assert_eq!(second_entry.permissions, perms2);
         assert_eq!(second_entry.owner, actor1);
-        assert_eq!(second_entry, replica2.private_policy(index_1, None)?);
+        assert_eq!(second_entry, replica2.private_policy_at(index_1, None)?);
         assert_eq!(
             SequencePermissions::Private(user_perms2),
-            replica1.permissions(SequenceUser::Key(actor2), index_1, None)?
+            replica1.permissions_at(SequenceUser::Key(actor2), index_1, None)?
         );
 
         Ok(())
@@ -1212,23 +1218,23 @@ mod tests {
 
         // Let's assert the owners set in policy1 and policy2
         // are actor1 and actor2 respectivelly
-        let policy1 = replica1.public_policy(0)?;
+        let policy1 = replica1.public_policy_at(0)?;
         assert_eq!(policy1.owner, actor1);
-        assert_eq!(policy1.owner, replica2.public_policy(0)?.owner);
+        assert_eq!(policy1.owner, replica2.public_policy_at(0)?.owner);
 
-        let policy2 = replica1.public_policy(1)?;
+        let policy2 = replica1.public_policy_at(1)?;
         if policy2.owner == actor3 {
-            assert_eq!(policy2.owner, replica2.public_policy(1)?.owner);
-            let policy3 = replica1.public_policy(2)?;
+            assert_eq!(policy2.owner, replica2.public_policy_at(1)?.owner);
+            let policy3 = replica1.public_policy_at(2)?;
             assert_eq!(policy3.owner, actor2);
-            assert_eq!(policy3.owner, replica2.public_policy(2)?.owner);
+            assert_eq!(policy3.owner, replica2.public_policy_at(2)?.owner);
         } else {
             assert_eq!(policy2.owner, actor2);
-            assert_eq!(policy2.owner, replica2.public_policy(1)?.owner);
+            assert_eq!(policy2.owner, replica2.public_policy_at(1)?.owner);
 
-            let policy3 = replica1.public_policy(2)?;
+            let policy3 = replica1.public_policy_at(2)?;
             assert_eq!(policy3.owner, actor3);
-            assert_eq!(policy3.owner, replica2.public_policy(2)?.owner);
+            assert_eq!(policy3.owner, replica2.public_policy_at(2)?.owner);
         }
 
         Ok(())
@@ -1301,12 +1307,12 @@ mod tests {
 
         // Let's assert the owners set in policy1 and policy2 converge
         assert_eq!(
-            replica1.public_policy(0)?.owner,
-            replica2.public_policy(0)?.owner
+            replica1.public_policy_at(0)?.owner,
+            replica2.public_policy_at(0)?.owner
         );
         assert_eq!(
-            replica1.public_policy(1)?.owner,
-            replica2.public_policy(1)?.owner
+            replica1.public_policy_at(1)?.owner,
+            replica2.public_policy_at(1)?.owner
         );
 
         Ok(())

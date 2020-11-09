@@ -56,6 +56,8 @@ pub enum Error {
     DuplicateEntryKeys,
     /// The list of owner keys is invalid
     InvalidOwners,
+    /// No Policy has been set to the data
+    PolicyNotSet,
     /// Invalid version for performing a given mutating operation. Contains the
     /// current data version.
     InvalidSuccessor(u64),
@@ -122,6 +124,7 @@ impl Display for Error {
             Error::NoSuchKey => write!(f, "Key does not exists"),
             Error::DuplicateEntryKeys => write!(f, "Duplicate keys in this push"),
             Error::InvalidOwners => write!(f, "The list of owner keys is invalid"),
+            Error::PolicyNotSet => write!(f, "No Policy has been set to the data"),
             Error::InvalidOperation => write!(f, "Requested operation is not allowed"),
             Error::InvalidSuccessor(_) => {
                 write!(f, "Data given is not a valid successor of stored data")
@@ -175,6 +178,7 @@ impl error::Error for Error {
             Error::NoSuchKey => "No such key",
             Error::DuplicateEntryKeys => "Duplicate keys in this push",
             Error::InvalidOwners => "Invalid owners",
+            Error::PolicyNotSet => "No Policy has been set to the data",
             Error::InvalidSuccessor(_) => "Invalid data successor",
             Error::InvalidOwnersSuccessor(_) => "Invalid owners successor",
             Error::OpNotCausallyReady => "Operation's is currently not causally ready",
