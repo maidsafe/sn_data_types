@@ -1613,14 +1613,8 @@ mod tests {
                         let user_perms =
                             SequencePublicPermissions::new(/*append=*/ true, /*admin=*/ false);
                         let _ = perms.insert(SequenceUser::Key(actor1), user_perms);
-                        match replica1.set_public_policy(new_owner, perms) {
-                            Ok(op) => {
-                                // This will only actualy happen once
-                                ops.push(OpType::Owner(op));
-                            },
-                            Err(err) => {
-                                // do nothing
-                            }
+                        if let Ok(op) = replica1.set_public_policy(new_owner, perms) {
+                            ops.push(OpType::Owner(op));
                         };
 
 
