@@ -1169,7 +1169,7 @@ mod tests {
         assert_eq!(replica1.policy_version(None)?, Some(1));
         assert_eq!(replica2.policy_version(None)?, Some(1));
 
-        verify_data_convergence(&[&replica1, &replica2], 1)?;
+        verify_data_convergence(vec![replica1, replica2], 1)?;
 
         Ok(())
     }
@@ -1323,7 +1323,7 @@ mod tests {
 
     // Helpers for tests
 
-    fn gen_public_key() -> PublicKey {
+    fn generate_public_key() -> PublicKey {
         let keypair = Keypair::new_ed25519(&mut OsRng);
         keypair.public_key()
     }
@@ -1358,11 +1358,11 @@ mod tests {
     }
 
     // verify data convergence on a set of replicas and with the expected length
-    fn verify_data_convergence(replicas: &[&Sequence], expected_len: u64) -> Result<()> {
+    fn verify_data_convergence(replicas: Vec<Sequence>, expected_len: u64) -> Result<()> {
         // verify replicas have the expected length
         // also verify replicas failed to get with index beyond reported length
         let index_beyond = SequenceIndex::FromStart(expected_len);
-        for r in replicas {
+        for r in &replicas {
             assert_eq!(r.len(None)?, expected_len);
             assert_eq!(r.get(index_beyond, None)?, None);
         }
@@ -1371,7 +1371,7 @@ mod tests {
         for i in 0..expected_len {
             let index = SequenceIndex::FromStart(i);
             let r0_entry = replicas[0].get(index, None)?;
-            for r in replicas {
+            for r in &replicas {
                 assert_eq!(r0_entry, r.get(index, None)?);
             }
         }
@@ -1383,13 +1383,13 @@ mod tests {
     fn gen_replicas(max_quantity: usize) -> impl Strategy<Value = (Vec<Sequence>, PublicKey)> {
         let xorname = XorName::random();
         let tag = 45_000u64;
-        let owner = gen_public_key();
+        let owner = generate_public_key();
 
         (1..max_quantity + 1).prop_map(move |quantity| {
             let mut replicas = Vec::with_capacity(quantity);
             for _ in 0..quantity {
-                let actor = gen_public_key();
-                let replica = Sequence::new_public(actor, xorname, tag);
+                let actor = generate_public_key();
+                let replica = Sequence::new_public(actor, actor, xorname, tag);
                 replicas.push(replica);
             }
 
@@ -1432,14 +1432,14 @@ mod tests {
         fn proptest_seq_doesnt_crash_with_random_data(
             s in generate_seq_entry()
         ) {
-            let actor1 = gen_public_key();
+            let actor1 = generate_public_key();
             let sequence_name = XorName::random();
 
             let sdata_tag = 43_001u64;
 
             // Instantiate the same Sequence on two replicas
-            let mut replica1 = Sequence::new_public(actor1, sequence_name, sdata_tag);
-            let mut replica2 = Sequence::new_public(actor1, sequence_name, sdata_tag);
+            let mut replica1 = Sequence::new_public(actor1, actor1, sequence_name, sdata_tag);
+            let mut replica2 = Sequence::new_public(actor1, actor1, sequence_name, sdata_tag);
 
             // Set Actor1 as the owner
             let perms = BTreeMap::default();
@@ -1459,14 +1459,14 @@ mod tests {
             dataset in generate_dataset(1000)
         ) {
 
-            let actor1 = gen_public_key();
+            let actor1 = generate_public_key();
             let sequence_name = XorName::random();
 
             let sdata_tag = 43_001u64;
 
             // Instantiate the same Sequence on two replicas
-            let mut replica1 = Sequence::new_public(actor1, sequence_name, sdata_tag);
-            let mut replica2 = Sequence::new_public(actor1, sequence_name, sdata_tag);
+            let mut replica1 = Sequence::new_public(actor1, actor1, sequence_name, sdata_tag);
+            let mut replica2 = Sequence::new_public(actor1, actor1, sequence_name, sdata_tag);
 
             // Set Actor1 as the owner
             let perms = BTreeMap::default();
@@ -1584,15 +1584,15 @@ mod tests {
             dataset in gen_dataset_and_probability(1000),
         ) {
 
-            let actor1 = gen_public_key();
-            let actor2 = gen_public_key();
+            let actor1 = generate_public_key();
+            let actor2 = generate_public_key();
             let sequence_name = XorName::random();
 
             let sdata_tag = 43_001u64;
 
             // Instantiate the same Sequence on two replicas
-            let mut replica1 = Sequence::new_public(actor1, sequence_name, sdata_tag);
-            let mut replica2 = Sequence::new_public(actor2, sequence_name, sdata_tag);
+            let mut replica1 = Sequence::new_public(actor1, actor1, sequence_name, sdata_tag);
+            let mut replica2 = Sequence::new_public(actor2, actor2, sequence_name, sdata_tag);
 
             // Set Actor1 as the owner
             let perms = BTreeMap::default();
@@ -1607,7 +1607,7 @@ mod tests {
                     ops.push(OpType::Data(op));
 
                     if policy_change_chance < u8::MAX / 3 {
-                        let new_owner = gen_public_key();
+                        let new_owner = generate_public_key();
 
                         let mut perms = BTreeMap::default();
                         let user_perms =
@@ -1665,15 +1665,15 @@ mod tests {
             dataset in prop::collection::vec((generate_seq_entry(), any::<u8>()), 100..1000)
         ) {
 
-            let actor1 = gen_public_key();
-            let actor2 = gen_public_key();
+            let actor1 = generate_public_key();
+            let actor2 = generate_public_key();
             let sequence_name = XorName::random();
 
             let sdata_tag = 43_001u64;
 
             // Instantiate the same Sequence on two replicas
-            let mut replica1 = Sequence::new_public(actor1, sequence_name, sdata_tag);
-            let mut replica2 = Sequence::new_public(actor2, sequence_name, sdata_tag);
+            let mut replica1 = Sequence::new_public(actor1, actor1, sequence_name, sdata_tag);
+            let mut replica2 = Sequence::new_public(actor2, actor2, sequence_name, sdata_tag);
 
             // Set Actor1 as the owner
             let perms = BTreeMap::default();
@@ -1686,7 +1686,7 @@ mod tests {
             for (data, policy_change_chance) in dataset {
                     let op = replica1.append(data)?;
                     ops.push(OpType::Data(op));
-                    let new_owner = gen_public_key();
+                    let new_owner = generate_public_key();
 
                     if policy_change_chance < u8::MAX / 8 {
                         let mut perms = BTreeMap::default();
@@ -1744,7 +1744,7 @@ mod tests {
             }
 
             // be sure we're missing ops at the moment...
-            assert_ne!(replica2.len(), replica1.len());
+            assert_ne!(replica2.len(None), replica1.len(None));
 
             // reapply any potentially failed ops
             for op in ops.clone() {
@@ -1768,15 +1768,15 @@ mod tests {
             dataset in gen_dataset_and_probability(1000),
         ) {
 
-            let actor1 = gen_public_key();
-            let actor2 = gen_public_key();
+            let actor1 = generate_public_key();
+            let actor2 = generate_public_key();
             let sequence_name = XorName::random();
 
             let sdata_tag = 43_001u64;
 
             // Instantiate the same Sequence on two replicas
-            let mut replica1 = Sequence::new_public(actor1, sequence_name, sdata_tag);
-            let mut replica2 = Sequence::new_public(actor2, sequence_name, sdata_tag);
+            let mut replica1 = Sequence::new_public(actor1, actor1, sequence_name, sdata_tag);
+            let mut replica2 = Sequence::new_public(actor2, actor2, sequence_name, sdata_tag);
 
             // Set Actor1 as the owner
             let perms = BTreeMap::default();
@@ -1798,7 +1798,7 @@ mod tests {
             }
 
             // here we statistically should have dropped some messages
-            assert_ne!(replica2.len(), replica1.len());
+            assert_ne!(replica2.len(None), replica1.len(None));
 
             // reapply all ops
             for (op, _) in ops {
@@ -1867,9 +1867,9 @@ mod tests {
             // set up a replica that has nothing to do with the rest, random xor... different owner...
             let xorname = XorName::random();
             let tag = 45_000u64;
-            let owner = gen_public_key();
-            let actor = gen_public_key();
-            let mut bogus_replica = Sequence::new_public(actor, xorname, tag);
+            let owner = generate_public_key();
+            let actor = generate_public_key();
+            let mut bogus_replica = Sequence::new_public(actor, actor, xorname, tag);
             let perms = BTreeMap::default();
             let _ = bogus_replica.set_public_policy(owner, perms).unwrap();
 
