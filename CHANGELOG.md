@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.11.25](https://github.com/maidsafe/sn_data_types/compare/v0.11.24...v0.11.25) (2020-11-10)
+
+
+### Features
+
+* **Seq:** add convenience APIs to query latest policy and permissions ([e47ca4e](https://github.com/maidsafe/sn_data_types/commit/e47ca4e91f0d498e38f083c032f51d7e0daa8276))
+* **Seq:** adding policy enforcement logic ([e19e693](https://github.com/maidsafe/sn_data_types/commit/e19e6935600541524b1c12412f1b29f77aadb805))
+* **Seq:** include a PublicKey as part of the crdt op, and use it to enforce policy when applying the ops ([8318be6](https://github.com/maidsafe/sn_data_types/commit/8318be6931343e4e562b4b0ae9c6dd5443ead7a9))
+
 ### [0.11.24](https://github.com/maidsafe/sn_data_types/compare/v0.11.23...v0.11.24) (2020-10-27)
 
 
