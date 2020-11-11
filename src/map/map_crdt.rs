@@ -184,6 +184,9 @@ where
                     // Append the entry to the Map corresponding to current Policy
                     let crdt_op = map.update(key, add_ctx, |val, actor| val.write(value, actor));
 
+                    // apply the op locally
+                    map.apply(crdt_op.clone());
+
                     // We return the operation as it may need to be broadcasted to other replicas
                     Ok(CrdtDataOperation {
                         address,
@@ -299,23 +302,33 @@ where
     pub fn apply_policy_op(&mut self, op: CrdtPolicyOperation<A, P>) -> Result<()> {
         let new_map = if let Some((policy_id, data_version)) = op.ctx {
             // policy op has a context/causality info,
-            // let's check it's causally ready for applying
-            if self.policy.find_entry(&policy_id).is_none() {
+            // let's check we're not at the first version, and if so, that the op is causally ready for applying
+            if data_version > 0 && self.policy.find_entry(&policy_id).is_none() {
                 // The policy is not causally ready, return an error
                 // so the sender can retry later and/or send the missing ops
                 return Err(Error::OpNotCausallyReady);
             } else {
-                // Retrieve the LSeq corresponding to the Policy this op depends on,
-                let map = self.data.get(&policy_id).ok_or_else(|| {
-                    Error::Unexpected("The data is an unexpected inconsistent state".to_string())
-                })?;
+                // Retrieve the Map corresponding to the Policy this op depends on,
+                let map: TheActualMap<A> = match self.data.get(&policy_id) {
+                    Some(data) => Ok(data.clone()),
+                    None => {
+                        // if we just instantiated this data
+                        if data_version == 0 {
+                            Ok(Map::new())
+                        } else {
+                            Err(Error::Unexpected(
+                                "The data is an unexpected or inconsistent state".to_string(),
+                            ))
+                        }
+                    }
+                }?;
 
                 // FIXME: Check that we actually have perms to be adding a new policy here, based on prev one...
 
                 match &data_version {
                     0 => {
-                        // The Policy doesn't depend on any item thus we copy the entire Sequence
-                        map.clone()
+                        // The Policy doesn't depend on any item thus we return Map
+                        map
                     }
                     _ => {
                         // TODO: What do we need to do here for Map...
@@ -343,10 +356,9 @@ where
                 }
             }
         } else {
-            // Create an empty LSeq since there are no items yet for this Policy
+            // Create an empty Map since there are no items yet for this Policy
             let actor = self.policy.actor();
             Map::new()
-            // LSeq::new_with_args(actor, LSEQ_TREE_BASE, LSEQ_BOUNDARY)
         };
 
         let policy_id = op.crdt_op.id();

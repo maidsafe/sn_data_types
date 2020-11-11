@@ -370,7 +370,8 @@ mod tests {
 
             // Add an item on replicas
             let append_op = replica1.update(k,v)?;
-            replica2.apply_data_op(append_op)?;
+            replica2.apply_data_op(append_op.clone())?;
+            // replica1.apply_data_op(append_op)?;
 
             verify_data_convergence(vec![replica1, replica2], 1)?;
 
