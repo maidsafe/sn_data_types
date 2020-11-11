@@ -351,6 +351,30 @@ mod tests {
         prop::collection::vec(generate_map_kv_pair(), 1..max_quantity + 1)
     }
 
+    // Generate a vec of Sequence replicas of some length
+    fn generate_replicas(max_quantity: usize) -> impl Strategy<Value = (Vec<Map>, PublicKey)> {
+        let xorname = XorName::random();
+        let tag = 45_000u64;
+        let owner = generate_public_key();
+
+        (1..max_quantity + 1).prop_map(move |quantity| {
+            let mut replicas = Vec::with_capacity(quantity);
+            for _ in 0..quantity {
+                let actor = generate_public_key();
+                let replica = Map::new_public(actor, xorname, tag);
+                replicas.push(replica);
+            }
+
+            // set the same owner in all replicas
+            let perms = BTreeMap::default();
+            let owner_op = replicas[0].set_public_policy(owner, perms).unwrap();
+            for r in replicas.iter_mut() {
+                r.apply_public_policy_op(owner_op.clone()).unwrap();
+            }
+            (replicas, owner)
+        })
+    }
+
     proptest! {
         #[test]
         fn proptest_map_doesnt_crash_with_random_data(
@@ -416,5 +440,32 @@ mod tests {
             verify_data_convergence(vec![replica1, replica2], key_count_set.len())?;
 
         }
+
+
+        #[test]
+        fn proptest_map_converges_with_many_random_data_across_arbitrary_number_of_replicas(
+            dataset in generate_dataset(500),
+            (mut replicas, _pk) in generate_replicas(50)
+        ) {
+            // let dataset_length = dataset.len();
+            let mut key_count_set = BTreeSet::new();
+
+            // insert our data at replicas
+            for (k,v) in dataset {
+                // first generate an op from one replica...
+                let op = replicas[0].update(k.clone(),v)?;
+                // we count keys in a set, incase several operations write to the same key + value
+                let _ = key_count_set.insert(k);
+
+                // then apply this to all replicas
+                for replica in &mut replicas {
+                    replica.apply_data_op(op.clone())?;
+                }
+            }
+
+            verify_data_convergence(replicas, key_count_set.len())?;
+
+        }
+
     }
 }
