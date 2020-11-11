@@ -307,8 +307,36 @@ mod tests {
     use proptest::prelude::*;
     use rand::rngs::OsRng;
     use rand::seq::SliceRandom;
-    use std::collections::BTreeMap;
+    use std::collections::{BTreeMap, BTreeSet};
     use xor_name::XorName;
+
+    // TODO: DRY THIS
+    fn generate_public_key() -> PublicKey {
+        let keypair = Keypair::new_ed25519(&mut OsRng);
+        keypair.public_key()
+    }
+
+    // verify data convergence on a set of replicas and with the expected length
+    fn verify_data_convergence(replicas: Vec<Map>, expected_len: usize) -> Result<()> {
+        // verify replicas have the expected length
+        for r in &replicas {
+            assert_eq!(r.len(), expected_len as u64);
+        }
+
+        let keys = &replicas[0].clone().keys()?;
+        // now verify that the items are the same in all replicas
+        for i in 0..expected_len - 1 {
+            // -1 as usize one is index 0 in the vec
+            let key = &keys[i];
+            let r0_entry = &replicas[0].get(key.to_vec()).ok_or("No key found")?;
+
+            for r in &replicas {
+                assert_eq!(r0_entry, &r.get(key.to_vec()).ok_or("No key found")?);
+            }
+        }
+
+        Ok(())
+    }
 
     // Generate a Map entry
     fn generate_map_kv_pair() -> impl Strategy<Value = (Vec<u8>, Vec<u8>)> {
@@ -318,35 +346,9 @@ mod tests {
         )
     }
 
-    // TODO: DRY THIS
-    fn gen_public_key() -> PublicKey {
-        let keypair = Keypair::new_ed25519(&mut OsRng);
-        keypair.public_key()
-    }
-
-    // verify data convergence on a set of replicas and with the expected length
-    fn verify_data_convergence(replicas: Vec<Map>, expected_len: u64) -> Result<()> {
-        // verify replicas have the expected length
-        // also verify replicas failed to get with index beyond reported length
-        // let index_beyond = SequenceIndex::FromStart(expected_len);
-        // let comparison = replicas[0];
-
-        for r in &replicas {
-            assert_eq!(r.len(), expected_len);
-            // assert_eq!(r.get(index_beyond), None);
-        }
-
-        let keys = &replicas[0].clone().keys()?;
-        // now verify that the items are the same in all replicas
-        for i in 0..expected_len {
-            let key = &keys[i as usize];
-            let r0_entry = &replicas[0].get(key.to_vec()).ok_or("No key found")?;
-            for r in &replicas {
-                assert_eq!(r0_entry, &r.get(key.to_vec()).ok_or("No key found")?);
-            }
-        }
-
-        Ok(())
+    // Generate a vec of Sequence entries
+    fn generate_dataset(max_quantity: usize) -> impl Strategy<Value = Vec<(Vec<u8>, Vec<u8>)>> {
+        prop::collection::vec(generate_map_kv_pair(), 1..max_quantity + 1)
     }
 
     proptest! {
@@ -354,7 +356,7 @@ mod tests {
         fn proptest_map_doesnt_crash_with_random_data(
             (k,v) in generate_map_kv_pair()
         ) {
-            let actor1 = gen_public_key();
+            let actor1 = generate_public_key();
             let map_name = XorName::random();
 
             let tag = 43_001u64;
@@ -371,9 +373,47 @@ mod tests {
             // Add an item on replicas
             let append_op = replica1.update(k,v)?;
             replica2.apply_data_op(append_op.clone())?;
-            // replica1.apply_data_op(append_op)?;
 
             verify_data_convergence(vec![replica1, replica2], 1)?;
+
+        }
+
+
+        #[test]
+        fn proptest_map_converges_with_many_random_data(
+            dataset in generate_dataset(1000)
+        ) {
+
+            let actor1 = generate_public_key();
+            let map_name = XorName::random();
+
+            let tag = 43_001u64;
+
+            // Instantiate the same Map on two replicas
+            let mut replica1 = Map::new_public(actor1, map_name, tag);
+            let mut replica2 = Map::new_public(actor1, map_name, tag);
+
+
+            // Set Actor1 as the owner
+            let perms = BTreeMap::default();
+            let owner_op = replica1.set_public_policy(actor1, perms)?;
+            replica2.apply_public_policy_op(owner_op)?;
+
+            let mut key_count_set = BTreeSet::new();
+
+            // insert our data at replicas
+            for (k,v) in dataset {
+                // Update an item on replica1
+                let append_op = replica1.update(k.clone(),v)?;
+
+                // we count keys in a set, incase several operations write to the same key + value
+                let _ = key_count_set.insert(k);
+
+                // now apply that op to replica 2
+                replica2.apply_data_op(append_op)?;
+            }
+
+            verify_data_convergence(vec![replica1, replica2], key_count_set.len())?;
 
         }
     }
