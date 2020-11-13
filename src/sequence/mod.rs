@@ -26,7 +26,7 @@ use std::{
 use xor_name::XorName;
 
 // Type of data used for the 'Actor' in CRDT vector clocks
-type ActorType = PublicKey;
+type ActorType = String;
 
 /// Data mutation operation to apply to Sequence.
 pub type DataWriteOp<T> = CrdtDataOperation<ActorType, T>;
