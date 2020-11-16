@@ -8,6 +8,7 @@
 // Software.
 
 use super::metadata::{Address, Entries, Entry, Index, Perm};
+use crate::Signature;
 use crate::{Error, PublicKey, Result};
 pub use crdts::{lseq::Op, Actor};
 use crdts::{
@@ -31,7 +32,7 @@ const LSEQ_TREE_BASE: u8 = 10; // arity of 1024 at root
 
 /// CRDT Data operation applicable to other Sequence replica.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, PartialOrd, Eq, Hash)]
-pub struct CrdtDataOperation<A: Actor + Display + std::fmt::Debug, T> {
+pub struct CrdtDataOperation<A: Actor + Display + std::fmt::Debug + Serialize, T> {
     /// Address of a Sequence object on the network.
     pub address: Address,
     /// The data operation to apply.
@@ -40,11 +41,13 @@ pub struct CrdtDataOperation<A: Actor + Display + std::fmt::Debug, T> {
     pub source: PublicKey,
     /// The context (policy) this operation depends on
     pub ctx: Identifier<A>,
+    /// The signature of the crdt_top, required to apply the op
+    pub signature: Option<Signature>,
 }
 
 /// CRDT Policy operation applicable to other Sequence replica.
 #[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Eq, Hash)]
-pub struct CrdtPolicyOperation<A: Actor + Display + std::fmt::Debug, P> {
+pub struct CrdtPolicyOperation<A: Actor + Display + std::fmt::Debug + Serialize, P: Serialize> {
     /// Address of a Sequence object on the network.
     pub address: Address,
     /// The policy operation to apply.
@@ -53,14 +56,16 @@ pub struct CrdtPolicyOperation<A: Actor + Display + std::fmt::Debug, P> {
     pub source: PublicKey,
     /// The context (previous policy) this operation depends on
     pub ctx: Option<(Identifier<A>, Option<Identifier<A>>)>,
+    /// The signature of the crdt_top, required to apply the op
+    pub signature: Option<Signature>,
 }
 
 /// Sequence data type as a CRDT with Access Control
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd)]
 pub struct SequenceCrdt<A, P>
 where
-    A: Actor + Display + std::fmt::Debug,
-    P: Perm + Hash + Clone,
+    A: Actor + Display + std::fmt::Debug + Serialize,
+    P: Perm + Hash + Clone + Serialize,
 {
     /// Actor of this piece of data
     pub(crate) actor: A,
@@ -77,8 +82,8 @@ where
 
 impl<A, P> Display for SequenceCrdt<A, P>
 where
-    A: Actor + Display + std::fmt::Debug,
-    P: Perm + Hash + Clone,
+    A: Actor + Display + std::fmt::Debug + Serialize,
+    P: Perm + Hash + Clone + Serialize,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[")?;
@@ -96,8 +101,8 @@ where
 
 impl<A, P> SequenceCrdt<A, P>
 where
-    A: Actor + Display + std::fmt::Debug,
-    P: Perm + Hash + Clone,
+    A: Actor + Display + std::fmt::Debug + Serialize,
+    P: Perm + Hash + Clone + Serialize,
 {
     /// Constructs a new 'SequenceCrdt'.
     pub fn new(actor: A, address: Address) -> Self {
@@ -133,7 +138,7 @@ where
     }
 
     /// Append a new item to the SequenceCrdt and returns the CRDT operation
-    pub fn append(
+    pub fn create_append_op(
         &mut self,
         entry: Entry,
         source: PublicKey,
@@ -151,6 +156,7 @@ where
                 )),
                 Some(lseq) => {
                     // Append the entry to the LSeq corresponding to current Policy
+                    // TODO: lseq should not apply the op yet
                     let crdt_op = lseq.append(entry);
 
                     // We return the operation as it may need to be broadcasted to other replicas
@@ -159,6 +165,7 @@ where
                         crdt_op,
                         source,
                         ctx: cur_policy.id.clone(),
+                        signature: None,
                     })
                 }
             },
@@ -167,6 +174,18 @@ where
 
     /// Apply a remote data CRDT operation to this replica of the Sequence.
     pub fn apply_data_op(&mut self, op: CrdtDataOperation<A, Entry>) -> Result<()> {
+        // First check op is validly signed.
+        // Note: Perms for the op are checked at the upper Sequence layer.
+        match op.signature {
+            None => return Err(Error::Unexpected("No signature on crdt op".to_string())),
+            Some(sig) => {
+                // TODO: verify PK is in our perms list too / matches op?
+                let bytes_to_verify = bincode::serialize(&op.crdt_op)
+                    .map_err(|_| Error::Unexpected("Could not serialize crdt op".to_string()))?;
+                op.source.verify(&sig, &bytes_to_verify)?;
+            }
+        }
+
         let policy_id = op.ctx.clone();
         if self.policy_by_id(&policy_id).is_some() {
             // We have to apply the op to all branches/copies of the Sequence as it may
@@ -215,11 +234,12 @@ where
     }
 
     /// Sets a new Policy keeping the current one in the history.
-    pub fn set_policy(
+    pub fn create_policy_op(
         &mut self,
         policy: P,
         source: PublicKey,
     ) -> Result<CrdtPolicyOperation<A, P>> {
+        //TODO: this should not be applied locally yet, until sig applied + verified
         let (new_lseq, prev_policy_id) = match self.policy.last_entry() {
             None => {
                 // Create an empty LSeq since there are no items yet for this Policy
@@ -260,11 +280,23 @@ where
             crdt_op,
             source,
             ctx,
+            signature: None,
         })
     }
 
     /// Apply a remote policy CRDT operation to this replica.
     pub fn apply_policy_op(&mut self, op: CrdtPolicyOperation<A, P>) -> Result<()> {
+        // First check op is validly signed.
+        // Note: Perms for the op are checked at the upper Sequence layer.
+        match op.signature {
+            None => return Err(Error::Unexpected("No signature on crdt op".to_string())),
+            Some(sig) => {
+                let bytes_to_verify = bincode::serialize(&op.crdt_op)
+                    .map_err(|_| Error::Unexpected("Could not serialize crdt op".to_string()))?;
+                op.source.verify(&sig, &bytes_to_verify)?;
+            }
+        }
+
         let new_lseq = if let Some((policy_id, item_id)) = op.ctx {
             // policy op has a context/causality info,
             // let's check it's causally ready for applying
