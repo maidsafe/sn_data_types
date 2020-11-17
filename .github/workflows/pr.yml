@@ -53,6 +53,8 @@ jobs:
   coverage:
     name: Code coverage check
     runs-on: ubuntu-latest
+    env: 
+      PROPTEST_CASES: 1
     steps:
       - uses: actions/checkout@v2
       # Install Rust
