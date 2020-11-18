@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.11.30](https://github.com/maidsafe/sn_data_types/compare/v0.11.29...v0.11.30) (2020-11-18)
+
+
+### Features
+
+* **seq:** reexpose check perms api ([39a63ca](https://github.com/maidsafe/sn_data_types/commit/39a63cab6e7133b7afe90d12e092d315df64e2d9))
+* **sequence:** require signed ops ([4b0f54d](https://github.com/maidsafe/sn_data_types/commit/4b0f54d1102299edb03f70ea70e3ef329322260e))
+
 ### [0.11.29](https://github.com/maidsafe/sn_data_types/compare/v0.11.28...v0.11.29) (2020-11-18)
 
 ### [0.11.28](https://github.com/maidsafe/sn_data_types/compare/v0.11.27...v0.11.28) (2020-11-16)
