@@ -176,15 +176,12 @@ where
     pub fn apply_data_op(&mut self, op: CrdtDataOperation<A, Entry>) -> Result<()> {
         // First check op is validly signed.
         // Note: Perms for the op are checked at the upper Sequence layer.
-        match op.signature {
-            None => return Err(Error::Unexpected("No signature on crdt op".to_string())),
-            Some(sig) => {
-                // TODO: verify PK is in our perms list too / matches op?
-                let bytes_to_verify = bincode::serialize(&op.crdt_op)
-                    .map_err(|_| Error::Unexpected("Could not serialize crdt op".to_string()))?;
-                op.source.verify(&sig, &bytes_to_verify)?;
-            }
-        }
+        let sig = op
+            .signature
+            .ok_or_else(|| Error::Unexpected("No signature on crdt op".to_string()))?;
+        let bytes_to_verify = bincode::serialize(&op.crdt_op)
+            .map_err(|_| Error::Unexpected("Could not serialize crdt op".to_string()))?;
+        op.source.verify(&sig, &bytes_to_verify)?;
 
         let policy_id = op.ctx.clone();
         if self.policy_by_id(&policy_id).is_some() {
@@ -288,14 +285,12 @@ where
     pub fn apply_policy_op(&mut self, op: CrdtPolicyOperation<A, P>) -> Result<()> {
         // First check op is validly signed.
         // Note: Perms for the op are checked at the upper Sequence layer.
-        match op.signature {
-            None => return Err(Error::Unexpected("No signature on crdt op".to_string())),
-            Some(sig) => {
-                let bytes_to_verify = bincode::serialize(&op.crdt_op)
-                    .map_err(|_| Error::Unexpected("Could not serialize crdt op".to_string()))?;
-                op.source.verify(&sig, &bytes_to_verify)?;
-            }
-        }
+        let sig = op
+            .signature
+            .ok_or_else(|| Error::Unexpected("No signature on crdt op".to_string()))?;
+        let bytes_to_verify = bincode::serialize(&op.crdt_op)
+            .map_err(|_| Error::Unexpected("Could not serialize crdt op".to_string()))?;
+        op.source.verify(&sig, &bytes_to_verify)?;
 
         let new_lseq = if let Some((policy_id, item_id)) = op.ctx {
             // policy op has a context/causality info,
