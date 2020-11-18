@@ -356,14 +356,14 @@ impl Data {
         perms.ok_or(Error::NoSuchEntry)
     }
 
-    /// Private helper to check permissions for given `action`
+    /// Helper to check permissions for given `action`
     /// for the given requester's public key.
     ///
     /// Returns:
     /// `Ok(())` if the permissions are valid,
     /// `Err::InvalidOwners` if the last owner is invalid,
     /// `Err::AccessDenied` if the action is not allowed.
-    fn check_permission(
+    pub fn check_permission(
         &self,
         action: Action,
         requester: Option<PublicKey>,
