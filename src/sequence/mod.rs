@@ -452,8 +452,8 @@ mod tests {
 
     #[test]
     fn sequence_create_public() {
-        let actor1_keypair = Keypair::new_ed25519(&mut OsRng);
-        let actor = actor1_keypair.public_key();
+        let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
+        let actor = op_source_pk_keypair.public_key();
         let sequence_name = XorName::random();
         let sequence_tag = 43_000;
         let sequence =
@@ -471,8 +471,8 @@ mod tests {
 
     #[test]
     fn sequence_create_private() {
-        let actor1_keypair = Keypair::new_ed25519(&mut OsRng);
-        let actor = actor1_keypair.public_key();
+        let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
+        let actor = op_source_pk_keypair.public_key();
         let sequence_name = XorName::random();
         let sequence_tag = 43_000;
         let sequence =
@@ -490,8 +490,8 @@ mod tests {
 
     #[test]
     fn sequence_append_entry_and_apply() -> Result<()> {
-        let actor1_keypair = Keypair::new_ed25519(&mut OsRng);
-        let actor = actor1_keypair.public_key();
+        let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
+        let actor = op_source_pk_keypair.public_key();
         let sequence_name = XorName::random();
         let sequence_tag = 43_000;
         let mut replica1 =
@@ -503,7 +503,8 @@ mod tests {
         let user_perms1 = SequencePublicPermissions::new(true, false);
         let _ = perms1.insert(SequenceUser::Anyone, user_perms1);
         let policy_op = replica1.set_public_policy(actor, perms1)?;
-        replica2.apply_public_policy_op(sign_public_policy_op(policy_op, &actor1_keypair)?)?;
+        replica2
+            .apply_public_policy_op(sign_public_policy_op(policy_op, &op_source_pk_keypair)?)?;
 
         let entry1 = b"value0".to_vec();
         let entry2 = b"value1".to_vec();
@@ -512,8 +513,8 @@ mod tests {
         let op2 = replica1.create_append_op(entry2.clone())?;
 
         // we apply the operations in different order, to verify that doesn't affect the result
-        replica2.apply_data_op(sign_data_op(op2, &actor1_keypair)?)?;
-        replica2.apply_data_op(sign_data_op(op1, &actor1_keypair)?)?;
+        replica2.apply_data_op(sign_data_op(op2, &op_source_pk_keypair)?)?;
+        replica2.apply_data_op(sign_data_op(op1, &op_source_pk_keypair)?)?;
 
         assert_eq!(replica1.len(None)?, 2);
         assert_eq!(replica2.len(None)?, 2);
@@ -537,8 +538,8 @@ mod tests {
 
     #[test]
     fn sequence_public_create_policy_op_and_apply() -> Result<()> {
-        let actor1_keypair = Keypair::new_ed25519(&mut OsRng);
-        let actor = actor1_keypair.public_key();
+        let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
+        let actor = op_source_pk_keypair.public_key();
         let sequence_name = XorName::random();
         let sequence_tag = 43_000;
         let mut replica1 =
@@ -556,11 +557,11 @@ mod tests {
 
         let op1 = sign_public_policy_op(
             replica1.set_public_policy(actor, perms1.clone())?,
-            &actor1_keypair,
+            &op_source_pk_keypair,
         )?;
         let op2 = sign_public_policy_op(
             replica1.set_public_policy(actor, perms2.clone())?,
-            &actor1_keypair,
+            &op_source_pk_keypair,
         )?;
 
         // if we apply the operations in different order it should fail
@@ -599,33 +600,41 @@ mod tests {
 
     #[test]
     fn sequence_private_create_policy_op_and_apply() -> Result<()> {
-        let actor1_keypair = Keypair::new_ed25519(&mut OsRng);
-        let actor1 = actor1_keypair.public_key();
-        let actor2_kp = Keypair::new_ed25519(&mut OsRng);
-        let actor2 = actor2_kp.public_key();
+        let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
+        let op_source_pk = op_source_pk_keypair.public_key();
+        let op_source_pk2_keypair = Keypair::new_ed25519(&mut OsRng);
+        let op_source_pk2 = op_source_pk2_keypair.public_key();
         let sequence_name = XorName::random();
         let sequence_tag = 43_000;
-        let mut replica1 =
-            Sequence::new_private(actor1, "actor1".to_string(), sequence_name, sequence_tag);
-        let mut replica2 =
-            Sequence::new_private(actor2, "actor2".to_string(), sequence_name, sequence_tag);
+        let mut replica1 = Sequence::new_private(
+            op_source_pk,
+            "some_identifying_str".to_string(),
+            sequence_name,
+            sequence_tag,
+        );
+        let mut replica2 = Sequence::new_private(
+            op_source_pk2,
+            "some_identifying_str2".to_string(),
+            sequence_name,
+            sequence_tag,
+        );
 
         let mut perms1 = BTreeMap::default();
         let user_perms1 = SequencePrivatePermissions::new(true, false, true);
-        let _ = perms1.insert(actor1, user_perms1);
+        let _ = perms1.insert(op_source_pk, user_perms1);
 
         let mut perms2 = BTreeMap::default();
         let user_perms2 = SequencePrivatePermissions::new(true, true, false);
-        let _ = perms2.insert(actor2, user_perms2);
+        let _ = perms2.insert(op_source_pk2, user_perms2);
 
-        let mut op1 = replica1.set_private_policy(actor2, perms1.clone())?;
+        let mut op1 = replica1.set_private_policy(op_source_pk2, perms1.clone())?;
         let bytes = bincode::serialize(&op1.crdt_op).map_err(|_| "Could not serialize op")?;
-        let signature = actor1_keypair.sign(&bytes);
+        let signature = op_source_pk_keypair.sign(&bytes);
         op1.signature = Some(signature);
 
-        let mut op2 = replica1.set_private_policy(actor1, perms2.clone())?;
+        let mut op2 = replica1.set_private_policy(op_source_pk, perms2.clone())?;
         let bytes = bincode::serialize(&op2.crdt_op).map_err(|_| "Could not serialize op")?;
-        let signature = actor1_keypair.sign(&bytes);
+        let signature = op_source_pk_keypair.sign(&bytes);
         op2.signature = Some(signature);
 
         // if we apply the operations in different order it should fail
@@ -642,21 +651,21 @@ mod tests {
         let index_0 = SequenceIndex::FromStart(0);
         let first_entry = replica1.private_policy_at(index_0, None)?;
         assert_eq!(first_entry.permissions, perms1);
-        assert_eq!(first_entry.owner, actor2);
+        assert_eq!(first_entry.owner, op_source_pk2);
         assert_eq!(first_entry, replica2.private_policy_at(index_0, None)?);
         assert_eq!(
             SequencePermissions::Private(user_perms1),
-            replica1.permissions_at(SequenceUser::Key(actor1), index_0, None)?
+            replica1.permissions_at(SequenceUser::Key(op_source_pk), index_0, None)?
         );
 
         let index_1 = SequenceIndex::FromStart(1);
         let second_entry = replica1.private_policy_at(index_1, None)?;
         assert_eq!(second_entry.permissions, perms2);
-        assert_eq!(second_entry.owner, actor1);
+        assert_eq!(second_entry.owner, op_source_pk);
         assert_eq!(second_entry, replica2.private_policy_at(index_1, None)?);
         assert_eq!(
             SequencePermissions::Private(user_perms2),
-            replica1.permissions_at(SequenceUser::Key(actor2), index_1, None)?
+            replica1.permissions_at(SequenceUser::Key(op_source_pk2), index_1, None)?
         );
 
         Ok(())
@@ -664,29 +673,41 @@ mod tests {
 
     #[test]
     fn sequence_public_create_policy_op_and_append_fails_when_no_perms_for_actor() -> Result<()> {
-        let actor1_keypair = Keypair::new_ed25519(&mut OsRng);
-        let actor1 = actor1_keypair.public_key();
-        let actor2_keypair = Keypair::new_ed25519(&mut OsRng);
-        let actor2 = actor2_keypair.public_key();
+        let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
+        let op_source_pk = op_source_pk_keypair.public_key();
+        let op_source_pk2_keypair = Keypair::new_ed25519(&mut OsRng);
+        let op_source_pk2 = op_source_pk2_keypair.public_key();
         let sequence_name = XorName::random();
         let sequence_tag = 43_000;
-        let mut replica1 =
-            Sequence::new_public(actor1, "actor1".to_string(), sequence_name, sequence_tag);
-        let mut replica2 =
-            Sequence::new_public(actor2, "actor2".to_string(), sequence_name, sequence_tag);
+        let mut replica1 = Sequence::new_public(
+            op_source_pk,
+            "some_identifying_str".to_string(),
+            sequence_name,
+            sequence_tag,
+        );
+        let mut replica2 = Sequence::new_public(
+            op_source_pk2,
+            "some_identifying_str2".to_string(),
+            sequence_name,
+            sequence_tag,
+        );
 
         let mut perms1 = BTreeMap::default();
         let user_perms1 = SequencePublicPermissions::new(true, false);
-        let _ = perms1.insert(SequenceUser::Key(actor1), user_perms1);
+        let _ = perms1.insert(SequenceUser::Key(op_source_pk), user_perms1);
 
         let mut perms2 = BTreeMap::default();
         let user_perms2 = SequencePublicPermissions::new(false, false);
-        let _ = perms2.insert(SequenceUser::Key(actor2), user_perms2);
+        let _ = perms2.insert(SequenceUser::Key(op_source_pk2), user_perms2);
 
-        let op1 =
-            sign_public_policy_op(replica1.set_public_policy(actor1, perms1)?, &actor1_keypair)?;
-        let op2 =
-            sign_public_policy_op(replica1.set_public_policy(actor1, perms2)?, &actor1_keypair)?;
+        let op1 = sign_public_policy_op(
+            replica1.set_public_policy(op_source_pk, perms1)?,
+            &op_source_pk_keypair,
+        )?;
+        let op2 = sign_public_policy_op(
+            replica1.set_public_policy(op_source_pk, perms2)?,
+            &op_source_pk_keypair,
+        )?;
 
         // let's apply op perms...
         replica2.apply_public_policy_op(op1)?;
@@ -698,7 +719,10 @@ mod tests {
         // And let's append to both replicas with one first item
         let item1 = b"item1";
         let item2 = b"item2";
-        let append_op1 = sign_data_op(replica1.create_append_op(item1.to_vec())?, &actor1_keypair)?;
+        let append_op1 = sign_data_op(
+            replica1.create_append_op(item1.to_vec())?,
+            &op_source_pk_keypair,
+        )?;
         replica2.apply_data_op(append_op1)?;
 
         check_op_not_allowed_failure(replica2.create_append_op(item2.to_vec()))?;
@@ -711,29 +735,41 @@ mod tests {
     #[test]
     fn sequence_public_create_policy_op_and_append_succeeds_when_perms_updated_for_actor(
     ) -> Result<()> {
-        let actor1_keypair = Keypair::new_ed25519(&mut OsRng);
-        let actor1 = actor1_keypair.public_key();
-        let actor2_keypair = Keypair::new_ed25519(&mut OsRng);
-        let actor2 = actor2_keypair.public_key();
+        let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
+        let op_source_pk = op_source_pk_keypair.public_key();
+        let op_source_pk2_keypair = Keypair::new_ed25519(&mut OsRng);
+        let op_source_pk2 = op_source_pk2_keypair.public_key();
         let sequence_name = XorName::random();
         let sequence_tag = 43_000;
-        let mut replica1 =
-            Sequence::new_public(actor1, "actor1".to_string(), sequence_name, sequence_tag);
-        let mut replica2 =
-            Sequence::new_public(actor2, "actor2".to_string(), sequence_name, sequence_tag);
+        let mut replica1 = Sequence::new_public(
+            op_source_pk,
+            "some_identifying_str".to_string(),
+            sequence_name,
+            sequence_tag,
+        );
+        let mut replica2 = Sequence::new_public(
+            op_source_pk2,
+            "some_identifying_str2".to_string(),
+            sequence_name,
+            sequence_tag,
+        );
 
         let mut perms1 = BTreeMap::default();
         let user_perms1 = SequencePublicPermissions::new(true, false);
-        let _ = perms1.insert(SequenceUser::Key(actor1), user_perms1);
+        let _ = perms1.insert(SequenceUser::Key(op_source_pk), user_perms1);
 
         let mut perms2 = BTreeMap::default();
         let user_perms2 = SequencePublicPermissions::new(false, false);
-        let _ = perms2.insert(SequenceUser::Key(actor2), user_perms2);
+        let _ = perms2.insert(SequenceUser::Key(op_source_pk2), user_perms2);
 
-        let op1 =
-            sign_public_policy_op(replica1.set_public_policy(actor1, perms1)?, &actor1_keypair)?;
-        let op2 =
-            sign_public_policy_op(replica1.set_public_policy(actor1, perms2)?, &actor1_keypair)?;
+        let op1 = sign_public_policy_op(
+            replica1.set_public_policy(op_source_pk, perms1)?,
+            &op_source_pk_keypair,
+        )?;
+        let op2 = sign_public_policy_op(
+            replica1.set_public_policy(op_source_pk, perms2)?,
+            &op_source_pk_keypair,
+        )?;
 
         // let's apply op perms...
         replica2.apply_public_policy_op(op1)?;
@@ -745,7 +781,10 @@ mod tests {
         // And let's append to both replicas with one first item
         let item1 = b"item1";
         let item2 = b"item2";
-        let append_op1 = sign_data_op(replica1.create_append_op(item1.to_vec())?, &actor1_keypair)?;
+        let append_op1 = sign_data_op(
+            replica1.create_append_op(item1.to_vec())?,
+            &op_source_pk_keypair,
+        )?;
         replica2.apply_data_op(append_op1)?;
 
         check_op_not_allowed_failure(replica2.create_append_op(item2.to_vec()))?;
@@ -754,13 +793,18 @@ mod tests {
 
         let mut perms3 = BTreeMap::default();
         let user_perms3 = SequencePublicPermissions::new(true, false);
-        let _ = perms3.insert(SequenceUser::Key(actor2), user_perms3);
+        let _ = perms3.insert(SequenceUser::Key(op_source_pk2), user_perms3);
 
-        let op1 =
-            sign_public_policy_op(replica1.set_public_policy(actor1, perms3)?, &actor1_keypair)?;
+        let op1 = sign_public_policy_op(
+            replica1.set_public_policy(op_source_pk, perms3)?,
+            &op_source_pk_keypair,
+        )?;
         replica2.apply_public_policy_op(op1)?;
 
-        let append_op = sign_data_op(replica2.create_append_op(item2.to_vec())?, &actor2_keypair)?;
+        let append_op = sign_data_op(
+            replica2.create_append_op(item2.to_vec())?,
+            &op_source_pk2_keypair,
+        )?;
         replica1.apply_data_op(append_op)?;
         assert_eq!(replica1.len(None)?, replica2.len(None)?);
 
@@ -769,32 +813,40 @@ mod tests {
 
     #[test]
     fn sequence_private_create_policy_op_and_append_fails_when_no_perms_for_actor() -> Result<()> {
-        let actor1_keypair = Keypair::new_ed25519(&mut OsRng);
-        let actor1 = actor1_keypair.public_key();
-        let actor2_kp = Keypair::new_ed25519(&mut OsRng);
-        let actor2 = actor2_kp.public_key();
+        let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
+        let op_source_pk = op_source_pk_keypair.public_key();
+        let op_source_pk2_keypair = Keypair::new_ed25519(&mut OsRng);
+        let op_source_pk2 = op_source_pk2_keypair.public_key();
         let sequence_name = XorName::random();
         let sequence_tag = 43_000;
-        let mut replica1 =
-            Sequence::new_private(actor1, "actor1".to_string(), sequence_name, sequence_tag);
-        let mut replica2 =
-            Sequence::new_private(actor2, "actor2".to_string(), sequence_name, sequence_tag);
+        let mut replica1 = Sequence::new_private(
+            op_source_pk,
+            "some_identifying_str".to_string(),
+            sequence_name,
+            sequence_tag,
+        );
+        let mut replica2 = Sequence::new_private(
+            op_source_pk2,
+            "some_identifying_str2".to_string(),
+            sequence_name,
+            sequence_tag,
+        );
 
         let mut perms1 = BTreeMap::default();
         let user_perms1 = SequencePrivatePermissions::new(true, false, true);
-        let _ = perms1.insert(actor1, user_perms1);
+        let _ = perms1.insert(op_source_pk, user_perms1);
 
         let mut perms2 = BTreeMap::default();
         let user_perms2 = SequencePrivatePermissions::new(false, false, false);
-        let _ = perms2.insert(actor2, user_perms2);
+        let _ = perms2.insert(op_source_pk2, user_perms2);
 
         let op1 = sign_private_policy_op(
-            replica1.set_private_policy(actor2, perms1)?,
-            &actor1_keypair,
+            replica1.set_private_policy(op_source_pk2, perms1)?,
+            &op_source_pk_keypair,
         )?;
         let op2 = sign_private_policy_op(
-            replica1.set_private_policy(actor1, perms2)?,
-            &actor1_keypair,
+            replica1.set_private_policy(op_source_pk, perms2)?,
+            &op_source_pk_keypair,
         )?;
 
         // let's apply op perms...
@@ -803,12 +855,15 @@ mod tests {
 
         assert_eq!(replica1.policy_version(None)?, Some(1));
         check_op_not_allowed_failure(replica2.policy_version(None))?;
-        assert_eq!(replica2.policy_version(Some(actor1))?, Some(1));
+        assert_eq!(replica2.policy_version(Some(op_source_pk))?, Some(1));
 
         // And let's append to both replicas with one first item
         let item1 = b"item1";
         let item2 = b"item2";
-        let append_op1 = sign_data_op(replica1.create_append_op(item1.to_vec())?, &actor1_keypair)?;
+        let append_op1 = sign_data_op(
+            replica1.create_append_op(item1.to_vec())?,
+            &op_source_pk_keypair,
+        )?;
         replica2.apply_data_op(append_op1)?;
 
         check_op_not_allowed_failure(replica2.create_append_op(item2.to_vec()))?;
@@ -819,32 +874,40 @@ mod tests {
     #[test]
     fn sequence_private_create_policy_op_and_get_read_fails_when_no_perms_for_actor() -> Result<()>
     {
-        let actor1_keypair = Keypair::new_ed25519(&mut OsRng);
-        let actor1 = actor1_keypair.public_key();
-        let actor2_kp = Keypair::new_ed25519(&mut OsRng);
-        let actor2 = actor2_kp.public_key();
+        let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
+        let op_source_pk = op_source_pk_keypair.public_key();
+        let op_source_pk2_keypair = Keypair::new_ed25519(&mut OsRng);
+        let op_source_pk2 = op_source_pk2_keypair.public_key();
         let sequence_name = XorName::random();
         let sequence_tag = 43_000;
-        let mut replica1 =
-            Sequence::new_private(actor1, "actor1".to_string(), sequence_name, sequence_tag);
-        let mut replica2 =
-            Sequence::new_private(actor2, "actor2".to_string(), sequence_name, sequence_tag);
+        let mut replica1 = Sequence::new_private(
+            op_source_pk,
+            "some_identifying_str".to_string(),
+            sequence_name,
+            sequence_tag,
+        );
+        let mut replica2 = Sequence::new_private(
+            op_source_pk2,
+            "some_identifying_str2".to_string(),
+            sequence_name,
+            sequence_tag,
+        );
 
         let mut perms1 = BTreeMap::default();
         let user_perms1 = SequencePrivatePermissions::new(true, false, true);
-        let _ = perms1.insert(actor1, user_perms1);
+        let _ = perms1.insert(op_source_pk, user_perms1);
 
         let mut perms2 = BTreeMap::default();
         let user_perms2 = SequencePrivatePermissions::new(false, false, false);
-        let _ = perms2.insert(actor2, user_perms2);
+        let _ = perms2.insert(op_source_pk2, user_perms2);
 
         let op1 = sign_private_policy_op(
-            replica1.set_private_policy(actor2, perms1)?,
-            &actor1_keypair,
+            replica1.set_private_policy(op_source_pk2, perms1)?,
+            &op_source_pk_keypair,
         )?;
         let op2 = sign_private_policy_op(
-            replica1.set_private_policy(actor1, perms2)?,
-            &actor1_keypair,
+            replica1.set_private_policy(op_source_pk, perms2)?,
+            &op_source_pk_keypair,
         )?;
 
         // let's apply op perms...
@@ -853,21 +916,26 @@ mod tests {
 
         assert_eq!(replica1.policy_version(None)?, Some(1));
         check_op_not_allowed_failure(replica2.policy_version(None))?;
-        assert_eq!(replica2.policy_version(Some(actor1))?, Some(1));
+        assert_eq!(replica2.policy_version(Some(op_source_pk))?, Some(1));
 
         // And let's append to both replicas with one first item
         let item1 = b"item1".to_vec();
-        let append_op1 = sign_data_op(replica1.create_append_op(item1.clone())?, &actor1_keypair)?;
+        let append_op1 = sign_data_op(
+            replica1.create_append_op(item1.clone())?,
+            &op_source_pk_keypair,
+        )?;
         replica2.apply_data_op(append_op1)?;
 
         // lets check replica1 can read that
         let data = replica1.get(SequenceIndex::FromStart(0), None)?;
         assert_eq!(data, Some(&item1));
 
-        // replica2 cannot read using actor2 pk
-        check_op_not_allowed_failure(replica2.get(SequenceIndex::FromStart(0), Some(actor2)))?;
-        // but it can read with pk from actor1
-        let data = replica2.get(SequenceIndex::FromStart(0), Some(actor1))?;
+        // replica2 cannot read using op_source_pk2 pk
+        check_op_not_allowed_failure(
+            replica2.get(SequenceIndex::FromStart(0), Some(op_source_pk2)),
+        )?;
+        // but it can read with pk from op_source_pk
+        let data = replica2.get(SequenceIndex::FromStart(0), Some(op_source_pk))?;
         assert_eq!(data, Some(&item1));
 
         Ok(())
@@ -876,32 +944,40 @@ mod tests {
     #[test]
     fn sequence_private_create_policy_op_and_last_entry_read_fails_when_no_perms_for_actor(
     ) -> Result<()> {
-        let actor1_keypair = Keypair::new_ed25519(&mut OsRng);
-        let actor1 = actor1_keypair.public_key();
-        let actor2_kp = Keypair::new_ed25519(&mut OsRng);
-        let actor2 = actor2_kp.public_key();
+        let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
+        let op_source_pk = op_source_pk_keypair.public_key();
+        let op_source_pk2_keypair = Keypair::new_ed25519(&mut OsRng);
+        let op_source_pk2 = op_source_pk2_keypair.public_key();
         let sequence_name = XorName::random();
         let sequence_tag = 43_000;
-        let mut replica1 =
-            Sequence::new_private(actor1, "actor1".to_string(), sequence_name, sequence_tag);
-        let mut replica2 =
-            Sequence::new_private(actor2, "actor2".to_string(), sequence_name, sequence_tag);
+        let mut replica1 = Sequence::new_private(
+            op_source_pk,
+            "some_identifying_str".to_string(),
+            sequence_name,
+            sequence_tag,
+        );
+        let mut replica2 = Sequence::new_private(
+            op_source_pk2,
+            "some_identifying_str2".to_string(),
+            sequence_name,
+            sequence_tag,
+        );
 
         let mut perms1 = BTreeMap::default();
         let user_perms1 = SequencePrivatePermissions::new(true, false, true);
-        let _ = perms1.insert(actor1, user_perms1);
+        let _ = perms1.insert(op_source_pk, user_perms1);
 
         let mut perms2 = BTreeMap::default();
         let user_perms2 = SequencePrivatePermissions::new(false, false, false);
-        let _ = perms2.insert(actor2, user_perms2);
+        let _ = perms2.insert(op_source_pk2, user_perms2);
 
         let op1 = sign_private_policy_op(
-            replica1.set_private_policy(actor2, perms1)?,
-            &actor1_keypair,
+            replica1.set_private_policy(op_source_pk2, perms1)?,
+            &op_source_pk_keypair,
         )?;
         let op2 = sign_private_policy_op(
-            replica1.set_private_policy(actor1, perms2)?,
-            &actor1_keypair,
+            replica1.set_private_policy(op_source_pk, perms2)?,
+            &op_source_pk_keypair,
         )?;
 
         // let's apply op perms...
@@ -910,19 +986,22 @@ mod tests {
 
         assert_eq!(replica1.policy_version(None)?, Some(1));
         check_op_not_allowed_failure(replica2.policy_version(None))?;
-        assert_eq!(replica2.policy_version(Some(actor1))?, Some(1));
+        assert_eq!(replica2.policy_version(Some(op_source_pk))?, Some(1));
 
         // And let's append to both replicas with one first item
         let item1 = b"item1".to_vec();
-        let append_op1 = sign_data_op(replica1.create_append_op(item1.clone())?, &actor1_keypair)?;
+        let append_op1 = sign_data_op(
+            replica1.create_append_op(item1.clone())?,
+            &op_source_pk_keypair,
+        )?;
         replica2.apply_data_op(append_op1)?;
 
         // lets check replica1 can read that, and replica2 not...
         let data = replica1.last_entry(None)?;
         assert_eq!(data, Some(&item1));
 
-        check_op_not_allowed_failure(replica2.last_entry(Some(actor2)))?;
-        let data = replica2.last_entry(Some(actor1))?;
+        check_op_not_allowed_failure(replica2.last_entry(Some(op_source_pk2)))?;
+        let data = replica2.last_entry(Some(op_source_pk))?;
         assert_eq!(data, Some(&item1));
 
         Ok(())
@@ -931,32 +1010,40 @@ mod tests {
     #[test]
     fn sequence_private_create_policy_op_and_range_read_fails_when_no_perms_for_actor() -> Result<()>
     {
-        let actor1_keypair = Keypair::new_ed25519(&mut OsRng);
-        let actor1 = actor1_keypair.public_key();
-        let actor2_kp = Keypair::new_ed25519(&mut OsRng);
-        let actor2 = actor2_kp.public_key();
+        let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
+        let op_source_pk = op_source_pk_keypair.public_key();
+        let op_source_pk2_keypair = Keypair::new_ed25519(&mut OsRng);
+        let op_source_pk2 = op_source_pk2_keypair.public_key();
         let sequence_name = XorName::random();
         let sequence_tag = 43_000;
-        let mut replica1 =
-            Sequence::new_private(actor1, "actor1".to_string(), sequence_name, sequence_tag);
-        let mut replica2 =
-            Sequence::new_private(actor2, "actor2".to_string(), sequence_name, sequence_tag);
+        let mut replica1 = Sequence::new_private(
+            op_source_pk,
+            "some_identifying_str".to_string(),
+            sequence_name,
+            sequence_tag,
+        );
+        let mut replica2 = Sequence::new_private(
+            op_source_pk2,
+            "some_identifying_str2".to_string(),
+            sequence_name,
+            sequence_tag,
+        );
 
         let mut perms1 = BTreeMap::default();
         let user_perms1 = SequencePrivatePermissions::new(true, false, true);
-        let _ = perms1.insert(actor1, user_perms1);
+        let _ = perms1.insert(op_source_pk, user_perms1);
 
         let mut perms2 = BTreeMap::default();
         let user_perms2 = SequencePrivatePermissions::new(false, false, false);
-        let _ = perms2.insert(actor2, user_perms2);
+        let _ = perms2.insert(op_source_pk2, user_perms2);
 
         let op1 = sign_private_policy_op(
-            replica1.set_private_policy(actor2, perms1)?,
-            &actor1_keypair,
+            replica1.set_private_policy(op_source_pk2, perms1)?,
+            &op_source_pk_keypair,
         )?;
         let op2 = sign_private_policy_op(
-            replica1.set_private_policy(actor1, perms2)?,
-            &actor1_keypair,
+            replica1.set_private_policy(op_source_pk, perms2)?,
+            &op_source_pk_keypair,
         )?;
 
         // let's apply op perms...
@@ -965,11 +1052,14 @@ mod tests {
 
         assert_eq!(replica1.policy_version(None)?, Some(1));
         check_op_not_allowed_failure(replica2.policy_version(None))?;
-        assert_eq!(replica2.policy_version(Some(actor1))?, Some(1));
+        assert_eq!(replica2.policy_version(Some(op_source_pk))?, Some(1));
 
         // And let's append to both replicas with one first item
         let item1 = b"item1".to_vec();
-        let append_op1 = sign_data_op(replica1.create_append_op(item1.clone())?, &actor1_keypair)?;
+        let append_op1 = sign_data_op(
+            replica1.create_append_op(item1.clone())?,
+            &op_source_pk_keypair,
+        )?;
         replica2.apply_data_op(append_op1)?;
 
         // lets check replica1 can read that, and replica2 not...
@@ -983,12 +1073,12 @@ mod tests {
         check_op_not_allowed_failure(replica2.in_range(
             SequenceIndex::FromStart(0),
             SequenceIndex::FromStart(1),
-            Some(actor2),
+            Some(op_source_pk2),
         ))?;
         let data = replica2.in_range(
             SequenceIndex::FromStart(0),
             SequenceIndex::FromStart(1),
-            Some(actor1),
+            Some(op_source_pk),
         )?;
         assert_eq!(data, Some(vec![item1]));
 
@@ -997,32 +1087,40 @@ mod tests {
 
     #[test]
     fn sequence_private_create_policy_op_and_read_possible_after_update() -> Result<()> {
-        let actor1_keypair = Keypair::new_ed25519(&mut OsRng);
-        let actor1 = actor1_keypair.public_key();
-        let actor2_kp = Keypair::new_ed25519(&mut OsRng);
-        let actor2 = actor2_kp.public_key();
+        let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
+        let op_source_pk = op_source_pk_keypair.public_key();
+        let op_source_pk2_keypair = Keypair::new_ed25519(&mut OsRng);
+        let op_source_pk2 = op_source_pk2_keypair.public_key();
         let sequence_name = XorName::random();
         let sequence_tag = 43_000;
-        let mut replica1 =
-            Sequence::new_private(actor1, "actor1".to_string(), sequence_name, sequence_tag);
-        let mut replica2 =
-            Sequence::new_private(actor2, "actor2".to_string(), sequence_name, sequence_tag);
+        let mut replica1 = Sequence::new_private(
+            op_source_pk,
+            "some_identifying_str".to_string(),
+            sequence_name,
+            sequence_tag,
+        );
+        let mut replica2 = Sequence::new_private(
+            op_source_pk2,
+            "some_identifying_str2".to_string(),
+            sequence_name,
+            sequence_tag,
+        );
 
         let mut perms1 = BTreeMap::default();
         let user_perms1 = SequencePrivatePermissions::new(true, false, true);
-        let _ = perms1.insert(actor1, user_perms1);
+        let _ = perms1.insert(op_source_pk, user_perms1);
 
         let mut perms2 = BTreeMap::default();
         let user_perms2 = SequencePrivatePermissions::new(false, false, false);
-        let _ = perms2.insert(actor2, user_perms2);
+        let _ = perms2.insert(op_source_pk2, user_perms2);
 
         let op1 = sign_private_policy_op(
-            replica1.set_private_policy(actor2, perms1)?,
-            &actor1_keypair,
+            replica1.set_private_policy(op_source_pk2, perms1)?,
+            &op_source_pk_keypair,
         )?;
         let op2 = sign_private_policy_op(
-            replica1.set_private_policy(actor1, perms2)?,
-            &actor1_keypair,
+            replica1.set_private_policy(op_source_pk, perms2)?,
+            &op_source_pk_keypair,
         )?;
 
         // let's apply op perms...
@@ -1031,27 +1129,32 @@ mod tests {
 
         assert_eq!(replica1.policy_version(None)?, Some(1));
         check_op_not_allowed_failure(replica2.policy_version(None))?;
-        assert_eq!(replica2.policy_version(Some(actor1))?, Some(1));
+        assert_eq!(replica2.policy_version(Some(op_source_pk))?, Some(1));
 
         // And let's append to both replicas with one first item
         let item1 = b"item1".to_vec();
-        let append_op1 = sign_data_op(replica1.create_append_op(item1.clone())?, &actor1_keypair)?;
+        let append_op1 = sign_data_op(
+            replica1.create_append_op(item1.clone())?,
+            &op_source_pk_keypair,
+        )?;
         replica2.apply_data_op(append_op1)?;
 
         // lets check replica1 can read that, and replica2 not...
         let data = replica1.get(SequenceIndex::FromStart(0), None)?;
         assert_eq!(data, Some(&item1));
 
-        check_op_not_allowed_failure(replica2.get(SequenceIndex::FromStart(0), Some(actor2)))?;
+        check_op_not_allowed_failure(
+            replica2.get(SequenceIndex::FromStart(0), Some(op_source_pk2)),
+        )?;
 
         // set readable for replica 2 once more
         let mut perms3 = BTreeMap::default();
         let user_perms3 = SequencePrivatePermissions::new(true, false, false);
-        let _ = perms3.insert(actor2, user_perms3);
+        let _ = perms3.insert(op_source_pk2, user_perms3);
 
         let updated_perms_op = sign_private_policy_op(
-            replica1.set_private_policy(actor1, perms3)?,
-            &actor1_keypair,
+            replica1.set_private_policy(op_source_pk, perms3)?,
+            &op_source_pk_keypair,
         )?;
 
         // let's apply op perms...
@@ -1079,32 +1182,45 @@ mod tests {
 
     #[test]
     fn sequence_concurrent_policy_and_data_ops() -> Result<()> {
-        let actor1_keypair = Keypair::new_ed25519(&mut OsRng);
-        let actor1 = actor1_keypair.public_key();
-        let actor2_keypair = Keypair::new_ed25519(&mut OsRng);
-        let actor2 = actor2_keypair.public_key();
+        let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
+        let op_source_pk = op_source_pk_keypair.public_key();
+        let op_source_pk2_keypair = Keypair::new_ed25519(&mut OsRng);
+        let op_source_pk2 = op_source_pk2_keypair.public_key();
         let sdata_name: XorName = rand::random();
         let sdata_tag = 43_000u64;
 
         // Instantiate the same Sequence on two replicas with two diff actors
-        let mut replica1 =
-            Sequence::new_public(actor1, "actor1".to_string(), sdata_name, sdata_tag);
-        let mut replica2 =
-            Sequence::new_public(actor2, "actor2".to_string(), sdata_name, sdata_tag);
+        let mut replica1 = Sequence::new_public(
+            op_source_pk,
+            "some_identifying_str".to_string(),
+            sdata_name,
+            sdata_tag,
+        );
+        let mut replica2 = Sequence::new_public(
+            op_source_pk2,
+            "some_identifying_str2".to_string(),
+            sdata_name,
+            sdata_tag,
+        );
 
         // Set Actor1 as the owner in both replicas and
         // grant authorisation for Append to Actor2 in both replicas
         let mut perms = BTreeMap::default();
         let user_perms =
             SequencePublicPermissions::new(/*append=*/ true, /*admin=*/ false);
-        let _ = perms.insert(SequenceUser::Key(actor2), user_perms);
-        let grant_op =
-            sign_public_policy_op(replica1.set_public_policy(actor1, perms)?, &actor1_keypair)?;
+        let _ = perms.insert(SequenceUser::Key(op_source_pk2), user_perms);
+        let grant_op = sign_public_policy_op(
+            replica1.set_public_policy(op_source_pk, perms)?,
+            &op_source_pk_keypair,
+        )?;
         replica2.apply_public_policy_op(grant_op)?;
 
         // And let's append to both replicas with one first item
         let item1 = b"item1";
-        let append_op1 = sign_data_op(replica1.create_append_op(item1.to_vec())?, &actor1_keypair)?;
+        let append_op1 = sign_data_op(
+            replica1.create_append_op(item1.to_vec())?,
+            &op_source_pk_keypair,
+        )?;
         replica2.apply_data_op(append_op1)?;
 
         // Let's assert initial state on both replicas
@@ -1115,15 +1231,18 @@ mod tests {
 
         // We revoke authorisation for Actor2 locally on replica1
         let revoke_op = sign_public_policy_op(
-            replica1.set_public_policy(actor1, BTreeMap::default())?,
-            &actor1_keypair,
+            replica1.set_public_policy(op_source_pk, BTreeMap::default())?,
+            &op_source_pk_keypair,
         )?;
         // New Policy should have been set on replica1
         assert_eq!(replica1.policy_version(None)?, Some(1));
 
         // Concurrently append an item with Actor2 on replica2
         let item2 = b"item2";
-        let append_op2 = sign_data_op(replica2.create_append_op(item2.to_vec())?, &actor2_keypair)?;
+        let append_op2 = sign_data_op(
+            replica2.create_append_op(item2.to_vec())?,
+            &op_source_pk2_keypair,
+        )?;
         // Item should be appended on replica2
         assert_eq!(replica2.len(None)?, 2);
 
@@ -1146,30 +1265,44 @@ mod tests {
 
     #[test]
     fn sequence_causality_between_data_and_policy_ops() -> Result<()> {
-        let actor1_keypair = Keypair::new_ed25519(&mut OsRng);
-        let actor1 = actor1_keypair.public_key();
-        let actor2_kp = Keypair::new_ed25519(&mut OsRng);
-        let actor2 = actor2_kp.public_key();
-        let actor3_keypair = Keypair::new_ed25519(&mut OsRng);
-        let actor3 = actor3_keypair.public_key();
+        let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
+        let op_source_pk = op_source_pk_keypair.public_key();
+        let op_source_pk2_keypair = Keypair::new_ed25519(&mut OsRng);
+        let op_source_pk2 = op_source_pk2_keypair.public_key();
+        let op_source_pk3_keypair = Keypair::new_ed25519(&mut OsRng);
+        let op_source_pk3 = op_source_pk3_keypair.public_key();
         let sdata_name: XorName = rand::random();
         let sdata_tag = 43_001u64;
 
         // Instantiate the same Sequence on three replicas with three diff actors
-        let mut replica1 =
-            Sequence::new_public(actor1, "actor1".to_string(), sdata_name, sdata_tag);
-        let mut replica2 =
-            Sequence::new_public(actor2, "actor2".to_string(), sdata_name, sdata_tag);
-        let mut replica3 =
-            Sequence::new_public(actor3, "actor3".to_string(), sdata_name, sdata_tag);
+        let mut replica1 = Sequence::new_public(
+            op_source_pk,
+            "some_identifying_str".to_string(),
+            sdata_name,
+            sdata_tag,
+        );
+        let mut replica2 = Sequence::new_public(
+            op_source_pk2,
+            "some_identifying_str2".to_string(),
+            sdata_name,
+            sdata_tag,
+        );
+        let mut replica3 = Sequence::new_public(
+            op_source_pk3,
+            "some_identifying_str3".to_string(),
+            sdata_name,
+            sdata_tag,
+        );
 
         // Set Actor1 as the owner in all replicas, with Append perms for Actor3
         let mut perms = BTreeMap::default();
         let user_perms =
             SequencePublicPermissions::new(/*append=*/ true, /*admin=*/ false);
-        let _ = perms.insert(SequenceUser::Key(actor3), user_perms);
-        let owner_op =
-            sign_public_policy_op(replica1.set_public_policy(actor1, perms)?, &actor1_keypair)?;
+        let _ = perms.insert(SequenceUser::Key(op_source_pk3), user_perms);
+        let owner_op = sign_public_policy_op(
+            replica1.set_public_policy(op_source_pk, perms)?,
+            &op_source_pk_keypair,
+        )?;
         replica2.apply_public_policy_op(owner_op.clone())?;
         replica3.apply_public_policy_op(owner_op)?;
 
@@ -1178,9 +1311,11 @@ mod tests {
         let mut perms = BTreeMap::default();
         let user_perms =
             SequencePublicPermissions::new(/*append=*/ true, /*admin=*/ true);
-        let _ = perms.insert(SequenceUser::Key(actor3), user_perms);
-        let grant_op =
-            sign_public_policy_op(replica1.set_public_policy(actor1, perms)?, &actor1_keypair)?;
+        let _ = perms.insert(SequenceUser::Key(op_source_pk3), user_perms);
+        let grant_op = sign_public_policy_op(
+            replica1.set_public_policy(op_source_pk, perms)?,
+            &op_source_pk_keypair,
+        )?;
         replica3.apply_public_policy_op(grant_op.clone())?;
 
         // Let's assert the state on three replicas
@@ -1193,7 +1328,10 @@ mod tests {
 
         // We append an item with Actor3 on replica3
         let item = b"item0";
-        let append_op = sign_data_op(replica3.create_append_op(item.to_vec())?, &actor3_keypair)?;
+        let append_op = sign_data_op(
+            replica3.create_append_op(item.to_vec())?,
+            &op_source_pk3_keypair,
+        )?;
         assert_eq!(replica3.len(None)?, 1);
 
         // Append op is broadcasted and applied on replica1
@@ -1219,33 +1357,41 @@ mod tests {
 
     #[test]
     fn sequence_concurrent_policy_ops() -> Result<()> {
-        let actor1_keypair = Keypair::new_ed25519(&mut OsRng);
-        let actor1 = actor1_keypair.public_key();
-        let actor2_keypair = Keypair::new_ed25519(&mut OsRng);
-        let actor2 = actor2_keypair.public_key();
+        let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
+        let op_source_pk = op_source_pk_keypair.public_key();
+        let op_source_pk2_keypair = Keypair::new_ed25519(&mut OsRng);
+        let op_source_pk2 = op_source_pk2_keypair.public_key();
         let sdata_name: XorName = rand::random();
         let sdata_tag = 43_001u64;
 
         // Instantiate the same Sequence on two replicas with two diff actors
-        let mut replica1 =
-            Sequence::new_public(actor1, "actor1".to_string(), sdata_name, sdata_tag);
-        let mut replica2 =
-            Sequence::new_public(actor2, "actor2".to_string(), sdata_name, sdata_tag);
+        let mut replica1 = Sequence::new_public(
+            op_source_pk,
+            "some_identifying_str".to_string(),
+            sdata_name,
+            sdata_tag,
+        );
+        let mut replica2 = Sequence::new_public(
+            op_source_pk2,
+            "some_identifying_str2".to_string(),
+            sdata_name,
+            sdata_tag,
+        );
 
         // Set Actor1 as the owner and Actor2 with Append and Admin perms in all replicas
         let mut perms = BTreeMap::default();
         let user_perms =
             SequencePublicPermissions::new(/*append=*/ true, /*admin=*/ true);
-        let _ = perms.insert(SequenceUser::Key(actor2), user_perms);
+        let _ = perms.insert(SequenceUser::Key(op_source_pk2), user_perms);
         let owner_op = sign_public_policy_op(
-            replica1.set_public_policy(actor1, perms.clone())?,
-            &actor1_keypair,
+            replica1.set_public_policy(op_source_pk, perms.clone())?,
+            &op_source_pk_keypair,
         )?;
         replica2.apply_public_policy_op(owner_op)?;
 
         // Append item on replica1, and apply it to replica2
         let item0 = b"item0".to_vec();
-        let append_op = sign_data_op(replica1.create_append_op(item0)?, &actor1_keypair)?;
+        let append_op = sign_data_op(replica1.create_append_op(item0)?, &op_source_pk_keypair)?;
         replica2.apply_data_op(append_op)?;
 
         // Let's assert the state on both replicas
@@ -1256,20 +1402,21 @@ mod tests {
 
         // Concurrently set new policy (new random owner) with Append and Admin perms
         // for both actors on both replicas
-        let _ = perms.insert(SequenceUser::Key(actor1), user_perms);
+        let _ = perms.insert(SequenceUser::Key(op_source_pk), user_perms);
         let owner_op_1 = sign_public_policy_op(
             replica1.set_public_policy(generate_public_key(), perms.clone())?,
-            &actor1_keypair,
+            &op_source_pk_keypair,
         )?;
         let owner_op_2 = sign_public_policy_op(
             replica2.set_public_policy(generate_public_key(), perms)?,
-            &actor2_keypair,
+            &op_source_pk2_keypair,
         )?;
         // ...and concurrently append a new item on top of their own respective new policies
         let item1_r1 = b"item1_replica1".to_vec();
         let item1_r2 = b"item1_replica2".to_vec();
-        let append_op1 = sign_data_op(replica1.create_append_op(item1_r1)?, &actor1_keypair)?;
-        let append_op2 = sign_data_op(replica2.create_append_op(item1_r2)?, &actor2_keypair)?;
+        let append_op1 = sign_data_op(replica1.create_append_op(item1_r1)?, &op_source_pk_keypair)?;
+        let append_op2 =
+            sign_data_op(replica2.create_append_op(item1_r2)?, &op_source_pk2_keypair)?;
 
         assert_eq!(replica1.len(None)?, 2);
         assert_eq!(replica2.len(None)?, 2);
@@ -1295,36 +1442,46 @@ mod tests {
 
     #[test]
     fn sequence_old_data_op() -> Result<()> {
-        let actor1_keypair = Keypair::new_ed25519(&mut OsRng);
-        let actor1 = actor1_keypair.public_key();
-        let actor2_kp = Keypair::new_ed25519(&mut OsRng);
-        let actor2 = actor2_kp.public_key();
+        let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
+        let op_source_pk = op_source_pk_keypair.public_key();
+        let op_source_pk2_keypair = Keypair::new_ed25519(&mut OsRng);
+        let op_source_pk2 = op_source_pk2_keypair.public_key();
         let sdata_name: XorName = rand::random();
         let sdata_tag = 43_001u64;
 
         // Instantiate the same Sequence on two replicas with two diff actors
-        let mut replica1 =
-            Sequence::new_public(actor1, "actor1".to_string(), sdata_name, sdata_tag);
-        let mut replica2 =
-            Sequence::new_public(actor2, "actor2".to_string(), sdata_name, sdata_tag);
+        let mut replica1 = Sequence::new_public(
+            op_source_pk,
+            "some_identifying_str".to_string(),
+            sdata_name,
+            sdata_tag,
+        );
+        let mut replica2 = Sequence::new_public(
+            op_source_pk2,
+            "some_identifying_str2".to_string(),
+            sdata_name,
+            sdata_tag,
+        );
 
         // Set Actor1 as the owner and Actor2 with append perms in all replicas
         let mut perms = BTreeMap::default();
         let user_perms =
             SequencePublicPermissions::new(/*append=*/ true, /*admin=*/ false);
-        let _ = perms.insert(SequenceUser::Key(actor2), user_perms);
-        let owner_op =
-            sign_public_policy_op(replica1.set_public_policy(actor1, perms)?, &actor1_keypair)?;
+        let _ = perms.insert(SequenceUser::Key(op_source_pk2), user_perms);
+        let owner_op = sign_public_policy_op(
+            replica1.set_public_policy(op_source_pk, perms)?,
+            &op_source_pk_keypair,
+        )?;
         replica2.apply_public_policy_op(owner_op)?;
 
         // Append an item on replica1
         let item0 = b"item0".to_vec();
-        let append_op = sign_data_op(replica1.create_append_op(item0)?, &actor1_keypair)?;
+        let append_op = sign_data_op(replica1.create_append_op(item0)?, &op_source_pk_keypair)?;
 
         // A new Policy is set in replica1 and applied to replica2
         let policy_op = sign_public_policy_op(
-            replica1.set_public_policy(actor1, BTreeMap::default())?,
-            &actor1_keypair,
+            replica1.set_public_policy(op_source_pk, BTreeMap::default())?,
+            &op_source_pk_keypair,
         )?;
         replica2.apply_public_policy_op(policy_op)?;
 
@@ -1342,48 +1499,60 @@ mod tests {
     #[test]
     fn sequence_old_policy_op() -> Result<()> {
         // Assuming the following scenario:
-        // - actor1 is the owner of the Seq as per first policy (policy1),
-        // - actor2 is then owner of the Seq as per second/new policy (policy2)
+        // - op_source_pk is the owner of the Seq as per first policy (policy1),
+        // - op_source_pk2 is then owner of the Seq as per second/new policy (policy2)
         // Then replica1 sends a policy op (note it's not the owner anymore)
         // which was generated before applying the policy2 op, thus it can still be applied
         // but as an old policy between policy1 and policy2 in the policies history.
 
-        let actor1_keypair = Keypair::new_ed25519(&mut OsRng);
-        let actor1 = actor1_keypair.public_key();
-        let actor2_keypair = Keypair::new_ed25519(&mut OsRng);
-        let actor2 = actor2_keypair.public_key();
+        let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
+        let op_source_pk = op_source_pk_keypair.public_key();
+        let op_source_pk2_keypair = Keypair::new_ed25519(&mut OsRng);
+        let op_source_pk2 = op_source_pk2_keypair.public_key();
         let sdata_name: XorName = rand::random();
         let sdata_tag = 43_001u64;
 
         // Instantiate the same Sequence on two replicas with two diff actors
-        let mut replica1 =
-            Sequence::new_public(actor1, "actor1".to_string(), sdata_name, sdata_tag);
-        let mut replica2 =
-            Sequence::new_public(actor2, "actor2".to_string(), sdata_name, sdata_tag);
+        let mut replica1 = Sequence::new_public(
+            op_source_pk,
+            "some_identifying_str".to_string(),
+            sdata_name,
+            sdata_tag,
+        );
+        let mut replica2 = Sequence::new_public(
+            op_source_pk2,
+            "some_identifying_str2".to_string(),
+            sdata_name,
+            sdata_tag,
+        );
 
         // Set Actor1 as the owner in both replicas (policy1)
         let mut perms = BTreeMap::default();
         let user_perms =
             SequencePublicPermissions::new(/*append=*/ true, /*admin=*/ true);
-        let _ = perms.insert(SequenceUser::Key(actor2), user_perms);
-        let owner_op =
-            sign_public_policy_op(replica1.set_public_policy(actor1, perms)?, &actor1_keypair)?;
+        let _ = perms.insert(SequenceUser::Key(op_source_pk2), user_perms);
+        let owner_op = sign_public_policy_op(
+            replica1.set_public_policy(op_source_pk, perms)?,
+            &op_source_pk_keypair,
+        )?;
         replica2.apply_public_policy_op(owner_op)?;
 
         // Let's create a second policy op on replica1, but don't apply it to replica2 yet
         let perms = BTreeMap::default();
-        let actor3 = Keypair::new_ed25519(&mut OsRng).public_key();
+        let op_source3_pk = Keypair::new_ed25519(&mut OsRng).public_key();
         let old_owner_op = sign_public_policy_op(
-            replica1.set_public_policy(actor3, perms.clone())?,
-            &actor1_keypair,
+            replica1.set_public_policy(op_source3_pk, perms.clone())?,
+            &op_source_pk_keypair,
         )?;
 
         // Set Actor2 as the new owner in replica2 (policy2)
-        let owner_op =
-            sign_public_policy_op(replica2.set_public_policy(actor2, perms)?, &actor2_keypair)?;
+        let owner_op = sign_public_policy_op(
+            replica2.set_public_policy(op_source_pk2, perms)?,
+            &op_source_pk2_keypair,
+        )?;
 
         // Now apply the old policy op to replica2, which should be applied as
-        // an old policy even if the current/latest policy doesn't allow actor1 to change policy
+        // an old policy even if the current/latest policy doesn't allow op_source_pk to change policy
         replica2.apply_public_policy_op(old_owner_op)?;
 
         // and finally apply the latest owner op to replica1
@@ -1394,23 +1563,23 @@ mod tests {
         assert_eq!(replica2.policy_version(None)?, Some(2));
 
         // Let's assert the owners set in policy1 and policy2
-        // are actor1 and actor2 respectivelly
+        // are op_source_pk and op_source_pk2 respectivelly
         let policy1 = replica1.public_policy_at(0)?;
-        assert_eq!(policy1.owner, actor1);
+        assert_eq!(policy1.owner, op_source_pk);
         assert_eq!(policy1.owner, replica2.public_policy_at(0)?.owner);
 
         let policy2 = replica1.public_policy_at(1)?;
-        if policy2.owner == actor3 {
+        if policy2.owner == op_source3_pk {
             assert_eq!(policy2.owner, replica2.public_policy_at(1)?.owner);
             let policy3 = replica1.public_policy_at(2)?;
-            assert_eq!(policy3.owner, actor2);
+            assert_eq!(policy3.owner, op_source_pk2);
             assert_eq!(policy3.owner, replica2.public_policy_at(2)?.owner);
         } else {
-            assert_eq!(policy2.owner, actor2);
+            assert_eq!(policy2.owner, op_source_pk2);
             assert_eq!(policy2.owner, replica2.public_policy_at(1)?.owner);
 
             let policy3 = replica1.public_policy_at(2)?;
-            assert_eq!(policy3.owner, actor3);
+            assert_eq!(policy3.owner, op_source3_pk);
             assert_eq!(policy3.owner, replica2.public_policy_at(2)?.owner);
         }
 
@@ -1420,8 +1589,8 @@ mod tests {
     #[test]
     fn sequence_falsified_policy_op() -> Result<()> {
         // Assuming the following scenario:
-        // - actor1 is the owner of the Seq as per first policy (policy1),
-        // - actor2 is then owner of the Seq as per second/new policy (policy2)
+        // - op_source_pk is the owner of the Seq as per first policy (policy1),
+        // - op_source_pk2 is then owner of the Seq as per second/new policy (policy2)
         // Then replica1 tries to cheat by sending a policy op (note it
         // is not the owner anymore, thus shouldn't be allowed) by setting
         // the correct context/dependency on policy1, but setting the identifier
@@ -1429,24 +1598,32 @@ mod tests {
         // Note: this is currently a known issue, once an entity was given
         // Admin permissions it can always send policy changes on top of any policy.
 
-        let actor1_keypair = Keypair::new_ed25519(&mut OsRng);
-        let actor1 = actor1_keypair.public_key();
-        let actor2_kp = Keypair::new_ed25519(&mut OsRng);
-        let actor2 = actor2_kp.public_key();
+        let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
+        let op_source_pk = op_source_pk_keypair.public_key();
+        let op_source_pk2_keypair = Keypair::new_ed25519(&mut OsRng);
+        let op_source_pk2 = op_source_pk2_keypair.public_key();
         let sdata_name: XorName = rand::random();
         let sdata_tag = 43_001u64;
 
         // Instantiate the same Sequence on two replicas with two diff actors
-        let mut replica1 =
-            Sequence::new_public(actor1, "actor1".to_string(), sdata_name, sdata_tag);
-        let mut replica2 =
-            Sequence::new_public(actor2, "actor2".to_string(), sdata_name, sdata_tag);
+        let mut replica1 = Sequence::new_public(
+            op_source_pk,
+            "some_identifying_str".to_string(),
+            sdata_name,
+            sdata_tag,
+        );
+        let mut replica2 = Sequence::new_public(
+            op_source_pk2,
+            "some_identifying_str2".to_string(),
+            sdata_name,
+            sdata_tag,
+        );
 
         // Set Actor1 as the owner in both replicas (policy1)
         let perms = BTreeMap::default();
         let owner_op = sign_public_policy_op(
-            replica1.set_public_policy(actor1, perms.clone())?,
-            &actor1_keypair,
+            replica1.set_public_policy(op_source_pk, perms.clone())?,
+            &op_source_pk_keypair,
         )?;
         replica2.apply_public_policy_op(owner_op)?;
 
@@ -1455,8 +1632,8 @@ mod tests {
 
         // Set Actor2 as the new owner in both replicas (policy2)
         let owner_op = sign_public_policy_op(
-            replica1.set_public_policy(actor2, perms.clone())?,
-            &actor1_keypair,
+            replica1.set_public_policy(op_source_pk2, perms.clone())?,
+            &op_source_pk_keypair,
         )?;
         replica2.apply_public_policy_op(owner_op)?;
 
@@ -1469,13 +1646,13 @@ mod tests {
         // we created above (where replica1 is still the owner)
         // in order to falsify a new policy operation
         let mut owner_op = sign_public_policy_op(
-            temp_replica.set_public_policy(actor1, perms)?,
-            &actor1_keypair,
+            temp_replica.set_public_policy(op_source_pk, perms)?,
+            &op_source_pk_keypair,
         )?;
 
         // Let's falsify the op by changing the policy CRDT identifier to be the last
         use crdts::lseq::{ident::IdentGen, Op};
-        let upper_ident = IdentGen::new("actor1".to_string()).upper();
+        let upper_ident = IdentGen::new("some_identifying_str".to_string()).upper();
         owner_op.crdt_op = match owner_op.crdt_op {
             Op::Insert { dot, val, .. } => Op::Insert {
                 id: upper_ident,
@@ -1489,7 +1666,7 @@ mod tests {
             },
         };
 
-        owner_op = sign_public_policy_op(owner_op, &actor1_keypair)?;
+        owner_op = sign_public_policy_op(owner_op, &op_source_pk_keypair)?;
 
         // and now we overwrite the sig
         replica1.apply_public_policy_op(owner_op.clone())?;
@@ -1631,21 +1808,21 @@ mod tests {
         fn proptest_seq_doesnt_crash_with_random_data(
             s in generate_seq_entry()
         ) {
-            let actor1_keypair = Keypair::new_ed25519(&mut OsRng);
-            let actor1 = actor1_keypair.public_key();
+            let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
+            let op_source_pk = op_source_pk_keypair.public_key();
             let sequence_name = XorName::random();
 
             let sdata_tag = 43_001u64;
 
             // Instantiate the same Sequence on two replicas
-            let mut replica1 = Sequence::new_public(actor1, "actor1".to_string(), sequence_name, sdata_tag);
-            let mut replica2 = Sequence::new_public(actor1, "actor1".to_string(), sequence_name, sdata_tag);
+            let mut replica1 = Sequence::new_public(op_source_pk, "some_identifying_str".to_string(), sequence_name, sdata_tag);
+            let mut replica2 = Sequence::new_public(op_source_pk, "some_identifying_str".to_string(), sequence_name, sdata_tag);
 
             // Set Actor1 as the owner
             let perms = BTreeMap::default();
-            let mut owner_op = sign_public_policy_op( replica1.set_public_policy(actor1, perms)?, &actor1_keypair)?;
+            let mut owner_op = sign_public_policy_op( replica1.set_public_policy(op_source_pk, perms)?, &op_source_pk_keypair)?;
             let bytes = bincode::serialize( &owner_op.crdt_op )?;
-            let signature = actor1_keypair.sign(&bytes);
+            let signature = op_source_pk_keypair.sign(&bytes);
             owner_op.signature = Some(signature);
 
             replica2.apply_public_policy_op(owner_op)?;
@@ -1653,7 +1830,7 @@ mod tests {
             // Append an item on replicas
             let mut append_op = replica1.create_append_op(s)?;
             let bytes = bincode::serialize( &append_op.crdt_op )?;
-            let signature = actor1_keypair.sign(&bytes);
+            let signature = op_source_pk_keypair.sign(&bytes);
             append_op.signature = Some(signature);
 
             replica2.apply_data_op(append_op)?;
@@ -1667,21 +1844,21 @@ mod tests {
             dataset in generate_dataset(1000)
         ) {
 
-            let actor1_keypair = Keypair::new_ed25519(&mut OsRng);
-            let actor1 = actor1_keypair.public_key();
+            let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
+            let op_source_pk = op_source_pk_keypair.public_key();
             let sequence_name = XorName::random();
 
             let sdata_tag = 43_001u64;
 
             // Instantiate the same Sequence on two replicas
-            let mut replica1 = Sequence::new_public(actor1, "actor1".to_string(), sequence_name, sdata_tag);
-            let mut replica2 = Sequence::new_public(actor1, "actor1".to_string(), sequence_name, sdata_tag);
+            let mut replica1 = Sequence::new_public(op_source_pk, "some_identifying_str".to_string(), sequence_name, sdata_tag);
+            let mut replica2 = Sequence::new_public(op_source_pk, "some_identifying_str".to_string(), sequence_name, sdata_tag);
 
             // Set Actor1 as the owner
             let perms = BTreeMap::default();
-            let mut owner_op = sign_public_policy_op( replica1.set_public_policy(actor1, perms)?, &actor1_keypair)?;
+            let mut owner_op = sign_public_policy_op( replica1.set_public_policy(op_source_pk, perms)?, &op_source_pk_keypair)?;
             let bytes = bincode::serialize( &owner_op.crdt_op )?;
-            let signature = actor1_keypair.sign(&bytes);
+            let signature = op_source_pk_keypair.sign(&bytes);
             owner_op.signature = Some(signature);
 
             replica2.apply_public_policy_op(owner_op)?;
@@ -1693,7 +1870,7 @@ mod tests {
                 // Append an item on replica1
                 let mut append_op = replica1.create_append_op(data)?;
                 let bytes = bincode::serialize( &append_op.crdt_op )?;
-                let signature = actor1_keypair.sign(&bytes);
+                let signature = op_source_pk_keypair.sign(&bytes);
                 append_op.signature = Some(signature);
 
                 // now apply that op to replica 2
@@ -1813,23 +1990,23 @@ mod tests {
             dataset in generate_dataset_and_probability(1000),
         ) {
 
-            let actor1_keypair = Keypair::new_ed25519(&mut OsRng);
-            let actor1 = actor1_keypair.public_key();
-            let actor2_kp = Keypair::new_ed25519(&mut OsRng);
-            let actor2 = actor2_kp.public_key();
+            let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
+            let op_source_pk = op_source_pk_keypair.public_key();
+            let op_source_pk2_keypair = Keypair::new_ed25519(&mut OsRng);
+            let op_source_pk2 = op_source_pk2_keypair.public_key();
             let sequence_name = XorName::random();
 
             let sdata_tag = 43_001u64;
 
             // Instantiate the same Sequence on two replicas
-            let mut replica1 = Sequence::new_public(actor1, "actor1".to_string(), sequence_name, sdata_tag);
-            let mut replica2 = Sequence::new_public(actor2, "actor2".to_string(), sequence_name, sdata_tag);
+            let mut replica1 = Sequence::new_public(op_source_pk, "some_identifying_str".to_string(), sequence_name, sdata_tag);
+            let mut replica2 = Sequence::new_public(op_source_pk2, "some_identifying_str2".to_string(), sequence_name, sdata_tag);
 
             // Set Actor1 as the owner
             let perms = BTreeMap::default();
-            let mut owner_op = sign_public_policy_op( replica1.set_public_policy(actor1, perms)?, &actor1_keypair)?;
+            let mut owner_op = sign_public_policy_op( replica1.set_public_policy(op_source_pk, perms)?, &op_source_pk_keypair)?;
             let bytes = bincode::serialize( &owner_op.crdt_op )?;
-            let signature = actor1_keypair.sign(&bytes);
+            let signature = op_source_pk_keypair.sign(&bytes);
             owner_op.signature = Some(signature);
 
             replica2.apply_public_policy_op(owner_op)?;
@@ -1842,7 +2019,7 @@ mod tests {
                 let mut op = replica1.create_append_op(data)?;
 
                 let bytes = bincode::serialize( &op.crdt_op )?;
-                let signature = actor1_keypair.sign(&bytes);
+                let signature = op_source_pk_keypair.sign(&bytes);
                 op.signature = Some(signature);
                     ops.push(OpType::Data(op));
 
@@ -1853,10 +2030,10 @@ mod tests {
                         let mut perms = BTreeMap::default();
                         let user_perms =
                             SequencePublicPermissions::new(/*append=*/ true, /*admin=*/ false);
-                        let _ = perms.insert(SequenceUser::Key(actor1), user_perms);
+                        let _ = perms.insert(SequenceUser::Key(op_source_pk), user_perms);
                         if let Ok(mut op) = replica1.set_public_policy(new_owner, perms) {
                             let bytes = bincode::serialize( &op.crdt_op )?;
-                            let signature = actor1_keypair.sign(&bytes);
+                            let signature = op_source_pk_keypair.sign(&bytes);
                             op.signature = Some(signature);
                             ops.push(OpType::Owner(op));
                         };
@@ -1912,24 +2089,24 @@ mod tests {
             dataset in prop::collection::vec((generate_seq_entry(), any::<u8>()), 100..1000)
         ) {
 
-            let actor1_keypair = Keypair::new_ed25519(&mut OsRng);
-            let actor1 = actor1_keypair.public_key();
-            let actor2_kp = Keypair::new_ed25519(&mut OsRng);
-            let actor2 = actor2_kp.public_key();
+            let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
+            let op_source_pk = op_source_pk_keypair.public_key();
+            let op_source_pk2_keypair = Keypair::new_ed25519(&mut OsRng);
+            let op_source_pk2 = op_source_pk2_keypair.public_key();
             let sequence_name = XorName::random();
 
             let sdata_tag = 43_001u64;
 
             // Instantiate the same Sequence on two replicas
-            let mut replica1 = Sequence::new_public(actor1, "actor1".to_string(), sequence_name, sdata_tag);
-            let mut replica2 = Sequence::new_public(actor2, "actor2".to_string(), sequence_name, sdata_tag);
+            let mut replica1 = Sequence::new_public(op_source_pk, "some_identifying_str".to_string(), sequence_name, sdata_tag);
+            let mut replica2 = Sequence::new_public(op_source_pk2, "some_identifying_str2".to_string(), sequence_name, sdata_tag);
 
             // Set Actor1 as the owner
             let perms = BTreeMap::default();
-            let mut owner_op = sign_public_policy_op( replica1.set_public_policy(actor1, perms)?, &actor1_keypair)?;
+            let mut owner_op = sign_public_policy_op( replica1.set_public_policy(op_source_pk, perms)?, &op_source_pk_keypair)?;
 
             let bytes = bincode::serialize( &owner_op.crdt_op )?;
-            let signature = actor1_keypair.sign(&bytes);
+            let signature = op_source_pk_keypair.sign(&bytes);
             owner_op.signature = Some(signature);
             replica2.apply_public_policy_op(owner_op)?;
 
@@ -1945,12 +2122,12 @@ mod tests {
                         let mut perms = BTreeMap::default();
                         let user_perms =
                             SequencePublicPermissions::new(/*append=*/ true, /*admin=*/ false);
-                        let _ = perms.insert(SequenceUser::Key(actor1), user_perms);
+                        let _ = perms.insert(SequenceUser::Key(op_source_pk), user_perms);
                         let mut owner_op = replica1.set_public_policy(new_owner, perms)?;
 
                         let bytes = bincode::serialize( &owner_op.crdt_op )?;
                         // sign by the original owner to change this
-                        let signature = actor1_keypair.sign(&bytes);
+                        let signature = op_source_pk_keypair.sign(&bytes);
                         owner_op.signature = Some(signature);
 
                         ops.push(OpType::Owner(owner_op));
@@ -1968,7 +2145,7 @@ mod tests {
 
                         let bytes = bincode::serialize( &owner_op.crdt_op )?;
                         // sign by the original owner to change this
-                        let signature = actor1_keypair.sign(&bytes);
+                        let signature = op_source_pk_keypair.sign(&bytes);
                         owner_op.signature = Some(signature);
 
                         ops.push(OpType::Owner(owner_op));
@@ -1980,12 +2157,12 @@ mod tests {
                         let mut perms = BTreeMap::default();
                         let user_perms =
                             SequencePublicPermissions::new(/*append=*/ true, /*admin=*/ false);
-                        let _ = perms.insert(SequenceUser::Key(actor1), user_perms);
+                        let _ = perms.insert(SequenceUser::Key(op_source_pk), user_perms);
                         let mut owner_op = replica1.set_public_policy(new_owner, perms)?;
 
                         let bytes = bincode::serialize( &owner_op.crdt_op )?;
                         // sign by the original owner to change this
-                        let signature = actor1_keypair.sign(&bytes);
+                        let signature = op_source_pk_keypair.sign(&bytes);
                         owner_op.signature = Some(signature);
 
                         ops.push(OpType::Owner(owner_op));
@@ -2038,25 +2215,25 @@ mod tests {
             dataset in generate_dataset_and_probability(1000),
         ) {
 
-            let actor1_keypair = Keypair::new_ed25519(&mut OsRng);
-            let actor1 = actor1_keypair.public_key();
-            let actor2_kp = Keypair::new_ed25519(&mut OsRng);
-            let actor2 = actor2_kp.public_key();
+            let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
+            let op_source_pk = op_source_pk_keypair.public_key();
+            let op_source_pk2_keypair = Keypair::new_ed25519(&mut OsRng);
+            let op_source_pk2 = op_source_pk2_keypair.public_key();
             let sequence_name = XorName::random();
 
             let sdata_tag = 43_001u64;
 
             // Instantiate the same Sequence on two replicas
-            let mut replica1 = Sequence::new_public(actor1, "actor1".to_string(), sequence_name, sdata_tag);
-            let mut replica2 = Sequence::new_public(actor2, "actor2".to_string(), sequence_name, sdata_tag);
+            let mut replica1 = Sequence::new_public(op_source_pk, "some_identifying_str".to_string(), sequence_name, sdata_tag);
+            let mut replica2 = Sequence::new_public(op_source_pk2, "some_identifying_str2".to_string(), sequence_name, sdata_tag);
 
             // Set Actor1 as the owner
             let perms = BTreeMap::default();
-            let mut owner_op = sign_public_policy_op( replica1.set_public_policy(actor1, perms)?, &actor1_keypair)?;
+            let mut owner_op = sign_public_policy_op( replica1.set_public_policy(op_source_pk, perms)?, &op_source_pk_keypair)?;
 
             let bytes = bincode::serialize( &owner_op.crdt_op )?;
             // sign by the original owner to change this
-            let signature = actor1_keypair.sign(&bytes);
+            let signature = op_source_pk_keypair.sign(&bytes);
             owner_op.signature = Some(signature);
 
             replica2.apply_public_policy_op(owner_op)?;
@@ -2069,7 +2246,7 @@ mod tests {
 
                     let bytes = bincode::serialize( &op.crdt_op )?;
                     // sign by the original owner to change this
-                    let signature = actor1_keypair.sign(&bytes);
+                    let signature = op_source_pk_keypair.sign(&bytes);
                     op.signature = Some(signature);
 
 
