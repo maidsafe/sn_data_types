@@ -137,7 +137,7 @@ where
         }
     }
 
-    /// Append a new item to the SequenceCrdt and returns the CRDT operation
+    /// Create crdt op to append a new item to the SequenceCrdt
     pub fn create_append_op(
         &mut self,
         entry: Entry,
@@ -230,7 +230,7 @@ where
         }
     }
 
-    /// Sets a new Policy keeping the current one in the history.
+    /// Create a new crdt policy op
     pub fn create_policy_op(
         &mut self,
         policy: P,
@@ -281,7 +281,7 @@ where
         })
     }
 
-    /// Apply a remote policy CRDT operation to this replica.
+    /// Apply a remote policy CRDT operation to this replica, keeping the current one in the history.
     pub fn apply_policy_op(&mut self, op: CrdtPolicyOperation<A, P>) -> Result<()> {
         // First check op is validly signed.
         // Note: Perms for the op are checked at the upper Sequence layer.

@@ -503,20 +503,27 @@ mod tests {
         let user_perms1 = SequencePublicPermissions::new(true, false);
         let _ = perms1.insert(SequenceUser::Anyone, user_perms1);
         let policy_op = replica1.create_unsigned_public_policy_op(actor, perms1)?;
-        replica2.apply_public_policy_op(sign_sequence_public_policy_op(
-            policy_op,
-            &op_source_pk_keypair,
-        )?)?;
+        let signed_op = sign_sequence_public_policy_op(policy_op, &op_source_pk_keypair)?;
+        replica1.apply_public_policy_op(signed_op.clone())?;
+        replica2.apply_public_policy_op(signed_op)?;
 
         let entry1 = b"value0".to_vec();
         let entry2 = b"value1".to_vec();
 
-        let op1 = replica1.create_unsigned_append_op(entry1.clone())?;
-        let op2 = replica1.create_unsigned_append_op(entry2.clone())?;
+        let op1 = sign_sequence_data_op(
+            replica1.create_unsigned_append_op(entry1.clone())?,
+            &op_source_pk_keypair,
+        )?;
+        replica1.apply_data_op(op1.clone())?;
+        let op2 = sign_sequence_data_op(
+            replica1.create_unsigned_append_op(entry2.clone())?,
+            &op_source_pk_keypair,
+        )?;
+        replica1.apply_data_op(op2.clone())?;
 
         // we apply the operations in different order, to verify that doesn't affect the result
-        replica2.apply_data_op(sign_sequence_data_op(op2, &op_source_pk_keypair)?)?;
-        replica2.apply_data_op(sign_sequence_data_op(op1, &op_source_pk_keypair)?)?;
+        replica2.apply_data_op(op2)?;
+        replica2.apply_data_op(op1)?;
 
         assert_eq!(replica1.len(None)?, 2);
         assert_eq!(replica2.len(None)?, 2);
@@ -561,10 +568,13 @@ mod tests {
             replica1.create_unsigned_public_policy_op(actor, perms1.clone())?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_public_policy_op(op1.clone())?;
+
         let op2 = sign_sequence_public_policy_op(
             replica1.create_unsigned_public_policy_op(actor, perms2.clone())?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_public_policy_op(op2.clone())?;
 
         // if we apply the operations in different order it should fail
         // as op2 is not causally ready in replica2, it depends on op1
@@ -629,15 +639,16 @@ mod tests {
         let user_perms2 = SequencePrivatePermissions::new(true, true, false);
         let _ = perms2.insert(op_source_pk2, user_perms2);
 
-        let mut op1 = replica1.create_unsigned_private_policy_op(op_source_pk2, perms1.clone())?;
-        let bytes = utils::serialise(&op1.crdt_op).map_err(|_| "Could not serialize op")?;
-        let signature = op_source_pk_keypair.sign(&bytes);
-        op1.signature = Some(signature);
-
-        let mut op2 = replica1.create_unsigned_private_policy_op(op_source_pk, perms2.clone())?;
-        let bytes = utils::serialise(&op2.crdt_op).map_err(|_| "Could not serialize op")?;
-        let signature = op_source_pk_keypair.sign(&bytes);
-        op2.signature = Some(signature);
+        let op1 = sign_sequence_private_policy_op(
+            replica1.create_unsigned_private_policy_op(op_source_pk2, perms1.clone())?,
+            &op_source_pk_keypair,
+        )?;
+        replica1.apply_private_policy_op(op1.clone())?;
+        let op2 = sign_sequence_private_policy_op(
+            replica1.create_unsigned_private_policy_op(op_source_pk, perms2.clone())?,
+            &op_source_pk_keypair,
+        )?;
+        replica1.apply_private_policy_op(op2.clone())?;
 
         // if we apply the operations in different order it should fail
         // as op2 is not causally ready in replica2, it depends on op1
@@ -706,10 +717,13 @@ mod tests {
             replica1.create_unsigned_public_policy_op(op_source_pk, perms1)?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_public_policy_op(op1.clone())?;
+
         let op2 = sign_sequence_public_policy_op(
             replica1.create_unsigned_public_policy_op(op_source_pk, perms2)?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_public_policy_op(op2.clone())?;
 
         // let's apply op perms...
         replica2.apply_public_policy_op(op1)?;
@@ -725,6 +739,7 @@ mod tests {
             replica1.create_unsigned_append_op(item1.to_vec())?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_data_op(append_op1.clone())?;
         replica2.apply_data_op(append_op1)?;
 
         check_op_not_allowed_failure(replica2.create_unsigned_append_op(item2.to_vec()))?;
@@ -768,10 +783,12 @@ mod tests {
             replica1.create_unsigned_public_policy_op(op_source_pk, perms1)?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_public_policy_op(op1.clone())?;
         let op2 = sign_sequence_public_policy_op(
             replica1.create_unsigned_public_policy_op(op_source_pk, perms2)?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_public_policy_op(op2.clone())?;
 
         // let's apply op perms...
         replica2.apply_public_policy_op(op1)?;
@@ -787,6 +804,7 @@ mod tests {
             replica1.create_unsigned_append_op(item1.to_vec())?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_data_op(append_op1.clone())?;
         replica2.apply_data_op(append_op1)?;
 
         check_op_not_allowed_failure(replica2.create_unsigned_append_op(item2.to_vec()))?;
@@ -801,12 +819,14 @@ mod tests {
             replica1.create_unsigned_public_policy_op(op_source_pk, perms3)?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_public_policy_op(op1.clone())?;
         replica2.apply_public_policy_op(op1)?;
 
         let append_op = sign_sequence_data_op(
             replica2.create_unsigned_append_op(item2.to_vec())?,
             &op_source_pk2_keypair,
         )?;
+        replica2.apply_data_op(append_op.clone())?;
         replica1.apply_data_op(append_op)?;
         assert_eq!(replica1.len(None)?, replica2.len(None)?);
 
@@ -846,10 +866,13 @@ mod tests {
             replica1.create_unsigned_private_policy_op(op_source_pk2, perms1)?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_private_policy_op(op1.clone())?;
+
         let op2 = sign_sequence_private_policy_op(
             replica1.create_unsigned_private_policy_op(op_source_pk, perms2)?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_private_policy_op(op2.clone())?;
 
         // let's apply op perms...
         replica2.apply_private_policy_op(op1)?;
@@ -866,6 +889,7 @@ mod tests {
             replica1.create_unsigned_append_op(item1.to_vec())?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_data_op(append_op1.clone())?;
         replica2.apply_data_op(append_op1)?;
 
         check_op_not_allowed_failure(replica2.create_unsigned_append_op(item2.to_vec()))?;
@@ -907,10 +931,12 @@ mod tests {
             replica1.create_unsigned_private_policy_op(op_source_pk2, perms1)?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_private_policy_op(op1.clone())?;
         let op2 = sign_sequence_private_policy_op(
             replica1.create_unsigned_private_policy_op(op_source_pk, perms2)?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_private_policy_op(op2.clone())?;
 
         // let's apply op perms...
         replica2.apply_private_policy_op(op1)?;
@@ -926,6 +952,7 @@ mod tests {
             replica1.create_unsigned_append_op(item1.clone())?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_data_op(append_op1.clone())?;
         replica2.apply_data_op(append_op1)?;
 
         // lets check replica1 can read that
@@ -977,10 +1004,13 @@ mod tests {
             replica1.create_unsigned_private_policy_op(op_source_pk2, perms1)?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_private_policy_op(op1.clone())?;
+
         let op2 = sign_sequence_private_policy_op(
             replica1.create_unsigned_private_policy_op(op_source_pk, perms2)?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_private_policy_op(op2.clone())?;
 
         // let's apply op perms...
         replica2.apply_private_policy_op(op1)?;
@@ -996,6 +1026,7 @@ mod tests {
             replica1.create_unsigned_append_op(item1.clone())?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_data_op(append_op1.clone())?;
         replica2.apply_data_op(append_op1)?;
 
         // lets check replica1 can read that, and replica2 not...
@@ -1043,10 +1074,13 @@ mod tests {
             replica1.create_unsigned_private_policy_op(op_source_pk2, perms1)?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_private_policy_op(op1.clone())?;
+
         let op2 = sign_sequence_private_policy_op(
             replica1.create_unsigned_private_policy_op(op_source_pk, perms2)?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_private_policy_op(op2.clone())?;
 
         // let's apply op perms...
         replica2.apply_private_policy_op(op1)?;
@@ -1062,6 +1096,7 @@ mod tests {
             replica1.create_unsigned_append_op(item1.clone())?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_data_op(append_op1.clone())?;
         replica2.apply_data_op(append_op1)?;
 
         // lets check replica1 can read that, and replica2 not...
@@ -1120,10 +1155,14 @@ mod tests {
             replica1.create_unsigned_private_policy_op(op_source_pk2, perms1)?,
             &op_source_pk_keypair,
         )?;
+
+        replica1.apply_private_policy_op(op1.clone())?;
+
         let op2 = sign_sequence_private_policy_op(
             replica1.create_unsigned_private_policy_op(op_source_pk, perms2)?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_private_policy_op(op2.clone())?;
 
         // let's apply op perms...
         replica2.apply_private_policy_op(op1)?;
@@ -1139,6 +1178,7 @@ mod tests {
             replica1.create_unsigned_append_op(item1.clone())?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_data_op(append_op1.clone())?;
         replica2.apply_data_op(append_op1)?;
 
         // lets check replica1 can read that, and replica2 not...
@@ -1160,6 +1200,7 @@ mod tests {
         )?;
 
         // let's apply op perms...
+        replica1.apply_private_policy_op(updated_perms_op.clone())?;
         replica2.apply_private_policy_op(updated_perms_op)?;
 
         let _ = replica1.get(SequenceIndex::FromStart(0), None)?;
@@ -1215,6 +1256,7 @@ mod tests {
             replica1.create_unsigned_public_policy_op(op_source_pk, perms)?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_public_policy_op(grant_op.clone())?;
         replica2.apply_public_policy_op(grant_op)?;
 
         // And let's append to both replicas with one first item
@@ -1223,6 +1265,7 @@ mod tests {
             replica1.create_unsigned_append_op(item1.to_vec())?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_data_op(append_op1.clone())?;
         replica2.apply_data_op(append_op1)?;
 
         // Let's assert initial state on both replicas
@@ -1236,6 +1279,7 @@ mod tests {
             replica1.create_unsigned_public_policy_op(op_source_pk, BTreeMap::default())?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_public_policy_op(revoke_op.clone())?;
         // New Policy should have been set on replica1
         assert_eq!(replica1.policy_version(None)?, Some(1));
 
@@ -1245,6 +1289,7 @@ mod tests {
             replica2.create_unsigned_append_op(item2.to_vec())?,
             &op_source_pk2_keypair,
         )?;
+        replica2.apply_data_op(append_op2.clone())?;
         // Item should be appended on replica2
         assert_eq!(replica2.len(None)?, 2);
 
@@ -1305,6 +1350,7 @@ mod tests {
             replica1.create_unsigned_public_policy_op(op_source_pk, perms)?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_public_policy_op(owner_op.clone())?;
         replica2.apply_public_policy_op(owner_op.clone())?;
         replica3.apply_public_policy_op(owner_op)?;
 
@@ -1318,6 +1364,7 @@ mod tests {
             replica1.create_unsigned_public_policy_op(op_source_pk, perms)?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_public_policy_op(grant_op.clone())?;
         replica3.apply_public_policy_op(grant_op.clone())?;
 
         // Let's assert the state on three replicas
@@ -1334,6 +1381,7 @@ mod tests {
             replica3.create_unsigned_append_op(item.to_vec())?,
             &op_source_pk3_keypair,
         )?;
+        replica3.apply_data_op(append_op.clone())?;
         assert_eq!(replica3.len(None)?, 1);
 
         // Append op is broadcasted and applied on replica1
@@ -1389,6 +1437,7 @@ mod tests {
             replica1.create_unsigned_public_policy_op(op_source_pk, perms.clone())?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_public_policy_op(owner_op.clone())?;
         replica2.apply_public_policy_op(owner_op)?;
 
         // Append item on replica1, and apply it to replica2
@@ -1397,6 +1446,7 @@ mod tests {
             replica1.create_unsigned_append_op(item0)?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_data_op(append_op.clone())?;
         replica2.apply_data_op(append_op)?;
 
         // Let's assert the state on both replicas
@@ -1412,10 +1462,14 @@ mod tests {
             replica1.create_unsigned_public_policy_op(generate_public_key(), perms.clone())?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_public_policy_op(owner_op_1.clone())?;
+
         let owner_op_2 = sign_sequence_public_policy_op(
             replica2.create_unsigned_public_policy_op(generate_public_key(), perms)?,
             &op_source_pk2_keypair,
         )?;
+        replica2.apply_public_policy_op(owner_op_2.clone())?;
+
         // ...and concurrently append a new item on top of their own respective new policies
         let item1_r1 = b"item1_replica1".to_vec();
         let item1_r2 = b"item1_replica2".to_vec();
@@ -1423,10 +1477,12 @@ mod tests {
             replica1.create_unsigned_append_op(item1_r1)?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_data_op(append_op1.clone())?;
         let append_op2 = sign_sequence_data_op(
             replica2.create_unsigned_append_op(item1_r2)?,
             &op_source_pk2_keypair,
         )?;
+        replica2.apply_data_op(append_op2.clone())?;
 
         assert_eq!(replica1.len(None)?, 2);
         assert_eq!(replica2.len(None)?, 2);
@@ -1482,6 +1538,7 @@ mod tests {
             replica1.create_unsigned_public_policy_op(op_source_pk, perms)?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_public_policy_op(owner_op.clone())?;
         replica2.apply_public_policy_op(owner_op)?;
 
         // Append an item on replica1
@@ -1491,11 +1548,14 @@ mod tests {
             &op_source_pk_keypair,
         )?;
 
+        replica1.apply_data_op(append_op.clone())?;
+
         // A new Policy is set in replica1 and applied to replica2
         let policy_op = sign_sequence_public_policy_op(
             replica1.create_unsigned_public_policy_op(op_source_pk, BTreeMap::default())?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_public_policy_op(policy_op.clone())?;
         replica2.apply_public_policy_op(policy_op)?;
 
         // Now the old append op is applied to replica2
@@ -1548,6 +1608,7 @@ mod tests {
             replica1.create_unsigned_public_policy_op(op_source_pk, perms)?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_public_policy_op(owner_op.clone())?;
         replica2.apply_public_policy_op(owner_op)?;
 
         // Let's create a second policy op on replica1, but don't apply it to replica2 yet
@@ -1558,11 +1619,15 @@ mod tests {
             &op_source_pk_keypair,
         )?;
 
+        replica1.apply_public_policy_op(old_owner_op.clone())?;
+
         // Set Actor2 as the new owner in replica2 (policy2)
         let owner_op = sign_sequence_public_policy_op(
             replica2.create_unsigned_public_policy_op(op_source_pk2, perms)?,
             &op_source_pk2_keypair,
         )?;
+
+        replica2.apply_public_policy_op(owner_op.clone())?;
 
         // Now apply the old policy op to replica2, which should be applied as
         // an old policy even if the current/latest policy doesn't allow op_source_pk to change policy
@@ -1638,6 +1703,7 @@ mod tests {
             replica1.create_unsigned_public_policy_op(op_source_pk, perms.clone())?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_public_policy_op(owner_op.clone())?;
         replica2.apply_public_policy_op(owner_op)?;
 
         // Let's create a clone of replica1 we'll use later on to falsify a policy op
@@ -1648,6 +1714,7 @@ mod tests {
             replica1.create_unsigned_public_policy_op(op_source_pk2, perms.clone())?,
             &op_source_pk_keypair,
         )?;
+        replica1.apply_public_policy_op(owner_op.clone())?;
         replica2.apply_public_policy_op(owner_op)?;
 
         // Let's assert the state on both replicas
@@ -1833,18 +1900,14 @@ mod tests {
 
             // Set Actor1 as the owner
             let perms = BTreeMap::default();
-            let mut owner_op = sign_sequence_public_policy_op( replica1.create_unsigned_public_policy_op(op_source_pk, perms)?, &op_source_pk_keypair)?;
-            let bytes = utils::serialise( &owner_op.crdt_op )?;
-            let signature = op_source_pk_keypair.sign(&bytes);
-            owner_op.signature = Some(signature);
+            let owner_op = sign_sequence_public_policy_op( replica1.create_unsigned_public_policy_op(op_source_pk, perms)?, &op_source_pk_keypair)?;
+            replica1.apply_public_policy_op(owner_op.clone())?;
 
             replica2.apply_public_policy_op(owner_op)?;
 
             // Append an item on replicas
-            let mut append_op = replica1.create_unsigned_append_op(s)?;
-            let bytes = utils::serialise( &append_op.crdt_op )?;
-            let signature = op_source_pk_keypair.sign(&bytes);
-            append_op.signature = Some(signature);
+            let append_op = sign_sequence_data_op(replica1.create_unsigned_append_op(s)?, &op_source_pk_keypair)?;
+            replica1.apply_data_op(append_op.clone())?;
 
             replica2.apply_data_op(append_op)?;
 
@@ -1869,11 +1932,8 @@ mod tests {
 
             // Set Actor1 as the owner
             let perms = BTreeMap::default();
-            let mut owner_op = sign_sequence_public_policy_op( replica1.create_unsigned_public_policy_op(op_source_pk, perms)?, &op_source_pk_keypair)?;
-            let bytes = utils::serialise( &owner_op.crdt_op )?;
-            let signature = op_source_pk_keypair.sign(&bytes);
-            owner_op.signature = Some(signature);
-
+            let owner_op = sign_sequence_public_policy_op( replica1.create_unsigned_public_policy_op(op_source_pk, perms)?, &op_source_pk_keypair)?;
+            replica1.apply_public_policy_op(owner_op.clone())?;
             replica2.apply_public_policy_op(owner_op)?;
 
             let dataset_length = dataset.len() as u64;
@@ -1881,11 +1941,8 @@ mod tests {
             // insert our data at replicas
             for data in dataset {
                 // Append an item on replica1
-                let mut append_op = replica1.create_unsigned_append_op(data)?;
-                let bytes = utils::serialise( &append_op.crdt_op )?;
-                let signature = op_source_pk_keypair.sign(&bytes);
-                append_op.signature = Some(signature);
-
+                let append_op = sign_sequence_data_op( replica1.create_unsigned_append_op(data)?, &op_source_pk_keypair)?;
+                replica1.apply_data_op(append_op.clone())?;
                 // now apply that op to replica 2
                 replica2.apply_data_op(append_op)?;
             }
@@ -1905,11 +1962,7 @@ mod tests {
             // insert our data at replicas
             for data in dataset {
                 // first generate an op from one replica...
-                let mut op = replicas[0].create_unsigned_append_op(data)?;
-
-                let bytes = utils::serialise( &op.crdt_op )?;
-                let signature = owner_keypair.sign(&bytes);
-                op.signature = Some(signature);
+                let op = sign_sequence_data_op( replicas[0].create_unsigned_append_op(data)?, &owner_keypair )?;
 
                 // then apply this to all replicas
                 for replica in &mut replicas {
@@ -1934,12 +1987,8 @@ mod tests {
             let mut ops = vec![];
 
             for data in dataset {
-                let mut op = replicas[0].create_unsigned_append_op(data)?;
-
-                let bytes = utils::serialise( &op.crdt_op )?;
-                let signature = owner_keypair.sign(&bytes);
-                op.signature = Some(signature);
-
+                let op = sign_sequence_data_op( replicas[0].create_unsigned_append_op(data)?, &owner_keypair )?;
+                replicas[0].apply_data_op(op.clone())?;
                 ops.push(op);
             }
 
@@ -1974,11 +2023,9 @@ mod tests {
             for data in dataset {
                 if let Some(replica) = replicas.choose_mut(&mut OsRng)
                 {
-                    let mut op = replica.create_unsigned_append_op(data)?;
+                    let op = sign_sequence_data_op( replica.create_unsigned_append_op(data)?, &owner_keypair )?;
+                    replica.apply_data_op(op.clone())?;
 
-                    let bytes = utils::serialise( &op.crdt_op )?;
-                    let signature = owner_keypair.sign(&bytes);
-                    op.signature = Some(signature);
                     ops.push(op);
                 }
             }
@@ -2020,10 +2067,8 @@ mod tests {
 
             // Set Actor1 as the owner
             let perms = BTreeMap::default();
-            let mut owner_op = sign_sequence_public_policy_op( replica1.create_unsigned_public_policy_op(op_source_pk, perms)?, &op_source_pk_keypair)?;
-            let bytes = utils::serialise( &owner_op.crdt_op )?;
-            let signature = op_source_pk_keypair.sign(&bytes);
-            owner_op.signature = Some(signature);
+            let owner_op = sign_sequence_public_policy_op( replica1.create_unsigned_public_policy_op(op_source_pk, perms)?, &op_source_pk_keypair)?;
+            replica1.apply_public_policy_op(owner_op.clone())?;
 
             replica2.apply_public_policy_op(owner_op)?;
 
@@ -2032,13 +2077,9 @@ mod tests {
 
             let mut ops = vec![];
             for (data, policy_change_chance) in dataset {
-                let mut op = replica1.create_unsigned_append_op(data)?;
-
-                let bytes = utils::serialise( &op.crdt_op )?;
-                let signature = op_source_pk_keypair.sign(&bytes);
-                op.signature = Some(signature);
+                let op = sign_sequence_data_op(replica1.create_unsigned_append_op(data)?, &op_source_pk_keypair)? ;
+                replica1.apply_data_op(op.clone())?;
                     ops.push(OpType::Data(op));
-
 
                     if policy_change_chance < u8::MAX / 3 {
                         let new_owner = Keypair::new_ed25519(&mut OsRng).public_key();
@@ -2051,6 +2092,8 @@ mod tests {
                             let bytes = utils::serialise( &op.crdt_op )?;
                             let signature = op_source_pk_keypair.sign(&bytes);
                             op.signature = Some(signature);
+
+                            replica1.apply_public_policy_op(op.clone())?;
                             ops.push(OpType::Owner(op));
                         };
 
@@ -2119,18 +2162,16 @@ mod tests {
 
             // Set Actor1 as the owner
             let perms = BTreeMap::default();
-            let mut owner_op = sign_sequence_public_policy_op( replica1.create_unsigned_public_policy_op(op_source_pk, perms)?, &op_source_pk_keypair)?;
-
-            let bytes = utils::serialise( &owner_op.crdt_op )?;
-            let signature = op_source_pk_keypair.sign(&bytes);
-            owner_op.signature = Some(signature);
+            let owner_op = sign_sequence_public_policy_op( replica1.create_unsigned_public_policy_op(op_source_pk, perms)?, &op_source_pk_keypair)?;
+            replica1.apply_public_policy_op(owner_op.clone())?;
             replica2.apply_public_policy_op(owner_op)?;
 
             let dataset_length = dataset.len() as u64;
 
             let mut ops = vec![];
             for (data, policy_change_chance) in dataset {
-                    let op = replica1.create_unsigned_append_op(data)?;
+                    let op = sign_sequence_data_op(replica1.create_unsigned_append_op(data)?, &op_source_pk_keypair )?;
+                    replica1.apply_data_op(op.clone())?;
                     ops.push(OpType::Data(op));
                     let new_owner = Keypair::new_ed25519(&mut OsRng).public_key();
 
@@ -2139,13 +2180,8 @@ mod tests {
                         let user_perms =
                             SequencePublicPermissions::new(/*append=*/ true, /*admin=*/ false);
                         let _ = perms.insert(SequenceUser::Key(op_source_pk), user_perms);
-                        let mut owner_op = replica1.create_unsigned_public_policy_op(new_owner, perms)?;
-
-                        let bytes = utils::serialise( &owner_op.crdt_op )?;
-                        // sign by the original owner to change this
-                        let signature = op_source_pk_keypair.sign(&bytes);
-                        owner_op.signature = Some(signature);
-
+                        let owner_op = sign_sequence_public_policy_op( replica1.create_unsigned_public_policy_op(new_owner, perms)?, &op_source_pk_keypair)?;
+                        replica1.apply_public_policy_op(owner_op.clone())?;
                         ops.push(OpType::Owner(owner_op));
 
                     }
@@ -2157,12 +2193,8 @@ mod tests {
                             SequencePublicPermissions::new(/*append=*/ false, /*admin=*/ false);
                         let _ = perms.insert(SequenceUser::Key(new_owner), user_perms);
 
-                        let mut owner_op = replica1.create_unsigned_public_policy_op(new_owner, perms)?;
-
-                        let bytes = utils::serialise( &owner_op.crdt_op )?;
-                        // sign by the original owner to change this
-                        let signature = op_source_pk_keypair.sign(&bytes);
-                        owner_op.signature = Some(signature);
+                        let owner_op = sign_sequence_public_policy_op( replica1.create_unsigned_public_policy_op(new_owner, perms)?, &op_source_pk_keypair)?;
+                        replica1.apply_public_policy_op(owner_op.clone())?;
 
                         ops.push(OpType::Owner(owner_op));
 
@@ -2174,12 +2206,8 @@ mod tests {
                         let user_perms =
                             SequencePublicPermissions::new(/*append=*/ true, /*admin=*/ false);
                         let _ = perms.insert(SequenceUser::Key(op_source_pk), user_perms);
-                        let mut owner_op = replica1.create_unsigned_public_policy_op(new_owner, perms)?;
-
-                        let bytes = utils::serialise( &owner_op.crdt_op )?;
-                        // sign by the original owner to change this
-                        let signature = op_source_pk_keypair.sign(&bytes);
-                        owner_op.signature = Some(signature);
+                        let owner_op = sign_sequence_public_policy_op( replica1.create_unsigned_public_policy_op(new_owner, perms)?, &op_source_pk_keypair)?;
+                        replica1.apply_public_policy_op(owner_op.clone())?;
 
                         ops.push(OpType::Owner(owner_op));
 
@@ -2245,12 +2273,8 @@ mod tests {
 
             // Set Actor1 as the owner
             let perms = BTreeMap::default();
-            let mut owner_op = sign_sequence_public_policy_op( replica1.create_unsigned_public_policy_op(op_source_pk, perms)?, &op_source_pk_keypair)?;
-
-            let bytes = utils::serialise( &owner_op.crdt_op )?;
-            // sign by the original owner to change this
-            let signature = op_source_pk_keypair.sign(&bytes);
-            owner_op.signature = Some(signature);
+            let owner_op = sign_sequence_public_policy_op( replica1.create_unsigned_public_policy_op(op_source_pk, perms)?, &op_source_pk_keypair)?;
+            replica1.apply_public_policy_op(owner_op.clone())?;
 
             replica2.apply_public_policy_op(owner_op)?;
 
@@ -2258,13 +2282,8 @@ mod tests {
 
             let mut ops = vec![];
             for (data, delivery_chance) in dataset {
-                    let mut op = replica1.create_unsigned_append_op(data)?;
-
-                    let bytes = utils::serialise( &op.crdt_op )?;
-                    // sign by the original owner to change this
-                    let signature = op_source_pk_keypair.sign(&bytes);
-                    op.signature = Some(signature);
-
+                    let op = sign_sequence_data_op(replica1.create_unsigned_append_op(data)?, &op_source_pk_keypair)?;
+                    replica1.apply_data_op(op.clone())?;
 
                     ops.push((op, delivery_chance));
             }
@@ -2306,11 +2325,8 @@ mod tests {
                 let index: usize = OsRng.gen_range( 0, replicas.len());
                 let replica = &mut replicas[index];
 
-                let mut op = replica.create_unsigned_append_op(data)?;
-
-                let bytes = utils::serialise( &op.crdt_op )?;
-                let signature = owner_keypair.sign(&bytes);
-                op.signature = Some(signature);
+                let op = sign_sequence_data_op( replica.create_unsigned_append_op(data)?, &owner_keypair)?;
+                replica.apply_data_op(op.clone())?;
                 ops.push((op, delivery_chance));
             }
 
@@ -2359,31 +2375,25 @@ mod tests {
             let mut bogus_replica = Sequence::new_public(owner_keypair.public_key(), "actor".to_string(), xorname, tag);
             let perms = BTreeMap::default();
 
-            let _ = bogus_replica.create_unsigned_public_policy_op(owner_keypair.public_key(), perms)?;
+            let bogus_op = sign_sequence_public_policy_op(bogus_replica.create_unsigned_public_policy_op(owner_keypair.public_key(), perms)?, &owner_keypair )?;
+            bogus_replica.apply_public_policy_op(bogus_op)?;
 
             // generate the real ops set using random replica for each data
             let mut ops = vec![];
             for data in dataset {
                 if let Some(replica) = replicas.choose_mut(&mut OsRng)
                 {
-                    let mut op = replica.create_unsigned_append_op(data)?;
+                    let op = sign_sequence_data_op(replica.create_unsigned_append_op(data)?, &owner_keypair)?;
 
-                    let bytes = utils::serialise( &op.crdt_op )?;
-                    let signature = owner_keypair.sign(&bytes);
-                    op.signature = Some(signature);
-
+                    replica.apply_data_op(op.clone())?;
                     ops.push(op);
                 }
             }
 
             // add bogus ops from bogus replica + bogus data
             for data in bogus_dataset {
-                let mut bogus_op = bogus_replica.create_unsigned_append_op(data)?;
-
-                let bytes = utils::serialise( &bogus_op.crdt_op )?;
-                let signature = owner_keypair.sign(&bytes);
-                bogus_op.signature = Some(signature);
-
+                let bogus_op = sign_sequence_data_op( bogus_replica.create_unsigned_append_op(data)?, &owner_keypair)?;
+                bogus_replica.apply_data_op(bogus_op.clone())?;
                 ops.push(bogus_op);
             }
 
