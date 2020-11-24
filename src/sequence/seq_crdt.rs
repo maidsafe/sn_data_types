@@ -9,7 +9,7 @@
 
 use super::metadata::{Address, Entries, Entry, Index, Perm};
 use crate::Signature;
-use crate::{Error, PublicKey, Result};
+use crate::{utils, Error, PublicKey, Result};
 pub use crdts::{lseq::Op, Actor};
 use crdts::{
     lseq::{ident::Identifier, Entry as LSeqEntry, LSeq},
@@ -31,7 +31,7 @@ const LSEQ_BOUNDARY: u64 = 1;
 const LSEQ_TREE_BASE: u8 = 10; // arity of 1024 at root
 
 /// CRDT Data operation applicable to other Sequence replica.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, PartialOrd, Eq, Hash)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CrdtDataOperation<A: Actor + Display + std::fmt::Debug + Serialize, T> {
     /// Address of a Sequence object on the network.
     pub address: Address,
@@ -46,7 +46,7 @@ pub struct CrdtDataOperation<A: Actor + Display + std::fmt::Debug + Serialize, T
 }
 
 /// CRDT Policy operation applicable to other Sequence replica.
-#[derive(Clone, Serialize, Deserialize, PartialEq, PartialOrd, Eq, Hash)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CrdtPolicyOperation<A: Actor + Display + std::fmt::Debug + Serialize, P: Serialize> {
     /// Address of a Sequence object on the network.
     pub address: Address,
@@ -179,7 +179,7 @@ where
         let sig = op
             .signature
             .ok_or_else(|| Error::Unexpected("No signature on crdt op".to_string()))?;
-        let bytes_to_verify = bincode::serialize(&op.crdt_op)
+        let bytes_to_verify = utils::serialise(&op.crdt_op)
             .map_err(|_| Error::Unexpected("Could not serialize crdt op".to_string()))?;
         op.source.verify(&sig, &bytes_to_verify)?;
 
@@ -288,7 +288,7 @@ where
         let sig = op
             .signature
             .ok_or_else(|| Error::Unexpected("No signature on crdt op".to_string()))?;
-        let bytes_to_verify = bincode::serialize(&op.crdt_op)
+        let bytes_to_verify = utils::serialise(&op.crdt_op)
             .map_err(|_| Error::Unexpected("Could not serialize crdt op".to_string()))?;
         op.source.verify(&sig, &bytes_to_verify)?;
 

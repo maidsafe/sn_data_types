@@ -7,10 +7,10 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
+use crate::errors::convert_bincode_error;
 use crate::{Error, Message, MessageId, PublicKey, Result, Signature};
 use multibase::{self, Base};
-use serde::{de::DeserializeOwned, Serialize};
-use unwrap::unwrap;
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 /// Verify that a signature is valid for a given `Request` + `MessageId` combination.
 pub fn verify_signature(
@@ -19,19 +19,27 @@ pub fn verify_signature(
     request: &Message,
     message_id: &MessageId,
 ) -> Result<()> {
-    let message = serialise(&(request, *message_id));
+    let message = serialise(&(request, *message_id))?;
     public_key.verify(signature, message)
 }
 
-/// Wrapper for raw bincode::serialize.
-pub(crate) fn serialise<T: Serialize>(data: &T) -> Vec<u8> {
-    unwrap!(bincode::serialize(data))
+/// Wrapper for raw bincode::serialise.
+pub(crate) fn serialise<T: Serialize>(data: &T) -> Result<Vec<u8>> {
+    bincode::serialize(data).map_err(convert_bincode_error)
+}
+
+/// Wrapper for bincode::deserialize.
+pub(crate) fn deserialise<'a, T>(bytes: &'a [u8]) -> Result<T>
+where
+    T: Deserialize<'a>,
+{
+    bincode::deserialize(bytes).map_err(convert_bincode_error)
 }
 
 /// Wrapper for z-Base-32 multibase::encode.
-pub(crate) fn encode<T: Serialize>(data: &T) -> String {
-    let serialised = serialise(&data);
-    multibase::encode(Base::Base32Z, &serialised)
+pub(crate) fn encode<T: Serialize>(data: &T) -> Result<String> {
+    let bytes = serialise(&data)?;
+    Ok(multibase::encode(Base::Base32Z, &bytes))
 }
 
 /// Wrapper for z-Base-32 multibase::decode.
@@ -44,5 +52,5 @@ pub(crate) fn decode<I: AsRef<str>, O: DeserializeOwned>(encoded: I) -> Result<O
             base
         )));
     }
-    Ok(bincode::deserialize(&decoded).map_err(|e| Error::FailedToParse(e.to_string()))?)
+    Ok(deserialise(&decoded).map_err(|e| Error::FailedToParse(e.to_string()))?)
 }

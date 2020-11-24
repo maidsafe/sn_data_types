@@ -34,16 +34,16 @@ pub struct PrivateData {
 
 impl PrivateData {
     /// Creates a new instance of `PrivateData`.
-    pub fn new(value: Vec<u8>, owner: PublicKey) -> Self {
+    pub fn new(value: Vec<u8>, owner: PublicKey) -> crate::Result<Self> {
         let hash_of_value = tiny_keccak::sha3_256(&value);
-        let serialised_contents = utils::serialise(&(hash_of_value, &owner));
+        let serialised_contents = utils::serialise(&(hash_of_value, &owner))?;
         let address = Address::Private(XorName(tiny_keccak::sha3_256(&serialised_contents)));
 
-        Self {
+        Ok(Self {
             address,
             value,
             owner,
-        }
+        })
     }
 
     /// Returns the value.
@@ -84,14 +84,19 @@ impl PrivateData {
 
 impl Serialize for PrivateData {
     fn serialize<S: Serializer>(&self, serialiser: S) -> Result<S::Ok, S::Error> {
-        (&self.value, &self.owner).serialize(serialiser)
+        (&self.address, &self.value, &self.owner).serialize(serialiser)
     }
 }
 
 impl<'de> Deserialize<'de> for PrivateData {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let (value, owner): (Vec<u8>, PublicKey) = Deserialize::deserialize(deserializer)?;
-        Ok(PrivateData::new(value, owner))
+        let (address, value, owner): (Address, Vec<u8>, PublicKey) =
+            Deserialize::deserialize(deserializer)?;
+        Ok(Self {
+            address,
+            value,
+            owner,
+        })
     }
 }
 
@@ -245,7 +250,7 @@ impl Address {
     }
 
     /// Returns the Address serialised and encoded in z-base-32.
-    pub fn encode_to_zbase32(&self) -> String {
+    pub fn encode_to_zbase32(&self) -> Result<String, Error> {
         utils::encode(&self)
     }
 
@@ -340,33 +345,33 @@ impl From<PublicData> for Data {
 
 #[cfg(test)]
 mod tests {
-    use super::{utils, Address, PrivateData, PublicData, PublicKey, XorName};
-    use bincode::deserialize as deserialise;
+    use super::{Address, PrivateData, PublicData, PublicKey, XorName};
+    use crate::{utils, Result};
     use hex::encode;
     use rand::{self, Rng, SeedableRng};
     use rand_xorshift::XorShiftRng;
     use std::{env, iter, thread};
     use threshold_crypto::SecretKey;
-    use unwrap::unwrap;
 
     #[test]
-    fn deterministic_name() {
+    fn deterministic_name() -> Result<()> {
         let data1 = b"Hello".to_vec();
         let data2 = b"Goodbye".to_vec();
 
         let owner1 = PublicKey::Bls(SecretKey::random().public_key());
         let owner2 = PublicKey::Bls(SecretKey::random().public_key());
 
-        let idata1 = PrivateData::new(data1.clone(), owner1);
-        let idata2 = PrivateData::new(data1, owner2);
-        let idata3 = PrivateData::new(data2.clone(), owner1);
-        let idata3_clone = PrivateData::new(data2, owner1);
+        let idata1 = PrivateData::new(data1.clone(), owner1)?;
+        let idata2 = PrivateData::new(data1, owner2)?;
+        let idata3 = PrivateData::new(data2.clone(), owner1)?;
+        let idata3_clone = PrivateData::new(data2, owner1)?;
 
         assert_eq!(idata3, idata3_clone);
 
         assert_ne!(idata1.name(), idata2.name());
         assert_ne!(idata1.name(), idata3.name());
         assert_ne!(idata2.name(), idata3.name());
+        Ok(())
     }
 
     #[test]
@@ -380,31 +385,25 @@ mod tests {
     }
 
     #[test]
-    fn serialisation() {
+    fn serialisation() -> Result<()> {
         let mut rng = get_rng();
         let len = rng.gen_range(1, 10_000);
         let value = iter::repeat_with(|| rng.gen()).take(len).collect();
         let blob = PublicData::new(value);
-        let serialised = utils::serialise(&blob);
-        let parsed = unwrap!(deserialise(&serialised));
+        let serialised = utils::serialise(&blob)?;
+        let parsed = utils::deserialise(&serialised)?;
         assert_eq!(blob, parsed);
+        Ok(())
     }
 
     fn get_rng() -> XorShiftRng {
         let env_var_name = "RANDOM_SEED";
         let seed = env::var(env_var_name)
-            .ok()
-            .map(|value| {
-                unwrap!(
-                    value.parse::<u64>(),
-                    "Env var 'RANDOM_SEED={}' is not a valid u64.",
-                    value
-                )
-            })
-            .unwrap_or_else(rand::random);
+            .map(|res| res.parse::<u64>().unwrap_or_else(|_| rand::random()))
+            .unwrap_or_else(|_| rand::random());
         println!(
             "To replay this '{}', set env var {}={}",
-            unwrap!(thread::current().name()),
+            thread::current().name().unwrap_or(""),
             env_var_name,
             seed
         );
@@ -412,11 +411,12 @@ mod tests {
     }
 
     #[test]
-    fn zbase32_encode_decode_idata_address() {
+    fn zbase32_encode_decode_idata_address() -> Result<()> {
         let name = XorName(rand::random());
         let address = Address::Public(name);
-        let encoded = address.encode_to_zbase32();
-        let decoded = unwrap!(self::Address::decode_from_zbase32(&encoded));
+        let encoded = address.encode_to_zbase32()?;
+        let decoded = self::Address::decode_from_zbase32(&encoded)?;
         assert_eq!(address, decoded);
+        Ok(())
     }
 }

@@ -9,15 +9,12 @@
 
 pub use xor_name::Prefix;
 
-use crate::{utils, AdultDuties, Duty, ElderDuties, PublicKey, Result, Signature, SignatureShare};
+use crate::{AdultDuties, Duty, ElderDuties, PublicKey, Result, Signature, SignatureShare};
 use ed25519_dalek::PublicKey as Ed25519PublicKey;
 use ed25519_dalek::Signature as Ed25519Signature;
 use serde::{Deserialize, Serialize};
 use signature::Verifier;
-use std::{
-    fmt::Debug,
-    hash::{Hash, Hasher},
-};
+use std::{fmt::Debug, hash::Hash};
 use threshold_crypto::{
     PublicKey as BlsPublicKey, PublicKeySet as BlsPublicKeySet,
     PublicKeyShare as BlsPublicKeyShare, Signature as BlsSignature,
@@ -28,7 +25,7 @@ use xor_name::XorName;
 /// A msg sender in the larger network (clients + nodes),
 /// provides its identification by specifying type of entity,
 /// and providing a signature over it.
-#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub struct MsgSender {
     entity: Entity,
     sig: Option<EntitySignature>,
@@ -92,13 +89,6 @@ pub enum EntitySignature {
     Elder(BlsSignatureShare),
     /// The group.
     Section(BlsSignature),
-}
-
-#[allow(clippy::derive_hash_xor_eq)]
-impl Hash for EntitySignature {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        utils::serialise(&self).hash(state)
-    }
 }
 
 ///
@@ -307,12 +297,5 @@ impl Entity {
             }
             Section(..) => true,
         }
-    }
-}
-
-#[allow(clippy::derive_hash_xor_eq)]
-impl Hash for Entity {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        utils::serialise(&self).hash(state)
     }
 }

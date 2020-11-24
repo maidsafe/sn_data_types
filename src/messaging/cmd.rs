@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 
 /// TODO: docs
 #[allow(clippy::large_enum_variant)]
-#[derive(Hash, Eq, PartialEq, Debug, Clone, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub enum Cmd {
     ///
     Auth(AuthCmd),

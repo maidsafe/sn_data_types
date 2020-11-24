@@ -20,7 +20,7 @@ use std::fmt;
 
 /// TODO: docs
 #[allow(clippy::large_enum_variant)]
-#[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum DataCmd {
     /// TODO: docs
     Blob(BlobWrite),

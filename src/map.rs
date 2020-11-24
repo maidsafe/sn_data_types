@@ -753,7 +753,7 @@ impl Address {
     }
 
     /// Returns the Address serialised and encoded in z-base-32.
-    pub fn encode_to_zbase32(&self) -> String {
+    pub fn encode_to_zbase32(&self) -> Result<String> {
         utils::encode(&self)
     }
 
@@ -1164,14 +1164,15 @@ impl From<UnseqEntries> for Entries {
 #[cfg(test)]
 mod tests {
     use super::{Address, XorName};
-    use unwrap::unwrap;
+    use crate::Result;
 
     #[test]
-    fn zbase32_encode_decode_map_address() {
+    fn zbase32_encode_decode_map_address() -> Result<()> {
         let name = XorName(rand::random());
         let address = Address::Seq { name, tag: 15000 };
-        let encoded = address.encode_to_zbase32();
-        let decoded = unwrap!(self::Address::decode_from_zbase32(&encoded));
+        let encoded = address.encode_to_zbase32()?;
+        let decoded = self::Address::decode_from_zbase32(&encoded)?;
         assert_eq!(address, decoded);
+        Ok(())
     }
 }

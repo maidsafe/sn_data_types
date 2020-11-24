@@ -18,7 +18,7 @@ use std::collections::BTreeSet;
 
 ///
 #[allow(clippy::large_enum_variant)]
-#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NodeCmd {
     /// Cmds related to the running of a node.
     System(NodeSystemCmd),
@@ -42,7 +42,7 @@ pub enum NodeSystemCmd {
 
 ///
 #[allow(clippy::large_enum_variant)]
-#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NodeTransferCmd {
     ///
     PropagateTransfer(DebitAgreementProof),
@@ -71,7 +71,7 @@ pub enum NodeDataCmd {
 
 ///
 #[allow(clippy::large_enum_variant)]
-#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NodeEvent {
     /// Wrapper for a duplicate completion response, from a node to elders.
     DuplicationComplete {
@@ -144,7 +144,7 @@ pub enum NodeDataQuery {
 
 ///
 #[allow(clippy::large_enum_variant)]
-#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NodeQueryResponse {
     ///
     Data(NodeDataQueryResponse),
@@ -166,7 +166,7 @@ pub enum NodeRewardQueryResponse {
 
 ///
 #[allow(clippy::large_enum_variant)]
-#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NodeTransferQueryResponse {
     /// Replicas starting up
     /// need to query for events of

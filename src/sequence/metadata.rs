@@ -89,7 +89,7 @@ impl Address {
     }
 
     /// Returns the `Address` serialised and encoded in z-base-32.
-    pub fn encode_to_zbase32(&self) -> String {
+    pub fn encode_to_zbase32(&self) -> Result<String> {
         utils::encode(&self)
     }
 

@@ -36,6 +36,8 @@ impl<'a, T> Debug for ErrorDebug<'a, T> {
 pub enum Error {
     /// Access is denied for a given requester
     AccessDenied,
+    /// Serialization error
+    Bincode(String),
     /// Login packet does not exist
     NoSuchLoginPacket,
     /// Attempt to store a login packet at an already occupied address
@@ -112,6 +114,7 @@ impl Display for Error {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
             Error::AccessDenied => write!(f, "Access denied"),
+            Error::Bincode(_) => write!(f, "Serialization error"),
             Error::NoSuchLoginPacket => write!(f, "Login packet does not exist"),
             Error::LoginPacketExists => write!(f, "Login packet already exists at this location"),
             Error::NoSuchData => write!(f, "Requested data not found"),
@@ -168,6 +171,7 @@ impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
             Error::AccessDenied => "Access denied",
+            Error::Bincode(_) => "Serialization error",
             Error::NoSuchLoginPacket => "Login packet does not exist",
             Error::LoginPacketExists => "Login packet already exists at this location",
             Error::NoSuchData => "No such data",
@@ -202,6 +206,10 @@ impl error::Error for Error {
             Error::Unexpected(_) => "Unexpected error",
         }
     }
+}
+
+pub(crate) fn convert_bincode_error(err: bincode::Error) -> Error {
+    Error::Bincode(err.as_ref().to_string())
 }
 
 /// Entry error for `Error::InvalidEntryActions`.
