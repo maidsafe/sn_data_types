@@ -64,7 +64,7 @@ impl FromStr for Money {
 
             units
                 .checked_mul(MONEY_TO_RAW_CONVERSION)
-                .ok_or_else(|| Error::ExcessiveValue)?
+                .ok_or(Error::ExcessiveValue)?
         };
 
         let remainder = {
@@ -79,7 +79,7 @@ impl FromStr for Money {
 
                 let remainder_conversion = MONEY_TO_RAW_POWER_OF_10_CONVERSION
                     .checked_sub(remainder_str.len() as u32)
-                    .ok_or_else(|| Error::LossOfPrecision)?;
+                    .ok_or(Error::LossOfPrecision)?;
                 parsed_remainder * 10_u64.pow(remainder_conversion)
             }
         };
@@ -106,37 +106,30 @@ impl Display for Money {
 mod tests {
     use super::*;
     use std::u64;
-    use unwrap::unwrap;
 
     #[test]
-    fn from_str() {
-        assert_eq!(Money(0), unwrap!(Money::from_str("0")));
-        assert_eq!(Money(0), unwrap!(Money::from_str("0.")));
-        assert_eq!(Money(0), unwrap!(Money::from_str("0.0")));
-        assert_eq!(Money(1), unwrap!(Money::from_str("0.000000001")));
-        assert_eq!(Money(1_000_000_000), unwrap!(Money::from_str("1")));
-        assert_eq!(Money(1_000_000_000), unwrap!(Money::from_str("1.")));
-        assert_eq!(Money(1_000_000_000), unwrap!(Money::from_str("1.0")));
-        assert_eq!(
-            Money(1_000_000_001),
-            unwrap!(Money::from_str("1.000000001"))
-        );
-        assert_eq!(Money(1_100_000_000), unwrap!(Money::from_str("1.1")));
-        assert_eq!(
-            Money(1_100_000_001),
-            unwrap!(Money::from_str("1.100000001"))
-        );
+    fn from_str() -> Result<()> {
+        assert_eq!(Money(0), Money::from_str("0")?);
+        assert_eq!(Money(0), Money::from_str("0.")?);
+        assert_eq!(Money(0), Money::from_str("0.0")?);
+        assert_eq!(Money(1), Money::from_str("0.000000001")?);
+        assert_eq!(Money(1_000_000_000), Money::from_str("1")?);
+        assert_eq!(Money(1_000_000_000), Money::from_str("1.")?);
+        assert_eq!(Money(1_000_000_000), Money::from_str("1.0")?);
+        assert_eq!(Money(1_000_000_001), Money::from_str("1.000000001")?);
+        assert_eq!(Money(1_100_000_000), Money::from_str("1.1")?);
+        assert_eq!(Money(1_100_000_001), Money::from_str("1.100000001")?);
         assert_eq!(
             Money(4_294_967_295_000_000_000),
-            unwrap!(Money::from_str("4294967295"))
+            Money::from_str("4294967295")?
         );
         assert_eq!(
             Money(4_294_967_295_999_999_999),
-            unwrap!(Money::from_str("4294967295.999999999")),
+            Money::from_str("4294967295.999999999")?,
         );
         assert_eq!(
             Money(4_294_967_295_999_999_999),
-            unwrap!(Money::from_str("4294967295.9999999990000")),
+            Money::from_str("4294967295.9999999990000")?,
         );
 
         assert_eq!(
@@ -157,6 +150,7 @@ mod tests {
         );
         assert_eq!(Err(Error::LossOfPrecision), Money::from_str("0.0000000009"));
         assert_eq!(Err(Error::ExcessiveValue), Money::from_str("18446744074"));
+        Ok(())
     }
 
     #[test]

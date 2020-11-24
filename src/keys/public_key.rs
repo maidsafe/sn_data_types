@@ -85,7 +85,7 @@ impl PublicKey {
     }
 
     /// Returns the `PublicKey` serialised and encoded in z-base-32.
-    pub fn encode_to_zbase32(&self) -> String {
+    pub fn encode_to_zbase32(&self) -> Result<String> {
         utils::encode(&self)
     }
 
@@ -98,13 +98,15 @@ impl PublicKey {
 #[allow(clippy::derive_hash_xor_eq)]
 impl Hash for PublicKey {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        utils::serialise(&self).hash(state)
+        utils::serialise(&self).unwrap_or_default().hash(state)
     }
 }
 
 impl Ord for PublicKey {
     fn cmp(&self, other: &PublicKey) -> Ordering {
-        utils::serialise(&self).cmp(&utils::serialise(other))
+        utils::serialise(&self)
+            .unwrap_or_default()
+            .cmp(&utils::serialise(other).unwrap_or_default())
     }
 }
 
@@ -184,7 +186,6 @@ impl Display for PublicKey {
 mod tests {
     use super::*;
     use crate::utils;
-    use bincode::deserialize as deserialise;
     use threshold_crypto::{self};
 
     fn gen_keypairs() -> Vec<Keypair> {
@@ -212,7 +213,7 @@ mod tests {
         for key in keys {
             assert_eq!(
                 key,
-                PublicKey::decode_from_zbase32(&key.encode_to_zbase32())?
+                PublicKey::decode_from_zbase32(&key.encode_to_zbase32()?)?
             );
         }
 
@@ -225,9 +226,8 @@ mod tests {
         let keys = gen_keys();
 
         for key in keys {
-            let encoded = utils::serialise(&key);
-            let decoded: PublicKey =
-                deserialise(&encoded).map_err(|_| "Error deserialising key")?;
+            let encoded = utils::serialise(&key)?;
+            let decoded: PublicKey = utils::deserialise(&encoded)?;
 
             assert_eq!(decoded, key);
         }

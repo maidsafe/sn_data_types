@@ -407,7 +407,7 @@ impl Data {
 #[cfg(test)]
 mod tests {
     use crate::{
-        Error, Keypair, PublicKey, Result, Sequence, SequenceAddress, SequenceDataWriteOp,
+        utils, Error, Keypair, PublicKey, Result, Sequence, SequenceAddress, SequenceDataWriteOp,
         SequenceEntry, SequenceIndex, SequenceKind, SequencePermissions, SequencePolicyWriteOp,
         SequencePrivatePermissions, SequencePrivatePolicy, SequencePublicPermissions,
         SequencePublicPolicy, SequenceUser,
@@ -424,7 +424,7 @@ mod tests {
         mut op: SequenceDataWriteOp<SequenceEntry>,
         keypair: &Keypair,
     ) -> Result<SequenceDataWriteOp<SequenceEntry>> {
-        let bytes = bincode::serialize(&op.crdt_op).map_err(|_| "Could not serialize op")?;
+        let bytes = utils::serialise(&op.crdt_op)?;
         let signature = keypair.sign(&bytes);
         op.signature = Some(signature);
         Ok(op)
@@ -434,7 +434,7 @@ mod tests {
         mut op: SequencePolicyWriteOp<SequencePublicPolicy>,
         keypair: &Keypair,
     ) -> Result<SequencePolicyWriteOp<SequencePublicPolicy>> {
-        let bytes = bincode::serialize(&op.crdt_op).map_err(|_| "Could not serialize op")?;
+        let bytes = utils::serialise(&op.crdt_op)?;
         let signature = keypair.sign(&bytes);
         op.signature = Some(signature);
         Ok(op)
@@ -444,7 +444,7 @@ mod tests {
         mut op: SequencePolicyWriteOp<SequencePrivatePolicy>,
         keypair: &Keypair,
     ) -> Result<SequencePolicyWriteOp<SequencePrivatePolicy>> {
-        let bytes = bincode::serialize(&op.crdt_op).map_err(|_| "Could not serialize op")?;
+        let bytes = utils::serialise(&op.crdt_op).map_err(|_| "Could not serialize op")?;
         let signature = keypair.sign(&bytes);
         op.signature = Some(signature);
         Ok(op)
@@ -630,12 +630,12 @@ mod tests {
         let _ = perms2.insert(op_source_pk2, user_perms2);
 
         let mut op1 = replica1.create_unsigned_private_policy_op(op_source_pk2, perms1.clone())?;
-        let bytes = bincode::serialize(&op1.crdt_op).map_err(|_| "Could not serialize op")?;
+        let bytes = utils::serialise(&op1.crdt_op).map_err(|_| "Could not serialize op")?;
         let signature = op_source_pk_keypair.sign(&bytes);
         op1.signature = Some(signature);
 
         let mut op2 = replica1.create_unsigned_private_policy_op(op_source_pk, perms2.clone())?;
-        let bytes = bincode::serialize(&op2.crdt_op).map_err(|_| "Could not serialize op")?;
+        let bytes = utils::serialise(&op2.crdt_op).map_err(|_| "Could not serialize op")?;
         let signature = op_source_pk_keypair.sign(&bytes);
         op2.signature = Some(signature);
 
@@ -1764,7 +1764,7 @@ mod tests {
     // Generate a vec of Sequence replicas of some length, with corresponding vec of keypairs for signing, and the overall owner of the sequence
     fn generate_replicas(
         max_quantity: usize,
-    ) -> impl Strategy<Value = (Vec<Sequence>, Arc<Keypair>)> {
+    ) -> impl Strategy<Value = Result<(Vec<Sequence>, Arc<Keypair>)>> {
         let xorname = XorName::random();
         let tag = 45_000u64;
         let owner_keypair = Arc::new(Keypair::new_ed25519(&mut OsRng));
@@ -1780,17 +1780,15 @@ mod tests {
 
             // set the same owner in all replicas
             let perms = BTreeMap::default();
-            let mut owner_op = replicas[0]
-                .create_unsigned_public_policy_op(owner, perms)
-                .unwrap();
-            let bytes = bincode::serialize(&owner_op.crdt_op).unwrap();
+            let mut owner_op = replicas[0].create_unsigned_public_policy_op(owner, perms)?;
+            let bytes = utils::serialise(&owner_op.crdt_op)?;
             let signature = owner_keypair.sign(&bytes);
 
             owner_op.signature = Some(signature);
             for r in replicas.iter_mut() {
-                r.apply_public_policy_op(owner_op.clone()).unwrap();
+                r.apply_public_policy_op(owner_op.clone())?;
             }
-            (replicas, owner_keypair.clone())
+            Ok((replicas, owner_keypair.clone()))
         })
     }
 
@@ -1836,7 +1834,7 @@ mod tests {
             // Set Actor1 as the owner
             let perms = BTreeMap::default();
             let mut owner_op = sign_sequence_public_policy_op( replica1.create_unsigned_public_policy_op(op_source_pk, perms)?, &op_source_pk_keypair)?;
-            let bytes = bincode::serialize( &owner_op.crdt_op )?;
+            let bytes = utils::serialise( &owner_op.crdt_op )?;
             let signature = op_source_pk_keypair.sign(&bytes);
             owner_op.signature = Some(signature);
 
@@ -1844,7 +1842,7 @@ mod tests {
 
             // Append an item on replicas
             let mut append_op = replica1.create_unsigned_append_op(s)?;
-            let bytes = bincode::serialize( &append_op.crdt_op )?;
+            let bytes = utils::serialise( &append_op.crdt_op )?;
             let signature = op_source_pk_keypair.sign(&bytes);
             append_op.signature = Some(signature);
 
@@ -1872,7 +1870,7 @@ mod tests {
             // Set Actor1 as the owner
             let perms = BTreeMap::default();
             let mut owner_op = sign_sequence_public_policy_op( replica1.create_unsigned_public_policy_op(op_source_pk, perms)?, &op_source_pk_keypair)?;
-            let bytes = bincode::serialize( &owner_op.crdt_op )?;
+            let bytes = utils::serialise( &owner_op.crdt_op )?;
             let signature = op_source_pk_keypair.sign(&bytes);
             owner_op.signature = Some(signature);
 
@@ -1884,7 +1882,7 @@ mod tests {
             for data in dataset {
                 // Append an item on replica1
                 let mut append_op = replica1.create_unsigned_append_op(data)?;
-                let bytes = bincode::serialize( &append_op.crdt_op )?;
+                let bytes = utils::serialise( &append_op.crdt_op )?;
                 let signature = op_source_pk_keypair.sign(&bytes);
                 append_op.signature = Some(signature);
 
@@ -1899,8 +1897,9 @@ mod tests {
         #[test]
         fn proptest_seq_converge_with_many_random_data_across_arbitrary_number_of_replicas(
             dataset in generate_dataset(500),
-            (mut replicas, owner_keypair) in generate_replicas(50)
+            res in generate_replicas(50)
         ) {
+            let (mut replicas, owner_keypair) = res?;
             let dataset_length = dataset.len() as u64;
 
             // insert our data at replicas
@@ -1908,7 +1907,7 @@ mod tests {
                 // first generate an op from one replica...
                 let mut op = replicas[0].create_unsigned_append_op(data)?;
 
-                let bytes = bincode::serialize( &op.crdt_op )?;
+                let bytes = utils::serialise( &op.crdt_op )?;
                 let signature = owner_keypair.sign(&bytes);
                 op.signature = Some(signature);
 
@@ -1926,8 +1925,9 @@ mod tests {
         #[test]
         fn proptest_converge_with_shuffled_op_set_across_arbitrary_number_of_replicas(
             dataset in generate_dataset(100),
-            (mut replicas, owner_keypair) in generate_replicas(500)
+            res in generate_replicas(500)
         ) {
+            let (mut replicas, owner_keypair) = res?;
             let dataset_length = dataset.len() as u64;
 
             // generate an ops set from one replica
@@ -1936,7 +1936,7 @@ mod tests {
             for data in dataset {
                 let mut op = replicas[0].create_unsigned_append_op(data)?;
 
-                let bytes = bincode::serialize( &op.crdt_op )?;
+                let bytes = utils::serialise( &op.crdt_op )?;
                 let signature = owner_keypair.sign(&bytes);
                 op.signature = Some(signature);
 
@@ -1964,8 +1964,9 @@ mod tests {
         #[test]
         fn proptest_converge_with_shuffled_ops_from_many_replicas_across_arbitrary_number_of_replicas(
             dataset in generate_dataset(1000),
-            (mut replicas, owner_keypair) in generate_replicas(100)
+            res in generate_replicas(100)
         ) {
+            let (mut replicas, owner_keypair) = res?;
             let dataset_length = dataset.len() as u64;
 
             // generate an ops set using random replica for each data
@@ -1975,7 +1976,7 @@ mod tests {
                 {
                     let mut op = replica.create_unsigned_append_op(data)?;
 
-                    let bytes = bincode::serialize( &op.crdt_op )?;
+                    let bytes = utils::serialise( &op.crdt_op )?;
                     let signature = owner_keypair.sign(&bytes);
                     op.signature = Some(signature);
                     ops.push(op);
@@ -2020,7 +2021,7 @@ mod tests {
             // Set Actor1 as the owner
             let perms = BTreeMap::default();
             let mut owner_op = sign_sequence_public_policy_op( replica1.create_unsigned_public_policy_op(op_source_pk, perms)?, &op_source_pk_keypair)?;
-            let bytes = bincode::serialize( &owner_op.crdt_op )?;
+            let bytes = utils::serialise( &owner_op.crdt_op )?;
             let signature = op_source_pk_keypair.sign(&bytes);
             owner_op.signature = Some(signature);
 
@@ -2033,7 +2034,7 @@ mod tests {
             for (data, policy_change_chance) in dataset {
                 let mut op = replica1.create_unsigned_append_op(data)?;
 
-                let bytes = bincode::serialize( &op.crdt_op )?;
+                let bytes = utils::serialise( &op.crdt_op )?;
                 let signature = op_source_pk_keypair.sign(&bytes);
                 op.signature = Some(signature);
                     ops.push(OpType::Data(op));
@@ -2047,7 +2048,7 @@ mod tests {
                             SequencePublicPermissions::new(/*append=*/ true, /*admin=*/ false);
                         let _ = perms.insert(SequenceUser::Key(op_source_pk), user_perms);
                         if let Ok(mut op) = replica1.create_unsigned_public_policy_op(new_owner, perms) {
-                            let bytes = bincode::serialize( &op.crdt_op )?;
+                            let bytes = utils::serialise( &op.crdt_op )?;
                             let signature = op_source_pk_keypair.sign(&bytes);
                             op.signature = Some(signature);
                             ops.push(OpType::Owner(op));
@@ -2120,7 +2121,7 @@ mod tests {
             let perms = BTreeMap::default();
             let mut owner_op = sign_sequence_public_policy_op( replica1.create_unsigned_public_policy_op(op_source_pk, perms)?, &op_source_pk_keypair)?;
 
-            let bytes = bincode::serialize( &owner_op.crdt_op )?;
+            let bytes = utils::serialise( &owner_op.crdt_op )?;
             let signature = op_source_pk_keypair.sign(&bytes);
             owner_op.signature = Some(signature);
             replica2.apply_public_policy_op(owner_op)?;
@@ -2140,7 +2141,7 @@ mod tests {
                         let _ = perms.insert(SequenceUser::Key(op_source_pk), user_perms);
                         let mut owner_op = replica1.create_unsigned_public_policy_op(new_owner, perms)?;
 
-                        let bytes = bincode::serialize( &owner_op.crdt_op )?;
+                        let bytes = utils::serialise( &owner_op.crdt_op )?;
                         // sign by the original owner to change this
                         let signature = op_source_pk_keypair.sign(&bytes);
                         owner_op.signature = Some(signature);
@@ -2158,7 +2159,7 @@ mod tests {
 
                         let mut owner_op = replica1.create_unsigned_public_policy_op(new_owner, perms)?;
 
-                        let bytes = bincode::serialize( &owner_op.crdt_op )?;
+                        let bytes = utils::serialise( &owner_op.crdt_op )?;
                         // sign by the original owner to change this
                         let signature = op_source_pk_keypair.sign(&bytes);
                         owner_op.signature = Some(signature);
@@ -2175,7 +2176,7 @@ mod tests {
                         let _ = perms.insert(SequenceUser::Key(op_source_pk), user_perms);
                         let mut owner_op = replica1.create_unsigned_public_policy_op(new_owner, perms)?;
 
-                        let bytes = bincode::serialize( &owner_op.crdt_op )?;
+                        let bytes = utils::serialise( &owner_op.crdt_op )?;
                         // sign by the original owner to change this
                         let signature = op_source_pk_keypair.sign(&bytes);
                         owner_op.signature = Some(signature);
@@ -2246,7 +2247,7 @@ mod tests {
             let perms = BTreeMap::default();
             let mut owner_op = sign_sequence_public_policy_op( replica1.create_unsigned_public_policy_op(op_source_pk, perms)?, &op_source_pk_keypair)?;
 
-            let bytes = bincode::serialize( &owner_op.crdt_op )?;
+            let bytes = utils::serialise( &owner_op.crdt_op )?;
             // sign by the original owner to change this
             let signature = op_source_pk_keypair.sign(&bytes);
             owner_op.signature = Some(signature);
@@ -2259,7 +2260,7 @@ mod tests {
             for (data, delivery_chance) in dataset {
                     let mut op = replica1.create_unsigned_append_op(data)?;
 
-                    let bytes = bincode::serialize( &op.crdt_op )?;
+                    let bytes = utils::serialise( &op.crdt_op )?;
                     // sign by the original owner to change this
                     let signature = op_source_pk_keypair.sign(&bytes);
                     op.signature = Some(signature);
@@ -2292,8 +2293,9 @@ mod tests {
         #[test]
         fn proptest_converge_with_shuffled_ops_from_many_while_dropping_some_at_random(
             dataset in generate_dataset_and_probability(1000),
-            (mut replicas, owner_keypair) in generate_replicas(100),
+            res in generate_replicas(100),
         ) {
+            let (mut replicas, owner_keypair) = res?;
             let dataset_length = dataset.len() as u64;
 
             // generate an ops set using random replica for each data
@@ -2306,7 +2308,7 @@ mod tests {
 
                 let mut op = replica.create_unsigned_append_op(data)?;
 
-                let bytes = bincode::serialize( &op.crdt_op )?;
+                let bytes = utils::serialise( &op.crdt_op )?;
                 let signature = owner_keypair.sign(&bytes);
                 op.signature = Some(signature);
                 ops.push((op, delivery_chance));
@@ -2341,9 +2343,10 @@ mod tests {
             dataset in generate_dataset(10),
             // should be same number as dataset
             bogus_dataset in generate_dataset(10),
-            (mut replicas, owner_keypair) in generate_replicas(10),
+            res in generate_replicas(10),
 
         ) {
+            let (mut replicas, owner_keypair) = res?;
             let dataset_length = dataset.len();
             let bogus_dataset_length = bogus_dataset.len();
             let number_replicas = replicas.len();
@@ -2356,7 +2359,7 @@ mod tests {
             let mut bogus_replica = Sequence::new_public(owner_keypair.public_key(), "actor".to_string(), xorname, tag);
             let perms = BTreeMap::default();
 
-            let _ = bogus_replica.create_unsigned_public_policy_op(owner_keypair.public_key(), perms).unwrap();
+            let _ = bogus_replica.create_unsigned_public_policy_op(owner_keypair.public_key(), perms)?;
 
             // generate the real ops set using random replica for each data
             let mut ops = vec![];
@@ -2365,7 +2368,7 @@ mod tests {
                 {
                     let mut op = replica.create_unsigned_append_op(data)?;
 
-                    let bytes = bincode::serialize( &op.crdt_op )?;
+                    let bytes = utils::serialise( &op.crdt_op )?;
                     let signature = owner_keypair.sign(&bytes);
                     op.signature = Some(signature);
 
@@ -2377,7 +2380,7 @@ mod tests {
             for data in bogus_dataset {
                 let mut bogus_op = bogus_replica.create_unsigned_append_op(data)?;
 
-                let bytes = bincode::serialize( &bogus_op.crdt_op )?;
+                let bytes = utils::serialise( &bogus_op.crdt_op )?;
                 let signature = owner_keypair.sign(&bytes);
                 bogus_op.signature = Some(signature);
 

@@ -56,7 +56,7 @@ pub enum SequenceRead {
 
 /// TODO: docs
 #[allow(clippy::large_enum_variant)]
-#[derive(Hash, Eq, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum SequenceWrite {
     /// Create a new Sequence on the network.
     New(Sequence),

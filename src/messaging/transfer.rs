@@ -18,7 +18,7 @@ use std::fmt;
 
 /// Money cmd that is sent to network.
 #[allow(clippy::large_enum_variant)]
-#[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum TransferCmd {
     #[cfg(feature = "simulated-payouts")]
     /// Cmd to simulate a farming payout

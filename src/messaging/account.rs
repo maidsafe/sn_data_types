@@ -18,7 +18,7 @@ pub const MAX_LOGIN_PACKET_BYTES: usize = 1024 * 1024; // 1 MB
 /// Use this only while we don't
 /// have Authenticator as its own app.
 #[allow(clippy::large_enum_variant)]
-#[derive(Hash, Eq, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum AccountWrite {
     /// Create a new account.
     New(Account),
@@ -112,7 +112,7 @@ impl fmt::Debug for AccountRead {
 /// Use this only while we don't
 /// have Authenticator as its own app.
 /// Containing arbitrary user's account information.
-#[derive(Debug, Hash, Eq, PartialEq, PartialOrd, Clone, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub struct Account {
     address: XorName,
     owner: PublicKey, // deterministically created from passwords
@@ -178,7 +178,7 @@ mod tests {
     use crate::{Error, Keypair};
 
     #[test]
-    fn exceed_size_limit() {
+    fn exceed_size_limit() -> Result<(), Error> {
         let our_id = Keypair::new_ed25519(&mut rand::thread_rng());
 
         let acc_data = vec![0; MAX_LOGIN_PACKET_BYTES + 1];
@@ -187,14 +187,14 @@ mod tests {
         let res = Account::new(rand::random(), our_id.public_key(), acc_data, signature);
 
         match res {
-            Err(Error::ExceededSize) => (),
-            Ok(_) => panic!("Unexpected success"),
-            Err(e) => panic!("Unexpected error: {:?}", e),
+            Err(Error::ExceededSize) => Ok(()),
+            Ok(_) => Err(Error::Unexpected("Unexpected success".to_string())),
+            Err(e) => Err(Error::Unexpected(format!("Unexpected error: {:?}", e))),
         }
     }
 
     #[test]
-    fn valid() {
+    fn valid() -> Result<(), Error> {
         let our_id = Keypair::new_ed25519(&mut rand::thread_rng());
 
         let acc_data = vec![1; 16];
@@ -210,8 +210,9 @@ mod tests {
         match res {
             Ok(ad) => {
                 assert_eq!(ad.data(), acc_data.as_slice());
+                Ok(())
             }
-            Err(e) => panic!("Unexpected error: {:?}", e),
+            Err(e) => Err(Error::Unexpected(format!("Unexpected error: {:?}", e))),
         }
     }
 }
