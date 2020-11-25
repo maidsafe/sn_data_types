@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.11.33](https://github.com/maidsafe/sn_data_types/compare/v0.11.32...v0.11.33) (2020-11-25)
+
 ### [0.11.32](https://github.com/maidsafe/sn_data_types/compare/v0.11.31...v0.11.32) (2020-11-25)
 
 
