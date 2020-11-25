@@ -7,7 +7,7 @@ license = "MIT OR BSD-3-Clause"
 name = "sn_data_types"
 readme = "README.md"
 repository = "https://github.com/maidsafe/sn_data_types"
-version = "0.11.31"
+version = "0.11.32"
 
 [dependencies]
 bincode = "1.2.1"
@@ -39,5 +39,6 @@ proptest = "0.10.1"
 [features]
 simulated-payouts = [ ]
 
-[patch.crates-io]
-crdts = { git = "https://github.com/joshuef/rust-crdt", branch="Remove-LseqdefaultApply" }
+[patch.crates-io.crdts]
+git = "https://github.com/joshuef/rust-crdt"
+branch = "Remove-LseqdefaultApply"
