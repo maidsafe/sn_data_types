@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.11.32](https://github.com/maidsafe/sn_data_types/compare/v0.11.31...v0.11.32) (2020-11-25)
+
+
+### Features
+
+* **seq:** require apply method call for seq crdt ([b1abdb4](https://github.com/maidsafe/sn_data_types/commit/b1abdb4f86ce8f54209282b0b16be9212b915b59))
+
 ### [0.11.31](https://github.com/maidsafe/sn_data_types/compare/v0.11.30...v0.11.31) (2020-11-24)
 
 ### [0.11.30](https://github.com/maidsafe/sn_data_types/compare/v0.11.29...v0.11.30) (2020-11-18)
