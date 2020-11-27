@@ -98,8 +98,8 @@ impl fmt::Debug for BlobWrite {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         use BlobWrite::*;
         match self {
-            New(req) => write!(formatter, "{:?}", req),
-            DeletePrivate(req) => write!(formatter, "{:?}", req),
+            New(blob) => write!(formatter, "BlobWrite::New({:?})", blob),
+            DeletePrivate(address) => write!(formatter, "BlobWrite::DeletePrivate({:?})", address),
         }
     }
 }
