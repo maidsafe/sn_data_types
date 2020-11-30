@@ -12,7 +12,7 @@ use super::{
 };
 #[cfg(feature = "simulated-payouts")]
 use crate::Transfer;
-use crate::{DebitAgreementProof, Error, PublicKey, SignedTransfer, XorName};
+use crate::{Error, PublicKey, SignedTransfer, TransferAgreementProof, XorName};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -26,7 +26,7 @@ pub enum TransferCmd {
     /// The cmd to validate a transfer.
     ValidateTransfer(SignedTransfer),
     /// The cmd to register the consensused transfer.
-    RegisterTransfer(DebitAgreementProof),
+    RegisterTransfer(TransferAgreementProof),
 }
 
 /// Money query that is sent to network.
@@ -83,10 +83,10 @@ impl TransferCmd {
     pub fn dst_address(&self) -> XorName {
         use TransferCmd::*;
         match self {
-            RegisterTransfer(ref proof) => XorName::from(proof.from()), // this is handled where the debit is made
-            ValidateTransfer(ref signed_transfer) => XorName::from(signed_transfer.from()), // this is handled where the debit is made
+            RegisterTransfer(ref proof) => XorName::from(proof.sender()), // this is handled where the debit is made
+            ValidateTransfer(ref signed_transfer) => XorName::from(signed_transfer.sender()), // this is handled where the debit is made
             #[cfg(feature = "simulated-payouts")]
-            SimulatePayout(ref transfer) => XorName::from(transfer.from()), // this is handled where the debit is made
+            SimulatePayout(ref transfer) => XorName::from(transfer.debit().sender()), // this is handled where the debit is made
         }
     }
 }
