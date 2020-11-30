@@ -1,4 +1,4 @@
-// Copyright 2019 MaidSafe.net limited.
+// Copyright 2020 MaidSafe.net limited.
 //
 // This SAFE Network Software is licensed to you under the MIT license <LICENSE-MIT
 // https://opensource.org/licenses/MIT> or the Modified BSD license <LICENSE-BSD
@@ -8,8 +8,8 @@
 // Software.
 
 use crate::{
-    Address, Blob, BlobAddress, DebitAgreementProof, Error, PublicKey, ReplicaEvent, Result,
-    Signature, SignedTransfer, TransferId, TransferValidated, XorName,
+    Address, Blob, BlobAddress, DebitId, Error, PublicKey, ReplicaEvent, Result, Signature,
+    SignedTransfer, TransferAgreementProof, TransferValidated, XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -45,11 +45,11 @@ pub enum NodeSystemCmd {
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NodeTransferCmd {
     ///
-    PropagateTransfer(DebitAgreementProof),
+    PropagateTransfer(TransferAgreementProof),
     ///
     ValidateSectionPayout(SignedTransfer),
     ///
-    RegisterSectionPayout(DebitAgreementProof),
+    RegisterSectionPayout(TransferAgreementProof),
 }
 
 ///
@@ -228,7 +228,7 @@ pub enum NodeRewardError {
     ///
     RewardPayoutInitiation {
         ///
-        id: TransferId,
+        id: DebitId,
         ///
         wallet: PublicKey,
         ///
@@ -237,7 +237,7 @@ pub enum NodeRewardError {
     ///
     RewardPayoutFinalisation {
         ///
-        id: TransferId,
+        id: DebitId,
         ///
         wallet: PublicKey,
         ///
@@ -256,9 +256,13 @@ impl NodeCmd {
             System(NodeSystemCmd::RegisterWallet { section, .. }) => Section(*section),
             Data(DuplicateChunk { new_holder, .. }) => Node(*new_holder),
             Transfers(cmd) => match cmd {
-                ValidateSectionPayout(signed_transfer) => Section(signed_transfer.from().into()),
-                RegisterSectionPayout(debit_agreement) => Section(debit_agreement.from().into()),
-                PropagateTransfer(debit_agreement) => Section(debit_agreement.to().into()),
+                ValidateSectionPayout(signed_debit) => Section(signed_debit.sender().into()),
+                RegisterSectionPayout(transfer_agreement) => {
+                    Section(transfer_agreement.sender().into())
+                }
+                PropagateTransfer(transfer_agreement) => {
+                    Section(transfer_agreement.recipient().into())
+                }
             },
         }
     }
@@ -271,7 +275,7 @@ impl NodeEvent {
         use NodeEvent::*;
         match self {
             DuplicationComplete { chunk, .. } => Section(*chunk.name()),
-            SectionPayoutValidated(event) => Section(event.from().into()),
+            SectionPayoutValidated(event) => Section(event.sender().into()),
         }
     }
 }
