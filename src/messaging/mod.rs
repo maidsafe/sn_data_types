@@ -40,10 +40,10 @@ pub use self::{
     transfer::{TransferCmd, TransferQuery},
 };
 use crate::{
-    errors::ErrorDebug, utils, AppPermissions, Blob, DebitAgreementProof, Error, Map, MapEntries,
-    MapPermissionSet, MapValue, MapValues, Money, PublicKey, ReplicaEvent, ReplicaPublicKeySet,
-    Result, Sequence, SequenceEntries, SequenceEntry, SequencePermissions, SequencePrivatePolicy,
-    SequencePublicPolicy, Signature, TransferValidated,
+    errors::ErrorDebug, utils, AppPermissions, Blob, Error, Map, MapEntries, MapPermissionSet,
+    MapValue, MapValues, Money, PublicKey, ReplicaEvent, ReplicaPublicKeySet, Result, Sequence,
+    SequenceEntries, SequenceEntry, SequencePermissions, SequencePrivatePolicy,
+    SequencePublicPolicy, Signature, TransferAgreementProof, TransferValidated,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -140,7 +140,7 @@ impl MsgEnvelope {
                         match sender.duty() {
                             // From `Gateway` to `Payment`.
                             Some(Duty::Elder(ElderDuties::Gateway)) => {
-                                Ok(Section(payment.from().into()))
+                                Ok(Section(payment.sender().into()))
                             }
                             // From `Payment` to `Metadata`.
                             Some(Duty::Elder(ElderDuties::Payment))
@@ -346,12 +346,12 @@ pub enum Event {
     /// This is a temporary variant, until
     /// SignatureAccumulation has been broken out
     /// to its own crate, and can be used at client.
-    TransferDebitAgreementReached {
+    TransferAgreementReached {
         /// This is the client id.
         /// A client can fhave any number of accounts.
         client: XorName,
         /// The accumulated proof.
-        proof: DebitAgreementProof,
+        proof: TransferAgreementProof,
     },
 }
 
@@ -361,7 +361,7 @@ impl Event {
         use Event::*;
         match self {
             TransferValidated { client, .. } => *client,
-            TransferDebitAgreementReached { client, .. } => *client,
+            TransferAgreementReached { client, .. } => *client,
         }
     }
 }
