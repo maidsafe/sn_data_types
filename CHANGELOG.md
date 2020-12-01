@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.11.34](https://github.com/maidsafe/sn_data_types/compare/v0.11.33...v0.11.34) (2020-12-01)
+
+
+### Bug Fixes
+
+* **cmd:** fix cmd destination for Metadata ([337035a](https://github.com/maidsafe/sn_data_types/commit/337035a76e4de57725ec9e51b69382b2f58cea53))
+* **debug:** fix misleading debug implementation for blob commands ([b554e77](https://github.com/maidsafe/sn_data_types/commit/b554e7745f3d3edf536c2ab3482af2dacd7d7354))
+
 ### [0.11.33](https://github.com/maidsafe/sn_data_types/compare/v0.11.32...v0.11.33) (2020-11-25)
 
 ### [0.11.32](https://github.com/maidsafe/sn_data_types/compare/v0.11.31...v0.11.32) (2020-11-25)
