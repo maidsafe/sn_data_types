@@ -38,6 +38,13 @@ pub enum NodeSystemCmd {
         /// The section where this wallet is to be registered (NB: this is the section of the node id).
         section: XorName,
     },
+    /// Notify Elders on nearing max capacity
+    StorageFull {
+        /// Node Id
+        node_id: PublicKey,
+        /// Section to which the message needs to be sent to. (NB: this is the section of the node id).
+        section: XorName,
+    },
 }
 
 ///
@@ -258,6 +265,7 @@ impl NodeCmd {
         use NodeTransferCmd::*;
         match self {
             System(NodeSystemCmd::RegisterWallet { section, .. }) => Section(*section),
+            System(NodeSystemCmd::StorageFull { section, .. }) => Section(*section),
             Data(cmd) => match cmd {
                 ReplicateChunk { new_holder, .. } => Node(*new_holder),
                 Blob(_write) => Node(XorName::default()), // todo: fix this!
