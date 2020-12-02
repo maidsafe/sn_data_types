@@ -402,6 +402,11 @@ impl Data {
             }
         }
     }
+
+    /// Returns the owner of the data.
+    pub fn owner(&self) -> PublicKey {
+        self.operations_pk
+    }
 }
 
 #[cfg(test)]

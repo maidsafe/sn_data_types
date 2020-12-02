@@ -9,9 +9,10 @@
 
 use super::{AuthorisationKind, CmdError, DataAuthKind, QueryResponse};
 use crate::{
-    Error, Sequence, SequenceAddress as Address, SequenceDataWriteOp, SequenceEntry as Entry,
-    SequenceIndex as Index, SequencePolicyWriteOp, SequencePrivatePolicy as PrivatePolicy,
-    SequencePublicPolicy as PublicPolicy, SequenceUser as User, XorName,
+    Error, PublicKey, Sequence, SequenceAddress as Address, SequenceDataWriteOp,
+    SequenceEntry as Entry, SequenceIndex as Index, SequencePolicyWriteOp,
+    SequencePrivatePolicy as PrivatePolicy, SequencePublicPolicy as PublicPolicy,
+    SequenceUser as User, XorName,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -165,6 +166,14 @@ impl SequenceWrite {
             SetPrivatePolicy(ref op) => *op.address.name(),
             // SetOwner(ref op) => *op.address.name(),
             Edit(ref op) => *op.address.name(),
+        }
+    }
+
+    /// Owner of the SequenceWrite
+    pub fn owner(&self) -> Option<PublicKey> {
+        match self {
+            Self::New(data) => Some(data.owner()),
+            _ => None,
         }
     }
 }

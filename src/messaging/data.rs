@@ -14,7 +14,7 @@ use super::{
     sequence::{SequenceRead, SequenceWrite},
     AuthorisationKind, CmdError, QueryResponse,
 };
-use crate::{Error, XorName};
+use crate::{Error, PublicKey, XorName};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -64,6 +64,16 @@ impl DataCmd {
             Map(c) => c.dst_address(),
             Sequence(c) => c.dst_address(),
             Account(c) => c.dst_address(),
+        }
+    }
+
+    /// Returns the owner of the data.
+    pub fn owner(&self) -> Option<PublicKey> {
+        match self {
+            Self::Blob(write) => write.owner(),
+            Self::Map(write) => write.owner(),
+            Self::Sequence(write) => write.owner(),
+            Self::Account(write) => Some(write.owner()),
         }
     }
 }
