@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.11.35](https://github.com/maidsafe/sn_data_types/compare/v0.11.34...v0.11.35) (2020-12-03)
+
+
+### Features
+
+* **owner:** add owner getter for all datatypes ([775eb5d](https://github.com/maidsafe/sn_data_types/commit/775eb5d326f2d39a68880918f022412ebd705f4e))
+
 ### [0.11.34](https://github.com/maidsafe/sn_data_types/compare/v0.11.33...v0.11.34) (2020-12-01)
 
 
