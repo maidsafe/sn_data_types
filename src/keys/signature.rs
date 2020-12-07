@@ -48,6 +48,14 @@ impl Signature {
             _ => None,
         }
     }
+
+    /// Returns ed25519_dalek::Signature if Self is a Ed25519 variant.
+    pub fn into_ed(self) -> Option<ed25519_dalek::Signature> {
+        match self {
+            Self::Ed25519(sig) => Some(sig),
+            _ => None,
+        }
+    }
 }
 
 impl From<threshold_crypto::Signature> for Signature {
