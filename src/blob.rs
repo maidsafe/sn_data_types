@@ -172,7 +172,7 @@ impl<'de> Deserialize<'de> for PublicData {
 
 impl Debug for PublicData {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "PublicBloblob {:?}", self.name())
+        write!(formatter, "PublicBlob {:?}", self.name())
     }
 }
 

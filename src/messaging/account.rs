@@ -61,6 +61,14 @@ impl AccountWrite {
             Update(account) => *account.address(),
         }
     }
+
+    /// Returns the owner of the account.
+    pub fn owner(&self) -> PublicKey {
+        match self {
+            Self::New(acc) => acc.owner,
+            Self::Update(acc) => acc.owner,
+        }
+    }
 }
 
 impl fmt::Debug for AccountWrite {

@@ -180,6 +180,14 @@ impl MapWrite {
             | Edit { ref address, .. } => *address.name(),
         }
     }
+
+    /// Returns the owner of the data on a New map write.
+    pub fn owner(&self) -> Option<PublicKey> {
+        match self {
+            Self::New(data) => Some(data.owner()),
+            _ => None,
+        }
+    }
 }
 
 impl fmt::Debug for MapWrite {

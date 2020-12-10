@@ -8,7 +8,7 @@
 // Software.
 
 use super::{AuthorisationKind, CmdError, DataAuthKind, QueryResponse};
-use crate::{Blob, BlobAddress, Error, XorName};
+use crate::{Blob, BlobAddress, Error, PublicKey, XorName};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -83,6 +83,14 @@ impl BlobWrite {
             DeletePrivate(ref address) => *address.name(),
         }
     }
+
+    /// Returns the owner of the data on a New Blob write.
+    pub fn owner(&self) -> Option<PublicKey> {
+        match self {
+            Self::New(data) => data.owner().cloned(),
+            Self::DeletePrivate(_) => None,
+        }
+    }
 }
 
 impl fmt::Debug for BlobRead {
@@ -98,8 +106,8 @@ impl fmt::Debug for BlobWrite {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         use BlobWrite::*;
         match self {
-            New(req) => write!(formatter, "{:?}", req),
-            DeletePrivate(req) => write!(formatter, "{:?}", req),
+            New(blob) => write!(formatter, "BlobWrite::New({:?})", blob),
+            DeletePrivate(address) => write!(formatter, "BlobWrite::DeletePrivate({:?})", address),
         }
     }
 }
