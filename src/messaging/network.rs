@@ -29,7 +29,7 @@ pub enum NodeCmd {
 }
 
 /// Cmds related to the running of a node.
-#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NodeSystemCmd {
     /// Register a wallet for reward payouts.
     RegisterWallet {
@@ -108,7 +108,7 @@ pub enum NodeEvent {
 }
 
 ///
-#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NodeQuery {
     ///
     Data(NodeDataQuery),
@@ -120,7 +120,7 @@ pub enum NodeQuery {
 
 /// Reward query that is sent between sections.
 #[allow(clippy::large_enum_variant)]
-#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NodeRewardQuery {
     /// Sent by the new section to the
     /// old section after node relocation.
@@ -135,8 +135,10 @@ pub enum NodeRewardQuery {
 }
 
 ///
-#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NodeTransferQuery {
+    ///
+    GetSectionActorHistory(PublicKey),
     /// Replicas starting up
     /// need to query for events of
     /// the existing Replicas.
@@ -176,7 +178,7 @@ pub enum NodeQueryResponse {
 
 ///
 #[allow(clippy::large_enum_variant)]
-#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NodeRewardQueryResponse {
     /// Returns the wallet address
     /// together with the new node id,
@@ -188,6 +190,8 @@ pub enum NodeRewardQueryResponse {
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NodeTransferQueryResponse {
+    /// Returns the history of the section actor.
+    GetSectionActorHistory(Result<Vec<ReplicaEvent>>),
     /// Replicas starting up
     /// need to query for events of
     /// the existing Replicas.
@@ -325,6 +329,7 @@ impl NodeQuery {
             },
             Transfers(transfer_query) => match transfer_query {
                 GetReplicaEvents(section_key) => Section((*section_key).into()),
+                GetSectionActorHistory(section_key) => Section((*section_key).into()),
             },
             Rewards(GetWalletId { old_node_id, .. }) => Section(*old_node_id),
         }
