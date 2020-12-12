@@ -7,20 +7,23 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-pub use xor_name::Prefix;
-
 use crate::{AdultDuties, Duty, ElderDuties, PublicKey, Result, Signature, SignatureShare};
 use ed25519_dalek::PublicKey as Ed25519PublicKey;
 use ed25519_dalek::Signature as Ed25519Signature;
+use hex_fmt::HexFmt;
 use serde::{Deserialize, Serialize};
 use signature::Verifier;
-use std::{fmt::Debug, hash::Hash};
+use std::{
+    fmt::{self, Debug, Display, Formatter},
+    hash::Hash,
+};
 use threshold_crypto::{
     PublicKey as BlsPublicKey, PublicKeySet as BlsPublicKeySet,
     PublicKeyShare as BlsPublicKeyShare, Signature as BlsSignature,
     SignatureShare as BlsSignatureShare,
 };
-use xor_name::XorName;
+pub use xor_name::Prefix;
+use xor_name::{XorName, XOR_NAME_LEN};
 
 /// A msg sender in the larger network (clients + nodes),
 /// provides its identification by specifying type of entity,
@@ -33,15 +36,32 @@ pub struct MsgSender {
 
 /// An identifier of a section, as
 /// of a specific Elder constellation, thereby making it transient.
-#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub struct TransientSectionKey {
     /// The group sig related id.
     pub bls_key: BlsPublicKey,
 }
 
+impl Debug for TransientSectionKey {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        write!(formatter, "TransientSectionKey::")?;
+        write!(
+            formatter,
+            "Bls({:<8})",
+            HexFmt(&self.bls_key.to_bytes()[..XOR_NAME_LEN])
+        )
+    }
+}
+
+impl Display for TransientSectionKey {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        Debug::fmt(self, formatter)
+    }
+}
+
 /// An identifier of an Elder, as
 /// of a specific Elder constellation, thereby making it transient.
-#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub struct TransientElderKey {
     /// The xorspace related id for the node.
     pub node_id: Ed25519PublicKey,
@@ -53,9 +73,31 @@ pub struct TransientElderKey {
     pub bls_public_key_set: BlsPublicKeySet,
 }
 
+impl Debug for TransientElderKey {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        write!(formatter, "TransientElderKey::")?;
+        write!(
+            formatter,
+            "Ed25519({:<8})",
+            HexFmt(&self.node_id.to_bytes())
+        )?;
+        write!(
+            formatter,
+            "BlsShare({:<8})",
+            HexFmt(&self.bls_key.to_bytes()[..XOR_NAME_LEN])
+        )
+    }
+}
+
+impl Display for TransientElderKey {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        Debug::fmt(self, formatter)
+    }
+}
+
 /// An entity in the messaging ecosystem.
 /// It has an address that can be used for messaging.
-#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum Entity {
     ///
     Client(PublicKey),
@@ -69,6 +111,37 @@ pub enum Entity {
     Section(TransientSectionKey, ElderDuties),
 }
 
+impl Debug for Entity {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        write!(formatter, "Entity::")?;
+        match self {
+            Self::Client(key) => Debug::fmt(key, formatter),
+            Self::AnyNode(key, duty) => {
+                write!(formatter, "Ed25519({:<8})", HexFmt(&key.to_bytes()))?;
+                write!(formatter, "AnyNode({:?})", duty)
+            }
+            Self::AdultNode(key, duty) => {
+                write!(formatter, "Ed25519({:<8})", HexFmt(&key.to_bytes()))?;
+                write!(formatter, "AdultNode({:?})", duty)
+            }
+            Self::ElderNode(key, duty) => {
+                Debug::fmt(key, formatter)?;
+                write!(formatter, "ElderNode({:?})", duty)
+            }
+            Self::Section(key, duty) => {
+                Debug::fmt(key, formatter)?;
+                write!(formatter, "Section({:?})", duty)
+            }
+        }
+    }
+}
+
+impl Display for Entity {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        Debug::fmt(self, formatter)
+    }
+}
+
 ///
 pub enum EntityId {
     /// Not an xorspace id.
@@ -79,7 +152,28 @@ pub enum EntityId {
     Section(BlsPublicKey),
 }
 
-#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
+impl Debug for EntityId {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        write!(formatter, "EntityId::")?;
+        match self {
+            Self::Client(pub_key) => Debug::fmt(pub_key, formatter),
+            Self::Node(pub_key) => write!(formatter, "Ed25519({:<8})", HexFmt(&pub_key.to_bytes())),
+            Self::Section(pub_key) => write!(
+                formatter,
+                "Bls({:<8})",
+                HexFmt(&pub_key.to_bytes()[..XOR_NAME_LEN])
+            ),
+        }
+    }
+}
+
+impl Display for EntityId {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        Debug::fmt(self, formatter)
+    }
+}
+
+#[derive(Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum EntitySignature {
     /// Any constellation.
     Client(Signature),
@@ -89,6 +183,36 @@ pub enum EntitySignature {
     Elder(BlsSignatureShare),
     /// The group.
     Section(BlsSignature),
+}
+
+impl Debug for EntitySignature {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        write!(formatter, "EntitySignature::")?;
+        match self {
+            Self::Client(sig) => {
+                write!(formatter, "Client::")?;
+                Debug::fmt(sig, formatter)
+            }
+            Self::Node(_) => {
+                write!(formatter, "Node::")?;
+                write!(formatter, "Ed25519(..)")
+            }
+            Self::Elder(_) => {
+                write!(formatter, "Elder::")?;
+                write!(formatter, "BlsShare(..)")
+            }
+            Self::Section(_) => {
+                write!(formatter, "Section::")?;
+                write!(formatter, "Bls(..)")
+            }
+        }
+    }
+}
+
+impl Display for EntitySignature {
+    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
+        Debug::fmt(self, formatter)
+    }
 }
 
 ///
