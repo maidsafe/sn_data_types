@@ -293,11 +293,28 @@ impl Message {
 /// an ID that is already in the cache will be ignored.
 #[derive(Ord, PartialOrd, Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize, Hash)]
 pub struct MessageId(pub XorName);
-
+use tiny_keccak::sha3_256;
 impl MessageId {
     /// Generates a new `MessageId` with random content.
     pub fn new() -> Self {
         Self(XorName::random())
+    }
+
+    /// Generates a new based on provided id.
+    pub fn in_response_to(src: &MessageId) -> MessageId {
+        let mut hash_bytes = Vec::new();
+        let src = src.0;
+        hash_bytes.extend_from_slice(&src.0);
+        MessageId(XorName(sha3_256(&hash_bytes)))
+    }
+
+    /// Generates a new based on provided sources.
+    pub fn combine(srcs: Vec<XorName>) -> MessageId {
+        let mut hash_bytes = Vec::new();
+        for src in srcs.into_iter() {
+            hash_bytes.extend_from_slice(&src.0);
+        }
+        MessageId(XorName(sha3_256(&hash_bytes)))
     }
 }
 
