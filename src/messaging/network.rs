@@ -8,7 +8,7 @@
 // Software.
 
 use crate::{
-    Address, Blob, BlobAddress, DebitId, Error, MessageId, MsgSender, PublicKey, ReplicaEvent,
+    Address, Blob, BlobAddress, BlobWrite, DebitId, Error, MsgSender, PublicKey, ReplicaEvent,
     Result, Signature, SignedTransfer, TransferAgreementProof, TransferValidated, XorName,
 };
 use serde::{Deserialize, Serialize};
@@ -56,35 +56,17 @@ pub enum NodeTransferCmd {
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NodeDataCmd {
-    /// Duplicate a given chunk at another Adult
-    DuplicateChunk {
-        /// New Holder's name
+    /// Replicate a given chunk at another Adult
+    ReplicateChunk {
+        /// New holders's name.
         new_holder: XorName,
-        /// Address of the blob to be duplicated
+        /// Address of the blob to be replicated.
         address: BlobAddress,
-        /// Current Holders
-        fetch_from_holders: BTreeSet<XorName>,
+        /// Current holders.
+        current_holders: BTreeSet<XorName>,
     },
-    /// Get Chunk from current holders for duplication
-    GetChunk {
-        /// New Holder's name
-        new_holder: XorName,
-        /// Address of the blob to be duplicated
-        address: BlobAddress,
-        /// Details of the section that authorised the duplication
-        section_authority: MsgSender,
-        /// Current Holders
-        fetch_from_holders: BTreeSet<XorName>,
-    },
-    /// Provide chunk to the new holder for duplication
-    GiveChunk {
-        /// Blob to be duplicated
-        blob: Blob,
-        /// Name of the new holder
-        new_holder: XorName,
-        /// MessageId of the Duplication Message
-        correlation_id: MessageId,
-    },
+    /// Elder-to-Adult cmd.
+    Blob(BlobWrite),
 }
 
 // -------------- Node Events --------------
@@ -93,8 +75,8 @@ pub enum NodeDataCmd {
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NodeEvent {
-    /// Wrapper for a duplicate completion response, from a node to elders.
-    DuplicationComplete {
+    /// Replication completed event, emitted by a node, received by elders.
+    ReplicationCompleted {
         ///
         chunk: BlobAddress,
         /// The Elder's accumulated signature
@@ -146,21 +128,19 @@ pub enum NodeTransferQuery {
 }
 
 ///
-#[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NodeDataQuery {
-    /// Elder to Adult Get.
+    /// Acquire the chunk from current holders for replication.
     GetChunk {
-        /// The holder id.
-        holder: XorName,
-        /// The chunk address.
+        /// New Holder's name.
+        new_holder: XorName,
+        /// Address of the blob to be replicated.
         address: BlobAddress,
-    },
-    /// Adult to Adult Get
-    GetChunks {
-        /// The holder id.
-        holder: XorName,
-        /// The chunk addresses.
-        addresses: BTreeSet<BlobAddress>,
+        /// Details of the section that authorised the replication.
+        /// (This is the accumulated sig over the `ReplicateChunk` cmd.)
+        section_authority: MsgSender,
+        /// Current holders.
+        current_holders: BTreeSet<XorName>,
     },
 }
 
@@ -224,7 +204,7 @@ pub enum NodeCmdError {
 #[derive(Debug, Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum NodeDataError {
     ///
-    ChunkDuplication {
+    ChunkReplication {
         ///
         address: BlobAddress,
         ///
@@ -279,16 +259,8 @@ impl NodeCmd {
         match self {
             System(NodeSystemCmd::RegisterWallet { section, .. }) => Section(*section),
             Data(cmd) => match cmd {
-                DuplicateChunk { new_holder, .. } => Node(*new_holder),
-                GetChunk {
-                    fetch_from_holders, ..
-                } => Node(
-                    *fetch_from_holders
-                        .iter()
-                        .next()
-                        .unwrap_or(&XorName::random()),
-                ), // namesake
-                GiveChunk { new_holder, .. } => Node(*new_holder),
+                ReplicateChunk { new_holder, .. } => Node(*new_holder),
+                Blob(_write) => Node(XorName::default()), // todo: fix this!
             },
             Transfers(cmd) => match cmd {
                 ValidateSectionPayout(signed_debit) => Section(signed_debit.sender().into()),
@@ -309,7 +281,7 @@ impl NodeEvent {
         use Address::*;
         use NodeEvent::*;
         match self {
-            DuplicationComplete { chunk, .. } => Section(*chunk.name()),
+            ReplicationCompleted { chunk, .. } => Section(*chunk.name()),
             SectionPayoutValidated(event) => Section(event.sender().into()),
         }
     }
@@ -325,7 +297,9 @@ impl NodeQuery {
         use NodeTransferQuery::*;
         match self {
             Data(data_query) => match data_query {
-                GetChunk { holder, .. } | GetChunks { holder, .. } => Node(*holder),
+                GetChunk {
+                    current_holders, ..
+                } => Node(*current_holders.iter().next().unwrap_or(&XorName::random())),
             },
             Transfers(transfer_query) => match transfer_query {
                 GetReplicaEvents(section_key) => Section((*section_key).into()),
