@@ -32,6 +32,8 @@ pub enum NodeDuties {
 pub enum AdultDuties {
     /// Keeping and serving chunks.
     ChunkStorage,
+    /// Replicating chunks.
+    ChunkReplication,
 }
 
 /// Duties of an Elder.
