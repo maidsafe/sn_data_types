@@ -144,6 +144,7 @@ impl MsgEnvelope {
                             }
                             // From `Payment` to `Metadata`.
                             Some(Duty::Elder(ElderDuties::Payment))
+                            | Some(Duty::Elder(ElderDuties::Transfer))
                             | Some(Duty::Elder(ElderDuties::Metadata)) => {
                                 Ok(Section(cmd.dst_address()))
                             }
@@ -157,6 +158,7 @@ impl MsgEnvelope {
                             // I.e. this means we accumulated a section signature from `Payment` Elders.
                             // (this is done at `Metadata` Elders, and the accumulated section is added to most recent sender)
                             Some(Duty::Elder(ElderDuties::Payment))
+                            | Some(Duty::Elder(ElderDuties::Transfer))
                             | Some(Duty::Elder(ElderDuties::Metadata)) => {
                                 Ok(Section(cmd.dst_address()))
                             }
