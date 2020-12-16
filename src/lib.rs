@@ -32,7 +32,6 @@ mod blob;
 mod errors;
 mod keys;
 mod map;
-// mod messaging;
 mod money;
 mod sequence;
 mod transfer;
