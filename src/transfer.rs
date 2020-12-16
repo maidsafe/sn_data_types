@@ -25,6 +25,15 @@ pub type CreditId = [u8; 256 / 8];
 /// Msg, containing any data to the recipient.
 pub type Msg = String;
 
+///
+#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
+pub struct WalletInfo {
+    ///
+    pub replicas: PublicKeySet,
+    ///
+    pub history: Vec<ReplicaEvent>,
+}
+
 /// A cmd to transfer of money between two keys.
 #[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Serialize, Deserialize, Debug)]
 pub struct Transfer {
