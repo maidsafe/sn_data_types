@@ -33,6 +33,11 @@ pub enum TransferCmd {
 #[allow(clippy::large_enum_variant)]
 #[derive(Hash, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum TransferQuery {
+    // /// Todo: deprecate GetReplicaKeys and GetHistory,
+    // /// and replace with this single query instead.
+    // GetWalletInfo {
+    //     wallet: PublicKey,
+    // }
     /// Get the PublicKeySet for replicas of a given PK
     GetReplicaKeys(PublicKey),
     /// Get key balance.
