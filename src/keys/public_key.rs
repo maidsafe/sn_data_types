@@ -193,7 +193,6 @@ pub(crate) mod tests {
         let bls_secret_key = threshold_crypto::SecretKeySet::random(1, &mut rng);
         vec![
             Keypair::new_ed25519(&mut rng),
-            Keypair::new_bls(&mut rng),
             Keypair::new_bls_share(
                 0,
                 bls_secret_key.secret_key_share(0),
