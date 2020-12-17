@@ -10,7 +10,7 @@
 use super::{
     keys::{PublicKey, Signature, SignatureShare},
     money::Money,
-    utils, Result,
+    utils, Error, Result,
 };
 use crdts::Dot;
 use serde::{Deserialize, Serialize};
@@ -309,6 +309,154 @@ impl SignedCredit {
 }
 
 // ------------------------------------------------------------
+//                      MULTI SIG
+// ------------------------------------------------------------
+
+/// An Actor cmd.
+#[derive(Clone, Eq, PartialEq, Serialize, Deserialize, Debug)]
+pub struct SignedTransferShare {
+    /// The debit.
+    debit: SignedDebitShare,
+    /// The credit.
+    credit: SignedCreditShare,
+    ///
+    actors: PublicKeySet,
+}
+
+impl SignedTransferShare {
+    /// ctor
+    pub fn new(
+        debit: SignedDebitShare,
+        credit: SignedCreditShare,
+        actors: PublicKeySet,
+    ) -> Result<Self> {
+        if debit.amount() != credit.amount() {
+            return Err(Error::InvalidOperation);
+        }
+        if debit.credit_id()? != *credit.id() {
+            return Err(Error::InvalidOperation);
+        }
+        let debit_sig_index = debit.actor_signature.index;
+        let credit_sig_index = credit.actor_signature.index;
+        if debit_sig_index != credit_sig_index {
+            return Err(Error::InvalidOperation);
+        }
+        Ok(Self {
+            debit,
+            credit,
+            actors,
+        })
+    }
+
+    /// Get the debit id
+    pub fn id(&self) -> DebitId {
+        self.debit.id()
+    }
+
+    /// Get the amount of this transfer
+    pub fn amount(&self) -> Money {
+        self.debit.amount()
+    }
+
+    /// Get the sender of this transfer
+    pub fn sender(&self) -> PublicKey {
+        self.debit.id().actor
+    }
+
+    /// Get the credit id of this debit.
+    pub fn credit_id(&self) -> Result<CreditId> {
+        self.debit.credit_id()
+    }
+
+    ///
+    pub fn debit(&self) -> &SignedDebitShare {
+        &self.debit
+    }
+
+    ///
+    pub fn credit(&self) -> &SignedCreditShare {
+        &self.credit
+    }
+
+    ///
+    pub fn share_index(&self) -> usize {
+        self.debit.actor_signature.index
+    }
+
+    ///
+    pub fn actors(&self) -> &PublicKeySet {
+        &self.actors
+    }
+}
+
+/// An Actor cmd.
+#[derive(Clone, Hash, Eq, PartialEq, Serialize, Deserialize, Debug)]
+pub struct SignedDebitShare {
+    /// The debit.
+    pub debit: Debit,
+    /// Actor signature over the debit.
+    pub actor_signature: SignatureShare,
+}
+
+impl SignedDebitShare {
+    /// Get the debit id
+    pub fn id(&self) -> DebitId {
+        self.debit.id()
+    }
+
+    /// Get the amount of this transfer
+    pub fn amount(&self) -> Money {
+        self.debit.amount()
+    }
+
+    /// Get the sender of this transfer
+    pub fn sender(&self) -> PublicKey {
+        self.debit.sender()
+    }
+
+    /// Get the credit id of this debit.
+    pub fn credit_id(&self) -> Result<CreditId> {
+        self.debit.credit_id()
+    }
+
+    ///
+    pub fn share_index(&self) -> usize {
+        self.actor_signature.index
+    }
+}
+
+/// An Actor cmd.
+#[derive(Clone, Hash, Eq, PartialEq, Serialize, Deserialize, Debug)]
+pub struct SignedCreditShare {
+    /// The credit.
+    pub credit: Credit,
+    /// Actor signature over the transfer.
+    pub actor_signature: SignatureShare,
+}
+
+impl SignedCreditShare {
+    /// Get the credit id
+    pub fn id(&self) -> &CreditId {
+        self.credit.id()
+    }
+
+    /// Get the amount of this transfer
+    pub fn amount(&self) -> Money {
+        self.credit.amount
+    }
+
+    /// Get the sender of this transfer
+    pub fn recipient(&self) -> PublicKey {
+        self.credit.recipient()
+    }
+
+    ///
+    pub fn share_index(&self) -> usize {
+        self.actor_signature.index
+    }
+}
+
+// ------------------------------------------------------------
 //                      Replica
 // ------------------------------------------------------------
 
@@ -316,6 +464,9 @@ impl SignedCredit {
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone, Eq, PartialEq, Serialize, Deserialize, Debug)]
 pub enum ReplicaEvent {
+    /// The event raised when
+    /// a multisig validation has been proposed.
+    TransferValidationProposed(TransferValidationProposed),
     /// The event raised when
     /// ValidateTransfer cmd has been successful.
     TransferValidated(TransferValidated),
@@ -326,11 +477,42 @@ pub enum ReplicaEvent {
     /// PropagateTransfer cmd has been successful.
     TransferPropagated(TransferPropagated),
     // /// The event raised when
-    // /// peers changed so that we have a new PublicKeySet.
-    // PeersChanged(PeersChanged),
-    /// The event raised when
-    /// we learn of a new group PK set.
-    KnownGroupAdded(KnownGroupAdded),
+    // /// we learn of a new group PK set.
+    // KnownGroupAdded(KnownGroupAdded),
+}
+
+/// The debiting Replica event raised when
+/// ProposeTransferValidation cmd has been successful.
+#[derive(Clone, Eq, PartialEq, Serialize, Deserialize, Debug)]
+pub struct TransferValidationProposed {
+    /// The debit signed by the initiating Actor.
+    pub signed_debit: SignedDebitShare,
+    /// The credit signed by the initiating Actor.
+    pub signed_credit: SignedCreditShare,
+    /// When the proposals accumulate, we have an agreed transfer.
+    pub agreed_transfer: Option<SignedTransfer>,
+}
+
+impl TransferValidationProposed {
+    /// Get the debit id
+    pub fn id(&self) -> DebitId {
+        self.signed_debit.id()
+    }
+
+    /// Get the amount of this transfer
+    pub fn amount(&self) -> Money {
+        self.signed_debit.amount()
+    }
+
+    /// Get the sender of this transfer
+    pub fn sender(&self) -> PublicKey {
+        self.signed_debit.sender()
+    }
+
+    /// Get the recipient of this transfer
+    pub fn recipient(&self) -> PublicKey {
+        self.signed_credit.recipient()
+    }
 }
 
 /// The debiting Replica event raised when
@@ -341,9 +523,9 @@ pub struct TransferValidated {
     pub signed_debit: SignedDebit,
     /// The corresponding credit, signed by the Actor.
     pub signed_credit: SignedCredit,
-    /// Replica signature over the debit.
+    /// Replica signature over the signed debit.
     pub replica_debit_sig: SignatureShare,
-    /// Replica signature over the credit.
+    /// Replica signature over the signed credit.
     pub replica_credit_sig: SignatureShare,
     /// The PK Set of the Replicas
     pub replicas: PublicKeySet,
