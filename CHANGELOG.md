@@ -15,19 +15,6 @@ All notable changes to this project will be documented in this file. See [standa
 
 * **messaging:** fix destination for Transfer messages ([479826a](https://github.com/maidsafe/sn_data_types/commit/479826a093377f668d53ebfb5aa8a7898d083306))
 
-### [0.11.38](https://github.com/maidsafe/sn_data_types/compare/v0.11.37...v0.11.38) (2020-12-16)
-
-
-### Features
-
-* **chunks:** add StorageFull Cmd for Adults ([011d6ae](https://github.com/maidsafe/sn_data_types/commit/011d6ae5e7485c3b618ee6f92bc2f5376220d4bd))
-* **MessageId:** create from source ([ed95b41](https://github.com/maidsafe/sn_data_types/commit/ed95b41884c879fabc8d61f906e8be100b80e310))
-
-
-### Bug Fixes
-
-* **messaging:** fix destination for Transfer messages ([e4d0ccb](https://github.com/maidsafe/sn_data_types/commit/e4d0ccb313ba777214c279fc73400f99fd935253))
-
 ### [0.11.37](https://github.com/maidsafe/sn_data_types/compare/v0.11.36...v0.11.37) (2020-12-08)
 
 
