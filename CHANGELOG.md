@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.11.38](https://github.com/maidsafe/sn_data_types/compare/v0.11.37...v0.11.38) (2020-12-17)
+
+
+### Features
+
+* **chunks:** add StroageFull Cmd for Adults ([51a4043](https://github.com/maidsafe/sn_data_types/commit/51a4043fab4f628738f59322cbc0cdd67983f7b8))
+* **MessageId:** create from source ([e8a7381](https://github.com/maidsafe/sn_data_types/commit/e8a7381fa4bbca9852e307147f450e80ad9f0c12))
+
+
+### Bug Fixes
+
+* **messaging:** fix destination for Transfer messages ([479826a](https://github.com/maidsafe/sn_data_types/commit/479826a093377f668d53ebfb5aa8a7898d083306))
+
 ### [0.11.38](https://github.com/maidsafe/sn_data_types/compare/v0.11.37...v0.11.38) (2020-12-16)
 
 
