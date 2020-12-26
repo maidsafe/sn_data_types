@@ -155,8 +155,6 @@ pub enum HandshakeRequest {
     Bootstrap(PublicKey),
     /// Sent to destination nodes as a response to `HandshakeResponse::Join`.
     Join(PublicKey),
-    /// Response to `HandshakeResponse::Challenge` sent by a node.
-    ChallengeResult(Signature),
 }
 
 /// Handshake responses sent from nodes to clients.
@@ -168,8 +166,6 @@ pub enum HandshakeResponse {
     Rebootstrap(Vec<(XorName, SocketAddr)>),
     /// Sent by nodes when a client reaches its destination section.
     Join(Vec<(XorName, SocketAddr)>),
-    /// Sent by nodes as a response to a valid `HandshakeRequest::Join`.
-    Challenge(PublicKey, Vec<u8>),
     /// Sent by nodes as a response to an invalid `HandshakeRequest::Join` (when a client attempts to join a wrong section).
     InvalidSection,
 }
