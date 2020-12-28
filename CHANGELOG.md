@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.11.41](https://github.com/maidsafe/sn_data_types/compare/v0.11.40...v0.11.41) (2020-12-28)
+
+
+### Features
+
+* **errors:** expose denied PK in error messages ([2d3082b](https://github.com/maidsafe/sn_data_types/commit/2d3082bf70dcfceba8110f74b8d8f95acbcdeb39))
+* use thiserror for errors ([49c32bf](https://github.com/maidsafe/sn_data_types/commit/49c32bf7bb2238b3000386e3156ab2f7cab2fecc))
+
 ### [0.11.40](https://github.com/maidsafe/sn_data_types/compare/v0.11.39...v0.11.40) (2020-12-26)
 
 ### [0.11.39](https://github.com/maidsafe/sn_data_types/compare/v0.11.38...v0.11.39) (2020-12-17)

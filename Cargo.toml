@@ -7,10 +7,10 @@ license = "MIT OR BSD-3-Clause"
 name = "sn_data_types"
 readme = "README.md"
 repository = "https://github.com/maidsafe/sn_data_types"
-version = "0.11.40"
+version = "0.11.41"
 
 [dependencies]
-thiserror="1.0.23"
+thiserror = "1.0.23"
 bincode = "1.2.1"
 multibase = "~0.8.0"
 hex_fmt = "~0.3.0"
@@ -33,7 +33,7 @@ rand_core = "~0.5.1"
   features = [ "derive" ]
 
 [dev-dependencies]
-anyhow="1.0.36" 
+anyhow = "1.0.36"
 hex = "~0.3.2"
 rand_xorshift = "~0.2.0"
 proptest = "0.10.1"
