@@ -109,7 +109,9 @@ impl Keypair {
                 let bytes = keypair.secret.to_bytes();
                 match ed25519_dalek::SecretKey::from_bytes(&bytes) {
                     Ok(sk) => Ok(SecretKey::Ed25519(sk)),
-                    Err(_) => Err(Error::Ed25519SecretKey),
+                    Err(_) => Err(Error::FailedToParse(
+                        "Could not deserialise Ed25519 secret key".to_string(),
+                    )),
                 }
             }
             Self::Bls(keypair) => Ok(SecretKey::Bls(keypair.secret.clone())),

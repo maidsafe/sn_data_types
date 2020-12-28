@@ -450,8 +450,12 @@ mod tests {
         mut op: SequencePolicyWriteOp<SequencePrivatePolicy>,
         keypair: &Keypair,
     ) -> Result<SequencePolicyWriteOp<SequencePrivatePolicy>> {
-        let bytes = utils::serialise(&op.crdt_op)
-            .map_err(|_| Error::Bincode("Could not serialise".to_string()))?;
+        let bytes = utils::serialise(&op.crdt_op).map_err(|err| {
+            Error::Serialisation(format!(
+                "Could not serialise CRDT policy write operation to generate signature: {}",
+                err
+            ))
+        })?;
         let signature = keypair.sign(&bytes);
         op.signature = Some(signature);
         Ok(op)

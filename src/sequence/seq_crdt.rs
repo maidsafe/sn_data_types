@@ -175,8 +175,12 @@ where
         // First check op is validly signed.
         // Note: Perms for the op are checked at the upper Sequence layer.
         let sig = op.signature.ok_or(Error::CrdtMissingOpSignature)?;
-        let bytes_to_verify = utils::serialise(&op.crdt_op)
-            .map_err(|_| Error::Bincode("Could not serialize crdt op".to_string()))?;
+        let bytes_to_verify = utils::serialise(&op.crdt_op).map_err(|err| {
+            Error::Serialisation(format!(
+                "Could not serialise CRDT data operation to verify signature: {}",
+                err
+            ))
+        })?;
         op.source.verify(&sig, &bytes_to_verify)?;
 
         let policy_id = op.ctx.clone();
@@ -278,8 +282,12 @@ where
         // First check op is validly signed.
         // Note: Perms for the op are checked at the upper Sequence layer.
         let sig = op.signature.ok_or(Error::CrdtMissingOpSignature)?;
-        let bytes_to_verify = utils::serialise(&op.crdt_op)
-            .map_err(|_| Error::Bincode("Could not serialise CRDT operation".to_string()))?;
+        let bytes_to_verify = utils::serialise(&op.crdt_op).map_err(|err| {
+            Error::Serialisation(format!(
+                "Could not serialise CRDT data operation to verify signature: {}",
+                err
+            ))
+        })?;
         op.source.verify(&sig, &bytes_to_verify)?;
 
         let new_lseq = if let Some((policy_id, item_id)) = op.ctx {
