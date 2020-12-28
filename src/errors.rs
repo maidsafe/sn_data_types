@@ -35,6 +35,8 @@ impl<'a, T> Debug for ErrorDebug<'a, T> {
 
 /// Main error type for the crate.
 #[derive(Error, Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+#[non_exhaustive]
+#[allow(clippy::large_enum_variant)]
 pub enum Error {
     /// Access denied for supplied PublicKey
     #[error("Access denied for PublicKey: {0}")]
