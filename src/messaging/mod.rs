@@ -626,25 +626,34 @@ impl fmt::Debug for QueryResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::keys::tests::gen_keys;
     use crate::{PublicBlob, UnseqMap};
+    use anyhow::{anyhow, Result};
     use std::convert::{TryFrom, TryInto};
 
     #[test]
-    fn debug_format() {
+    fn debug_format() -> Result<()> {
         use crate::Error;
-        let errored_response = QueryResponse::GetSequence(Err(Error::AccessDenied));
-        assert_eq!(
-            format!("{:?}", errored_response),
-            "QueryResponse::GetSequence(AccessDenied)"
-        );
+        if let Some(key) = gen_keys().first() {
+            let errored_response = QueryResponse::GetSequence(Err(Error::AccessDenied(*key)));
+            assert!(format!("{:?}", errored_response)
+                .contains("QueryResponse::GetSequence(AccessDenied(PublicKey::"));
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("Could not generate public key"))
+        }
     }
 
     #[test]
-    fn try_from() -> anyhow::Result<()> {
+    fn try_from() -> Result<()> {
         use QueryResponse::*;
+        let key = match gen_keys().first() {
+            Some(key) => *key,
+            None => return Err(anyhow!("Could not generate public key")),
+        };
 
         let i_data = Blob::Public(PublicBlob::new(vec![1, 3, 1, 4]));
-        let e = Error::AccessDenied;
+        let e = Error::AccessDenied(key);
         assert_eq!(
             i_data,
             GetBlob(Ok(i_data.clone()))

@@ -256,7 +256,7 @@ macro_rules! impl_map {
                 if self.owner == requester {
                     Ok(())
                 } else {
-                    Err(Error::AccessDenied)
+                    Err(Error::AccessDenied(requester))
                 }
             }
 
@@ -269,11 +269,11 @@ macro_rules! impl_map {
                 } else {
                     let permissions = self
                         .user_permissions(requester)
-                        .map_err(|_| Error::AccessDenied)?;
+                        .map_err(|_| Error::AccessDenied(requester))?;
                     if permissions.is_allowed(action) {
                         Ok(())
                     } else {
-                        Err(Error::AccessDenied)
+                        Err(Error::AccessDenied(requester))
                     }
                 }
             }
@@ -467,7 +467,7 @@ impl UnseqData {
                 || (!update.is_empty() && !self.is_action_allowed(&requester, Action::Update))
                 || (!delete.is_empty() && !self.is_action_allowed(&requester, Action::Delete)))
         {
-            return Err(Error::AccessDenied);
+            return Err(Error::AccessDenied(requester));
         }
 
         let mut new_data = self.data.clone();
@@ -594,7 +594,7 @@ impl SeqData {
                 || (!update.is_empty() && !self.is_action_allowed(&requester, Action::Update))
                 || (!delete.is_empty() && !self.is_action_allowed(&requester, Action::Delete)))
         {
-            return Err(Error::AccessDenied);
+            return Err(Error::AccessDenied(requester));
         }
 
         let mut new_data = self.data.clone();

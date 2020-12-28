@@ -58,7 +58,7 @@ macro_rules! check_perm {
                 if $action == Action::Admin {
                     Ok(())
                 } else {
-                    Err(Error::AccessDenied)
+                    Err(Error::AccessDenied($requester))
                 }
             }
             Some(policy) => policy.is_action_allowed($requester, $action),
@@ -1800,7 +1800,7 @@ mod tests {
     // check it fails due to not having permissions
     fn check_op_not_allowed_failure<T>(result: Result<T>) -> anyhow::Result<()> {
         match result {
-            Err(Error::AccessDenied) => Ok(()),
+            Err(Error::AccessDenied(_)) => Ok(()),
             Err(err) => Err(anyhow::anyhow!(
                 "Error returned was the unexpected one for a non-allowed op: {}",
                 err

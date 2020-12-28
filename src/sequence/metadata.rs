@@ -273,8 +273,8 @@ impl Perm for PublicPolicy {
                 .or_else(|| self.is_action_allowed_by_user(&User::Anyone, action))
             {
                 Some(true) => Ok(()),
-                Some(false) => Err(Error::AccessDenied),
-                None => Err(Error::AccessDenied),
+                Some(false) => Err(Error::AccessDenied(requester)),
+                None => Err(Error::AccessDenied(requester)),
             }
         }
     }
@@ -303,10 +303,10 @@ impl Perm for PrivatePolicy {
                     if perms.is_allowed(action) {
                         Ok(())
                     } else {
-                        Err(Error::AccessDenied)
+                        Err(Error::AccessDenied(requester))
                     }
                 }
-                None => Err(Error::AccessDenied),
+                None => Err(Error::AccessDenied(requester)),
             }
         }
     }
