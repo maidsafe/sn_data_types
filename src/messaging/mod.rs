@@ -500,6 +500,7 @@ pub enum MiscAuthKind {
 /// Error type for an attempted conversion from `QueryResponse` to a type implementing
 /// `TryFrom<Response>`.
 #[derive(Debug, PartialEq)]
+#[allow(clippy::large_enum_variant)]
 pub enum TryFromError {
     /// Wrong variant found in `QueryResponse`.
     WrongType,
