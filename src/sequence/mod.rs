@@ -449,7 +449,8 @@ mod tests {
         mut op: SequencePolicyWriteOp<SequencePrivatePolicy>,
         keypair: &Keypair,
     ) -> Result<SequencePolicyWriteOp<SequencePrivatePolicy>> {
-        let bytes = utils::serialise(&op.crdt_op).map_err(|_| "Could not serialize op")?;
+        let bytes = utils::serialise(&op.crdt_op)
+            .map_err(|_| Error::Bincode("Could not serialise".to_string()))?;
         let signature = keypair.sign(&bytes);
         op.signature = Some(signature);
         Ok(op)
@@ -551,7 +552,7 @@ mod tests {
     }
 
     #[test]
-    fn sequence_public_create_policy_op_and_apply() -> Result<()> {
+    fn sequence_public_create_policy_op_and_apply() -> anyhow::Result<()> {
         let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
         let actor = op_source_pk_keypair.public_key();
         let sequence_name = XorName::random();
@@ -616,7 +617,7 @@ mod tests {
     }
 
     #[test]
-    fn sequence_private_create_policy_op_and_apply() -> Result<()> {
+    fn sequence_private_create_policy_op_and_apply() -> anyhow::Result<()> {
         let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
         let op_source_pk = op_source_pk_keypair.public_key();
         let op_source_pk2_keypair = Keypair::new_ed25519(&mut OsRng);
@@ -690,7 +691,8 @@ mod tests {
     }
 
     #[test]
-    fn sequence_public_create_policy_op_and_append_fails_when_no_perms_for_actor() -> Result<()> {
+    fn sequence_public_create_policy_op_and_append_fails_when_no_perms_for_actor(
+    ) -> anyhow::Result<()> {
         let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
         let op_source_pk = op_source_pk_keypair.public_key();
         let op_source_pk2_keypair = Keypair::new_ed25519(&mut OsRng);
@@ -756,7 +758,7 @@ mod tests {
 
     #[test]
     fn sequence_public_create_policy_op_and_append_succeeds_when_perms_updated_for_actor(
-    ) -> Result<()> {
+    ) -> anyhow::Result<()> {
         let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
         let op_source_pk = op_source_pk_keypair.public_key();
         let op_source_pk2_keypair = Keypair::new_ed25519(&mut OsRng);
@@ -839,7 +841,8 @@ mod tests {
     }
 
     #[test]
-    fn sequence_private_create_policy_op_and_append_fails_when_no_perms_for_actor() -> Result<()> {
+    fn sequence_private_create_policy_op_and_append_fails_when_no_perms_for_actor(
+    ) -> anyhow::Result<()> {
         let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
         let op_source_pk = op_source_pk_keypair.public_key();
         let op_source_pk2_keypair = Keypair::new_ed25519(&mut OsRng);
@@ -903,8 +906,8 @@ mod tests {
     }
 
     #[test]
-    fn sequence_private_create_policy_op_and_get_read_fails_when_no_perms_for_actor() -> Result<()>
-    {
+    fn sequence_private_create_policy_op_and_get_read_fails_when_no_perms_for_actor(
+    ) -> anyhow::Result<()> {
         let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
         let op_source_pk = op_source_pk_keypair.public_key();
         let op_source_pk2_keypair = Keypair::new_ed25519(&mut OsRng);
@@ -977,7 +980,7 @@ mod tests {
 
     #[test]
     fn sequence_private_create_policy_op_and_last_entry_read_fails_when_no_perms_for_actor(
-    ) -> Result<()> {
+    ) -> anyhow::Result<()> {
         let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
         let op_source_pk = op_source_pk_keypair.public_key();
         let op_source_pk2_keypair = Keypair::new_ed25519(&mut OsRng);
@@ -1046,8 +1049,8 @@ mod tests {
     }
 
     #[test]
-    fn sequence_private_create_policy_op_and_range_read_fails_when_no_perms_for_actor() -> Result<()>
-    {
+    fn sequence_private_create_policy_op_and_range_read_fails_when_no_perms_for_actor(
+    ) -> anyhow::Result<()> {
         let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
         let op_source_pk = op_source_pk_keypair.public_key();
         let op_source_pk2_keypair = Keypair::new_ed25519(&mut OsRng);
@@ -1128,7 +1131,7 @@ mod tests {
     }
 
     #[test]
-    fn sequence_private_create_policy_op_and_read_possible_after_update() -> Result<()> {
+    fn sequence_private_create_policy_op_and_read_possible_after_update() -> anyhow::Result<()> {
         let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
         let op_source_pk = op_source_pk_keypair.public_key();
         let op_source_pk2_keypair = Keypair::new_ed25519(&mut OsRng);
@@ -1316,7 +1319,7 @@ mod tests {
     }
 
     #[test]
-    fn sequence_causality_between_data_and_policy_ops() -> Result<()> {
+    fn sequence_causality_between_data_and_policy_ops() -> anyhow::Result<()> {
         let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
         let op_source_pk = op_source_pk_keypair.public_key();
         let op_source_pk2_keypair = Keypair::new_ed25519(&mut OsRng);
@@ -1783,28 +1786,26 @@ mod tests {
     }
 
     // check it fails due to not being causally ready
-    fn check_not_causally_ready_failure(result: Result<()>) -> Result<()> {
+    fn check_not_causally_ready_failure(result: Result<()>) -> anyhow::Result<()> {
         match result {
             Err(Error::OpNotCausallyReady) => Ok(()),
-            Err(err) => Err(Error::Unexpected(format!(
+            Err(err) => Err(anyhow::anyhow!(
                 "Error returned was the unexpected one: {}",
                 err
-            ))),
-            Ok(()) => Err(Error::Unexpected(
-                "Data op applied unexpectedly".to_string(),
             )),
+            Ok(()) => Err(anyhow::anyhow!("Data op applied unexpectedly".to_string(),)),
         }
     }
 
     // check it fails due to not having permissions
-    fn check_op_not_allowed_failure<T>(result: Result<T>) -> Result<()> {
+    fn check_op_not_allowed_failure<T>(result: Result<T>) -> anyhow::Result<()> {
         match result {
             Err(Error::AccessDenied) => Ok(()),
-            Err(err) => Err(Error::Unexpected(format!(
+            Err(err) => Err(anyhow::anyhow!(
                 "Error returned was the unexpected one for a non-allowed op: {}",
                 err
-            ))),
-            Ok(_) => Err(Error::Unexpected(
+            )),
+            Ok(_) => Err(anyhow::anyhow!(
                 "Data operation succeded unexpectedly, an AccessDenied error was expected"
                     .to_string(),
             )),

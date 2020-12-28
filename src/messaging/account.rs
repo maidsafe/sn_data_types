@@ -186,7 +186,7 @@ mod tests {
     use crate::{Error, Keypair};
 
     #[test]
-    fn exceed_size_limit() -> Result<(), Error> {
+    fn exceed_size_limit() -> anyhow::Result<()> {
         let our_id = Keypair::new_ed25519(&mut rand::thread_rng());
 
         let acc_data = vec![0; MAX_LOGIN_PACKET_BYTES + 1];
@@ -196,13 +196,13 @@ mod tests {
 
         match res {
             Err(Error::ExceededSize) => Ok(()),
-            Ok(_) => Err(Error::Unexpected("Unexpected success".to_string())),
-            Err(e) => Err(Error::Unexpected(format!("Unexpected error: {:?}", e))),
+            Ok(_) => Err(anyhow::anyhow!("Unexpected success".to_string())),
+            Err(e) => Err(anyhow::anyhow!("Unexpected error: {:?}", e)),
         }
     }
 
     #[test]
-    fn valid() -> Result<(), Error> {
+    fn valid() -> anyhow::Result<()> {
         let our_id = Keypair::new_ed25519(&mut rand::thread_rng());
 
         let acc_data = vec![1; 16];
@@ -220,7 +220,7 @@ mod tests {
                 assert_eq!(ad.data(), acc_data.as_slice());
                 Ok(())
             }
-            Err(e) => Err(Error::Unexpected(format!("Unexpected error: {:?}", e))),
+            Err(e) => Err(anyhow::anyhow!("Unexpected error: {:?}", e)),
         }
     }
 }

@@ -626,7 +626,7 @@ impl fmt::Debug for QueryResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{PublicBlob, Result, UnseqMap};
+    use crate::{PublicBlob, UnseqMap};
     use std::convert::{TryFrom, TryInto};
 
     #[test]
@@ -640,7 +640,7 @@ mod tests {
     }
 
     #[test]
-    fn try_from() -> Result<()> {
+    fn try_from() -> anyhow::Result<()> {
         use QueryResponse::*;
 
         let i_data = Blob::Public(PublicBlob::new(vec![1, 3, 1, 4]));
@@ -649,7 +649,7 @@ mod tests {
             i_data,
             GetBlob(Ok(i_data.clone()))
                 .try_into()
-                .map_err(|_| Error::Unexpected("Mismatched types".to_string()))?
+                .map_err(|_| anyhow::anyhow!("Mismatched types".to_string()))?
         );
         assert_eq!(
             Err(TryFromError::Response(e.clone())),
@@ -670,7 +670,7 @@ mod tests {
             m_data,
             GetMap(Ok(m_data.clone()))
                 .try_into()
-                .map_err(|_| Error::Unexpected("Mismatched types".to_string()))?
+                .map_err(|_| anyhow::anyhow!("Mismatched types".to_string()))?
         );
         assert_eq!(
             Err(TryFromError::Response(e.clone())),
