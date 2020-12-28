@@ -7,6 +7,7 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
+use crate::PublicKey;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
@@ -36,8 +37,8 @@ impl<'a, T> Debug for ErrorDebug<'a, T> {
 #[derive(Error, Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Error {
     /// Access denied for supplied PublicKey
-    #[error("Access Denied")]
-    AccessDenied,
+    #[error("Access denied for PublicKey: {0}")]
+    AccessDenied(PublicKey),
     /// Serialization error
     #[error("Serialisation error: {0}")]
     Bincode(String),

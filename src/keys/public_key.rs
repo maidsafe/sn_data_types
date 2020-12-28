@@ -183,7 +183,7 @@ impl Display for PublicKey {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::utils;
     use threshold_crypto::{self};
@@ -202,7 +202,7 @@ mod tests {
         ]
     }
 
-    fn gen_keys() -> Vec<PublicKey> {
+    pub fn gen_keys() -> Vec<PublicKey> {
         gen_keypairs().iter().map(PublicKey::from).collect()
     }
 
