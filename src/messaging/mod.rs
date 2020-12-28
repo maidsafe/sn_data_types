@@ -640,7 +640,7 @@ mod tests {
                 .contains("QueryResponse::GetSequence(AccessDenied(PublicKey::"));
             Ok(())
         } else {
-            Err(anyhow::anyhow!("Could not generate public key"))
+            Err(anyhow!("Could not generate public key"))
         }
     }
 
@@ -658,7 +658,7 @@ mod tests {
             i_data,
             GetBlob(Ok(i_data.clone()))
                 .try_into()
-                .map_err(|_| anyhow::anyhow!("Mismatched types".to_string()))?
+                .map_err(|_| anyhow!("Mismatched types".to_string()))?
         );
         assert_eq!(
             Err(TryFromError::Response(e.clone())),
@@ -679,7 +679,7 @@ mod tests {
             m_data,
             GetMap(Ok(m_data.clone()))
                 .try_into()
-                .map_err(|_| anyhow::anyhow!("Mismatched types".to_string()))?
+                .map_err(|_| anyhow!("Mismatched types".to_string()))?
         );
         assert_eq!(
             Err(TryFromError::Response(e.clone())),

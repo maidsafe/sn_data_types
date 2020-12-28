@@ -418,6 +418,7 @@ mod tests {
         SequencePublicPolicy, SequenceUser,
     };
 
+    use anyhow::anyhow;
     use proptest::prelude::*;
     use rand::rngs::OsRng;
     use rand::seq::SliceRandom;
@@ -1789,11 +1790,8 @@ mod tests {
     fn check_not_causally_ready_failure(result: Result<()>) -> anyhow::Result<()> {
         match result {
             Err(Error::OpNotCausallyReady) => Ok(()),
-            Err(err) => Err(anyhow::anyhow!(
-                "Error returned was the unexpected one: {}",
-                err
-            )),
-            Ok(()) => Err(anyhow::anyhow!("Data op applied unexpectedly".to_string(),)),
+            Err(err) => Err(anyhow!("Error returned was the unexpected one: {}", err)),
+            Ok(()) => Err(anyhow!("Data op applied unexpectedly".to_string(),)),
         }
     }
 
@@ -1801,11 +1799,11 @@ mod tests {
     fn check_op_not_allowed_failure<T>(result: Result<T>) -> anyhow::Result<()> {
         match result {
             Err(Error::AccessDenied(_)) => Ok(()),
-            Err(err) => Err(anyhow::anyhow!(
+            Err(err) => Err(anyhow!(
                 "Error returned was the unexpected one for a non-allowed op: {}",
                 err
             )),
-            Ok(_) => Err(anyhow::anyhow!(
+            Ok(_) => Err(anyhow!(
                 "Data operation succeded unexpectedly, an AccessDenied error was expected"
                     .to_string(),
             )),

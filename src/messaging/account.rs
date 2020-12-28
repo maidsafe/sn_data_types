@@ -184,9 +184,10 @@ impl Account {
 mod tests {
     use super::{Account, MAX_LOGIN_PACKET_BYTES};
     use crate::{Error, Keypair};
+    use anyhow::{anyhow, Result};
 
     #[test]
-    fn exceed_size_limit() -> anyhow::Result<()> {
+    fn exceed_size_limit() -> Result<()> {
         let our_id = Keypair::new_ed25519(&mut rand::thread_rng());
 
         let acc_data = vec![0; MAX_LOGIN_PACKET_BYTES + 1];
@@ -196,13 +197,13 @@ mod tests {
 
         match res {
             Err(Error::ExceededSize) => Ok(()),
-            Ok(_) => Err(anyhow::anyhow!("Unexpected success".to_string())),
-            Err(e) => Err(anyhow::anyhow!("Unexpected error: {:?}", e)),
+            Ok(_) => Err(anyhow!("Unexpected success".to_string())),
+            Err(e) => Err(anyhow!("Unexpected error: {:?}", e)),
         }
     }
 
     #[test]
-    fn valid() -> anyhow::Result<()> {
+    fn valid() -> Result<()> {
         let our_id = Keypair::new_ed25519(&mut rand::thread_rng());
 
         let acc_data = vec![1; 16];
@@ -220,7 +221,7 @@ mod tests {
                 assert_eq!(ad.data(), acc_data.as_slice());
                 Ok(())
             }
-            Err(e) => Err(anyhow::anyhow!("Unexpected error: {:?}", e)),
+            Err(e) => Err(anyhow!("Unexpected error: {:?}", e)),
         }
     }
 }
