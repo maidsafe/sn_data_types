@@ -151,9 +151,7 @@ where
         match self.policy.last_entry() {
             None => Err(Error::InvalidOperation),
             Some(cur_policy) => match self.data.get_mut(&cur_policy.id) {
-                None => Err(Error::Unexpected(
-                    "The data is an unexpected inconsistent state".to_string(),
-                )),
+                None => Err(Error::CrdtUnexpectedState),
                 Some(lseq) => {
                     // Append the entry to the LSeq corresponding to current Policy
                     // TODO: lseq should not apply the op yet
@@ -176,11 +174,9 @@ where
     pub fn apply_data_op(&mut self, op: CrdtDataOperation<A, Entry>) -> Result<()> {
         // First check op is validly signed.
         // Note: Perms for the op are checked at the upper Sequence layer.
-        let sig = op
-            .signature
-            .ok_or_else(|| Error::Unexpected("No signature on crdt op".to_string()))?;
+        let sig = op.signature.ok_or(Error::CrdtMissingOpSignature)?;
         let bytes_to_verify = utils::serialise(&op.crdt_op)
-            .map_err(|_| Error::Unexpected("Could not serialize crdt op".to_string()))?;
+            .map_err(|_| Error::Bincode("Could not serialize crdt op".to_string()))?;
         op.source.verify(&sig, &bytes_to_verify)?;
 
         let policy_id = op.ctx.clone();
@@ -209,11 +205,7 @@ where
 
                 if should_apply_op {
                     // Retrieve the LSeq corresponding this Policy
-                    let lseq = self.data.get_mut(id).ok_or_else(|| {
-                        Error::Unexpected(
-                            "The data is an unexpected inconsistent state".to_string(),
-                        )
-                    })?;
+                    let lseq = self.data.get_mut(id).ok_or(Error::CrdtUnexpectedState)?;
 
                     // Apply the CRDT operation to the LSeq data
                     lseq.apply(op.crdt_op.clone());
@@ -285,11 +277,9 @@ where
     pub fn apply_policy_op(&mut self, op: CrdtPolicyOperation<A, P>) -> Result<()> {
         // First check op is validly signed.
         // Note: Perms for the op are checked at the upper Sequence layer.
-        let sig = op
-            .signature
-            .ok_or_else(|| Error::Unexpected("No signature on crdt op".to_string()))?;
+        let sig = op.signature.ok_or(Error::CrdtMissingOpSignature)?;
         let bytes_to_verify = utils::serialise(&op.crdt_op)
-            .map_err(|_| Error::Unexpected("Could not serialize crdt op".to_string()))?;
+            .map_err(|_| Error::Bincode("Could not serialise CRDT operation".to_string()))?;
         op.source.verify(&sig, &bytes_to_verify)?;
 
         let new_lseq = if let Some((policy_id, item_id)) = op.ctx {
@@ -301,9 +291,10 @@ where
                 return Err(Error::OpNotCausallyReady);
             } else {
                 // Retrieve the LSeq corresponding to the Policy this op depends on,
-                let lseq = self.data.get(&policy_id).ok_or_else(|| {
-                    Error::Unexpected("The data is an unexpected inconsistent state".to_string())
-                })?;
+                let lseq = self
+                    .data
+                    .get(&policy_id)
+                    .ok_or(Error::CrdtUnexpectedState)?;
 
                 // FIXME: Check that we actually have perms to be adding a new policy here, based on prev one...
 
