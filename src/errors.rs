@@ -43,7 +43,7 @@ pub enum Error {
     AccessDenied(PublicKey),
     /// Serialization error
     #[error("Serialisation error: {0}")]
-    Bincode(String),
+    Serialisation(String),
     /// Requested data not found
     #[error("Requested data not found")]
     NoSuchData,
@@ -105,11 +105,10 @@ pub enum Error {
     /// While parsing, precision would be lost.
     #[error("Lost precision on the number of coins during parsing")]
     LossOfPrecision,
-    /// The coin amount would exceed
-    /// [the maximum value for `Coins`](constant.MAX_COINS_VALUE.html).
-    #[error("Overflow on number of coins (check the MAX_COINS_VALUE const)")]
+    /// The amount would exceed the maximum value for `Money` (u64::MAX).
+    #[error("The money amount would exceed the maximum value (u64::MAX)")]
     ExcessiveValue,
-    /// Failed to parse the string as [`Coins`](struct.Coins.html).
+    /// Failed to parse a string.
     #[error("Failed to parse: {0}")]
     FailedToParse(String),
     /// Transaction ID already exists.
@@ -135,19 +134,16 @@ pub enum Error {
     /// Expected data size exceeded.
     #[error("Size of the structure exceeds the limit")]
     ExceededSize,
-    /// Could not be serlialised
-    #[error("Could not deserialize as ed25519 secret key")]
-    Ed25519SecretKey,
     /// The operation has not been signed by an actor PK and so cannot be validated.
     #[error("CRDT operation missing actor signature")]
     CrdtMissingOpSignature,
-    /// The data for a given policy could not be located, so CRDT operations cannot be applied
-    #[error("CRDT data is in an unexpected state. No data ffound for requested policy.")]
+    /// The data for a given policy could not be located, so CRDT operations cannot be applied.
+    #[error("CRDT data is in an unexpected and/or inconsistent state. No data found for current policy.")]
     CrdtUnexpectedState,
 }
 
 pub(crate) fn convert_bincode_error(err: bincode::Error) -> Error {
-    Error::Bincode(err.as_ref().to_string())
+    Error::Serialisation(err.as_ref().to_string())
 }
 
 /// Entry error for `Error::InvalidEntryActions`.
