@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.12.0](https://github.com/maidsafe/sn_data_types/compare/v0.11.42...v0.12.0) (2020-12-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* **auth:** Auth message types removed as this is now managed via standard data types
+
+### Features
+
+* **auth:** Remove auth message types. ([70ab97e](https://github.com/maidsafe/sn_data_types/commit/70ab97eb331cc52bad289edd81884605e6ac4703))
+
 ### [0.11.42](https://github.com/maidsafe/sn_data_types/compare/v0.11.41...v0.11.42) (2020-12-29)
 
 
