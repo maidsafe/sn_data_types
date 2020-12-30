@@ -8,7 +8,7 @@
 // Software.
 
 use super::super::transfer::TransferAgreementProof;
-use super::{auth::AuthCmd, data::DataCmd, transfer::TransferCmd, AuthorisationKind};
+use super::{data::DataCmd, transfer::TransferCmd, AuthorisationKind};
 use crate::XorName;
 use serde::{Deserialize, Serialize};
 
@@ -16,16 +16,14 @@ use serde::{Deserialize, Serialize};
 #[allow(clippy::large_enum_variant)]
 #[derive(Eq, PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub enum Cmd {
-    ///
-    Auth(AuthCmd),
-    ///
+    /// Commands for manipulating data
     Data {
-        ///
+        /// The data command struct itself
         cmd: DataCmd,
-        ///
+        /// Proof of payment for the data command
         payment: TransferAgreementProof,
     },
-    ///
+    /// Command for transfering safe network tokens
     Transfer(TransferCmd),
 }
 
@@ -34,7 +32,6 @@ impl Cmd {
     pub fn authorisation_kind(&self) -> AuthorisationKind {
         use Cmd::*;
         match self {
-            Auth(c) => c.authorisation_kind(),
             Data { cmd, .. } => cmd.authorisation_kind(),
             Transfer(c) => c.authorisation_kind(),
         }
@@ -44,7 +41,6 @@ impl Cmd {
     pub fn dst_address(&self) -> XorName {
         use Cmd::*;
         match self {
-            Auth(c) => c.dst_address(),
             Data { cmd, .. } => cmd.dst_address(),
             Transfer(c) => c.dst_address(),
         }

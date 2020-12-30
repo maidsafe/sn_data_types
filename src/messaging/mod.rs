@@ -8,7 +8,6 @@
 // Software.
 
 mod account;
-mod auth;
 mod blob;
 mod cmd;
 mod data;
@@ -22,7 +21,6 @@ mod transfer;
 
 pub use self::{
     account::{Account, AccountRead, AccountWrite, MAX_LOGIN_PACKET_BYTES},
-    auth::{AuthCmd, AuthQuery},
     blob::{BlobRead, BlobWrite},
     cmd::Cmd,
     data::{DataCmd, DataQuery},
@@ -125,8 +123,6 @@ impl MsgEnvelope {
         use Address::*;
         use Cmd::*;
         match cmd {
-            // temporary case, while not impl at `Authenticator`
-            Auth(_) => Ok(Section(self.origin.address().xorname())),
             // always to `Payment` section
             Transfer(c) => Ok(Section(c.dst_address())),
             // Data dst (after reaching `Gateway`)
