@@ -7,9 +7,7 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use super::{
-    auth::AuthQuery, data::DataQuery, transfer::TransferQuery, AuthorisationKind, QueryResponse,
-};
+use super::{data::DataQuery, transfer::TransferQuery, AuthorisationKind, QueryResponse};
 use crate::{Error, XorName};
 use serde::{Deserialize, Serialize};
 
@@ -17,8 +15,6 @@ use serde::{Deserialize, Serialize};
 #[allow(clippy::large_enum_variant)]
 #[derive(Hash, Eq, PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub enum Query {
-    ///
-    Auth(AuthQuery),
     ///
     Data(DataQuery),
     ///
@@ -30,7 +26,6 @@ impl Query {
     pub fn authorisation_kind(&self) -> AuthorisationKind {
         use Query::*;
         match self {
-            Auth(q) => q.authorisation_kind(),
             Data(q) => q.authorisation_kind(),
             Transfer(q) => q.authorisation_kind(),
         }
@@ -41,7 +36,6 @@ impl Query {
     pub fn error(&self, error: Error) -> QueryResponse {
         use Query::*;
         match self {
-            Auth(q) => q.error(error),
             Data(q) => q.error(error),
             Transfer(q) => q.error(error),
         }
@@ -51,7 +45,6 @@ impl Query {
     pub fn dst_address(&self) -> XorName {
         use Query::*;
         match self {
-            Auth(q) => q.dst_address(),
             Data(q) => q.dst_address(),
             Transfer(q) => q.dst_address(),
         }
