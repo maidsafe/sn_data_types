@@ -27,7 +27,7 @@
 //! does not have to pass version numbers for keys, but it still must pass the next version number
 //! while modifying the Map shell.
 
-use crate::{utils, EntryError, Error, PublicKey, Result};
+use crate::{utils, Error, PublicKey, Result};
 use hex_fmt::HexFmt;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -476,7 +476,7 @@ impl UnseqData {
         for (key, val) in insert {
             match new_data.entry(key) {
                 Entry::Occupied(entry) => {
-                    let _ = errors.insert(entry.key().clone(), EntryError::EntryExists(0));
+                    let _ = errors.insert(entry.key().clone(), Error::EntryExists(0));
                 }
                 Entry::Vacant(entry) => {
                     let _ = entry.insert(val);
@@ -490,7 +490,7 @@ impl UnseqData {
                     let _ = entry.insert(val);
                 }
                 Entry::Vacant(entry) => {
-                    let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
+                    let _ = errors.insert(entry.key().clone(), Error::NoSuchEntry);
                 }
             }
         }
@@ -501,7 +501,7 @@ impl UnseqData {
                     let _ = new_data.remove(&key);
                 }
                 Entry::Vacant(entry) => {
-                    let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
+                    let _ = errors.insert(entry.key().clone(), Error::NoSuchEntry);
                 }
             }
         }
@@ -605,7 +605,7 @@ impl SeqData {
                 Entry::Occupied(entry) => {
                     let _ = errors.insert(
                         entry.key().clone(),
-                        EntryError::EntryExists(entry.get().version as u8),
+                        Error::EntryExists(entry.get().version as u8),
                     );
                 }
                 Entry::Vacant(entry) => {
@@ -623,12 +623,12 @@ impl SeqData {
                     } else {
                         let _ = errors.insert(
                             entry.key().clone(),
-                            EntryError::InvalidSuccessor(current_version as u8),
+                            Error::InvalidSuccessor(current_version),
                         );
                     }
                 }
                 Entry::Vacant(entry) => {
-                    let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
+                    let _ = errors.insert(entry.key().clone(), Error::NoSuchEntry);
                 }
             }
         }
@@ -642,12 +642,12 @@ impl SeqData {
                     } else {
                         let _ = errors.insert(
                             entry.key().clone(),
-                            EntryError::InvalidSuccessor(current_version as u8),
+                            Error::InvalidSuccessor(current_version),
                         );
                     }
                 }
                 Entry::Vacant(entry) => {
-                    let _ = errors.insert(entry.key().clone(), EntryError::NoSuchEntry);
+                    let _ = errors.insert(entry.key().clone(), Error::NoSuchEntry);
                 }
             }
         }

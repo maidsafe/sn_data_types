@@ -50,15 +50,22 @@ pub enum Error {
     /// Provided data already exists on the network
     #[error("Data provided already exists")]
     DataExists,
+
+    /// Entry already exists. Contains the current entry Key.
+    #[error("Entry already exists {0}")]
+    EntryExists(u8),
+
+    /// Supplied actions are not valid
+    #[error("Some entry actions are not valid")]
+    InvalidEntryActions(BTreeMap<Vec<u8>, Error>),
+
     /// Entry could not be found on the data
     #[error("Requested entry not found")]
     NoSuchEntry,
     /// Exceeds limit on entrites for the given data type
     #[error("Exceeded a limit on a number of entries")]
     TooManyEntries,
-    /// Supplied actions are not valid
-    #[error("Some entry actions are not valid")]
-    InvalidEntryActions(BTreeMap<Vec<u8>, EntryError>),
+
     /// Key does not exist
     #[error("Key does not exist")]
     NoSuchKey,
@@ -144,18 +151,4 @@ pub enum Error {
 
 pub(crate) fn convert_bincode_error(err: bincode::Error) -> Error {
     Error::Serialisation(err.as_ref().to_string())
-}
-
-/// Entry error for `Error::InvalidEntryActions`.
-#[derive(Error, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
-pub enum EntryError {
-    /// Entry does not exists.
-    #[error("Entry does not exist")]
-    NoSuchEntry,
-    /// Entry already exists. Contains the current entry Key.
-    #[error("Entry already exists {0}")]
-    EntryExists(u8),
-    /// Invalid version when updating an entry. Contains the current entry Key.
-    #[error("Entry version for updating the entry {0}")]
-    InvalidSuccessor(u8),
 }
