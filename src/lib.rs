@@ -32,7 +32,7 @@ mod blob;
 mod errors;
 mod keys;
 mod map;
-mod messaging;
+// mod messaging;
 mod money;
 mod sequence;
 mod transfer;
@@ -56,17 +56,17 @@ pub use map::{
     UnseqEntries as MapUnseqEntries, UnseqEntryAction as MapUnseqEntryAction,
     UnseqEntryActions as MapUnseqEntryActions, Value as MapValue, Values as MapValues,
 };
-pub use messaging::{
-    Account, AccountRead, AccountWrite, Address, AdultDuties, AuthorisationKind, BlobRead,
-    BlobWrite, Cmd, CmdError, DataAuthKind, DataCmd, DataQuery, Duty, ElderDuties, Event, MapRead,
-    MapWrite, Message, MessageId, MiscAuthKind, MoneyAuthKind, MsgEnvelope, MsgSender, NodeCmd,
-    NodeCmdError, NodeDataCmd, NodeDataError, NodeDataQuery, NodeDataQueryResponse, NodeDuties,
-    NodeEvent, NodeQuery, NodeQueryResponse, NodeRewardError, NodeRewardQuery,
-    NodeRewardQueryResponse, NodeSystemCmd, NodeTransferCmd, NodeTransferError, NodeTransferQuery,
-    NodeTransferQueryResponse, Query, QueryResponse, SequenceRead, SequenceWrite, TransferCmd,
-    TransferError, TransferQuery, TransientElderKey, TransientSectionKey, TryFromError,
-    MAX_LOGIN_PACKET_BYTES,
-};
+// pub use messaging::{
+//     Account, AccountRead, AccountWrite, Address, AdultDuties, AuthorisationKind, BlobRead,
+//     BlobWrite, Cmd, CmdError, DataAuthKind, DataCmd, DataQuery, Duty, ElderDuties, Event, MapRead,
+//     MapWrite, Message, MessageId, MiscAuthKind, MoneyAuthKind, MsgEnvelope, MsgSender, NodeCmd,
+//     NodeCmdError, NodeDataCmd, NodeDataError, NodeDataQuery, NodeDataQueryResponse, NodeDuties,
+//     NodeEvent, NodeQuery, NodeQueryResponse, NodeRewardError, NodeRewardQuery,
+//     NodeRewardQueryResponse, NodeSystemCmd, NodeTransferCmd, NodeTransferError, NodeTransferQuery,
+//     NodeTransferQueryResponse, Query, QueryResponse, SequenceRead, SequenceWrite, TransferCmd,
+//     TransferError, TransferQuery, TransientElderKey, TransientSectionKey, TryFromError,
+//     MAX_LOGIN_PACKET_BYTES,
+// };
 pub use money::Money;
 
 pub use sequence::{
@@ -81,7 +81,7 @@ pub use sequence::{
 use serde::{Deserialize, Serialize};
 pub use sha3::Sha3_512 as Ed25519Digest;
 pub use transfer::*;
-pub use utils::verify_signature;
+// pub use utils::verify_signature;
 
 use std::{fmt::Debug, net::SocketAddr};
 use xor_name::XorName;
