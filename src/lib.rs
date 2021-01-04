@@ -42,7 +42,7 @@ pub use blob::{
     Address as BlobAddress, Data as Blob, Kind as BlobKind, PrivateData as PrivateBlob,
     PublicData as PublicBlob, MAX_BLOB_SIZE_IN_BYTES,
 };
-pub use errors::{EntryError, Error, Result};
+pub use errors::{Error, Result};
 
 pub use keys::{
     BlsKeypair, BlsKeypairShare, Keypair, NodeKeypairs, PublicKey, SecretKey, Signature,
