@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.13.0](https://github.com/maidsafe/sn_data_types/compare/v0.12.0...v0.13.0) (2021-01-05)
+
+
+### ⚠ BREAKING CHANGES
+
+* **errors:** errors not needed by this crate are removed
+
+### Features
+
+* **entry errors:** Merge entry errors into main errors ([c17098d](https://github.com/maidsafe/sn_data_types/commit/c17098dc68d7f2030d1de7b9e46944028ac18914))
+* **messaging:** Messaging extracted ([8719170](https://github.com/maidsafe/sn_data_types/commit/87191702b62bd08a2bc6cd5d3e3293646c441773))
+
+
+* **errors:** remove non dt-used errors ([07bd147](https://github.com/maidsafe/sn_data_types/commit/07bd147ef4764c8fe09ec5f4a5f7a3002b820822))
+
 ## [0.12.0](https://github.com/maidsafe/sn_data_types/compare/v0.11.42...v0.12.0) (2020-12-30)
 
 
