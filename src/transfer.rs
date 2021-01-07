@@ -289,6 +289,18 @@ impl SignedDebit {
     pub fn credit_id(&self) -> Result<CreditId> {
         self.debit.credit_id()
     }
+
+    /// Tries to represent the signed debit as a share.
+    pub fn as_share(&self) -> Result<SignedDebitShare> {
+        if let Signature::BlsShare(share) = self.actor_signature.clone() {
+            Ok(SignedDebitShare {
+                debit: self.debit.clone(),
+                actor_signature: share,
+            })
+        } else {
+            Err(Error::InvalidSignature)
+        }
+    }
 }
 
 /// An Actor cmd.
@@ -314,6 +326,18 @@ impl SignedCredit {
     /// Get the sender of this transfer
     pub fn recipient(&self) -> PublicKey {
         self.credit.recipient()
+    }
+
+    /// Tries to represent the signed credit as a share.
+    pub fn as_share(&self) -> Result<SignedCreditShare> {
+        if let Signature::BlsShare(share) = self.actor_signature.clone() {
+            Ok(SignedCreditShare {
+                credit: self.credit.clone(),
+                actor_signature: share,
+            })
+        } else {
+            Err(Error::InvalidSignature)
+        }
     }
 }
 
