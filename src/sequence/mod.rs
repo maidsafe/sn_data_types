@@ -172,6 +172,7 @@ impl Data {
     }
 
     /// Gets a list of items which are within the given indices.
+    /// Note the range of items is [start, end), i.e. the end index is not inclusive.
     pub fn in_range(
         &self,
         start: Index,
@@ -554,6 +555,78 @@ mod tests {
         assert_eq!(last_entry, replica2.last_entry(None)?);
 
         Ok(())
+    }
+
+    #[test]
+    fn sequence_get_in_range() -> anyhow::Result<()> {
+        let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
+        let actor = op_source_pk_keypair.public_key();
+        let sequence_name = XorName::random();
+        let sequence_tag = 43_000;
+        let mut replica1 =
+            Sequence::new_public(actor, "actor".to_string(), sequence_name, sequence_tag);
+
+        let mut perms1 = BTreeMap::default();
+        let user_perms1 = SequencePublicPermissions::new(true, false);
+        let _ = perms1.insert(SequenceUser::Anyone, user_perms1);
+        let policy_op = replica1.create_unsigned_public_policy_op(actor, perms1)?;
+        let signed_op = sign_sequence_public_policy_op(policy_op, &op_source_pk_keypair)?;
+        replica1.apply_public_policy_op(signed_op)?;
+
+        let entry1 = b"value0".to_vec();
+        let entry2 = b"value1".to_vec();
+        let entry3 = b"value2".to_vec();
+
+        let op1 = sign_sequence_data_op(
+            replica1.create_unsigned_append_op(entry1.clone())?,
+            &op_source_pk_keypair,
+        )?;
+        replica1.apply_data_op(op1)?;
+        let op2 = sign_sequence_data_op(
+            replica1.create_unsigned_append_op(entry2.clone())?,
+            &op_source_pk_keypair,
+        )?;
+        replica1.apply_data_op(op2)?;
+        let op3 = sign_sequence_data_op(
+            replica1.create_unsigned_append_op(entry3.clone())?,
+            &op_source_pk_keypair,
+        )?;
+        replica1.apply_data_op(op3)?;
+
+        assert_eq!(replica1.len(None)?, 3);
+
+        let index_0 = SequenceIndex::FromStart(0);
+        let index_1 = SequenceIndex::FromStart(1);
+        let index_2 = SequenceIndex::FromStart(2);
+        let end_index = SequenceIndex::FromEnd(0);
+
+        let first_entry = replica1.in_range(index_0, index_1, None)?;
+        assert_eq!(first_entry, Some(vec![entry1.clone()]));
+
+        let all_entries = replica1.in_range(index_0, end_index, None)?;
+        assert_eq!(
+            all_entries,
+            Some(vec![entry1, entry2.clone(), entry3.clone()])
+        );
+
+        let last_entry = replica1.in_range(index_2, end_index, None)?;
+        assert_eq!(last_entry, Some(vec![entry3]));
+
+        let second_entry = replica1.in_range(index_1, SequenceIndex::FromEnd(1), None)?;
+        assert_eq!(second_entry, Some(vec![entry2]));
+
+        let index_3 = SequenceIndex::FromStart(3);
+        match replica1.in_range(index_3, index_3, None) {
+            Ok(None) => Ok(()),
+            Ok(Some(entries)) => Err(anyhow!(
+                "Unexpectedly fetched entries from Sequence: {:?}",
+                entries
+            )),
+            Err(err) => Err(anyhow!(
+                "Unexpected error thrown when trying to fetch from Sequence with out of bound start index: {:?}",
+                err
+            )),
+        }
     }
 
     #[test]

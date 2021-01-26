@@ -380,15 +380,19 @@ where
     }
 
     /// Gets a list of items which are within the given indices.
+    /// Note the range of items is [start, end), i.e. the end index is not inclusive.
     pub fn in_range(&self, start: Index, end: Index) -> Option<Entries> {
-        let start_index = to_absolute_index(start, self.len() as usize)?;
-        let num_items = to_absolute_index(end, self.len() as usize)?; // end_index
+        let count = self.len() as usize;
+        let start_index = to_absolute_index(start, count)?;
+        if start_index >= count {
+            return None;
+        }
+        let end_index = to_absolute_index(end, count)?;
 
         self.current_lseq().map(|lseq| {
             lseq.iter()
-                .take(num_items)
                 .enumerate()
-                .take_while(|(i, _)| i >= &start_index)
+                .filter(|(i, _)| i >= &start_index && i < &end_index)
                 .map(|(_, entry)| entry.clone())
                 .collect::<Entries>()
         })
@@ -406,7 +410,7 @@ where
 
 fn to_absolute_index(index: Index, count: usize) -> Option<usize> {
     match index {
-        Index::FromStart(index) if index as usize <= count => Some(index as usize),
+        Index::FromStart(index) if (index as usize) <= count => Some(index as usize),
         Index::FromStart(_) => None,
         Index::FromEnd(index) => count.checked_sub(index as usize),
     }
