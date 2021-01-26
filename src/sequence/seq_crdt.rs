@@ -388,12 +388,13 @@ where
             return None;
         }
         let end_index = to_absolute_index(end, count)?;
+        let items_to_take = end_index - start_index;
 
         self.current_lseq().map(|lseq| {
             lseq.iter()
-                .enumerate()
-                .filter(|(i, _)| i >= &start_index && i < &end_index)
-                .map(|(_, entry)| entry.clone())
+                .skip(start_index)
+                .take(items_to_take)
+                .cloned()
                 .collect::<Entries>()
         })
     }
