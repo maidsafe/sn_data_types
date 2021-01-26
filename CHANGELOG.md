@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.13.2](https://github.com/maidsafe/sn_data_types/compare/v0.13.1...v0.13.2) (2021-01-26)
+
+
+### Bug Fixes
+
+* **seq:** in_range API was not taking the end index correctly ([b225d0e](https://github.com/maidsafe/sn_data_types/commit/b225d0e0927a1110fe1dbac60e95b3f61d4899b3))
+
 ### [0.13.1](https://github.com/maidsafe/sn_data_types/compare/v0.13.0...v0.13.1) (2021-01-14)
 
 ## [0.13.0](https://github.com/maidsafe/sn_data_types/compare/v0.12.0...v0.13.0) (2021-01-05)
