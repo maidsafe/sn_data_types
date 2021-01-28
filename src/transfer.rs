@@ -25,7 +25,8 @@ pub type CreditId = [u8; 256 / 8];
 /// Msg, containing any data to the recipient.
 pub type Msg = String;
 
-///
+/// Contains info on who the replicas
+/// of this wallet are, and the wallet history at them.
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub struct WalletInfo {
     ///
@@ -357,7 +358,7 @@ pub struct SignedTransferShare {
 }
 
 impl SignedTransferShare {
-    /// ctor
+    /// Creates a valid transfer share out of its parts.
     pub fn new(
         debit: SignedDebitShare,
         credit: SignedCreditShare,
@@ -401,22 +402,22 @@ impl SignedTransferShare {
         self.debit.credit_id()
     }
 
-    ///
+    /// Get the debit share.
     pub fn debit(&self) -> &SignedDebitShare {
         &self.debit
     }
 
-    ///
+    /// Get the credit share.
     pub fn credit(&self) -> &SignedCreditShare {
         &self.credit
     }
 
-    ///
+    /// Get the share index.
     pub fn share_index(&self) -> usize {
         self.debit.actor_signature.index
     }
 
-    ///
+    /// Get the public key set of the actors.
     pub fn actors(&self) -> &PublicKeySet {
         &self.actors
     }
@@ -509,9 +510,6 @@ pub enum ReplicaEvent {
     /// The event raised when
     /// PropagateTransfer cmd has been successful.
     TransferPropagated(TransferPropagated),
-    // /// The event raised when
-    // /// we learn of a new group PK set.
-    // KnownGroupAdded(KnownGroupAdded),
 }
 
 /// The debiting Replica event raised when
@@ -562,13 +560,6 @@ pub struct TransferValidated {
     pub replica_credit_sig: SignatureShare,
     /// The PK Set of the Replicas
     pub replicas: PublicKeySet,
-    // NB: I'm a bit ambivalent to this implicit communication of public key change.
-    // I generally prefer an explicit cmd + event for such a significant part of the logic.
-    // Including it here minimizes msg types and traffic, and seamlessly - apparently -
-    // updates Actors on any public key change, which they can accumulate in order to
-    // apply the change to local state.
-    // But it inflicts on, and complicates the logic for validating a transfer..
-    // Cost / benefit to be discussed..
 }
 
 impl TransferValidated {
