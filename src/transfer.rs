@@ -32,7 +32,7 @@ pub struct WalletInfo {
     ///
     pub replicas: PublicKeySet,
     ///
-    pub history: Vec<ReplicaEvent>,
+    pub history: ActorHistory,
 }
 
 /// A cmd to transfer of money between two keys.
@@ -126,6 +126,36 @@ impl Credit {
     /// Get the key to be credited
     pub fn recipient(&self) -> PublicKey {
         self.recipient
+    }
+}
+
+/// The history of a transfer Actor.
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub struct ActorHistory {
+    /// All the credits.
+    pub credits: Vec<CreditAgreementProof>,
+    /// All the debits.
+    pub debits: Vec<TransferAgreementProof>,
+}
+
+impl ActorHistory {
+    /// Returns empty history.
+    pub fn empty() -> Self {
+        Self {
+            credits: vec![],
+            debits: vec![],
+        }
+    }
+
+    /// Returns `true` if the history contains no elements.
+    pub fn is_empty(&self) -> bool {
+        self.credits.is_empty() && self.debits.is_empty()
+    }
+
+    /// Returns the number of elements in the history, also referred to
+    /// as its 'length'.
+    pub fn len(&self) -> usize {
+        self.credits.len() + self.debits.len()
     }
 }
 
