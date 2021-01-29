@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.13.4](https://github.com/maidsafe/sn_data_types/compare/v0.13.3...v0.13.4) (2021-01-29)
+
+
+### Features
+
+* **multi_sig:** add signed transfer shares ([7daed15](https://github.com/maidsafe/sn_data_types/commit/7daed151f173c55ac6f7c0fe31fec06734b8c311))
+* **transfers:** add as_share api to debit+credit ([a08ce5f](https://github.com/maidsafe/sn_data_types/commit/a08ce5f6768af7fa6a6b70515f343efceb5640ad))
+
 ### [0.13.3](https://github.com/maidsafe/sn_data_types/compare/v0.13.2...v0.13.3) (2021-01-28)
 
 ### [0.13.2](https://github.com/maidsafe/sn_data_types/compare/v0.13.1...v0.13.2) (2021-01-26)
