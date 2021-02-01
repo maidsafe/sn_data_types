@@ -135,13 +135,13 @@ impl PartialEq for Keypair {
 impl Eq for Keypair {}
 
 impl Keypair {
-    /// Constructs a random Ed25519 public keypair.
+    /// Constructs a random Ed25519 keypair.
     pub fn new_ed25519<T: CryptoRng + Rng>(rng: &mut T) -> Self {
         let keypair = ed25519_dalek::Keypair::generate(rng);
         Self::Ed25519(Arc::new(keypair))
     }
 
-    /// Constructs a BLS public keypair share.
+    /// Constructs a BLS keypair share.
     pub fn new_bls_share(
         index: usize,
         secret_share: threshold_crypto::SecretKeyShare,
