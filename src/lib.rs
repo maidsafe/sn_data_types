@@ -32,8 +32,8 @@ mod blob;
 mod errors;
 mod keys;
 mod map;
-mod money;
 mod sequence;
+mod token;
 mod transfer;
 mod utils;
 
@@ -56,7 +56,7 @@ pub use map::{
     UnseqEntryActions as MapUnseqEntryActions, Value as MapValue, Values as MapValues,
 };
 
-pub use money::Money;
+pub use token::Token;
 
 pub use sequence::{
     Action as SequenceAction, Address as SequenceAddress, Data as Sequence,
@@ -128,8 +128,8 @@ impl From<Sequence> for Data {
 pub struct AppPermissions {
     /// Whether this app has permissions to perform data mutations.
     pub data_mutations: bool,
-    /// Whether this app has permissions to transfer money.
-    pub transfer_money: bool,
+    /// Whether this app has permissions to transfer tokens.
+    pub transfer_tokens: bool,
     /// Whether this app has permissions to read the account balance.
     pub read_balance: bool,
     /// Whether this app has permissions to read the account transfer history.
