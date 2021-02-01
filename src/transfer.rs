@@ -9,7 +9,7 @@
 
 use super::{
     keys::{PublicKey, Signature, SignatureShare},
-    money::Money,
+    token::Token,
     utils, Error, Result,
 };
 use crdts::Dot;
@@ -35,11 +35,11 @@ pub struct WalletInfo {
     pub history: ActorHistory,
 }
 
-/// A cmd to transfer of money between two keys.
+/// A cmd to transfer of tokens between two keys.
 #[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Serialize, Deserialize, Debug)]
 pub struct Transfer {
     /// The amount to transfer.
-    pub amount: Money,
+    pub amount: Token,
     /// The destination to transfer to.
     pub to: PublicKey,
     /// Debit ID, containing source key.
@@ -68,13 +68,13 @@ impl Transfer {
     }
 }
 
-/// A debit of money at a key.
+/// A debit of tokens at a key.
 #[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Serialize, Deserialize, Debug)]
 pub struct Debit {
     /// Debit ID, containing source key.
     pub id: DebitId,
     /// The amount to debit.
-    pub amount: Money,
+    pub amount: Token,
 }
 
 impl Debit {
@@ -84,7 +84,7 @@ impl Debit {
     }
 
     /// Get the amount of this debit
-    pub fn amount(&self) -> Money {
+    pub fn amount(&self) -> Token {
         self.amount
     }
 
@@ -99,13 +99,13 @@ impl Debit {
     }
 }
 
-/// A debit of money at a key.
+/// A debit of tokens at a key.
 #[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Serialize, Deserialize, Debug)]
 pub struct Credit {
     /// Unique id for the credit, being the hash of the DebitId.
     pub id: CreditId,
     /// The amount to credit.
-    pub amount: Money,
+    pub amount: Token,
     /// The recipient key
     pub recipient: PublicKey,
     /// Msg, containing any data to the recipient.
@@ -119,7 +119,7 @@ impl Credit {
     }
 
     /// Get the amount of this credit
-    pub fn amount(&self) -> Money {
+    pub fn amount(&self) -> Token {
         self.amount
     }
 
@@ -194,7 +194,7 @@ impl CreditAgreementProof {
     }
 
     /// Get the amount of this credit
-    pub fn amount(&self) -> Money {
+    pub fn amount(&self) -> Token {
         self.signed_credit.amount()
     }
 
@@ -231,7 +231,7 @@ impl TransferAgreementProof {
     }
 
     /// Get the amount of this transfer
-    pub fn amount(&self) -> Money {
+    pub fn amount(&self) -> Token {
         self.signed_debit.amount()
     }
 
@@ -276,7 +276,7 @@ impl SignedTransfer {
     }
 
     /// Get the amount of this transfer
-    pub fn amount(&self) -> Money {
+    pub fn amount(&self) -> Token {
         self.debit.amount()
     }
 
@@ -307,7 +307,7 @@ impl SignedDebit {
     }
 
     /// Get the amount of this transfer
-    pub fn amount(&self) -> Money {
+    pub fn amount(&self) -> Token {
         self.debit.amount()
     }
 
@@ -350,7 +350,7 @@ impl SignedCredit {
     }
 
     /// Get the amount of this transfer
-    pub fn amount(&self) -> Money {
+    pub fn amount(&self) -> Token {
         self.credit.amount
     }
 
@@ -418,7 +418,7 @@ impl SignedTransferShare {
     }
 
     /// Get the amount of this transfer
-    pub fn amount(&self) -> Money {
+    pub fn amount(&self) -> Token {
         self.debit.amount()
     }
 
@@ -469,7 +469,7 @@ impl SignedDebitShare {
     }
 
     /// Get the amount of this transfer
-    pub fn amount(&self) -> Money {
+    pub fn amount(&self) -> Token {
         self.debit.amount()
     }
 
@@ -505,7 +505,7 @@ impl SignedCreditShare {
     }
 
     /// Get the amount of this transfer
-    pub fn amount(&self) -> Money {
+    pub fn amount(&self) -> Token {
         self.credit.amount
     }
 
@@ -561,7 +561,7 @@ impl TransferValidationProposed {
     }
 
     /// Get the amount of this transfer
-    pub fn amount(&self) -> Money {
+    pub fn amount(&self) -> Token {
         self.signed_debit.amount()
     }
 
@@ -599,7 +599,7 @@ impl TransferValidated {
     }
 
     /// Get the amount of this transfer
-    pub fn amount(&self) -> Money {
+    pub fn amount(&self) -> Token {
         self.signed_debit.amount()
     }
 
@@ -629,7 +629,7 @@ impl TransferRegistered {
     }
 
     /// Get the amount of this transfer
-    pub fn amount(&self) -> Money {
+    pub fn amount(&self) -> Token {
         self.transfer_proof.amount()
     }
 
@@ -663,7 +663,7 @@ impl TransferPropagated {
     }
 
     /// Get the amount of this transfer
-    pub fn amount(&self) -> Money {
+    pub fn amount(&self) -> Token {
         self.credit_proof.amount()
     }
 
