@@ -20,7 +20,64 @@ use ed25519_dalek::Signer;
 use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Debug, Formatter};
-use threshold_crypto::{self, serde_impl::SerdeSecret};
+use threshold_crypto::{self, serde_impl::SerdeSecret, PublicKeySet};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+/// Entity that owns the data or tokens.
+pub enum OwnerType {
+    /// Single owner
+    Single(PublicKey),
+    /// Multi sig owner
+    Multi(PublicKeySet),
+}
+/// Ability to sign and validate data/tokens, as well as specify the type of ownership of that data
+pub trait Signing {
+    ///
+    fn id(&self) -> OwnerType;
+    ///
+    fn sign<T: Serialize>(&self, data: &T) -> Result<Signature>;
+    ///
+    fn verify<T: Serialize>(&self, sig: &Signature, data: &T) -> bool;
+}
+
+impl Signing for Keypair {
+    fn id(&self) -> OwnerType {
+        match self {
+            Keypair::Ed25519(pair) => OwnerType::Single(PublicKey::Ed25519(pair.public)),
+            Keypair::BlsShare(share) => OwnerType::Multi(share.public_key_set.clone()),
+        }
+    }
+
+    fn sign<T: Serialize>(&self, data: &T) -> Result<Signature> {
+        let bytes = bincode::serialize(data).map_err(|e| Error::Serialisation(e.to_string()))?;
+        Ok(self.sign(&bytes))
+    }
+
+    fn verify<T: Serialize>(&self, signature: &Signature, data: &T) -> bool {
+        let data = match bincode::serialize(&data) {
+            Err(_) => return false,
+            Ok(data) => data,
+        };
+        match signature {
+            Signature::Bls(sig) => {
+                if let OwnerType::Multi(set) = self.id() {
+                    set.public_key().verify(&sig, data)
+                } else {
+                    false
+                }
+            }
+            ed @ Signature::Ed25519(_) => self.public_key().verify(ed, data).is_ok(),
+            Signature::BlsShare(share) => {
+                if let OwnerType::Multi(set) = self.id() {
+                    let pubkey_share = set.public_key_share(share.index);
+                    pubkey_share.verify(&share.share, data)
+                } else {
+                    false
+                }
+            }
+        }
+    }
+}
 
 /// Wrapper for different keypair types.
 #[derive(Serialize, Deserialize)]
