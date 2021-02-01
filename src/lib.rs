@@ -44,7 +44,8 @@ pub use blob::{
 pub use errors::{Error, Result};
 
 pub use keys::{
-    BlsKeypairShare, Keypair, NodeKeypairs, PublicKey, SecretKey, Signature, SignatureShare,
+    BlsKeypairShare, Keypair, NodeKeypairs, OwnerType, PublicKey, SecretKey, Signature,
+    SignatureShare, Signing,
 };
 pub use map::{
     Action as MapAction, Address as MapAddress, Data as Map, Entries as MapEntries,
