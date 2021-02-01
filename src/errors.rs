@@ -64,6 +64,11 @@ pub enum Error {
     /// The list of owner keys is invalid
     #[error("Invalid owner keys")]
     InvalidOwners,
+
+    /// Owner is not valid
+    #[error("Owner is not a PublicKeySet")]
+    InvalidOwnerNotPublicKeySet,
+
     /// No Policy has been set to the data
     #[error("No policy has been set for this data")]
     PolicyNotSet,

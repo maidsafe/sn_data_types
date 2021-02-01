@@ -30,7 +30,7 @@ rand_core = "~0.5.1"
 
   [dependencies.serde]
   version = "1.0.91"
-  features = [ "derive" ]
+  features = [ "derive", "rc" ]
 
 [dev-dependencies]
 anyhow = "1.0.36"
