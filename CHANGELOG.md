@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.13.5](https://github.com/maidsafe/sn_data_types/compare/v0.13.4...v0.13.5) (2021-02-01)
+
+
+### Features
+
+* Add Signing trait and OwnerType ([b7bb95f](https://github.com/maidsafe/sn_data_types/commit/b7bb95f5dff1fa5839b61c6dd6220943054747f9))
+* Use Arc internally in Keypair ([343985a](https://github.com/maidsafe/sn_data_types/commit/343985a0cd4b0abb11c25583f4fa8d9685037488))
+
 ### [0.13.4](https://github.com/maidsafe/sn_data_types/compare/v0.13.3...v0.13.4) (2021-01-29)
 
 
