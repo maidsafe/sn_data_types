@@ -34,16 +34,14 @@ pub struct PrivateData {
 
 impl PrivateData {
     /// Creates a new instance of `PrivateData`.
-    pub fn new(value: Vec<u8>, owner: PublicKey) -> crate::Result<Self> {
-        let hash_of_value = tiny_keccak::sha3_256(&value);
-        let serialised_contents = utils::serialise(&(hash_of_value, &owner))?;
-        let address = Address::Private(XorName(tiny_keccak::sha3_256(&serialised_contents)));
+    pub fn new(value: Vec<u8>, owner: PublicKey) -> Self {
+        let address = Address::Private(XorName::from_content(&[&value, &owner.to_bytes()]));
 
-        Ok(Self {
+        Self {
             address,
             value,
             owner,
-        })
+        }
     }
 
     /// Returns the value.
@@ -121,7 +119,7 @@ impl PublicData {
     /// Creates a new instance of `Blob`.
     pub fn new(value: Vec<u8>) -> Self {
         Self {
-            address: Address::Public(XorName(tiny_keccak::sha3_256(&value))),
+            address: Address::Public(XorName::from_content(&[&value])),
             value,
         }
     }
@@ -354,24 +352,23 @@ mod tests {
     use threshold_crypto::SecretKey;
 
     #[test]
-    fn deterministic_name() -> Result<()> {
+    fn deterministic_name() {
         let data1 = b"Hello".to_vec();
         let data2 = b"Goodbye".to_vec();
 
         let owner1 = PublicKey::Bls(SecretKey::random().public_key());
         let owner2 = PublicKey::Bls(SecretKey::random().public_key());
 
-        let idata1 = PrivateData::new(data1.clone(), owner1)?;
-        let idata2 = PrivateData::new(data1, owner2)?;
-        let idata3 = PrivateData::new(data2.clone(), owner1)?;
-        let idata3_clone = PrivateData::new(data2, owner1)?;
+        let idata1 = PrivateData::new(data1.clone(), owner1);
+        let idata2 = PrivateData::new(data1, owner2);
+        let idata3 = PrivateData::new(data2.clone(), owner1);
+        let idata3_clone = PrivateData::new(data2, owner1);
 
         assert_eq!(idata3, idata3_clone);
 
         assert_ne!(idata1.name(), idata2.name());
         assert_ne!(idata1.name(), idata3.name());
         assert_ne!(idata2.name(), idata3.name());
-        Ok(())
     }
 
     #[test]
