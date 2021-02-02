@@ -82,19 +82,15 @@ impl PrivateData {
 
 impl Serialize for PrivateData {
     fn serialize<S: Serializer>(&self, serialiser: S) -> Result<S::Ok, S::Error> {
-        (&self.address, &self.value, &self.owner).serialize(serialiser)
+        // Address is omitted since it's derived from value + owner
+        (&self.value, &self.owner).serialize(serialiser)
     }
 }
 
 impl<'de> Deserialize<'de> for PrivateData {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let (address, value, owner): (Address, Vec<u8>, PublicKey) =
-            Deserialize::deserialize(deserializer)?;
-        Ok(Self {
-            address,
-            value,
-            owner,
-        })
+        let (value, owner) = Deserialize::deserialize(deserializer)?;
+        Ok(Self::new(value, owner))
     }
 }
 
