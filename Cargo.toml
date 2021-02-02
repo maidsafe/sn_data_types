@@ -19,7 +19,7 @@ crdts = "4.3.0"
 sha3 = "~0.8.2"
 threshold_crypto = "~0.4.0"
 tiny-keccak = "~1.5.0"
-xor_name = "1.1.0"
+xor_name = { git = "https://github.com/maidsafe/xor_name", rev="72f1c1a02101db4612cc8e8d9aa64e490034b938" }
 ed25519 = "1.0.1"
 signature = "1.1.0"
 rand_core = "~0.5.1"
