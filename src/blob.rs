@@ -71,19 +71,23 @@ impl PrivateData {
 
     /// Returns size of this data after serialisation.
     pub fn serialised_size(&self) -> u64 {
-        serialized_size(self).unwrap_or(u64::MAX)
+        serialized_size(&self.serialised_structure()).unwrap_or(u64::MAX)
     }
 
     /// Returns `true` if the size is valid.
     pub fn validate_size(&self) -> bool {
         self.serialised_size() <= MAX_BLOB_SIZE_IN_BYTES
     }
+
+    fn serialised_structure(&self) -> (&[u8], &PublicKey) {
+        (&self.value, &self.owner)
+    }
 }
 
 impl Serialize for PrivateData {
     fn serialize<S: Serializer>(&self, serialiser: S) -> Result<S::Ok, S::Error> {
         // Address is omitted since it's derived from value + owner
-        (&self.value, &self.owner).serialize(serialiser)
+        self.serialised_structure().serialize(serialiser)
     }
 }
 
@@ -405,7 +409,7 @@ mod tests {
 
     #[test]
     fn zbase32_encode_decode_idata_address() -> Result<()> {
-        let name = XorName(rand::random());
+        let name = XorName::random();
         let address = Address::Public(name);
         let encoded = address.encode_to_zbase32()?;
         let decoded = self::Address::decode_from_zbase32(&encoded)?;
