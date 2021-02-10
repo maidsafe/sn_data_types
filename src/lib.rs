@@ -68,7 +68,6 @@ pub use sequence::{
     PublicPolicy as SequencePublicPolicy, PublicSeqData, User as SequenceUser,
 };
 use serde::{Deserialize, Serialize};
-pub use sha3::Sha3_512 as Ed25519Digest;
 pub use transfer::*;
 // pub use utils::verify_signature;
 
