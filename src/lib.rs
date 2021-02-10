@@ -88,17 +88,17 @@ pub enum Data {
 
 impl Data {
     /// Returns true if published.
-    pub fn is_pub(&self) -> bool {
+    pub fn is_public(&self) -> bool {
         match *self {
-            Self::Immutable(ref idata) => idata.is_pub(),
+            Self::Immutable(ref idata) => idata.is_public(),
             Self::Mutable(_) => false,
-            Self::Sequence(ref sequence) => sequence.is_pub(),
+            Self::Sequence(ref sequence) => sequence.is_public(),
         }
     }
 
     /// Returns true if unpublished.
     pub fn is_unpub(&self) -> bool {
-        !self.is_pub()
+        !self.is_public()
     }
 }
 

@@ -134,8 +134,8 @@ impl Data {
     }
 
     /// Returns `true` if public.
-    pub fn is_pub(&self) -> bool {
-        self.kind().is_pub()
+    pub fn is_public(&self) -> bool {
+        self.kind().is_public()
     }
 
     /// Returns `true` if private.
@@ -473,7 +473,7 @@ mod tests {
         assert_eq!(sequence.kind(), SequenceKind::Public);
         assert_eq!(*sequence.name(), sequence_name);
         assert_eq!(sequence.tag(), sequence_tag);
-        assert!(sequence.is_pub());
+        assert!(sequence.is_public());
         assert!(!sequence.is_private());
 
         let sequence_address =
@@ -492,7 +492,7 @@ mod tests {
         assert_eq!(sequence.kind(), SequenceKind::Private);
         assert_eq!(*sequence.name(), sequence_name);
         assert_eq!(sequence.tag(), sequence_tag);
-        assert!(!sequence.is_pub());
+        assert!(!sequence.is_public());
         assert!(sequence.is_private());
 
         let sequence_address =
