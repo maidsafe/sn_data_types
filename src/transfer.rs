@@ -16,7 +16,7 @@ use crdts::Dot;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Debug, Display, Formatter};
 use threshold_crypto::PublicKeySet;
-use tiny_keccak::sha3_256;
+use tiny_keccak::{Hasher, Sha3};
 
 /// Debit ID.
 pub type DebitId = Dot<PublicKey>;
@@ -95,7 +95,12 @@ impl Debit {
 
     ///
     pub fn credit_id(&self) -> Result<CreditId> {
-        Ok(sha3_256(&utils::serialise(&self.id)?))
+        let id_bytes = &utils::serialise(&self.id)?;
+        let mut hasher = Sha3::v256();
+        let mut output = [0; 32];
+        hasher.update(&id_bytes);
+        hasher.finalize(&mut output);
+        Ok(output)
     }
 }
 
