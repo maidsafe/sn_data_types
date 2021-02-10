@@ -244,36 +244,36 @@ macro_rules! impl_map {
             }
 
             /// Gets the permissions for the provided user.
-            pub fn user_permissions(&self, user: PublicKey) -> Result<&PermissionSet> {
-                self.permissions.get(&user).ok_or(Error::NoSuchKey)
+            pub fn user_permissions(&self, user: &PublicKey) -> Result<&PermissionSet> {
+                self.permissions.get(user).ok_or(Error::NoSuchKey)
             }
 
             /// Checks if the provided user is an owner.
             ///
             /// Returns `Ok(())` on success and `Err(Error::AccessDenied)` if the user is not an
             /// owner.
-            pub fn check_is_owner(&self, requester: PublicKey) -> Result<()> {
-                if self.owner == requester {
+            pub fn check_is_owner(&self, requester: &PublicKey) -> Result<()> {
+                if &self.owner == requester {
                     Ok(())
                 } else {
-                    Err(Error::AccessDenied(requester))
+                    Err(Error::AccessDenied(*requester))
                 }
             }
 
             /// Checks permissions for given `action` for the provided user.
             ///
             /// Returns `Err(Error::AccessDenied)` if the permission check has failed.
-            pub fn check_permissions(&self, action: Action, requester: PublicKey) -> Result<()> {
-                if self.owner == requester {
+            pub fn check_permissions(&self, action: Action, requester: &PublicKey) -> Result<()> {
+                if &self.owner == requester {
                     Ok(())
                 } else {
                     let permissions = self
                         .user_permissions(requester)
-                        .map_err(|_| Error::AccessDenied(requester))?;
+                        .map_err(|_| Error::AccessDenied(*requester))?;
                     if permissions.is_allowed(action) {
                         Ok(())
                     } else {
-                        Err(Error::AccessDenied(requester))
+                        Err(Error::AccessDenied(*requester))
                     }
                 }
             }
@@ -438,7 +438,7 @@ impl UnseqData {
     pub fn mutate_entries(
         &mut self,
         actions: UnseqEntryActions,
-        requester: PublicKey,
+        requester: &PublicKey,
     ) -> Result<()> {
         let (insert, update, delete) = actions.actions.into_iter().fold(
             (
@@ -462,12 +462,12 @@ impl UnseqData {
             },
         );
 
-        if *self.owner() != requester
-            && ((!insert.is_empty() && !self.is_action_allowed(&requester, Action::Insert))
-                || (!update.is_empty() && !self.is_action_allowed(&requester, Action::Update))
-                || (!delete.is_empty() && !self.is_action_allowed(&requester, Action::Delete)))
+        if self.owner() != requester
+            && ((!insert.is_empty() && !self.is_action_allowed(requester, Action::Insert))
+                || (!update.is_empty() && !self.is_action_allowed(requester, Action::Update))
+                || (!delete.is_empty() && !self.is_action_allowed(requester, Action::Delete)))
         {
-            return Err(Error::AccessDenied(requester));
+            return Err(Error::AccessDenied(*requester));
         }
 
         let mut new_data = self.data.clone();
@@ -569,7 +569,11 @@ impl SeqData {
     /// Mutates entries (key + value pairs) in bulk.
     ///
     /// Returns `Err(InvalidEntryActions)` if the mutation parameters are invalid.
-    pub fn mutate_entries(&mut self, actions: SeqEntryActions, requester: PublicKey) -> Result<()> {
+    pub fn mutate_entries(
+        &mut self,
+        actions: SeqEntryActions,
+        requester: &PublicKey,
+    ) -> Result<()> {
         // Deconstruct actions into inserts, updates, and deletes
         let (insert, update, delete) = actions.actions.into_iter().fold(
             (BTreeMap::new(), BTreeMap::new(), BTreeMap::new()),
@@ -589,12 +593,12 @@ impl SeqData {
             },
         );
 
-        if *self.owner() != requester
-            && ((!insert.is_empty() && !self.is_action_allowed(&requester, Action::Insert))
-                || (!update.is_empty() && !self.is_action_allowed(&requester, Action::Update))
-                || (!delete.is_empty() && !self.is_action_allowed(&requester, Action::Delete)))
+        if self.owner() != requester
+            && ((!insert.is_empty() && !self.is_action_allowed(requester, Action::Insert))
+                || (!update.is_empty() && !self.is_action_allowed(requester, Action::Update))
+                || (!delete.is_empty() && !self.is_action_allowed(requester, Action::Delete)))
         {
-            return Err(Error::AccessDenied(requester));
+            return Err(Error::AccessDenied(*requester));
         }
 
         let mut new_data = self.data.clone();
@@ -839,7 +843,7 @@ impl Data {
     }
 
     /// Gets the permissions for the provided user.
-    pub fn user_permissions(&self, user: PublicKey) -> Result<&PermissionSet> {
+    pub fn user_permissions(&self, user: &PublicKey) -> Result<&PermissionSet> {
         match self {
             Data::Seq(data) => data.user_permissions(user),
             Data::Unseq(data) => data.user_permissions(user),
@@ -868,7 +872,7 @@ impl Data {
     }
 
     /// Checks permissions for given `action` for the provided user.
-    pub fn check_permissions(&self, action: Action, requester: PublicKey) -> Result<()> {
+    pub fn check_permissions(&self, action: Action, requester: &PublicKey) -> Result<()> {
         match self {
             Data::Seq(data) => data.check_permissions(action, requester),
             Data::Unseq(data) => data.check_permissions(action, requester),
@@ -876,7 +880,7 @@ impl Data {
     }
 
     /// Checks if the provided user is an owner.
-    pub fn check_is_owner(&self, requester: PublicKey) -> Result<()> {
+    pub fn check_is_owner(&self, requester: &PublicKey) -> Result<()> {
         match self {
             Data::Seq(data) => data.check_is_owner(requester),
             Data::Unseq(data) => data.check_is_owner(requester),
@@ -892,7 +896,7 @@ impl Data {
     }
 
     /// Mutates entries (key + value pairs) in bulk.
-    pub fn mutate_entries(&mut self, actions: EntryActions, requester: PublicKey) -> Result<()> {
+    pub fn mutate_entries(&mut self, actions: EntryActions, requester: &PublicKey) -> Result<()> {
         match self {
             Data::Seq(data) => {
                 if let EntryActions::Seq(actions) = actions {
