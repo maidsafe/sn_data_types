@@ -706,10 +706,6 @@ impl TransferRegistered {
 pub struct TransferPropagated {
     /// The debiting Replicas' proof.
     pub credit_proof: CreditAgreementProof,
-    /// The crediting Replica signature.
-    pub crediting_replica_sig: SignatureShare,
-    /// The pub key of the debiting Replicas.
-    pub crediting_replica_keys: PublicKey,
 }
 
 impl TransferPropagated {
