@@ -79,8 +79,8 @@ impl Address {
     }
 
     /// Returns true if public.
-    pub fn is_pub(&self) -> bool {
-        self.kind().is_pub()
+    pub fn is_public(&self) -> bool {
+        self.kind().is_public()
     }
 
     /// Returns true if private.
@@ -110,13 +110,13 @@ pub enum Kind {
 
 impl Kind {
     /// Returns true if public.
-    pub fn is_pub(self) -> bool {
+    pub fn is_public(self) -> bool {
         self == Kind::Public
     }
 
     /// Returns true if private.
     pub fn is_private(self) -> bool {
-        !self.is_pub()
+        !self.is_public()
     }
 }
 
