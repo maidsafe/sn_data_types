@@ -96,7 +96,7 @@ where
     /// Constructs a new 'SequenceCrdt'.
     pub fn new(actor: A, address: Address) -> Self {
         Self {
-            actor: actor.clone(),
+            actor,
             address,
             data: BTreeMap::default(),
             policy: List::new(),

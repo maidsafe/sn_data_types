@@ -41,5 +41,5 @@ pub(crate) fn decode<I: AsRef<str>, O: DeserializeOwned>(encoded: I) -> Result<O
             base
         )));
     }
-    Ok(deserialise(&decoded).map_err(|e| Error::FailedToParse(e.to_string()))?)
+    deserialise(&decoded).map_err(|e| Error::FailedToParse(e.to_string()))
 }
