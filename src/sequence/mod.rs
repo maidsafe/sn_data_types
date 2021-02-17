@@ -11,18 +11,14 @@ mod metadata;
 mod seq_crdt;
 
 use crate::{Error, PublicKey, Result};
-use crdts::lseq::ident::Identifier;
+use crdts::list::Identifier;
 pub use metadata::{
     Action, Address, Entries, Entry, Index, Kind, Perm, Permissions, Policy, PrivatePermissions,
     PrivatePolicy, PublicPermissions, PublicPolicy, User,
 };
 use seq_crdt::{CrdtDataOperation, CrdtPolicyOperation, Op, SequenceCrdt};
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::BTreeMap,
-    fmt::{self, Debug, Formatter},
-    hash::Hash,
-};
+use std::{collections::BTreeMap, hash::Hash};
 use xor_name::XorName;
 
 // Type of data used for the 'Actor' in CRDT vector clocks
@@ -38,18 +34,6 @@ pub type PolicyWriteOp<T> = CrdtPolicyOperation<ActorType, T>;
 pub type PublicSeqData = SequenceCrdt<ActorType, PublicPolicy>;
 /// Private Sequence.
 pub type PrivateSeqData = SequenceCrdt<ActorType, PrivatePolicy>;
-
-impl Debug for PublicSeqData {
-    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "PubSequence {:?}", self.address().name())
-    }
-}
-
-impl Debug for PrivateSeqData {
-    fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "PrivSequence {:?}", self.address().name())
-    }
-}
 
 macro_rules! check_perm {
     ($policy: ident, $requester: ident, $action: ident) => {
@@ -67,7 +51,7 @@ macro_rules! check_perm {
 }
 
 /// Object storing a Sequence variant.
-#[derive(Clone, Eq, PartialEq, PartialOrd, Hash, Serialize, Deserialize, Debug)]
+#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
 enum SeqData {
     /// Public Sequence Data.
     Public(PublicSeqData),
@@ -76,7 +60,7 @@ enum SeqData {
 }
 
 /// Object storing the Sequence
-#[derive(Clone, Eq, PartialEq, PartialOrd, Hash, Serialize, Deserialize, Debug)]
+#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
 pub struct Data {
     operations_pk: PublicKey,
     data: SeqData,
@@ -533,9 +517,9 @@ mod tests {
         )?;
         replica1.apply_data_op(op2.clone())?;
 
-        // we apply the operations in different order, to verify that doesn't affect the result
-        replica2.apply_data_op(op2)?;
+        // Op's must be applied in the same order a source created them (Source Ordering)
         replica2.apply_data_op(op1)?;
+        replica2.apply_data_op(op2)?;
 
         assert_eq!(replica1.len(None)?, 2);
         assert_eq!(replica2.len(None)?, 2);
@@ -1789,11 +1773,14 @@ mod tests {
             replica1.create_unsigned_public_policy_op(op_source_pk, perms.clone())?,
             &op_source_pk_keypair,
         )?;
+        // Let's create a clone of replica1 we'll use later on to falsify a policy op
+        let mut first_op_template = owner_op.clone();
         replica1.apply_public_policy_op(owner_op.clone())?;
         replica2.apply_public_policy_op(owner_op)?;
 
-        // Let's create a clone of replica1 we'll use later on to falsify a policy op
-        let mut temp_replica = replica1.clone();
+        // Let's assert the state on both replicas
+        assert_eq!(replica1.policy_version(None)?, Some(0));
+        assert_eq!(replica2.policy_version(None)?, Some(0));
 
         // Set Actor2 as the new owner in both replicas (policy2)
         let owner_op = sign_sequence_public_policy_op(
@@ -1807,37 +1794,33 @@ mod tests {
         assert_eq!(replica1.policy_version(None)?, Some(1));
         assert_eq!(replica2.policy_version(None)?, Some(1));
 
-        // Now replica1 shouldn't be allowed to set a new policy since
-        // it's not the owner anymore, thus we use the cloned replica
-        // we created above (where replica1 is still the owner)
-        // in order to falsify a new policy operation
-        let mut owner_op = sign_sequence_public_policy_op(
-            temp_replica.create_unsigned_public_policy_op(op_source_pk, perms)?,
-            &op_source_pk_keypair,
-        )?;
-
-        // Let's falsify the op by changing the policy CRDT identifier to be the last
-        use crdts::lseq::{ident::IdentGen, Op};
-        let upper_ident = IdentGen::new("some_identifying_str".to_string()).upper();
-        owner_op.crdt_op = match owner_op.crdt_op {
-            Op::Insert { dot, val, .. } => Op::Insert {
-                id: upper_ident,
-                dot,
+        use crdts::list::{Identifier, Op};
+        use num::BigRational;
+        let big_id = BigRational::from_integer(9999.into());
+        first_op_template.ctx = Some((first_op_template.crdt_op.id().clone(), None));
+        first_op_template.crdt_op = match first_op_template.crdt_op {
+            Op::Insert { id, val, .. } => Op::Insert {
+                id: Identifier {
+                    id: big_id,
+                    dot: id.dot.inc().inc(),
+                },
                 val,
             },
-            Op::Delete { remote, dot, .. } => Op::Delete {
-                remote,
-                id: upper_ident,
+            Op::Delete { id, dot, .. } => Op::Delete {
+                id: Identifier {
+                    id: big_id,
+                    dot: id.dot.inc().inc(),
+                },
                 dot,
             },
         };
 
-        owner_op = sign_sequence_public_policy_op(owner_op, &op_source_pk_keypair)?;
+        let falsified_op =
+            sign_sequence_public_policy_op(first_op_template, &op_source_pk_keypair)?;
 
         // and now we overwrite the sig
-        replica1.apply_public_policy_op(owner_op.clone())?;
-
-        replica2.apply_public_policy_op(owner_op)?;
+        replica1.apply_public_policy_op(falsified_op.clone())?;
+        replica2.apply_public_policy_op(falsified_op)?;
 
         // Let's assert the state on both replicas
         assert_eq!(replica1.policy_version(None)?, Some(2));
@@ -2052,82 +2035,7 @@ mod tests {
             }
 
             verify_data_convergence(replicas, dataset_length)?;
-
         }
-
-
-        #[test]
-        fn proptest_converge_with_shuffled_op_set_across_arbitrary_number_of_replicas(
-            dataset in generate_dataset(100),
-            res in generate_replicas(500)
-        ) {
-            let (mut replicas, owner_keypair) = res?;
-            let dataset_length = dataset.len() as u64;
-
-            // generate an ops set from one replica
-            let mut ops = vec![];
-
-            for data in dataset {
-                let op = sign_sequence_data_op( replicas[0].create_unsigned_append_op(data)?, &owner_keypair )?;
-                replicas[0].apply_data_op(op.clone())?;
-                ops.push(op);
-            }
-
-            // now we randomly shuffle ops and apply at each replica
-            for replica in &mut replicas {
-                let mut ops = ops.clone();
-                ops.shuffle(&mut OsRng);
-
-                for op in ops {
-
-                    replica.apply_data_op(op)?;
-                }
-
-            }
-
-            verify_data_convergence(replicas, dataset_length)?;
-
-        }
-
-
-
-        #[test]
-        fn proptest_converge_with_shuffled_ops_from_many_replicas_across_arbitrary_number_of_replicas(
-            dataset in generate_dataset(1000),
-            res in generate_replicas(100)
-        ) {
-            let (mut replicas, owner_keypair) = res?;
-            let dataset_length = dataset.len() as u64;
-
-            // generate an ops set using random replica for each data
-            let mut ops = vec![];
-            for data in dataset {
-                if let Some(replica) = replicas.choose_mut(&mut OsRng)
-                {
-                    let op = sign_sequence_data_op( replica.create_unsigned_append_op(data)?, &owner_keypair )?;
-                    replica.apply_data_op(op.clone())?;
-
-                    ops.push(op);
-                }
-            }
-
-            let opslen = ops.len() as u64;
-            prop_assert_eq!(dataset_length, opslen);
-
-            // now we randomly shuffle ops and apply at each replica
-            for replica in &mut replicas {
-
-                let mut ops = ops.clone();
-                ops.shuffle(&mut OsRng);
-
-                for op in ops {
-                    replica.apply_data_op(op)?;
-                }
-            }
-
-            verify_data_convergence(replicas, dataset_length)?;
-        }
-
 
         #[test]
         fn proptest_we_converge_with_ownership_changes(
@@ -2182,36 +2090,15 @@ mod tests {
                     }
             }
 
-            let mut suffled_ops = ops.clone();
-            suffled_ops.shuffle(&mut OsRng);
 
-            for op in suffled_ops.clone() {
+            for op in ops {
                 match op {
                     OpType::Data(op) => {
-                        // TODO: current out of order ops fail...
-                        // 1. there is no permission check on if the op is allowed
-                        // 2. The permission depends on the prev one, which _if it is missing_, we should get back an error stating
-                        // missing policy requirements (lazy messaging) to resend those ops.
                         let _ = replica2.apply_data_op(op);
                     },
                     OpType::Owner(op) => {
 
                         let _ = replica2.apply_public_policy_op(op);
-                    },
-                }
-            }
-
-            // reapply any potentially failed ops
-            for op in ops.clone() {
-
-                match op {
-                    OpType::Data(op) => {
-
-                        replica2.apply_data_op(op)?;
-                    },
-                    OpType::Owner(op) => {
-
-                        replica2.apply_public_policy_op(op)?;
                     },
                 }
             }
@@ -2331,177 +2218,6 @@ mod tests {
 
             // now we converge
             verify_data_convergence(vec![replica1, replica2], dataset_length)?;
-
-        }
-
-
-        #[test]
-        fn proptest_dropped_data_can_be_reapplied_and_we_converge(
-            dataset in generate_dataset_and_probability(1000),
-        ) {
-
-            let op_source_pk_keypair = Keypair::new_ed25519(&mut OsRng);
-            let op_source_pk = op_source_pk_keypair.public_key();
-            let op_source_pk2_keypair = Keypair::new_ed25519(&mut OsRng);
-            let op_source_pk2 = op_source_pk2_keypair.public_key();
-            let sequence_name = XorName::random();
-
-            let sdata_tag = 43_001u64;
-
-            // Instantiate the same Sequence on two replicas
-            let mut replica1 = Sequence::new_public(op_source_pk, "some_identifying_str".to_string(), sequence_name, sdata_tag);
-            let mut replica2 = Sequence::new_public(op_source_pk2, "some_identifying_str2".to_string(), sequence_name, sdata_tag);
-
-            // Set Actor1 as the owner
-            let perms = BTreeMap::default();
-            let owner_op = sign_sequence_public_policy_op( replica1.create_unsigned_public_policy_op(op_source_pk, perms)?, &op_source_pk_keypair)?;
-            replica1.apply_public_policy_op(owner_op.clone())?;
-
-            replica2.apply_public_policy_op(owner_op)?;
-
-            let dataset_length = dataset.len() as u64;
-
-            let mut ops = vec![];
-            for (data, delivery_chance) in dataset {
-                    let op = sign_sequence_data_op(replica1.create_unsigned_append_op(data)?, &op_source_pk_keypair)?;
-                    replica1.apply_data_op(op.clone())?;
-
-                    ops.push((op, delivery_chance));
-            }
-
-            for (op, delivery_chance) in ops.clone() {
-                if delivery_chance < u8::MAX / 3 {
-                    replica2.apply_data_op(op)?;
-                }
-            }
-
-            // here we statistically should have dropped some messages
-            if dataset_length > 50 {
-                assert_ne!(replica2.len(None), replica1.len(None));
-            }
-
-            // reapply all ops
-            for (op, _) in ops {
-                replica2.apply_data_op(op)?;
-            }
-
-            // now we converge
-            verify_data_convergence(vec![replica1, replica2], dataset_length)?;
-
-        }
-
-        #[test]
-        fn proptest_converge_with_shuffled_ops_from_many_while_dropping_some_at_random(
-            dataset in generate_dataset_and_probability(1000),
-            res in generate_replicas(100),
-        ) {
-            let (mut replicas, owner_keypair) = res?;
-            let dataset_length = dataset.len() as u64;
-
-            // generate an ops set using random replica for each data
-            let mut ops = vec![];
-            for (data, delivery_chance) in dataset {
-
-                // a random index within the replicas range
-                let index: usize = OsRng.gen_range( 0, replicas.len());
-                let replica = &mut replicas[index];
-
-                let op = sign_sequence_data_op( replica.create_unsigned_append_op(data)?, &owner_keypair)?;
-                replica.apply_data_op(op.clone())?;
-                ops.push((op, delivery_chance));
-            }
-
-            let opslen = ops.len() as u64;
-            prop_assert_eq!(dataset_length, opslen);
-
-            // now we randomly shuffle ops and apply at each replica
-            for replica in &mut replicas {
-
-                let mut ops = ops.clone();
-                ops.shuffle(&mut OsRng);
-
-                for (op, delivery_chance) in ops.clone() {
-                    if delivery_chance > u8::MAX / 3 {
-                        replica.apply_data_op(op)?;
-                    }
-                }
-
-                // reapply all ops, simulating lazy messaging filling in the gaps
-                for (op, _) in ops {
-                    replica.apply_data_op(op)?;
-                }
-            }
-
-            verify_data_convergence(replicas, dataset_length)?;
-        }
-
-        #[test]
-        fn proptest_converge_with_shuffled_ops_including_bad_ops_which_error_and_are_not_applied(
-            dataset in generate_dataset(10),
-            // should be same number as dataset
-            bogus_dataset in generate_dataset(10),
-            res in generate_replicas(10),
-
-        ) {
-            let (mut replicas, owner_keypair) = res?;
-            let dataset_length = dataset.len();
-            let bogus_dataset_length = bogus_dataset.len();
-            let number_replicas = replicas.len();
-
-            // set up a replica that has nothing to do with the rest, random xor... different owner...
-            let xorname = XorName::random();
-            let tag = 45_000u64;
-
-            // ops are bogus as this is for another random xorname
-            let mut bogus_replica = Sequence::new_public(owner_keypair.public_key(), "actor".to_string(), xorname, tag);
-            let perms = BTreeMap::default();
-
-            let bogus_op = sign_sequence_public_policy_op(bogus_replica.create_unsigned_public_policy_op(owner_keypair.public_key(), perms)?, &owner_keypair )?;
-            bogus_replica.apply_public_policy_op(bogus_op)?;
-
-            // generate the real ops set using random replica for each data
-            let mut ops = vec![];
-            for data in dataset {
-                if let Some(replica) = replicas.choose_mut(&mut OsRng)
-                {
-                    let op = sign_sequence_data_op(replica.create_unsigned_append_op(data)?, &owner_keypair)?;
-
-                    replica.apply_data_op(op.clone())?;
-                    ops.push(op);
-                }
-            }
-
-            // add bogus ops from bogus replica + bogus data
-            for data in bogus_dataset {
-                let bogus_op = sign_sequence_data_op( bogus_replica.create_unsigned_append_op(data)?, &owner_keypair)?;
-                bogus_replica.apply_data_op(bogus_op.clone())?;
-                ops.push(bogus_op);
-            }
-
-            let opslen = ops.len();
-            prop_assert_eq!(dataset_length + bogus_dataset_length, opslen);
-
-            let mut err_count = vec![];
-            // now we randomly shuffle ops and apply at each replica
-            for replica in &mut replicas {
-                let mut ops = ops.clone();
-                ops.shuffle(&mut OsRng);
-
-                for op in ops {
-                    match replica.apply_data_op(op) {
-                        Ok(_) => {},
-                        // record all errors to check this matches bogus data
-                        Err(error) => {err_count.push(error)},
-
-                    }
-                }
-            }
-
-            // check we get an error per bogus datum per replica
-            assert_eq!(err_count.len(), bogus_dataset_length * number_replicas);
-
-            verify_data_convergence(replicas, dataset_length as u64)?;
-
         }
     }
 }
