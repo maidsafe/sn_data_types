@@ -15,7 +15,7 @@ bincode = "1.2.1"
 multibase = "~0.8.0"
 hex_fmt = "~0.3.0"
 rand = "~0.7.3"
-crdts = "4.3.0"
+crdts = "6.1.0"
 threshold_crypto = "~0.4.0"
 xor_name = "1.1.9"
 signature = "1.1.0"
@@ -34,6 +34,7 @@ rand_core = "~0.5.1"
   features = [ "sha3" ]
 
 [dev-dependencies]
+num = "*"
 anyhow = "1.0.36"
 hex = "~0.3.2"
 rand_xorshift = "~0.2.0"
