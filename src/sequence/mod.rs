@@ -1784,7 +1784,7 @@ mod tests {
 
         // Set Actor2 as the new owner in both replicas (policy2)
         let owner_op = sign_sequence_public_policy_op(
-            replica1.create_unsigned_public_policy_op(op_source_pk2, perms.clone())?,
+            replica1.create_unsigned_public_policy_op(op_source_pk2, perms)?,
             &op_source_pk_keypair,
         )?;
         replica1.apply_public_policy_op(owner_op.clone())?;
