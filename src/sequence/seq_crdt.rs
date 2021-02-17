@@ -11,24 +11,17 @@ use super::metadata::Entries;
 use super::metadata::{Address, Entry, Index, Perm};
 use crate::Signature;
 use crate::{utils, Error, PublicKey, Result};
-use crdts::{lseq::LSeq, CmRDT};
-pub use crdts::{lseq::Op, Actor};
+pub use crdts::list::Op;
+use crdts::{list::List, CmRDT};
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{self, Debug, Display},
     hash::Hash,
 };
 
-/// Since in most of the cases it will be append operations, having a small
-/// boundary will make the Identifiers' length to be shorter.
-const LSEQ_BOUNDARY: u64 = 1;
-/// Again, we are going to be dealing with append operations most of the time,
-/// thus a large arity be benefitial to keep Identifiers' length short.
-const LSEQ_TREE_BASE: u8 = 10; // arity of 1024 at root
-
 /// CRDT Data operation applicable to other Sequence replica.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct CrdtOperation<A: Actor + Display + Serialize, T> {
+pub struct CrdtOperation<A: Ord, T> {
     /// Address of a Sequence object on the network.
     pub address: Address,
     /// The data operation to apply.
@@ -40,25 +33,21 @@ pub struct CrdtOperation<A: Actor + Display + Serialize, T> {
 }
 
 /// Sequence data type as a CRDT with Access Control
-#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd)]
-pub struct SequenceCrdt<A, P>
-where
-    A: Actor + Display + Serialize,
-    P: Perm + Hash + Clone + Serialize,
-{
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct SequenceCrdt<A: Ord, P> {
     /// Actor of this piece of data
     pub(crate) actor: A,
     /// Address on the network of this piece of data
     address: Address,
     /// CRDT to store the actual data, i.e. the items of the Sequence.
-    data: LSeq<Entry, A>,
+    data: List<Entry, A>,
     /// The Policy matrix containing ownership and users permissions.
     policy: P,
 }
 
 impl<A, P> Display for SequenceCrdt<A, P>
 where
-    A: Actor + Display + Serialize,
+    A: Ord + Clone + Display + Debug + Serialize,
     P: Perm + Hash + Clone + Serialize,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -75,15 +64,15 @@ where
 
 impl<A, P> SequenceCrdt<A, P>
 where
-    A: Actor + Display + Serialize,
-    P: Perm + Hash + Clone + Serialize,
+    A: Ord + Clone + Debug + Serialize,
+    P: Serialize,
 {
     /// Constructs a new 'SequenceCrdt'.
     pub fn new(actor: A, address: Address, policy: P) -> Self {
         Self {
-            actor: actor.clone(),
+            actor,
             address,
-            data: LSeq::new_with_args(actor, LSEQ_TREE_BASE, LSEQ_BOUNDARY),
+            data: List::new(),
             policy,
         }
     }
@@ -100,14 +89,14 @@ where
 
     /// Create crdt op to append a new item to the SequenceCrdt
     pub fn create_append_op(
-        &mut self,
+        &self,
         entry: Entry,
         source: PublicKey,
     ) -> Result<CrdtOperation<A, Entry>> {
         let address = *self.address();
 
         // Append the entry to the LSeq
-        let crdt_op = self.data.append(entry);
+        let crdt_op = self.data.append(entry, self.actor.clone());
 
         // We return the operation as it may need to be broadcasted to other replicas
         Ok(CrdtOperation {
@@ -141,7 +130,7 @@ where
     /// Gets the entry at `index` if it exists.
     pub fn get(&self, index: Index) -> Option<&Entry> {
         let i = to_absolute_index(index, self.len() as usize)?;
-        self.data.get(i)
+        self.data.position(i)
     }
 
     /// Gets the last entry.
