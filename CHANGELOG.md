@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.15.0](https://github.com/maidsafe/sn_data_types/compare/v0.14.8...v0.15.0) (2021-02-22)
+
+
+### ⚠ BREAKING CHANGES
+
+* **api:** borrow pattern updated, breaking the current dt api
+
+### Features
+
+* **api:** api updated ([1d83574](https://github.com/maidsafe/sn_data_types/commit/1d83574d625e3eb2db4555f18d066e66c62a31ab))
+
 ### [0.14.8](https://github.com/maidsafe/sn_data_types/compare/v0.14.7...v0.14.8) (2021-02-22)
 
 ### [0.14.7](https://github.com/maidsafe/sn_data_types/compare/v0.14.6...v0.14.7) (2021-02-22)
