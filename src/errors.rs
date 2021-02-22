@@ -44,30 +44,31 @@ pub enum Error {
     /// Serialization error
     #[error("Serialisation error: {0}")]
     Serialisation(String),
-    /// Requested data not found
-    #[error("Requested data not found")]
-    NoSuchData,
-    /// Provided data already exists on the network
-    #[error("Data provided already exists")]
-    DataExists,
+
+    /// Entry already exists. Contains the current entry Key.
+    #[error("Entry already exists {0}")]
+    EntryExists(u8),
+
+    /// Supplied actions are not valid
+    #[error("Some entry actions are not valid")]
+    InvalidEntryActions(BTreeMap<Vec<u8>, Error>),
+
     /// Entry could not be found on the data
     #[error("Requested entry not found")]
     NoSuchEntry,
-    /// Exceeds limit on entrites for the given data type
-    #[error("Exceeded a limit on a number of entries")]
-    TooManyEntries,
-    /// Supplied actions are not valid
-    #[error("Some entry actions are not valid")]
-    InvalidEntryActions(BTreeMap<Vec<u8>, EntryError>),
+
     /// Key does not exist
     #[error("Key does not exist")]
     NoSuchKey,
-    /// Duplicate Entries in this push
-    #[error("Duplicate entries provided")]
-    DuplicateEntryKeys,
+
     /// The list of owner keys is invalid
     #[error("Invalid owner keys")]
     InvalidOwners,
+
+    /// Owner is not valid
+    #[error("Owner is not a PublicKeySet")]
+    InvalidOwnerNotPublicKeySet,
+
     /// No Policy has been set to the data
     #[error("No policy has been set for this data")]
     PolicyNotSet,
@@ -75,17 +76,11 @@ pub enum Error {
     /// current data version.
     #[error("Invalid version provided: {0}")]
     InvalidSuccessor(u64),
-    /// Invalid version for performing a given mutating operation. Contains the
-    /// current owners version.
-    #[error("Invalid owners version provided: {0}")]
-    InvalidOwnersSuccessor(u64),
+
     /// Invalid mutating operation as it causality dependency is currently not satisfied
     #[error("Operation is not causally ready. Ensure you have the full history of operations.")]
     OpNotCausallyReady,
-    /// Invalid version for performing a given mutating operation. Contains the
-    /// current permissions version.
-    #[error("Invalid permission version provided: {0}")]
-    InvalidPermissionsSuccessor(u64),
+
     /// Invalid Operation such as a POST on ImmutableData
     #[error("Invalid operation")]
     InvalidOperation,
@@ -95,42 +90,20 @@ pub enum Error {
     /// Failed signature validation.
     #[error("Invalid signature")]
     InvalidSignature,
-    /// Received a request with a duplicate MessageId
-    #[error("Duplicate message id received")]
-    DuplicateMessageId,
-    /// Network error occurring at Node level which has no bearing on clients, e.g. serialisation
-    /// failure or database failure
-    #[error("Network error: {0}")]
-    NetworkOther(String),
     /// While parsing, precision would be lost.
     #[error("Lost precision on the number of coins during parsing")]
     LossOfPrecision,
-    /// The amount would exceed the maximum value for `Money` (u64::MAX).
-    #[error("The money amount would exceed the maximum value (u64::MAX)")]
+    /// The amount would exceed the maximum value for `Token` (u64::MAX).
+    #[error("The token amount would exceed the maximum value (u64::MAX)")]
     ExcessiveValue,
     /// Failed to parse a string.
     #[error("Failed to parse: {0}")]
     FailedToParse(String),
-    /// Transaction ID already exists.
-    #[error("Transaction Id already exists")]
-    TransactionIdExists,
-    /// Insufficient coins.
-    #[error("Insufficient balance to complete this operation")]
-    InsufficientBalance,
-    /// Inexistent balance.
-    // TODO: key/wallet/balance, what's our vocab here?
-    #[error("No such key exists")]
-    NoSuchBalance,
-    /// Inexistent sender balance.
-    #[error("No such sender key balance")]
-    NoSuchSender,
     /// Inexistent recipient balance.
     // TODO: this should not be possible
     #[error("No such recipient key balance")]
     NoSuchRecipient,
-    /// Coin balance already exists.
-    #[error("Key already exists")]
-    BalanceExists,
+
     /// Expected data size exceeded.
     #[error("Size of the structure exceeds the limit")]
     ExceededSize,
@@ -144,18 +117,4 @@ pub enum Error {
 
 pub(crate) fn convert_bincode_error(err: bincode::Error) -> Error {
     Error::Serialisation(err.as_ref().to_string())
-}
-
-/// Entry error for `Error::InvalidEntryActions`.
-#[derive(Error, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
-pub enum EntryError {
-    /// Entry does not exists.
-    #[error("Entry does not exist")]
-    NoSuchEntry,
-    /// Entry already exists. Contains the current entry Key.
-    #[error("Entry already exists {0}")]
-    EntryExists(u8),
-    /// Invalid version when updating an entry. Contains the current entry Key.
-    #[error("Entry version for updating the entry {0}")]
-    InvalidSuccessor(u8),
 }

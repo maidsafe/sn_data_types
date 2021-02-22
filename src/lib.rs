@@ -32,9 +32,8 @@ mod blob;
 mod errors;
 mod keys;
 mod map;
-mod messaging;
-mod money;
 mod sequence;
+mod token;
 mod transfer;
 mod utils;
 
@@ -42,11 +41,11 @@ pub use blob::{
     Address as BlobAddress, Data as Blob, Kind as BlobKind, PrivateData as PrivateBlob,
     PublicData as PublicBlob, MAX_BLOB_SIZE_IN_BYTES,
 };
-pub use errors::{EntryError, Error, Result};
+pub use errors::{Error, Result};
 
 pub use keys::{
-    BlsKeypair, BlsKeypairShare, Keypair, NodeKeypairs, PublicKey, SecretKey, Signature,
-    SignatureShare,
+    BlsKeypairShare, Keypair, NodeKeypairs, OwnerType, PublicKey, SecretKey, Signature,
+    SignatureShare, Signing,
 };
 pub use map::{
     Action as MapAction, Address as MapAddress, Data as Map, Entries as MapEntries,
@@ -56,18 +55,8 @@ pub use map::{
     UnseqEntries as MapUnseqEntries, UnseqEntryAction as MapUnseqEntryAction,
     UnseqEntryActions as MapUnseqEntryActions, Value as MapValue, Values as MapValues,
 };
-pub use messaging::{
-    Account, AccountRead, AccountWrite, Address, AdultDuties, AuthorisationKind, BlobRead,
-    BlobWrite, Cmd, CmdError, DataAuthKind, DataCmd, DataQuery, Duty, ElderDuties, Event, MapRead,
-    MapWrite, Message, MessageId, MiscAuthKind, MoneyAuthKind, MsgEnvelope, MsgSender, NodeCmd,
-    NodeCmdError, NodeDataCmd, NodeDataError, NodeDataQuery, NodeDataQueryResponse, NodeDuties,
-    NodeEvent, NodeQuery, NodeQueryResponse, NodeRewardError, NodeRewardQuery,
-    NodeRewardQueryResponse, NodeSystemCmd, NodeTransferCmd, NodeTransferError, NodeTransferQuery,
-    NodeTransferQueryResponse, Query, QueryResponse, SequenceRead, SequenceWrite, TransferCmd,
-    TransferError, TransferQuery, TransientElderKey, TransientSectionKey, TryFromError,
-    MAX_LOGIN_PACKET_BYTES,
-};
-pub use money::Money;
+
+pub use token::Token;
 
 pub use sequence::{
     Action as SequenceAction, Address as SequenceAddress, Data as Sequence,
@@ -79,9 +68,8 @@ pub use sequence::{
     PublicPolicy as SequencePublicPolicy, PublicSeqData, User as SequenceUser,
 };
 use serde::{Deserialize, Serialize};
-pub use sha3::Sha3_512 as Ed25519Digest;
 pub use transfer::*;
-pub use utils::verify_signature;
+// pub use utils::verify_signature;
 
 use std::{fmt::Debug, net::SocketAddr};
 use xor_name::XorName;
@@ -139,8 +127,8 @@ impl From<Sequence> for Data {
 pub struct AppPermissions {
     /// Whether this app has permissions to perform data mutations.
     pub data_mutations: bool,
-    /// Whether this app has permissions to transfer money.
-    pub transfer_money: bool,
+    /// Whether this app has permissions to transfer tokens.
+    pub transfer_tokens: bool,
     /// Whether this app has permissions to read the account balance.
     pub read_balance: bool,
     /// Whether this app has permissions to read the account transfer history.

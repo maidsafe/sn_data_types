@@ -28,13 +28,9 @@ jobs:
           override: true
           components: rustfmt, clippy
 
-      # Generate Cargo.lock, needed for the cache.
-      - name: Generate Cargo.lock
-        run: cargo generate-lockfile
-
       # Cache.
       - name: Cargo cache registry, index and build
-        uses: actions/cache@v2
+        uses: actions/cache@v2.1.4
         with:
           path: |
             ~/.cargo/registry
@@ -50,6 +46,15 @@ jobs:
       - name: Clippy checks
         run: cargo clippy --all-targets
 
+  check_pr_size:
+    name: Check PR size doesn't break set limit
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: maidsafe/pr_size_checker@v1.1
+      with:
+        max_lines_changed: 200
+  
   coverage:
     name: Code coverage check
     runs-on: ubuntu-latest
@@ -64,13 +69,9 @@ jobs:
           toolchain: stable
           override: true
 
-      # Generate Cargo.lock, needed for the cache.
-      - name: Generate Cargo.lock
-        run: cargo generate-lockfile
-
       # Cache.
       - name: Cargo cache registry, index and build
-        uses: actions/cache@v2
+        uses: actions/cache@v2.1.4
         with:
           path: |
             ~/.cargo/registry
@@ -113,6 +114,17 @@ jobs:
           cargo install cargo-udeps --locked
           cargo +nightly udeps --all-targets
 
+  cargo-deny:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    # wget the shared deny.toml file from the QA repo
+    - shell: bash
+      run: wget https://raw.githubusercontent.com/maidsafe/QA/master/misc-scripts/deny.toml
+
+    - uses: EmbarkStudios/cargo-deny-action@v1
+
   test:
     name: Test
     runs-on: ${{ matrix.os }}
@@ -128,13 +140,9 @@ jobs:
           toolchain: stable
           override: true
 
-      # Generate Cargo.lock, needed for the cache.
-      - name: Generate Cargo.lock
-        run: cargo generate-lockfile
-
       # Cache.
       - name: Cargo cache registry, index and build
-        uses: actions/cache@v2
+        uses: actions/cache@v2.1.4
         with:
           path: |
             ~/.cargo/registry

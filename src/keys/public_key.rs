@@ -39,6 +39,15 @@ pub enum PublicKey {
 }
 
 impl PublicKey {
+    /// Returns the bytes of the underlying public key
+    pub fn to_bytes(&self) -> Vec<u8> {
+        match self {
+            PublicKey::Ed25519(pub_key) => pub_key.to_bytes().into(),
+            PublicKey::Bls(pub_key) => pub_key.to_bytes().into(),
+            PublicKey::BlsShare(pub_key) => pub_key.to_bytes().into(),
+        }
+    }
+
     /// Returns the ed25519 key, if applicable.
     pub fn ed25519(&self) -> Option<ed25519_dalek::PublicKey> {
         if let Self::Ed25519(key) = self {
@@ -193,7 +202,6 @@ pub(crate) mod tests {
         let bls_secret_key = threshold_crypto::SecretKeySet::random(1, &mut rng);
         vec![
             Keypair::new_ed25519(&mut rng),
-            Keypair::new_bls(&mut rng),
             Keypair::new_bls_share(
                 0,
                 bls_secret_key.secret_key_share(0),

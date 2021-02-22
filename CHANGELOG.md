@@ -2,6 +2,69 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.14.6](https://github.com/maidsafe/sn_data_types/compare/v0.14.5...v0.14.6) (2021-02-16)
+
+### [0.14.5](https://github.com/maidsafe/sn_data_types/compare/v0.14.4...v0.14.5) (2021-02-16)
+
+### [0.14.4](https://github.com/maidsafe/sn_data_types/compare/v0.14.3...v0.14.4) (2021-02-09)
+
+### [0.14.3](https://github.com/maidsafe/sn_data_types/compare/v0.14.2...v0.14.3) (2021-02-03)
+
+### [0.14.2](https://github.com/maidsafe/sn_data_types/compare/v0.14.1...v0.14.2) (2021-02-03)
+
+### [0.14.1](https://github.com/maidsafe/sn_data_types/compare/v0.14.0...v0.14.1) (2021-02-02)
+
+## [0.14.0](https://github.com/maidsafe/sn_data_types/compare/v0.13.5...v0.14.0) (2021-02-01)
+
+
+### ⚠ BREAKING CHANGES
+
+* rename money to token
+
+* rename money to token ([f1a3154](https://github.com/maidsafe/sn_data_types/commit/f1a3154c3247df47860f7440161e1285d4ef755c))
+
+### [0.13.5](https://github.com/maidsafe/sn_data_types/compare/v0.13.4...v0.13.5) (2021-02-01)
+
+
+### Features
+
+* Add Signing trait and OwnerType ([b7bb95f](https://github.com/maidsafe/sn_data_types/commit/b7bb95f5dff1fa5839b61c6dd6220943054747f9))
+* Use Arc internally in Keypair ([343985a](https://github.com/maidsafe/sn_data_types/commit/343985a0cd4b0abb11c25583f4fa8d9685037488))
+
+### [0.13.4](https://github.com/maidsafe/sn_data_types/compare/v0.13.3...v0.13.4) (2021-01-29)
+
+
+### Features
+
+* **multi_sig:** add signed transfer shares ([7daed15](https://github.com/maidsafe/sn_data_types/commit/7daed151f173c55ac6f7c0fe31fec06734b8c311))
+* **transfers:** add as_share api to debit+credit ([a08ce5f](https://github.com/maidsafe/sn_data_types/commit/a08ce5f6768af7fa6a6b70515f343efceb5640ad))
+
+### [0.13.3](https://github.com/maidsafe/sn_data_types/compare/v0.13.2...v0.13.3) (2021-01-28)
+
+### [0.13.2](https://github.com/maidsafe/sn_data_types/compare/v0.13.1...v0.13.2) (2021-01-26)
+
+
+### Bug Fixes
+
+* **seq:** in_range API was not taking the end index correctly ([b225d0e](https://github.com/maidsafe/sn_data_types/commit/b225d0e0927a1110fe1dbac60e95b3f61d4899b3))
+
+### [0.13.1](https://github.com/maidsafe/sn_data_types/compare/v0.13.0...v0.13.1) (2021-01-14)
+
+## [0.13.0](https://github.com/maidsafe/sn_data_types/compare/v0.12.0...v0.13.0) (2021-01-05)
+
+
+### ⚠ BREAKING CHANGES
+
+* **errors:** errors not needed by this crate are removed
+
+### Features
+
+* **entry errors:** Merge entry errors into main errors ([c17098d](https://github.com/maidsafe/sn_data_types/commit/c17098dc68d7f2030d1de7b9e46944028ac18914))
+* **messaging:** Messaging extracted ([8719170](https://github.com/maidsafe/sn_data_types/commit/87191702b62bd08a2bc6cd5d3e3293646c441773))
+
+
+* **errors:** remove non dt-used errors ([07bd147](https://github.com/maidsafe/sn_data_types/commit/07bd147ef4764c8fe09ec5f4a5f7a3002b820822))
+
 ## [0.12.0](https://github.com/maidsafe/sn_data_types/compare/v0.11.42...v0.12.0) (2020-12-30)
 
 

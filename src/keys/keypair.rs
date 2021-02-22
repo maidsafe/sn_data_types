@@ -20,17 +20,91 @@ use ed25519_dalek::Signer;
 use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Debug, Formatter};
-use threshold_crypto::{self, serde_impl::SerdeSecret};
+use std::sync::Arc;
+use threshold_crypto::{self, serde_impl::SerdeSecret, PublicKeySet};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+/// Entity that owns the data or tokens.
+pub enum OwnerType {
+    /// Single owner
+    Single(PublicKey),
+    /// Multi sig owner
+    Multi(PublicKeySet),
+}
+
+impl OwnerType {
+    /// Returns the owner public key
+    pub fn public_key(&self) -> PublicKey {
+        match self {
+            Self::Single(key) => *key,
+            Self::Multi(key_set) => PublicKey::Bls(key_set.public_key()),
+        }
+    }
+
+    /// Tries to get the key set in case this is a Multi owner.
+    pub fn public_key_set(&self) -> Result<PublicKeySet> {
+        match self {
+            Self::Single(_) => Err(Error::InvalidOwnerNotPublicKeySet),
+            Self::Multi(key_set) => Ok(key_set.clone()),
+        }
+    }
+}
+/// Ability to sign and validate data/tokens, as well as specify the type of ownership of that data
+pub trait Signing {
+    ///
+    fn id(&self) -> OwnerType;
+    ///
+    fn sign<T: Serialize>(&self, data: &T) -> Result<Signature>;
+    ///
+    fn verify<T: Serialize>(&self, sig: &Signature, data: &T) -> bool;
+}
+
+impl Signing for Keypair {
+    fn id(&self) -> OwnerType {
+        match self {
+            Keypair::Ed25519(pair) => OwnerType::Single(PublicKey::Ed25519(pair.public)),
+            Keypair::BlsShare(share) => OwnerType::Multi(share.public_key_set.clone()),
+        }
+    }
+
+    fn sign<T: Serialize>(&self, data: &T) -> Result<Signature> {
+        let bytes = bincode::serialize(data).map_err(|e| Error::Serialisation(e.to_string()))?;
+        Ok(self.sign(&bytes))
+    }
+
+    fn verify<T: Serialize>(&self, signature: &Signature, data: &T) -> bool {
+        let data = match bincode::serialize(&data) {
+            Err(_) => return false,
+            Ok(data) => data,
+        };
+        match signature {
+            Signature::Bls(sig) => {
+                if let OwnerType::Multi(set) = self.id() {
+                    set.public_key().verify(&sig, data)
+                } else {
+                    false
+                }
+            }
+            ed @ Signature::Ed25519(_) => self.public_key().verify(ed, data).is_ok(),
+            Signature::BlsShare(share) => {
+                if let OwnerType::Multi(set) = self.id() {
+                    let pubkey_share = set.public_key_share(share.index);
+                    pubkey_share.verify(&share.share, data)
+                } else {
+                    false
+                }
+            }
+        }
+    }
+}
 
 /// Wrapper for different keypair types.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub enum Keypair {
     /// Ed25519 keypair.
-    Ed25519(ed25519_dalek::Keypair),
-    /// BLS keypair.
-    Bls(BlsKeypair),
+    Ed25519(Arc<ed25519_dalek::Keypair>),
     /// BLS keypair share.
-    BlsShare(BlsKeypairShare),
+    BlsShare(Arc<BlsKeypairShare>),
 }
 
 impl Debug for Keypair {
@@ -38,7 +112,6 @@ impl Debug for Keypair {
         write!(formatter, "Keypair::")?;
         match self {
             Self::Ed25519(_) => write!(formatter, "Ed25519(..)"),
-            Self::Bls(_) => write!(formatter, "Bls(..)"),
             Self::BlsShare(_) => write!(formatter, "BlsShare(..)"),
         }
     }
@@ -52,7 +125,6 @@ impl PartialEq for Keypair {
                 // TODO: After const generics land, remove the `to_vec()` calls.
                 keypair.to_bytes().to_vec() == other_keypair.to_bytes().to_vec()
             }
-            (Self::Bls(keypair), Self::Bls(other_keypair)) => keypair == other_keypair,
             (Self::BlsShare(keypair), Self::BlsShare(other_keypair)) => keypair == other_keypair,
             _ => false,
         }
@@ -66,38 +138,27 @@ impl Keypair {
     /// Constructs a random Ed25519 public keypair.
     pub fn new_ed25519<T: CryptoRng + Rng>(rng: &mut T) -> Self {
         let keypair = ed25519_dalek::Keypair::generate(rng);
-        Self::Ed25519(keypair)
-    }
-
-    /// Constructs a random BLS public keypair.
-    pub fn new_bls<T: CryptoRng + Rng>(rng: &mut T) -> Self {
-        let bls_secret_key: threshold_crypto::SecretKey = rng.gen();
-        let keypair = BlsKeypair {
-            secret: SerdeSecret(bls_secret_key.clone()),
-            public: bls_secret_key.public_key(),
-        };
-        Self::Bls(keypair)
+        Self::Ed25519(Arc::new(keypair))
     }
 
     /// Constructs a BLS public keypair share.
     pub fn new_bls_share(
         index: usize,
         secret_share: threshold_crypto::SecretKeyShare,
-        public_key_set: threshold_crypto::PublicKeySet,
+        public_key_set: PublicKeySet,
     ) -> Self {
-        Self::BlsShare(BlsKeypairShare {
+        Self::BlsShare(Arc::new(BlsKeypairShare {
             index,
             secret: SerdeSecret(secret_share.clone()),
             public: secret_share.public_key_share(),
             public_key_set,
-        })
+        }))
     }
 
     /// Returns the public key associated with this keypair.
     pub fn public_key(&self) -> PublicKey {
         match self {
             Self::Ed25519(keypair) => PublicKey::Ed25519(keypair.public),
-            Self::Bls(keypair) => PublicKey::Bls(keypair.public),
             Self::BlsShare(keypair) => PublicKey::BlsShare(keypair.public),
         }
     }
@@ -114,7 +175,6 @@ impl Keypair {
                     )),
                 }
             }
-            Self::Bls(keypair) => Ok(SecretKey::Bls(keypair.secret.clone())),
             Self::BlsShare(keypair) => Ok(SecretKey::BlsShare(keypair.secret.clone())),
         }
     }
@@ -123,51 +183,11 @@ impl Keypair {
     pub fn sign(&self, data: &[u8]) -> Signature {
         match self {
             Self::Ed25519(keypair) => Signature::Ed25519(keypair.sign(&data)),
-            Self::Bls(keypair) => Signature::Bls(keypair.secret.sign(data)),
             Self::BlsShare(keypair) => Signature::BlsShare(SignatureShare {
                 index: keypair.index,
                 share: keypair.secret.sign(data),
             }),
         }
-    }
-}
-
-impl From<threshold_crypto::SecretKey> for Keypair {
-    fn from(sk: threshold_crypto::SecretKey) -> Self {
-        let keypair = BlsKeypair {
-            secret: SerdeSecret(sk.clone()),
-            public: sk.public_key(),
-        };
-        Self::Bls(keypair)
-    }
-}
-
-impl From<&threshold_crypto::SecretKey> for Keypair {
-    fn from(sk: &threshold_crypto::SecretKey) -> Self {
-        let keypair = BlsKeypair {
-            secret: SerdeSecret(sk.clone()),
-            public: sk.public_key(),
-        };
-        Self::Bls(keypair)
-    }
-}
-
-impl From<SerdeSecret<threshold_crypto::SecretKey>> for Keypair {
-    fn from(sk: SerdeSecret<threshold_crypto::SecretKey>) -> Self {
-        Self::Bls(BlsKeypair {
-            secret: sk.clone(),
-            public: sk.public_key(),
-        })
-    }
-}
-
-impl From<&SerdeSecret<threshold_crypto::SecretKey>> for Keypair {
-    fn from(sk: &SerdeSecret<threshold_crypto::SecretKey>) -> Self {
-        let keypair = BlsKeypair {
-            secret: sk.clone(),
-            public: sk.public_key(),
-        };
-        Self::Bls(keypair)
     }
 }
 
@@ -178,17 +198,8 @@ impl From<ed25519_dalek::SecretKey> for Keypair {
             secret,
         };
 
-        Self::Ed25519(keypair)
+        Self::Ed25519(Arc::new(keypair))
     }
-}
-
-/// BLS keypair.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct BlsKeypair {
-    /// Secret key.
-    pub secret: SerdeSecret<threshold_crypto::SecretKey>,
-    /// Public key.
-    pub public: threshold_crypto::PublicKey,
 }
 
 /// BLS keypair share.
@@ -201,7 +212,7 @@ pub struct BlsKeypairShare {
     /// Public key share.
     pub public: threshold_crypto::PublicKeyShare,
     /// Public key set. Necessary for producing proofs.
-    pub public_key_set: threshold_crypto::PublicKeySet,
+    pub public_key_set: PublicKeySet,
 }
 
 #[cfg(test)]
@@ -214,7 +225,6 @@ mod tests {
         let bls_secret_key = threshold_crypto::SecretKeySet::random(1, &mut rng);
         vec![
             Keypair::new_ed25519(&mut rng),
-            Keypair::new_bls(&mut rng),
             Keypair::new_bls_share(
                 0,
                 bls_secret_key.secret_key_share(0),

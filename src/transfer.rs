@@ -9,14 +9,14 @@
 
 use super::{
     keys::{PublicKey, Signature, SignatureShare},
-    money::Money,
-    utils, Result,
+    token::Token,
+    utils, Error, Result,
 };
 use crdts::Dot;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Debug, Display, Formatter};
 use threshold_crypto::PublicKeySet;
-use tiny_keccak::sha3_256;
+use tiny_keccak::{Hasher, Sha3};
 
 /// Debit ID.
 pub type DebitId = Dot<PublicKey>;
@@ -25,11 +25,21 @@ pub type CreditId = [u8; 256 / 8];
 /// Msg, containing any data to the recipient.
 pub type Msg = String;
 
-/// A cmd to transfer of money between two keys.
+/// Contains info on who the replicas
+/// of this wallet are, and the wallet history at them.
+#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
+pub struct WalletInfo {
+    ///
+    pub replicas: PublicKeySet,
+    ///
+    pub history: ActorHistory,
+}
+
+/// A cmd to transfer of tokens between two keys.
 #[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Serialize, Deserialize, Debug)]
 pub struct Transfer {
     /// The amount to transfer.
-    pub amount: Money,
+    pub amount: Token,
     /// The destination to transfer to.
     pub to: PublicKey,
     /// Debit ID, containing source key.
@@ -58,13 +68,13 @@ impl Transfer {
     }
 }
 
-/// A debit of money at a key.
+/// A debit of tokens at a key.
 #[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Serialize, Deserialize, Debug)]
 pub struct Debit {
     /// Debit ID, containing source key.
     pub id: DebitId,
     /// The amount to debit.
-    pub amount: Money,
+    pub amount: Token,
 }
 
 impl Debit {
@@ -74,7 +84,7 @@ impl Debit {
     }
 
     /// Get the amount of this debit
-    pub fn amount(&self) -> Money {
+    pub fn amount(&self) -> Token {
         self.amount
     }
 
@@ -85,17 +95,22 @@ impl Debit {
 
     ///
     pub fn credit_id(&self) -> Result<CreditId> {
-        Ok(sha3_256(&utils::serialise(&self.id)?))
+        let id_bytes = &utils::serialise(&self.id)?;
+        let mut hasher = Sha3::v256();
+        let mut output = [0; 32];
+        hasher.update(&id_bytes);
+        hasher.finalize(&mut output);
+        Ok(output)
     }
 }
 
-/// A debit of money at a key.
+/// A debit of tokens at a key.
 #[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Serialize, Deserialize, Debug)]
 pub struct Credit {
     /// Unique id for the credit, being the hash of the DebitId.
     pub id: CreditId,
     /// The amount to credit.
-    pub amount: Money,
+    pub amount: Token,
     /// The recipient key
     pub recipient: PublicKey,
     /// Msg, containing any data to the recipient.
@@ -109,13 +124,43 @@ impl Credit {
     }
 
     /// Get the amount of this credit
-    pub fn amount(&self) -> Money {
+    pub fn amount(&self) -> Token {
         self.amount
     }
 
     /// Get the key to be credited
     pub fn recipient(&self) -> PublicKey {
         self.recipient
+    }
+}
+
+/// The history of a transfer Actor.
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub struct ActorHistory {
+    /// All the credits.
+    pub credits: Vec<CreditAgreementProof>,
+    /// All the debits.
+    pub debits: Vec<TransferAgreementProof>,
+}
+
+impl ActorHistory {
+    /// Returns empty history.
+    pub fn empty() -> Self {
+        Self {
+            credits: vec![],
+            debits: vec![],
+        }
+    }
+
+    /// Returns `true` if the history contains no elements.
+    pub fn is_empty(&self) -> bool {
+        self.credits.is_empty() && self.debits.is_empty()
+    }
+
+    /// Returns the number of elements in the history, also referred to
+    /// as its 'length'.
+    pub fn len(&self) -> usize {
+        self.credits.len() + self.debits.len()
     }
 }
 
@@ -154,7 +199,7 @@ impl CreditAgreementProof {
     }
 
     /// Get the amount of this credit
-    pub fn amount(&self) -> Money {
+    pub fn amount(&self) -> Token {
         self.signed_credit.amount()
     }
 
@@ -191,7 +236,7 @@ impl TransferAgreementProof {
     }
 
     /// Get the amount of this transfer
-    pub fn amount(&self) -> Money {
+    pub fn amount(&self) -> Token {
         self.signed_debit.amount()
     }
 
@@ -252,7 +297,7 @@ impl SignedTransfer {
     }
 
     /// Get the amount of this transfer
-    pub fn amount(&self) -> Money {
+    pub fn amount(&self) -> Token {
         self.debit.amount()
     }
 
@@ -283,7 +328,7 @@ impl SignedDebit {
     }
 
     /// Get the amount of this transfer
-    pub fn amount(&self) -> Money {
+    pub fn amount(&self) -> Token {
         self.debit.amount()
     }
 
@@ -295,6 +340,18 @@ impl SignedDebit {
     /// Get the credit id of this debit.
     pub fn credit_id(&self) -> Result<CreditId> {
         self.debit.credit_id()
+    }
+
+    /// Tries to represent the signed debit as a share.
+    pub fn as_share(&self) -> Result<SignedDebitShare> {
+        if let Signature::BlsShare(share) = self.actor_signature.clone() {
+            Ok(SignedDebitShare {
+                debit: self.debit.clone(),
+                actor_signature: share,
+            })
+        } else {
+            Err(Error::InvalidSignature)
+        }
     }
 }
 
@@ -314,13 +371,173 @@ impl SignedCredit {
     }
 
     /// Get the amount of this transfer
-    pub fn amount(&self) -> Money {
+    pub fn amount(&self) -> Token {
         self.credit.amount
     }
 
     /// Get the sender of this transfer
     pub fn recipient(&self) -> PublicKey {
         self.credit.recipient()
+    }
+
+    /// Tries to represent the signed credit as a share.
+    pub fn as_share(&self) -> Result<SignedCreditShare> {
+        if let Signature::BlsShare(share) = self.actor_signature.clone() {
+            Ok(SignedCreditShare {
+                credit: self.credit.clone(),
+                actor_signature: share,
+            })
+        } else {
+            Err(Error::InvalidSignature)
+        }
+    }
+}
+
+// ------------------------------------------------------------
+//                      MULTI SIG
+// ------------------------------------------------------------
+
+/// An Actor cmd.
+#[derive(Clone, Eq, PartialEq, Serialize, Deserialize, Debug)]
+pub struct SignedTransferShare {
+    /// The debit.
+    debit: SignedDebitShare,
+    /// The credit.
+    credit: SignedCreditShare,
+    ///
+    actors: PublicKeySet,
+}
+
+impl SignedTransferShare {
+    /// Creates a valid transfer share out of its parts.
+    pub fn new(
+        debit: SignedDebitShare,
+        credit: SignedCreditShare,
+        actors: PublicKeySet,
+    ) -> Result<Self> {
+        if debit.amount() != credit.amount() {
+            return Err(Error::InvalidOperation);
+        }
+        if debit.credit_id()? != *credit.id() {
+            return Err(Error::InvalidOperation);
+        }
+        let debit_sig_index = debit.actor_signature.index;
+        let credit_sig_index = credit.actor_signature.index;
+        if debit_sig_index != credit_sig_index {
+            return Err(Error::InvalidOperation);
+        }
+        Ok(Self {
+            debit,
+            credit,
+            actors,
+        })
+    }
+
+    /// Get the debit id
+    pub fn id(&self) -> DebitId {
+        self.debit.id()
+    }
+
+    /// Get the amount of this transfer
+    pub fn amount(&self) -> Token {
+        self.debit.amount()
+    }
+
+    /// Get the sender of this transfer
+    pub fn sender(&self) -> PublicKey {
+        self.debit.id().actor
+    }
+
+    /// Get the credit id of this debit.
+    pub fn credit_id(&self) -> Result<CreditId> {
+        self.debit.credit_id()
+    }
+
+    /// Get the debit share.
+    pub fn debit(&self) -> &SignedDebitShare {
+        &self.debit
+    }
+
+    /// Get the credit share.
+    pub fn credit(&self) -> &SignedCreditShare {
+        &self.credit
+    }
+
+    /// Get the share index.
+    pub fn share_index(&self) -> usize {
+        self.debit.actor_signature.index
+    }
+
+    /// Get the public key set of the actors.
+    pub fn actors(&self) -> &PublicKeySet {
+        &self.actors
+    }
+}
+
+/// An Actor cmd.
+#[derive(Clone, Hash, Eq, PartialEq, Serialize, Deserialize, Debug)]
+pub struct SignedDebitShare {
+    /// The debit.
+    pub debit: Debit,
+    /// Actor signature over the debit.
+    pub actor_signature: SignatureShare,
+}
+
+impl SignedDebitShare {
+    /// Get the debit id
+    pub fn id(&self) -> DebitId {
+        self.debit.id()
+    }
+
+    /// Get the amount of this transfer
+    pub fn amount(&self) -> Token {
+        self.debit.amount()
+    }
+
+    /// Get the sender of this transfer
+    pub fn sender(&self) -> PublicKey {
+        self.debit.sender()
+    }
+
+    /// Get the credit id of this debit.
+    pub fn credit_id(&self) -> Result<CreditId> {
+        self.debit.credit_id()
+    }
+
+    ///
+    pub fn share_index(&self) -> usize {
+        self.actor_signature.index
+    }
+}
+
+/// An Actor cmd.
+#[derive(Clone, Hash, Eq, PartialEq, Serialize, Deserialize, Debug)]
+pub struct SignedCreditShare {
+    /// The credit.
+    pub credit: Credit,
+    /// Actor signature over the transfer.
+    pub actor_signature: SignatureShare,
+}
+
+impl SignedCreditShare {
+    /// Get the credit id
+    pub fn id(&self) -> &CreditId {
+        self.credit.id()
+    }
+
+    /// Get the amount of this transfer
+    pub fn amount(&self) -> Token {
+        self.credit.amount
+    }
+
+    /// Get the sender of this transfer
+    pub fn recipient(&self) -> PublicKey {
+        self.credit.recipient()
+    }
+
+    ///
+    pub fn share_index(&self) -> usize {
+        self.actor_signature.index
     }
 }
 
@@ -333,6 +550,9 @@ impl SignedCredit {
 #[derive(Clone, Eq, PartialEq, Serialize, Deserialize, Debug)]
 pub enum ReplicaEvent {
     /// The event raised when
+    /// a multisig validation has been proposed.
+    TransferValidationProposed(TransferValidationProposed),
+    /// The event raised when
     /// ValidateTransfer cmd has been successful.
     TransferValidated(TransferValidated),
     /// The event raised when
@@ -341,12 +561,40 @@ pub enum ReplicaEvent {
     /// The event raised when
     /// PropagateTransfer cmd has been successful.
     TransferPropagated(TransferPropagated),
-    // /// The event raised when
-    // /// peers changed so that we have a new PublicKeySet.
-    // PeersChanged(PeersChanged),
-    /// The event raised when
-    /// we learn of a new group PK set.
-    KnownGroupAdded(KnownGroupAdded),
+}
+
+/// The debiting Replica event raised when
+/// ProposeTransferValidation cmd has been successful.
+#[derive(Clone, Eq, PartialEq, Serialize, Deserialize, Debug)]
+pub struct TransferValidationProposed {
+    /// The debit signed by the initiating Actor.
+    pub signed_debit: SignedDebitShare,
+    /// The credit signed by the initiating Actor.
+    pub signed_credit: SignedCreditShare,
+    /// When the proposals accumulate, we have an agreed transfer.
+    pub agreed_transfer: Option<SignedTransfer>,
+}
+
+impl TransferValidationProposed {
+    /// Get the debit id
+    pub fn id(&self) -> DebitId {
+        self.signed_debit.id()
+    }
+
+    /// Get the amount of this transfer
+    pub fn amount(&self) -> Token {
+        self.signed_debit.amount()
+    }
+
+    /// Get the sender of this transfer
+    pub fn sender(&self) -> PublicKey {
+        self.signed_debit.sender()
+    }
+
+    /// Get the recipient of this transfer
+    pub fn recipient(&self) -> PublicKey {
+        self.signed_credit.recipient()
+    }
 }
 
 /// The debiting Replica event raised when
@@ -357,19 +605,12 @@ pub struct TransferValidated {
     pub signed_debit: SignedDebit,
     /// The corresponding credit, signed by the Actor.
     pub signed_credit: SignedCredit,
-    /// Replica signature over the debit.
+    /// Replica signature over the signed debit.
     pub replica_debit_sig: SignatureShare,
-    /// Replica signature over the credit.
+    /// Replica signature over the signed credit.
     pub replica_credit_sig: SignatureShare,
     /// The PK Set of the Replicas
     pub replicas: PublicKeySet,
-    // NB: I'm a bit ambivalent to this implicit communication of public key change.
-    // I generally prefer an explicit cmd + event for such a significant part of the logic.
-    // Including it here minimizes msg types and traffic, and seamlessly - apparently -
-    // updates Actors on any public key change, which they can accumulate in order to
-    // apply the change to local state.
-    // But it inflicts on, and complicates the logic for validating a transfer..
-    // Cost / benefit to be discussed..
 }
 
 impl Debug for TransferValidated {
@@ -395,7 +636,7 @@ impl TransferValidated {
     }
 
     /// Get the amount of this transfer
-    pub fn amount(&self) -> Money {
+    pub fn amount(&self) -> Token {
         self.signed_debit.amount()
     }
 
@@ -425,7 +666,7 @@ impl TransferRegistered {
     }
 
     /// Get the amount of this transfer
-    pub fn amount(&self) -> Money {
+    pub fn amount(&self) -> Token {
         self.transfer_proof.amount()
     }
 
@@ -459,7 +700,7 @@ impl TransferPropagated {
     }
 
     /// Get the amount of this transfer
-    pub fn amount(&self) -> Money {
+    pub fn amount(&self) -> Token {
         self.credit_proof.amount()
     }
 

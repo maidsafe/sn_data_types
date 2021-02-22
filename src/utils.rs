@@ -8,23 +8,12 @@
 // Software.
 
 use crate::errors::convert_bincode_error;
-use crate::{Error, Message, MessageId, PublicKey, Result, Signature};
+use crate::{Error, Result};
 use multibase::{self, Base};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-/// Verify that a signature is valid for a given `Request` + `MessageId` combination.
-pub fn verify_signature(
-    signature: &Signature,
-    public_key: &PublicKey,
-    request: &Message,
-    message_id: &MessageId,
-) -> Result<()> {
-    let message = serialise(&(request, *message_id))?;
-    public_key.verify(signature, message)
-}
-
 /// Wrapper for raw bincode::serialise.
-pub(crate) fn serialise<T: Serialize>(data: &T) -> Result<Vec<u8>> {
+pub fn serialise<T: Serialize>(data: &T) -> Result<Vec<u8>> {
     bincode::serialize(data).map_err(convert_bincode_error)
 }
 
