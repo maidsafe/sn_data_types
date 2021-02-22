@@ -23,7 +23,7 @@ use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 use threshold_crypto::{self, serde_impl::SerdeSecret, PublicKeySet};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 /// Entity that owns the data or tokens.
 pub enum OwnerType {
     /// Single owner
@@ -46,6 +46,19 @@ impl OwnerType {
         match self {
             Self::Single(_) => Err(Error::InvalidOwnerNotPublicKeySet),
             Self::Multi(key_set) => Ok(key_set.clone()),
+        }
+    }
+}
+
+impl Debug for OwnerType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            OwnerType::Single(_) => Debug::fmt(&self, f),
+            OwnerType::Multi(key_set) => write!(
+                f,
+                "OwnerType::Multi(PkSet {{ public_key: {:?} }})",
+                key_set.public_key()
+            ),
         }
     }
 }
@@ -203,7 +216,7 @@ impl From<ed25519_dalek::SecretKey> for Keypair {
 }
 
 /// BLS keypair share.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub struct BlsKeypairShare {
     /// Share index.
     pub index: usize,
@@ -213,6 +226,19 @@ pub struct BlsKeypairShare {
     pub public: threshold_crypto::PublicKeyShare,
     /// Public key set. Necessary for producing proofs.
     pub public_key_set: PublicKeySet,
+}
+
+impl Debug for BlsKeypairShare {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "BlsKeyPairShare {{ index: {:?}, secret: {:?}, public: {:?}, public_key_set: PkSet {{ public_key: {:?} }} }}",
+            self.index,
+            self.secret,
+            self.public,
+            self.public_key_set.public_key()
+        )
+    }
 }
 
 #[cfg(test)]

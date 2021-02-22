@@ -27,12 +27,23 @@ pub type Msg = String;
 
 /// Contains info on who the replicas
 /// of this wallet are, and the wallet history at them.
-#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub struct WalletInfo {
     ///
     pub replicas: PublicKeySet,
     ///
     pub history: ActorHistory,
+}
+
+impl Debug for WalletInfo {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "WalletInfo {{ replicas: PkSet {{ public_key: {:?} }},  history: {:?} }}",
+            self.replicas.public_key(),
+            self.history
+        )
+    }
 }
 
 /// A cmd to transfer of tokens between two keys.
@@ -269,9 +280,7 @@ impl Debug for TransferAgreementProof {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "TransferAgreementProof {{ signed_debit: {:?}, signed_credit: {:?},
-            debit_sig: {:?}, credit_sig: {:?},
-            debiting_replicas_keys: PkSet {{ public_key: {:?} }} }}",
+            "TransferAgreementProof {{ signed_debit: {:?}, signed_credit: {:?}, debit_sig: {:?}, credit_sig: {:?}, debiting_replicas_keys: PkSet {{ public_key: {:?} }} }}",
             self.signed_debit,
             self.signed_credit,
             self.debit_sig,
@@ -398,7 +407,7 @@ impl SignedCredit {
 // ------------------------------------------------------------
 
 /// An Actor cmd.
-#[derive(Clone, Eq, PartialEq, Serialize, Deserialize, Debug)]
+#[derive(Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct SignedTransferShare {
     /// The debit.
     debit: SignedDebitShare,
@@ -471,6 +480,18 @@ impl SignedTransferShare {
     /// Get the public key set of the actors.
     pub fn actors(&self) -> &PublicKeySet {
         &self.actors
+    }
+}
+
+impl Debug for SignedTransferShare {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "SignedTransferShare {{ debit: {:?}, credit: {:?}, actors: PkSet {{ public_key: {:?} }} }}",
+            self.debit,
+            self.credit,
+            self.actors.public_key()
+        )
     }
 }
 
@@ -617,9 +638,7 @@ impl Debug for TransferValidated {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "TransferValidated {{ signed_debit: {:?}, signed_credit: {:?},
-            replica_debit_sig: {:?}, replica_credit_sig: {:?},
-            replicas: PkSet {{ public_key: {:?} }} }}",
+            "TransferValidated {{ signed_debit: {:?}, signed_credit: {:?}, replica_debit_sig: {:?}, replica_credit_sig: {:?}, replicas: PkSet {{ public_key: {:?} }} }}",
             self.signed_debit,
             self.signed_credit,
             self.replica_debit_sig,
