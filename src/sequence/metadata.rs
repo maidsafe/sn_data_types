@@ -18,8 +18,6 @@ pub enum Action {
     Read,
     /// Append to the data.
     Append,
-    /// Manage permissions.
-    Admin,
 }
 
 /// List of entries.
@@ -142,25 +140,19 @@ pub struct PublicPermissions {
     /// `Some(false)` explicitly denies this permission (even if `Anyone` has permissions).
     /// Use permissions for `Anyone` if `None`.
     append: Option<bool>,
-    /// `Some(true)` if the user can manage permissions.
-    /// `Some(false)` explicitly denies this permission (even if `Anyone` has permissions).
-    /// Use permissions for `Anyone` if `None`.
-    admin: Option<bool>,
 }
 
 impl PublicPermissions {
     /// Constructs a new public permission set.
-    pub fn new(append: impl Into<Option<bool>>, manage_perms: impl Into<Option<bool>>) -> Self {
+    pub fn new(append: impl Into<Option<bool>>) -> Self {
         Self {
             append: append.into(),
-            admin: manage_perms.into(),
         }
     }
 
     /// Sets permissions.
-    pub fn set_perms(&mut self, append: impl Into<Option<bool>>, admin: impl Into<Option<bool>>) {
+    pub fn set_perms(&mut self, append: impl Into<Option<bool>>) {
         self.append = append.into();
-        self.admin = admin.into();
     }
 
     /// Returns `Some(true)` if `action` is allowed and `Some(false)` if it's not permitted.
@@ -169,7 +161,6 @@ impl PublicPermissions {
         match action {
             Action::Read => Some(true), // It's public data, so it's always allowed to read it.
             Action::Append => self.append,
-            Action::Admin => self.admin,
         }
     }
 }
@@ -181,25 +172,18 @@ pub struct PrivatePermissions {
     read: bool,
     /// `true` if the user can append.
     append: bool,
-    /// `true` if the user can manage permissions.
-    admin: bool,
 }
 
 impl PrivatePermissions {
     /// Constructs a new private permission set.
-    pub fn new(read: bool, append: bool, manage_perms: bool) -> Self {
-        Self {
-            read,
-            append,
-            admin: manage_perms,
-        }
+    pub fn new(read: bool, append: bool) -> Self {
+        Self { read, append }
     }
 
     /// Sets permissions.
-    pub fn set_perms(&mut self, read: bool, append: bool, manage_perms: bool) {
+    pub fn set_perms(&mut self, read: bool, append: bool) {
         self.read = read;
         self.append = append;
-        self.admin = manage_perms;
     }
 
     /// Returns `true` if `action` is allowed.
@@ -207,7 +191,6 @@ impl PrivatePermissions {
         match action {
             Action::Read => self.read,
             Action::Append => self.append,
-            Action::Admin => self.admin,
         }
     }
 }

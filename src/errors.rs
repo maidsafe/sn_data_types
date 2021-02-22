@@ -61,10 +61,6 @@ pub enum Error {
     #[error("Key does not exist")]
     NoSuchKey,
 
-    /// The list of owner keys is invalid
-    #[error("Invalid owner keys")]
-    InvalidOwners,
-
     /// Owner is not valid
     #[error("Owner is not a PublicKeySet")]
     InvalidOwnerNotPublicKeySet,
