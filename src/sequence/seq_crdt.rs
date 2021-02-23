@@ -10,8 +10,8 @@
 use super::metadata::{Address, Entries, Entry, Index, Perm};
 use crate::Signature;
 use crate::{utils, Error, PublicKey, Result};
-pub use crdts::list::Op;
-use crdts::{list::List, CmRDT};
+pub use crdts::glist::Op;
+use crdts::{glist::GList, CmRDT};
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{self, Debug, Display},
@@ -20,11 +20,11 @@ use std::{
 
 /// CRDT Data operation applicable to other Sequence replica.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct CrdtOperation<A, T> {
+pub struct CrdtOperation {
     /// Address of a Sequence object on the network.
     pub address: Address,
     /// The data operation to apply.
-    pub crdt_op: Op<T, A>,
+    pub crdt_op: Op<Entry>,
     /// The PublicKey of the entity that generated the operation
     pub source: PublicKey,
     /// The signature of source on the crdt_top, required to apply the op
@@ -39,7 +39,7 @@ pub struct SequenceCrdt<A: Ord, P> {
     /// Address on the network of this piece of data
     address: Address,
     /// CRDT to store the actual data, i.e. the items of the Sequence.
-    data: List<Entry, A>,
+    data: GList<Entry>,
     /// The Policy matrix containing ownership and users permissions.
     policy: P,
 }
@@ -55,7 +55,7 @@ where
             if i > 0 {
                 write!(f, ", ")?;
             }
-            write!(f, "<{}>", String::from_utf8_lossy(&entry),)?;
+            write!(f, "<{}>", String::from_utf8_lossy(&entry.1),)?;
         }
         write!(f, "]")
     }
@@ -71,7 +71,7 @@ where
         Self {
             actor,
             address,
-            data: List::new(),
+            data: GList::new(),
             policy,
         }
     }
@@ -87,15 +87,12 @@ where
     }
 
     /// Create crdt op to append a new item to the SequenceCrdt
-    pub fn create_append_op(
-        &self,
-        entry: Entry,
-        source: PublicKey,
-    ) -> Result<CrdtOperation<A, Entry>> {
+    pub fn create_append_op(&self, entry: Entry, source: PublicKey) -> Result<CrdtOperation> {
         let address = *self.address();
 
         // Append the entry to the List
-        let crdt_op = self.data.append(entry, self.actor.clone());
+        // TODO: where do we set the actor??
+        let crdt_op = self.data.insert_before(None, entry);
 
         // We return the operation as it may need to be broadcasted to other replicas
         Ok(CrdtOperation {
@@ -107,7 +104,7 @@ where
     }
 
     /// Apply a remote data CRDT operation to this replica of the Sequence.
-    pub fn apply_data_op(&mut self, op: CrdtOperation<A, Entry>) -> Result<()> {
+    pub fn apply_op(&mut self, op: CrdtOperation) -> Result<()> {
         // Let's first check the op is validly signed.
         // Note: Perms for the op are checked at the upper Sequence layer.
 
@@ -129,12 +126,12 @@ where
     /// Gets the entry at `index` if it exists.
     pub fn get(&self, index: Index) -> Option<&Entry> {
         let i = to_absolute_index(index, self.len() as usize)?;
-        self.data.position(i)
+        self.data.get(i).map(|(_, entry)| entry)
     }
 
     /// Gets the last entry.
     pub fn last_entry(&self) -> Option<&Entry> {
-        self.data.last()
+        self.data.last().map(|(_, entry)| entry)
     }
 
     /// Gets the Policy of the object.
@@ -159,6 +156,7 @@ where
             .skip(start_index)
             .take(items_to_take)
             .cloned()
+            .map(|(_, entry)| entry)
             .collect::<Entries>();
 
         Some(entries)
