@@ -10,25 +10,25 @@
 mod metadata;
 mod seq_crdt;
 
+use std::collections::BTreeMap;
+use std::hash::Hash;
+
+use crdts::glist::Marker;
+use serde::{Deserialize, Serialize};
+use xor_name::XorName;
+
 use crate::{Error, PublicKey, Result};
 pub use metadata::{
-    Action, Address, Entries, Entry, Index, Kind, Perm, Permissions, Policy, PrivatePermissions,
+    Action, Address, Entry, Index, Kind, Perm, Permissions, Policy, PrivatePermissions,
     PrivatePolicy, PublicPermissions, PublicPolicy, User,
 };
 pub use seq_crdt::CrdtOperation as DataOp;
 use seq_crdt::SequenceCrdt;
-use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
-use std::hash::Hash;
-use xor_name::XorName;
-
-// Type of data used for the 'Actor' in CRDT vector clocks
-type ActorType = String;
 
 /// Public Sequence.
-pub type PublicSeqData = SequenceCrdt<ActorType, PublicPolicy>;
+pub type PublicSeqData = SequenceCrdt<PublicPolicy>;
 /// Private Sequence.
-pub type PrivateSeqData = SequenceCrdt<ActorType, PrivatePolicy>;
+pub type PrivateSeqData = SequenceCrdt<PrivatePolicy>;
 
 /// Object storing a Sequence variant.
 #[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
@@ -55,7 +55,6 @@ impl Data {
     /// the 'operations_pk' is the owner along with an empty users permissions set.
     pub fn new_public(
         operations_pk: PublicKey,
-        actor: ActorType,
         name: XorName,
         tag: u64,
         policy: Option<PublicPolicy>,
@@ -67,11 +66,7 @@ impl Data {
 
         Self {
             operations_pk,
-            data: SeqData::Public(PublicSeqData::new(
-                actor,
-                Address::Public { name, tag },
-                policy,
-            )),
+            data: SeqData::Public(PublicSeqData::new(Address::Public { name, tag }, policy)),
         }
     }
 
@@ -83,7 +78,6 @@ impl Data {
     /// the 'operations_pk' is the owner along with an empty users permissions set.
     pub fn new_private(
         operations_pk: PublicKey,
-        actor: ActorType,
         name: XorName,
         tag: u64,
         policy: Option<PrivatePolicy>,
@@ -95,11 +89,7 @@ impl Data {
 
         Self {
             operations_pk,
-            data: SeqData::Private(PrivateSeqData::new(
-                actor,
-                Address::Private { name, tag },
-                policy,
-            )),
+            data: SeqData::Private(PrivateSeqData::new(Address::Private { name, tag }, policy)),
         }
     }
 
@@ -161,7 +151,7 @@ impl Data {
         start: Index,
         end: Index,
         requester: Option<PublicKey>,
-    ) -> Result<Option<Entries>> {
+    ) -> Result<Option<Vec<(Marker, Entry)>>> {
         self.check_permission(Action::Read, requester)?;
 
         Ok(match &self.data {
@@ -171,7 +161,11 @@ impl Data {
     }
 
     /// Returns a value at 'index', if present.
-    pub fn get(&self, index: Index, requester: Option<PublicKey>) -> Result<Option<&Vec<u8>>> {
+    pub fn get(
+        &self,
+        index: Index,
+        requester: Option<PublicKey>,
+    ) -> Result<Option<&(Marker, Entry)>> {
         self.check_permission(Action::Read, requester)?;
 
         Ok(match &self.data {
@@ -181,7 +175,7 @@ impl Data {
     }
 
     /// Returns the last entry, if it's not empty.
-    pub fn last_entry(&self, requester: Option<PublicKey>) -> Result<Option<&Entry>> {
+    pub fn last_entry(&self, requester: Option<PublicKey>) -> Result<Option<&(Marker, Entry)>> {
         self.check_permission(Action::Read, requester)?;
 
         Ok(match &self.data {
@@ -191,12 +185,20 @@ impl Data {
     }
 
     /// Generate unsigned crdt op, adding the new entry.
-    pub fn create_unsigned_append_op(&self, entry: Entry) -> Result<DataOp> {
+    pub fn create_unsigned_append_op(
+        &self,
+        last_seen_marker: Option<&Marker>,
+        entry: Entry,
+    ) -> Result<DataOp> {
         self.check_permission(Action::Append, None)?;
 
         match &self.data {
-            SeqData::Public(data) => data.create_append_op(entry, self.operations_pk),
-            SeqData::Private(data) => data.create_append_op(entry, self.operations_pk),
+            SeqData::Public(data) => {
+                data.create_append_op(last_seen_marker, entry, self.operations_pk)
+            }
+            SeqData::Private(data) => {
+                data.create_append_op(last_seen_marker, entry, self.operations_pk)
+            }
         }
     }
 

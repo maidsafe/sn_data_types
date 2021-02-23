@@ -60,8 +60,8 @@ pub use token::Token;
 
 pub use sequence::{
     Action as SequenceAction, Address as SequenceAddress, Data as Sequence, DataOp as SequenceOp,
-    Entries as SequenceEntries, Entry as SequenceEntry, Index as SequenceIndex,
-    Kind as SequenceKind, Permissions as SequencePermissions, Policy as SequencePolicy,
+    Entry as SequenceEntry, Index as SequenceIndex, Kind as SequenceKind,
+    Permissions as SequencePermissions, Policy as SequencePolicy,
     PrivatePermissions as SequencePrivatePermissions, PrivatePolicy as SequencePrivatePolicy,
     PrivateSeqData, PublicPermissions as SequencePublicPermissions,
     PublicPolicy as SequencePublicPolicy, PublicSeqData, User as SequenceUser,

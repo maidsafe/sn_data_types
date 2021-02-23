@@ -20,9 +20,6 @@ pub enum Action {
     Append,
 }
 
-/// List of entries.
-pub type Entries = Vec<Entry>;
-
 /// An entry in a Sequence.
 pub type Entry = Vec<u8>;
 

@@ -7,16 +7,19 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use super::metadata::{Address, Entries, Entry, Index, Perm};
-use crate::Signature;
-use crate::{utils, Error, PublicKey, Result};
-pub use crdts::glist::Op;
-use crdts::{glist::GList, CmRDT};
+use crdts::{
+    glist::{GList, Marker, Op},
+    CmRDT,
+};
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{self, Debug, Display},
     hash::Hash,
 };
+
+use super::metadata::{Address, Entry, Index, Perm};
+use crate::Signature;
+use crate::{utils, Error, PublicKey, Result};
 
 /// CRDT Data operation applicable to other Sequence replica.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -33,9 +36,7 @@ pub struct CrdtOperation {
 
 /// Sequence data type as a CRDT with Access Control
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub struct SequenceCrdt<A: Ord, P> {
-    /// Actor of this piece of data
-    pub(crate) actor: A,
+pub struct SequenceCrdt<P> {
     /// Address on the network of this piece of data
     address: Address,
     /// CRDT to store the actual data, i.e. the items of the Sequence.
@@ -44,32 +45,26 @@ pub struct SequenceCrdt<A: Ord, P> {
     policy: P,
 }
 
-impl<A, P> Display for SequenceCrdt<A, P>
+impl<P> Display for SequenceCrdt<P>
 where
-    A: Ord + Clone + Display + Debug + Serialize,
-    P: Perm + Hash + Clone + Serialize,
+    P: Perm + Hash + Clone + Serialize, // TODO: remove these bounds
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[")?;
-        for (i, entry) in self.data.iter().enumerate() {
+        for (i, (_marker, entry)) in self.data.iter().enumerate() {
             if i > 0 {
                 write!(f, ", ")?;
             }
-            write!(f, "<{}>", String::from_utf8_lossy(&entry.1),)?;
+            write!(f, "<{}>", String::from_utf8_lossy(&entry))?;
         }
         write!(f, "]")
     }
 }
 
-impl<A, P> SequenceCrdt<A, P>
-where
-    A: Ord + Clone + Debug + Serialize,
-    P: Serialize,
-{
+impl<P: Serialize> SequenceCrdt<P> {
     /// Constructs a new 'SequenceCrdt'.
-    pub fn new(actor: A, address: Address, policy: P) -> Self {
+    pub fn new(address: Address, policy: P) -> Self {
         Self {
-            actor,
             address,
             data: GList::new(),
             policy,
@@ -87,12 +82,16 @@ where
     }
 
     /// Create crdt op to append a new item to the SequenceCrdt
-    pub fn create_append_op(&self, entry: Entry, source: PublicKey) -> Result<CrdtOperation> {
+    pub fn create_append_op(
+        &self,
+        last_seen_marker: Option<&Marker>,
+        entry: Entry,
+        source: PublicKey,
+    ) -> Result<CrdtOperation> {
         let address = *self.address();
 
         // Append the entry to the List
-        // TODO: where do we set the actor??
-        let crdt_op = self.data.insert_before(None, entry);
+        let crdt_op = self.data.insert_after(last_seen_marker, entry);
 
         // We return the operation as it may need to be broadcasted to other replicas
         Ok(CrdtOperation {
@@ -118,20 +117,20 @@ where
         op.source.verify(&sig, &bytes_to_verify)?;
 
         // Apply the CRDT operation to the List data
-        self.data.apply(op.crdt_op.clone());
+        self.data.apply(op.crdt_op);
 
         Ok(())
     }
 
     /// Gets the entry at `index` if it exists.
-    pub fn get(&self, index: Index) -> Option<&Entry> {
+    pub fn get(&self, index: Index) -> Option<&(Marker, Entry)> {
         let i = to_absolute_index(index, self.len() as usize)?;
-        self.data.get(i).map(|(_, entry)| entry)
+        self.data.get(i)
     }
 
     /// Gets the last entry.
-    pub fn last_entry(&self) -> Option<&Entry> {
-        self.data.last().map(|(_, entry)| entry)
+    pub fn last_entry(&self) -> Option<&(Marker, Entry)> {
+        self.data.last()
     }
 
     /// Gets the Policy of the object.
@@ -141,25 +140,25 @@ where
 
     /// Gets a list of items which are within the given indices.
     /// Note the range of items is [start, end), i.e. the end index is not inclusive.
-    pub fn in_range(&self, start: Index, end: Index) -> Option<Entries> {
+    pub fn in_range(&self, start: Index, end: Index) -> Option<Vec<(Marker, Entry)>> {
         let count = self.len() as usize;
         let start_index = to_absolute_index(start, count)?;
-        if start_index >= count {
-            return None;
-        }
         let end_index = to_absolute_index(end, count)?;
+        let (start_index, end_index) = if start_index <= end_index {
+            (start_index, end_index)
+        } else {
+            (end_index, start_index)
+        };
         let items_to_take = end_index - start_index;
 
-        let entries = self
-            .data
-            .iter()
-            .skip(start_index)
-            .take(items_to_take)
-            .cloned()
-            .map(|(_, entry)| entry)
-            .collect::<Entries>();
-
-        Some(entries)
+        Some(
+            self.data
+                .iter()
+                .skip(start_index)
+                .take(items_to_take)
+                .cloned()
+                .collect(),
+        )
     }
 }
 
