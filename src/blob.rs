@@ -1,4 +1,4 @@
-// Copyright 2020 MaidSafe.net limited.
+// Copyright 2021 MaidSafe.net limited.
 //
 // This SAFE Network Software is licensed to you under the MIT license <LICENSE-MIT
 // https://opensource.org/licenses/MIT> or the Modified BSD license <LICENSE-BSD
@@ -194,13 +194,13 @@ impl Kind {
     }
 
     /// Returns true if published.
-    pub fn is_pub(self) -> bool {
+    pub fn is_public(self) -> bool {
         self == Kind::Pub
     }
 
     /// Returns true if unpublished.
-    pub fn is_unpub(self) -> bool {
-        !self.is_pub()
+    pub fn is_private(self) -> bool {
+        !self.is_public()
     }
 }
 
@@ -238,13 +238,13 @@ impl Address {
     }
 
     /// Returns true if published.
-    pub fn is_pub(&self) -> bool {
-        self.kind().is_pub()
+    pub fn is_public(&self) -> bool {
+        self.kind().is_public()
     }
 
     /// Returns true if unpublished.
-    pub fn is_unpub(&self) -> bool {
-        self.kind().is_unpub()
+    pub fn is_private(&self) -> bool {
+        self.kind().is_private()
     }
 
     /// Returns the Address serialised and encoded in z-base-32.
@@ -295,13 +295,13 @@ impl Data {
     }
 
     /// Returns true if published.
-    pub fn is_pub(&self) -> bool {
-        self.kind().is_pub()
+    pub fn is_public(&self) -> bool {
+        self.kind().is_public()
     }
 
     /// Returns true if unpublished.
-    pub fn is_unpub(&self) -> bool {
-        self.kind().is_unpub()
+    pub fn is_private(&self) -> bool {
+        self.kind().is_private()
     }
 
     /// Returns the value.
