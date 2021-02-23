@@ -7,8 +7,12 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
+use super::metadata::{Address, Entry, Index, Perm};
+use crate::Signature;
+use crate::{utils, Error, PublicKey, Result};
+pub use crdts::glist::Marker;
 use crdts::{
-    glist::{GList, Marker, Op},
+    glist::{GList, Op},
     CmRDT,
 };
 use serde::{Deserialize, Serialize};
@@ -16,10 +20,6 @@ use std::{
     fmt::{self, Debug, Display},
     hash::Hash,
 };
-
-use super::metadata::{Address, Entry, Index, Perm};
-use crate::Signature;
-use crate::{utils, Error, PublicKey, Result};
 
 /// CRDT Data operation applicable to other Sequence replica.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -143,12 +143,10 @@ impl<P: Serialize> SequenceCrdt<P> {
     pub fn in_range(&self, start: Index, end: Index) -> Option<Vec<(Marker, Entry)>> {
         let count = self.len() as usize;
         let start_index = to_absolute_index(start, count)?;
+        if start_index >= count {
+            return None;
+        }
         let end_index = to_absolute_index(end, count)?;
-        let (start_index, end_index) = if start_index <= end_index {
-            (start_index, end_index)
-        } else {
-            (end_index, start_index)
-        };
         let items_to_take = end_index - start_index;
 
         Some(
