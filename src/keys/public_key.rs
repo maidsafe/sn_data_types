@@ -1,4 +1,4 @@
-// Copyright 2020 MaidSafe.net limited.
+// Copyright 2021 MaidSafe.net limited.
 //
 // This SAFE Network Software is licensed to you under the MIT license <LICENSE-MIT
 // https://opensource.org/licenses/MIT> or the Modified BSD license <LICENSE-BSD
@@ -39,6 +39,15 @@ pub enum PublicKey {
 }
 
 impl PublicKey {
+    /// Returns the bytes of the underlying public key
+    pub fn to_bytes(&self) -> Vec<u8> {
+        match self {
+            PublicKey::Ed25519(pub_key) => pub_key.to_bytes().into(),
+            PublicKey::Bls(pub_key) => pub_key.to_bytes().into(),
+            PublicKey::BlsShare(pub_key) => pub_key.to_bytes().into(),
+        }
+    }
+
     /// Returns the ed25519 key, if applicable.
     pub fn ed25519(&self) -> Option<ed25519_dalek::PublicKey> {
         if let Self::Ed25519(key) = self {

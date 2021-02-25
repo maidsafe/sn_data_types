@@ -1,4 +1,4 @@
-// Copyright 2020 MaidSafe.net limited.
+// Copyright 2021 MaidSafe.net limited.
 //
 // This SAFE Network Software is licensed to you under the MIT license <LICENSE-MIT
 // https://opensource.org/licenses/MIT> or the Modified BSD license <LICENSE-BSD
@@ -93,8 +93,8 @@ pub enum Error {
     /// While parsing, precision would be lost.
     #[error("Lost precision on the number of coins during parsing")]
     LossOfPrecision,
-    /// The amount would exceed the maximum value for `Money` (u64::MAX).
-    #[error("The money amount would exceed the maximum value (u64::MAX)")]
+    /// The amount would exceed the maximum value for `Token` (u64::MAX).
+    #[error("The token amount would exceed the maximum value (u64::MAX)")]
     ExcessiveValue,
     /// Failed to parse a string.
     #[error("Failed to parse: {0}")]

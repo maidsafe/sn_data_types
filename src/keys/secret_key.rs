@@ -1,4 +1,4 @@
-// Copyright 2020 MaidSafe.net limited.
+// Copyright 2021 MaidSafe.net limited.
 //
 // This SAFE Network Software is licensed to you under the MIT license <LICENSE-MIT
 // https://opensource.org/licenses/MIT> or the Modified BSD license <LICENSE-BSD
@@ -22,8 +22,6 @@ use threshold_crypto::{self, serde_impl::SerdeSecret};
 pub enum SecretKey {
     /// Ed25519 secretkey.
     Ed25519(ed25519_dalek::SecretKey),
-    /// BLS secretkey.
-    Bls(SerdeSecret<threshold_crypto::SecretKey>),
     /// BLS secretkey share.
     BlsShare(SerdeSecret<threshold_crypto::SecretKeyShare>),
 }
@@ -31,11 +29,5 @@ pub enum SecretKey {
 impl Display for SecretKey {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         Debug::fmt(self, formatter)
-    }
-}
-
-impl From<threshold_crypto::SecretKey> for SecretKey {
-    fn from(sk: threshold_crypto::SecretKey) -> Self {
-        Self::Bls(SerdeSecret(sk))
     }
 }

@@ -1,4 +1,4 @@
-// Copyright 2020 MaidSafe.net limited.
+// Copyright 2021 MaidSafe.net limited.
 //
 // This SAFE Network Software is licensed to you under the MIT license <LICENSE-MIT
 // https://opensource.org/licenses/MIT> or the Modified BSD license <LICENSE-BSD
@@ -32,8 +32,8 @@ mod blob;
 mod errors;
 mod keys;
 mod map;
-mod money;
 mod sequence;
+mod token;
 mod transfer;
 mod utils;
 
@@ -56,7 +56,7 @@ pub use map::{
     UnseqEntryActions as MapUnseqEntryActions, Value as MapValue, Values as MapValues,
 };
 
-pub use money::Money;
+pub use token::Token;
 
 pub use sequence::{
     Action as SequenceAction, Address as SequenceAddress, Data as Sequence,
@@ -67,12 +67,10 @@ pub use sequence::{
     PrivateSeqData, PublicPermissions as SequencePublicPermissions,
     PublicPolicy as SequencePublicPolicy, PublicSeqData, User as SequenceUser,
 };
-use serde::{Deserialize, Serialize};
-pub use sha3::Sha3_512 as Ed25519Digest;
 pub use transfer::*;
-// pub use utils::verify_signature;
 
-use std::{fmt::Debug, net::SocketAddr};
+use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
 use xor_name::XorName;
 
 /// Object storing a data variant.
@@ -88,18 +86,18 @@ pub enum Data {
 }
 
 impl Data {
-    /// Returns true if published.
-    pub fn is_pub(&self) -> bool {
+    /// Returns true if public.
+    pub fn is_public(&self) -> bool {
         match *self {
-            Self::Immutable(ref idata) => idata.is_pub(),
+            Self::Immutable(ref idata) => idata.is_public(),
             Self::Mutable(_) => false,
-            Self::Sequence(ref sequence) => sequence.is_pub(),
+            Self::Sequence(ref sequence) => sequence.is_public(),
         }
     }
 
-    /// Returns true if unpublished.
-    pub fn is_unpub(&self) -> bool {
-        !self.is_pub()
+    /// Returns true if private.
+    pub fn is_private(&self) -> bool {
+        !self.is_public()
     }
 }
 
@@ -119,42 +117,4 @@ impl From<Sequence> for Data {
     fn from(data: Sequence) -> Self {
         Self::Sequence(data)
     }
-}
-
-/// Permissions for an app stored by the Client Handlers.
-#[derive(
-    Copy, Hash, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize, Deserialize, Default, Debug,
-)]
-pub struct AppPermissions {
-    /// Whether this app has permissions to perform data mutations.
-    pub data_mutations: bool,
-    /// Whether this app has permissions to transfer money.
-    pub transfer_money: bool,
-    /// Whether this app has permissions to read the account balance.
-    pub read_balance: bool,
-    /// Whether this app has permissions to read the account transfer history.
-    pub read_transfer_history: bool,
-}
-
-/// Handshake requests sent from clients to nodes to establish new connections and verify a client's
-/// key (to prevent replay attacks).
-#[derive(Serialize, Deserialize)]
-pub enum HandshakeRequest {
-    /// Sent by clients as an initial bootstrap request, and then for subsequent bootstrap attempts.
-    Bootstrap(PublicKey),
-    /// Sent to destination nodes as a response to `HandshakeResponse::Join`.
-    Join(PublicKey),
-}
-
-/// Handshake responses sent from nodes to clients.
-#[allow(clippy::large_enum_variant)]
-#[derive(Serialize, Deserialize)]
-pub enum HandshakeResponse {
-    /// Sent by nodes when a client should attempt to connect to the section that's closest to
-    /// its destination (section managing the client's account).
-    Rebootstrap(Vec<(XorName, SocketAddr)>),
-    /// Sent by nodes when a client reaches its destination section.
-    Join(Vec<(XorName, SocketAddr)>),
-    /// Sent by nodes as a response to an invalid `HandshakeRequest::Join` (when a client attempts to join a wrong section).
-    InvalidSection,
 }

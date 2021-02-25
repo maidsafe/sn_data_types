@@ -30,7 +30,7 @@ jobs:
 
       # Cache.
       - name: Cargo cache registry, index and build
-        uses: actions/cache@v2
+        uses: actions/cache@v2.1.4
         with:
           path: |
             ~/.cargo/registry
@@ -46,6 +46,15 @@ jobs:
       - name: Clippy checks
         run: cargo clippy --all-targets
 
+  check_pr_size:
+    name: Check PR size doesn't break set limit
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: maidsafe/pr_size_checker@v1.1
+      with:
+        max_lines_changed: 200
+  
   coverage:
     name: Code coverage check
     runs-on: ubuntu-latest
@@ -62,7 +71,7 @@ jobs:
 
       # Cache.
       - name: Cargo cache registry, index and build
-        uses: actions/cache@v2
+        uses: actions/cache@v2.1.4
         with:
           path: |
             ~/.cargo/registry
@@ -133,7 +142,7 @@ jobs:
 
       # Cache.
       - name: Cargo cache registry, index and build
-        uses: actions/cache@v2
+        uses: actions/cache@v2.1.4
         with:
           path: |
             ~/.cargo/registry

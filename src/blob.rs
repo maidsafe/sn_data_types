@@ -1,4 +1,4 @@
-// Copyright 2020 MaidSafe.net limited.
+// Copyright 2021 MaidSafe.net limited.
 //
 // This SAFE Network Software is licensed to you under the MIT license <LICENSE-MIT
 // https://opensource.org/licenses/MIT> or the Modified BSD license <LICENSE-BSD
@@ -34,16 +34,14 @@ pub struct PrivateData {
 
 impl PrivateData {
     /// Creates a new instance of `PrivateData`.
-    pub fn new(value: Vec<u8>, owner: PublicKey) -> crate::Result<Self> {
-        let hash_of_value = tiny_keccak::sha3_256(&value);
-        let serialised_contents = utils::serialise(&(hash_of_value, &owner))?;
-        let address = Address::Private(XorName(tiny_keccak::sha3_256(&serialised_contents)));
+    pub fn new(value: Vec<u8>, owner: PublicKey) -> Self {
+        let address = Address::Private(XorName::from_content(&[&value, &owner.to_bytes()]));
 
-        Ok(Self {
+        Self {
             address,
             value,
             owner,
-        })
+        }
     }
 
     /// Returns the value.
@@ -73,30 +71,30 @@ impl PrivateData {
 
     /// Returns size of this data after serialisation.
     pub fn serialised_size(&self) -> u64 {
-        serialized_size(self).unwrap_or(u64::MAX)
+        serialized_size(&self.serialised_structure()).unwrap_or(u64::MAX)
     }
 
     /// Returns `true` if the size is valid.
     pub fn validate_size(&self) -> bool {
         self.serialised_size() <= MAX_BLOB_SIZE_IN_BYTES
     }
+
+    fn serialised_structure(&self) -> (&[u8], &PublicKey) {
+        (&self.value, &self.owner)
+    }
 }
 
 impl Serialize for PrivateData {
     fn serialize<S: Serializer>(&self, serialiser: S) -> Result<S::Ok, S::Error> {
-        (&self.address, &self.value, &self.owner).serialize(serialiser)
+        // Address is omitted since it's derived from value + owner
+        self.serialised_structure().serialize(serialiser)
     }
 }
 
 impl<'de> Deserialize<'de> for PrivateData {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let (address, value, owner): (Address, Vec<u8>, PublicKey) =
-            Deserialize::deserialize(deserializer)?;
-        Ok(Self {
-            address,
-            value,
-            owner,
-        })
+        let (value, owner) = Deserialize::deserialize(deserializer)?;
+        Ok(Self::new(value, owner))
     }
 }
 
@@ -121,7 +119,7 @@ impl PublicData {
     /// Creates a new instance of `Blob`.
     pub fn new(value: Vec<u8>) -> Self {
         Self {
-            address: Address::Public(XorName(tiny_keccak::sha3_256(&value))),
+            address: Address::Public(XorName::from_content(&[&value])),
             value,
         }
     }
@@ -196,13 +194,13 @@ impl Kind {
     }
 
     /// Returns true if published.
-    pub fn is_pub(self) -> bool {
+    pub fn is_public(self) -> bool {
         self == Kind::Pub
     }
 
     /// Returns true if unpublished.
-    pub fn is_unpub(self) -> bool {
-        !self.is_pub()
+    pub fn is_private(self) -> bool {
+        !self.is_public()
     }
 }
 
@@ -240,13 +238,13 @@ impl Address {
     }
 
     /// Returns true if published.
-    pub fn is_pub(&self) -> bool {
-        self.kind().is_pub()
+    pub fn is_public(&self) -> bool {
+        self.kind().is_public()
     }
 
     /// Returns true if unpublished.
-    pub fn is_unpub(&self) -> bool {
-        self.kind().is_unpub()
+    pub fn is_private(&self) -> bool {
+        self.kind().is_private()
     }
 
     /// Returns the Address serialised and encoded in z-base-32.
@@ -297,13 +295,13 @@ impl Data {
     }
 
     /// Returns true if published.
-    pub fn is_pub(&self) -> bool {
-        self.kind().is_pub()
+    pub fn is_public(&self) -> bool {
+        self.kind().is_public()
     }
 
     /// Returns true if unpublished.
-    pub fn is_unpub(&self) -> bool {
-        self.kind().is_unpub()
+    pub fn is_private(&self) -> bool {
+        self.kind().is_private()
     }
 
     /// Returns the value.
@@ -354,24 +352,23 @@ mod tests {
     use threshold_crypto::SecretKey;
 
     #[test]
-    fn deterministic_name() -> Result<()> {
+    fn deterministic_name() {
         let data1 = b"Hello".to_vec();
         let data2 = b"Goodbye".to_vec();
 
         let owner1 = PublicKey::Bls(SecretKey::random().public_key());
         let owner2 = PublicKey::Bls(SecretKey::random().public_key());
 
-        let idata1 = PrivateData::new(data1.clone(), owner1)?;
-        let idata2 = PrivateData::new(data1, owner2)?;
-        let idata3 = PrivateData::new(data2.clone(), owner1)?;
-        let idata3_clone = PrivateData::new(data2, owner1)?;
+        let idata1 = PrivateData::new(data1.clone(), owner1);
+        let idata2 = PrivateData::new(data1, owner2);
+        let idata3 = PrivateData::new(data2.clone(), owner1);
+        let idata3_clone = PrivateData::new(data2, owner1);
 
         assert_eq!(idata3, idata3_clone);
 
         assert_ne!(idata1.name(), idata2.name());
         assert_ne!(idata1.name(), idata3.name());
         assert_ne!(idata2.name(), idata3.name());
-        Ok(())
     }
 
     #[test]
@@ -412,7 +409,7 @@ mod tests {
 
     #[test]
     fn zbase32_encode_decode_idata_address() -> Result<()> {
-        let name = XorName(rand::random());
+        let name = XorName::random();
         let address = Address::Public(name);
         let encoded = address.encode_to_zbase32()?;
         let decoded = self::Address::decode_from_zbase32(&encoded)?;
