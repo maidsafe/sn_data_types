@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.16.0](https://github.com/maidsafe/sn_data_types/compare/v0.15.3...v0.16.0) (2021-03-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* **Seq:** Policy mutation APIs are removed and Sequence constructors need the Policy to be provided up front.
+
+### Features
+
+* **Seq:** making the Policy of a Sequence data type immutable ([1261f58](https://github.com/maidsafe/sn_data_types/commit/1261f58f4be4537f8cb3510071f6935ca844d95d))
+
 ### [0.15.3](https://github.com/maidsafe/sn_data_types/compare/v0.15.2...v0.15.3) (2021-02-25)
 
 ### [0.15.2](https://github.com/maidsafe/sn_data_types/compare/v0.15.1...v0.15.2) (2021-02-23)
