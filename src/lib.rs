@@ -36,6 +36,7 @@ mod sequence;
 mod token;
 mod transfer;
 mod utils;
+mod rewards;
 
 pub use blob::{
     Address as BlobAddress, Data as Blob, Kind as BlobKind, PrivateData as PrivateBlob,
@@ -67,6 +68,7 @@ pub use sequence::{
     PublicPolicy as SequencePublicPolicy, PublicSeqData, User as SequenceUser,
 };
 pub use transfer::*;
+pub use rewards::{NodeAge, NodeRewardStage};
 
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
