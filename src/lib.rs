@@ -32,11 +32,11 @@ mod blob;
 mod errors;
 mod keys;
 mod map;
+mod rewards;
 mod sequence;
 mod token;
 mod transfer;
 mod utils;
-mod rewards;
 
 pub use blob::{
     Address as BlobAddress, Data as Blob, Kind as BlobKind, PrivateData as PrivateBlob,
@@ -59,6 +59,7 @@ pub use map::{
 
 pub use token::Token;
 
+pub use rewards::{NodeAge, NodeRewardStage};
 pub use sequence::{
     Action as SequenceAction, Address as SequenceAddress, Data as Sequence, DataOp as SequenceOp,
     Entries as SequenceEntries, Entry as SequenceEntry, Index as SequenceIndex,
@@ -68,7 +69,6 @@ pub use sequence::{
     PublicPolicy as SequencePublicPolicy, PublicSeqData, User as SequenceUser,
 };
 pub use transfer::*;
-pub use rewards::{NodeAge, NodeRewardStage};
 
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;

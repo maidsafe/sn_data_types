@@ -22,13 +22,13 @@ pub enum NodeRewardStage {
     NewNode,
     /// When a node has been relocated to us.
     AwaitingActivation(NodeAge),
-    /// After we have received the wallet id, 
+    /// After we have received the wallet id,
     /// the stage is `Active`.
-    Active { 
+    Active {
         /// The wallet of the node operator.
-        wallet: PublicKey, 
+        wallet: PublicKey,
         /// The node age.
-        age: NodeAge 
+        age: NodeAge,
     },
     /// After a node leaves the section
     /// it transitions into `AwaitingRelocation` stage.
