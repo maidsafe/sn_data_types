@@ -13,7 +13,7 @@ version = "0.17.1"
 thiserror = "1.0.23"
 bincode = "1.2.1"
 multibase = "~0.8.0"
-hex_fmt = "~0.3.0"
+hex = "~0.3.2"
 rand = "~0.7.3"
 crdts = "4.3.0"
 threshold_crypto = "~0.4.0"
@@ -35,7 +35,6 @@ rand_core = "~0.5.1"
 
 [dev-dependencies]
 anyhow = "1.0.36"
-hex = "~0.3.2"
 rand_xorshift = "~0.2.0"
 proptest = "0.10.1"
 
