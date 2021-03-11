@@ -28,7 +28,6 @@
 //! while modifying the Map shell.
 
 use crate::{utils, Error, PublicKey, Result};
-use hex_fmt::HexFmt;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{btree_map::Entry, BTreeMap, BTreeSet},
@@ -96,7 +95,7 @@ pub struct SeqValue {
 
 impl Debug for SeqValue {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "{:<8} :: {}", HexFmt(&self.data), self.version)
+        write!(f, "{:<8} :: {}", hex::encode(&self.data), self.version)
     }
 }
 

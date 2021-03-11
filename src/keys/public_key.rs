@@ -15,13 +15,13 @@
 
 use crate::{utils, Error, Result};
 use crate::{Keypair, Signature};
-use hex_fmt::HexFmt;
 
 use serde::{Deserialize, Serialize};
 use signature::Verifier;
 use std::{
     cmp::Ordering,
-    fmt::{self, Debug, Display, Formatter},
+    convert::TryInto,
+    fmt::{self, Debug, Display, Formatter, LowerHex, UpperHex},
     hash::{Hash, Hasher},
 };
 // use threshold_crypto::{self};
@@ -39,6 +39,37 @@ pub enum PublicKey {
 }
 
 impl PublicKey {
+    /// Construct and ed25519 public key from
+    /// a hex-encoded string.
+    ///
+    /// It is often useful
+    /// to parse such raw strings in user-facing
+    /// apps like CLI
+    pub fn ed25519_from_hex(hex: &str) -> Result<Self> {
+        let bytes = hex::decode(hex).map_err(|e| Error::FailedToParse(e.to_string()))?;
+        let pk = ed25519_dalek::PublicKey::from_bytes(bytes.as_ref())
+            .map_err(|e| Error::FailedToParse(e.to_string()))?;
+        Ok(Self::from(pk))
+    }
+
+    /// Construct and ed25519 public key from
+    /// a hex-encoded string.
+    ///
+    /// It is often useful
+    /// to parse such raw strings in user-facing
+    /// apps like CLI
+    pub fn bls_from_hex(hex: &str) -> Result<Self> {
+        let bytes = hex::decode(hex).map_err(|e| Error::FailedToParse(e.to_string()))?;
+        let bytes_fixed_len: &[u8; threshold_crypto::PK_SIZE] = bytes.as_slice().try_into()
+            .map_err(|_| Error::FailedToParse(format!(
+                "Couldn't parse BLS public key from hex. The provided string must represent exactly {} bytes.",
+                threshold_crypto::PK_SIZE
+            )))?;
+        let pk = threshold_crypto::PublicKey::from_bytes(bytes_fixed_len)
+            .map_err(|e| Error::FailedToParse(e.to_string()))?;
+        Ok(Self::from(pk))
+    }
+
     /// Returns the bytes of the underlying public key
     pub fn to_bytes(&self) -> Vec<u8> {
         match self {
@@ -169,17 +200,21 @@ impl Debug for PublicKey {
         write!(formatter, "PublicKey::")?;
         match self {
             Self::Ed25519(pub_key) => {
-                write!(formatter, "Ed25519({:<8})", HexFmt(&pub_key.to_bytes()))
+                write!(
+                    formatter,
+                    "Ed25519({:<8})",
+                    hex::encode(&pub_key.to_bytes())
+                )
             }
             Self::Bls(pub_key) => write!(
                 formatter,
                 "Bls({:<8})",
-                HexFmt(&pub_key.to_bytes()[..XOR_NAME_LEN])
+                hex::encode(&pub_key.to_bytes()[..XOR_NAME_LEN])
             ),
             Self::BlsShare(pub_key) => write!(
                 formatter,
                 "BlsShare({:<8})",
-                HexFmt(&pub_key.to_bytes()[..XOR_NAME_LEN])
+                hex::encode(&pub_key.to_bytes()[..XOR_NAME_LEN])
             ),
         }
     }
@@ -188,6 +223,24 @@ impl Debug for PublicKey {
 impl Display for PublicKey {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         Debug::fmt(self, formatter)
+    }
+}
+
+impl LowerHex for PublicKey {
+    /// Useful for displaying public key in user-facing apps
+    /// E.g. in cli and in human-readable messaging like for sn_authd
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        let bytes = self.clone().to_bytes();
+        write!(f, "{}", hex::encode(bytes))
+    }
+}
+
+impl UpperHex for PublicKey {
+    /// Useful for displaying public key in user-facing apps
+    /// E.g. in cli and in human-readable messaging like for sn_authd
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        let bytes = self.clone().to_bytes();
+        write!(f, "{}", hex::encode_upper(bytes))
     }
 }
 
