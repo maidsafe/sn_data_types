@@ -12,6 +12,7 @@ use super::{
     token::Token,
     utils, Error, Result,
 };
+use crate::SectionElders;
 use crdts::Dot;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Debug, Display, Formatter};
@@ -30,7 +31,7 @@ pub type Msg = String;
 #[derive(Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub struct WalletInfo {
     ///
-    pub replicas: PublicKeySet,
+    pub replicas: SectionElders,
     ///
     pub history: ActorHistory,
 }
@@ -40,7 +41,7 @@ impl Debug for WalletInfo {
         write!(
             f,
             "WalletInfo {{ replicas: PkSet {{ public_key: {:?} }},  history: {:?} }}",
-            self.replicas.public_key(),
+            self.replicas.key_set.public_key(),
             self.history
         )
     }
