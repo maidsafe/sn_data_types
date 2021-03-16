@@ -12,6 +12,8 @@ use std::collections::BTreeSet;
 use threshold_crypto::PublicKeySet;
 use xor_name::{Prefix, XorName};
 
+use crate::PublicKey;
+
 ///
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub struct SectionElders {
@@ -21,4 +23,21 @@ pub struct SectionElders {
     pub names: BTreeSet<XorName>,
     ///
     pub key_set: PublicKeySet,
+}
+
+impl SectionElders {
+    /// The BLS public key
+    pub fn key(&self) -> threshold_crypto::PublicKey {
+        self.key_set.public_key()
+    }
+
+    /// The BLS based name
+    pub fn name(&self) -> XorName {
+        PublicKey::Bls(self.key()).into()
+    }
+
+    /// The prefix based address
+    pub fn address(&self) -> XorName {
+        self.prefix.name()
+    }
 }
