@@ -7,19 +7,15 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use super::metadata::{Address, Entries, Entry, Index, Perm};
+use super::metadata::Entries;
+use super::metadata::{Address, Entry, Index, Perm};
 use crate::Signature;
 use crate::{utils, Error, PublicKey, Result};
+use crdts::{lseq::LSeq, CmRDT};
 pub use crdts::{lseq::Op, Actor};
-use crdts::{
-    lseq::{ident::Identifier, Entry as LSeqEntry, LSeq},
-    CmRDT,
-};
 use serde::{Deserialize, Serialize};
 use std::{
-    cmp::Ordering::{Equal, Greater, Less},
-    collections::BTreeMap,
-    fmt::{self, Display},
+    fmt::{self, Debug, Display},
     hash::Hash,
 };
 
@@ -31,32 +27,15 @@ const LSEQ_BOUNDARY: u64 = 1;
 const LSEQ_TREE_BASE: u8 = 10; // arity of 1024 at root
 
 /// CRDT Data operation applicable to other Sequence replica.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub struct CrdtDataOperation<A: Actor + Display + std::fmt::Debug + Serialize, T> {
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CrdtOperation<A: Actor + Display + Serialize, T> {
     /// Address of a Sequence object on the network.
     pub address: Address,
     /// The data operation to apply.
     pub crdt_op: Op<T, A>,
     /// The PublicKey of the entity that generated the operation
     pub source: PublicKey,
-    /// The context (policy) this operation depends on
-    pub ctx: Identifier<A>,
-    /// The signature of the crdt_top, required to apply the op
-    pub signature: Option<Signature>,
-}
-
-/// CRDT Policy operation applicable to other Sequence replica.
-#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct CrdtPolicyOperation<A: Actor + Display + std::fmt::Debug + Serialize, P: Serialize> {
-    /// Address of a Sequence object on the network.
-    pub address: Address,
-    /// The policy operation to apply.
-    pub crdt_op: Op<(P, Option<Identifier<A>>), A>,
-    /// The PublicKey of the entity that generated the operation
-    pub source: PublicKey,
-    /// The context (previous policy) this operation depends on
-    pub ctx: Option<(Identifier<A>, Option<Identifier<A>>)>,
-    /// The signature of the crdt_top, required to apply the op
+    /// The signature of source on the crdt_top, required to apply the op
     pub signature: Option<Signature>,
 }
 
@@ -64,7 +43,7 @@ pub struct CrdtPolicyOperation<A: Actor + Display + std::fmt::Debug + Serialize,
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd)]
 pub struct SequenceCrdt<A, P>
 where
-    A: Actor + Display + std::fmt::Debug + Serialize,
+    A: Actor + Display + Serialize,
     P: Perm + Hash + Clone + Serialize,
 {
     /// Actor of this piece of data
@@ -72,28 +51,23 @@ where
     /// Address on the network of this piece of data
     address: Address,
     /// CRDT to store the actual data, i.e. the items of the Sequence.
-    /// We keep different LSeqs (diverted copies) for each Policy, which allows us to create
-    /// branches of the Sequence when data ops that depend on old policies are applied.
-    data: BTreeMap<Identifier<A>, LSeq<Entry, A>>,
-    /// History of the Policy matrix, each entry representing a version of the Policy matrix
-    /// and the last item in the Sequence when this Policy was applied.
-    policy: LSeq<(P, Option<Identifier<A>>), A>,
+    data: LSeq<Entry, A>,
+    /// The Policy matrix containing ownership and users permissions.
+    policy: P,
 }
 
 impl<A, P> Display for SequenceCrdt<A, P>
 where
-    A: Actor + Display + std::fmt::Debug + Serialize,
+    A: Actor + Display + Serialize,
     P: Perm + Hash + Clone + Serialize,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[")?;
-        if let Some(lseq) = self.current_lseq() {
-            for (i, entry) in lseq.iter().enumerate() {
-                if i > 0 {
-                    write!(f, ", ")?;
-                }
-                write!(f, "<{}>", String::from_utf8_lossy(&entry),)?;
+        for (i, entry) in self.data.iter().enumerate() {
+            if i > 0 {
+                write!(f, ", ")?;
             }
+            write!(f, "<{}>", String::from_utf8_lossy(&entry),)?;
         }
         write!(f, "]")
     }
@@ -101,16 +75,16 @@ where
 
 impl<A, P> SequenceCrdt<A, P>
 where
-    A: Actor + Display + std::fmt::Debug + Serialize,
+    A: Actor + Display + Serialize,
     P: Perm + Hash + Clone + Serialize,
 {
     /// Constructs a new 'SequenceCrdt'.
-    pub fn new(actor: A, address: Address) -> Self {
+    pub fn new(actor: A, address: Address, policy: P) -> Self {
         Self {
             actor: actor.clone(),
             address,
-            data: BTreeMap::default(),
-            policy: LSeq::new_with_args(actor, LSEQ_TREE_BASE, LSEQ_BOUNDARY),
+            data: LSeq::new_with_args(actor, LSEQ_TREE_BASE, LSEQ_BOUNDARY),
+            policy,
         }
     }
 
@@ -121,20 +95,7 @@ where
 
     /// Returns the length of the sequence.
     pub fn len(&self) -> u64 {
-        if let Some(lseq) = self.current_lseq() {
-            lseq.len() as u64
-        } else {
-            0
-        }
-    }
-
-    /// Returns the index of last policy if there is at least a Policy.
-    pub fn policy_index(&self) -> Option<u64> {
-        if self.policy.is_empty() {
-            None
-        } else {
-            Some((self.policy.len() - 1) as u64)
-        }
+        self.data.len() as u64
     }
 
     /// Create crdt op to append a new item to the SequenceCrdt
@@ -142,212 +103,37 @@ where
         &mut self,
         entry: Entry,
         source: PublicKey,
-    ) -> Result<CrdtDataOperation<A, Entry>> {
-        // Retrieve the LSeq corresponding to the current Policy,
-        // or create and insert one if there is none.
+    ) -> Result<CrdtOperation<A, Entry>> {
         let address = *self.address();
 
-        // Let's retrieve current Policy
-        match self.policy.last_entry() {
-            None => Err(Error::InvalidOperation),
-            Some(cur_policy) => match self.data.get_mut(&cur_policy.id) {
-                None => Err(Error::CrdtUnexpectedState),
-                Some(lseq) => {
-                    // Append the entry to the LSeq corresponding to current Policy
-                    // TODO: lseq should not apply the op yet
-                    let crdt_op = lseq.append(entry);
-
-                    // We return the operation as it may need to be broadcasted to other replicas
-                    Ok(CrdtDataOperation {
-                        address,
-                        crdt_op,
-                        source,
-                        ctx: cur_policy.id.clone(),
-                        signature: None,
-                    })
-                }
-            },
-        }
-    }
-
-    /// Apply a remote data CRDT operation to this replica of the Sequence.
-    pub fn apply_data_op(&mut self, op: CrdtDataOperation<A, Entry>) -> Result<()> {
-        // First check op is validly signed.
-        // Note: Perms for the op are checked at the upper Sequence layer.
-        let sig = op.signature.ok_or(Error::CrdtMissingOpSignature)?;
-        let bytes_to_verify = utils::serialise(&op.crdt_op).map_err(|err| {
-            Error::Serialisation(format!(
-                "Could not serialise CRDT data operation to verify signature: {}",
-                err
-            ))
-        })?;
-        op.source.verify(&sig, &bytes_to_verify)?;
-
-        let policy_id = op.ctx.clone();
-        if self.policy_by_id(&policy_id).is_some() {
-            // We have to apply the op to all branches/copies of the Sequence as it may
-            // be an old operation which appends an item to the master branch of items
-            for LSeqEntry {
-                id,
-                val: (_, item_id),
-                ..
-            } in self.policy.iter_entries()
-            {
-                // We should apply the op to this branch/copy if the Identifier of
-                // this Policy is either:
-                // - equal to the Policy the op depends on
-                // - or greater than the Policy the data op depends on, and if this Policy
-                //   depends on a greater or equal item Identifier than the Id of the data op
-                let should_apply_op = match id.cmp(&policy_id) {
-                    Equal => true,
-                    Less => false,
-                    Greater => match item_id {
-                        None => true,
-                        Some(item_id) => item_id >= op.crdt_op.id(),
-                    },
-                };
-
-                if should_apply_op {
-                    // Retrieve the LSeq corresponding this Policy
-                    let lseq = self.data.get_mut(id).ok_or(Error::CrdtUnexpectedState)?;
-
-                    // Apply the CRDT operation to the LSeq data
-                    lseq.apply(op.crdt_op.clone());
-                }
-            }
-
-            Ok(())
-        } else {
-            // Operation is not causally ready as depends on a policy
-            // version we aren't aware of yet.
-            // Return error so sender can retry later and/or send the missing policy op/s
-            // TODO: perhaps send the last Policy Identifier as a reference to the sender
-            Err(Error::OpNotCausallyReady)
-        }
-    }
-
-    /// Create a new crdt policy op
-    pub fn create_policy_op(
-        &mut self,
-        policy: P,
-        source: PublicKey,
-    ) -> Result<CrdtPolicyOperation<A, P>> {
-        //TODO: this should not be applied locally yet, until sig applied + verified
-        let (new_lseq, prev_policy_id) = match self.policy.last_entry() {
-            None => {
-                // Create an empty LSeq since there are no items yet for this Policy
-                let actor = self.policy.actor();
-                (
-                    LSeq::new_with_args(actor, LSEQ_TREE_BASE, LSEQ_BOUNDARY),
-                    None,
-                )
-            }
-            Some(cur_policy) => match self.data.get(&cur_policy.id) {
-                Some(lseq) => (lseq.clone(), Some(cur_policy.id.clone())),
-                None => {
-                    // Create an empty LSeq since there are no items yet for this Policy
-                    let actor = self.policy.actor();
-                    (
-                        LSeq::new_with_args(actor, LSEQ_TREE_BASE, LSEQ_BOUNDARY),
-                        Some(cur_policy.id.clone()),
-                    )
-                }
-            },
-        };
-
-        // Last item in current Sequence to be used as causal info for new Policy
-        let cur_last_item = new_lseq.last_entry().map(|entry| entry.id.clone());
-
-        // Append the new Policy to the history
-        let crdt_op = self.policy.append((policy, cur_last_item.clone()));
-
-        let policy_id = crdt_op.id().clone();
-        let _ = self.data.insert(policy_id, new_lseq);
-
-        // Causality info for this Policy op includes current Policy and item Identifiers
-        let ctx = prev_policy_id.map(|policy_id| (policy_id, cur_last_item));
+        // Append the entry to the LSeq
+        let crdt_op = self.data.append(entry);
 
         // We return the operation as it may need to be broadcasted to other replicas
-        Ok(CrdtPolicyOperation {
-            address: *self.address(),
+        Ok(CrdtOperation {
+            address,
             crdt_op,
             source,
-            ctx,
             signature: None,
         })
     }
 
-    /// Apply a remote policy CRDT operation to this replica, keeping the current one in the history.
-    pub fn apply_policy_op(&mut self, op: CrdtPolicyOperation<A, P>) -> Result<()> {
-        // First check op is validly signed.
+    /// Apply a remote data CRDT operation to this replica of the Sequence.
+    pub fn apply_op(&mut self, op: CrdtOperation<A, Entry>) -> Result<()> {
+        // Let's first check the op is validly signed.
         // Note: Perms for the op are checked at the upper Sequence layer.
+
         let sig = op.signature.ok_or(Error::CrdtMissingOpSignature)?;
         let bytes_to_verify = utils::serialise(&op.crdt_op).map_err(|err| {
             Error::Serialisation(format!(
-                "Could not serialise CRDT data operation to verify signature: {}",
+                "Could not serialise CRDT operation to verify signature: {}",
                 err
             ))
         })?;
         op.source.verify(&sig, &bytes_to_verify)?;
 
-        let new_lseq = if let Some((policy_id, item_id)) = op.ctx {
-            // policy op has a context/causality info,
-            // let's check it's causally ready for applying
-            if self.policy.find_entry(&policy_id).is_none() {
-                // The policy is not causally ready, return an error
-                // so the sender can retry later and/or send the missing ops
-                return Err(Error::OpNotCausallyReady);
-            } else {
-                // Retrieve the LSeq corresponding to the Policy this op depends on,
-                let lseq = self
-                    .data
-                    .get(&policy_id)
-                    .ok_or(Error::CrdtUnexpectedState)?;
-
-                // FIXME: Check that we actually have perms to be adding a new policy here, based on prev one...
-
-                match item_id {
-                    None => {
-                        // The Policy doesn't depend on any item thus we copy the entire Sequence
-                        lseq.clone()
-                    }
-                    Some(id) => {
-                        // The Policy depends on specific item Id, create a copy with only
-                        // items which Identifier is less than or equal to such Id.
-                        // Note this logic is essentially copying the Sequence and undoing
-                        // some Append ops which shall be filtered out based on their Id.
-                        let actor = self.policy.actor();
-                        let mut new_lseq =
-                            LSeq::new_with_args(actor, LSEQ_TREE_BASE, LSEQ_BOUNDARY);
-
-                        lseq.iter_entries().for_each(|entry| {
-                            if entry.id <= id {
-                                let op = Op::Insert {
-                                    id: entry.id.clone(),
-                                    dot: entry.dot.clone(),
-                                    val: entry.val.clone(),
-                                };
-                                new_lseq.apply(op);
-                            }
-                        });
-
-                        new_lseq
-                    }
-                }
-            }
-        } else {
-            // Create an empty LSeq since there are no items yet for this Policy
-            let actor = self.policy.actor();
-            LSeq::new_with_args(actor, LSEQ_TREE_BASE, LSEQ_BOUNDARY)
-        };
-
-        let policy_id = op.crdt_op.id();
-        if !self.data.contains_key(policy_id) {
-            let _ = self.data.insert(policy_id.clone(), new_lseq);
-        }
-
-        // Apply the CRDT operation to the local replica of the policy
-        self.policy.apply(op.crdt_op);
+        // Apply the CRDT operation to the LSeq data
+        self.data.apply(op.crdt_op);
 
         Ok(())
     }
@@ -355,28 +141,17 @@ where
     /// Gets the entry at `index` if it exists.
     pub fn get(&self, index: Index) -> Option<&Entry> {
         let i = to_absolute_index(index, self.len() as usize)?;
-        self.current_lseq().and_then(|lseq| lseq.get(i))
+        self.data.get(i)
     }
 
     /// Gets the last entry.
     pub fn last_entry(&self) -> Option<&Entry> {
-        self.current_lseq().and_then(|lseq| lseq.last())
+        self.data.last()
     }
 
-    /// Gets last policy from the history if there is at least one.
-    pub fn policy(&self) -> Option<&P> {
-        self.policy_at(Index::FromEnd(1))
-    }
-
-    /// Gets a policy from the history at `index` if it exists.
-    pub fn policy_at(&self, index: impl Into<Index>) -> Option<&P> {
-        let i = to_absolute_index(index.into(), self.policy.len())?;
-        self.policy.get(i).map(|p| &p.0)
-    }
-
-    /// Gets a policy from the history looking it up by its Identfier.
-    pub(crate) fn policy_by_id(&self, id: &Identifier<A>) -> Option<&P> {
-        self.policy.find_entry(id).map(|entry| &entry.val.0)
+    /// Gets the Policy of the object.
+    pub fn policy(&self) -> &P {
+        &self.policy
     }
 
     /// Gets a list of items which are within the given indices.
@@ -390,20 +165,15 @@ where
         let end_index = to_absolute_index(end, count)?;
         let items_to_take = end_index - start_index;
 
-        self.current_lseq().map(|lseq| {
-            lseq.iter()
-                .skip(start_index)
-                .take(items_to_take)
-                .cloned()
-                .collect::<Entries>()
-        })
-    }
+        let entries = self
+            .data
+            .iter()
+            .skip(start_index)
+            .take(items_to_take)
+            .cloned()
+            .collect::<Entries>();
 
-    // Private helper to return the LSeq correspondng to current/last Policy and Id
-    fn current_lseq(&self) -> Option<&LSeq<Entry, A>> {
-        self.policy
-            .last_entry()
-            .and_then(|cur_policy| self.data.get(&cur_policy.id))
+        Some(entries)
     }
 }
 

@@ -32,6 +32,8 @@ mod blob;
 mod errors;
 mod keys;
 mod map;
+mod rewards;
+mod section;
 mod sequence;
 mod token;
 mod transfer;
@@ -42,7 +44,6 @@ pub use blob::{
     PublicData as PublicBlob, MAX_BLOB_SIZE_IN_BYTES,
 };
 pub use errors::{Error, Result};
-
 pub use keys::{
     BlsKeypairShare, Keypair, NodeKeypairs, OwnerType, PublicKey, SecretKey, Signature,
     SignatureShare, Signing,
@@ -55,18 +56,17 @@ pub use map::{
     UnseqEntries as MapUnseqEntries, UnseqEntryAction as MapUnseqEntryAction,
     UnseqEntryActions as MapUnseqEntryActions, Value as MapValue, Values as MapValues,
 };
-
-pub use token::Token;
-
+pub use rewards::{NodeAge, NodeRewardStage};
+pub use section::SectionElders;
 pub use sequence::{
-    Action as SequenceAction, Address as SequenceAddress, Data as Sequence,
-    DataWriteOp as SequenceDataWriteOp, Entries as SequenceEntries, Entry as SequenceEntry,
-    Index as SequenceIndex, Kind as SequenceKind, Permissions as SequencePermissions,
-    Policy as SequencePolicy, PolicyWriteOp as SequencePolicyWriteOp,
+    Action as SequenceAction, Address as SequenceAddress, Data as Sequence, DataOp as SequenceOp,
+    Entries as SequenceEntries, Entry as SequenceEntry, Index as SequenceIndex,
+    Kind as SequenceKind, Permissions as SequencePermissions, Policy as SequencePolicy,
     PrivatePermissions as SequencePrivatePermissions, PrivatePolicy as SequencePrivatePolicy,
     PrivateSeqData, PublicPermissions as SequencePublicPermissions,
     PublicPolicy as SequencePublicPolicy, PublicSeqData, User as SequenceUser,
 };
+pub use token::Token;
 pub use transfer::*;
 
 use serde::{Deserialize, Serialize};
