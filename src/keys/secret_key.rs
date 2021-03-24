@@ -35,11 +35,17 @@ impl SecretKey {
     /// key without depending on both the ed25519_dalek
     /// and hex crates just to reimplement this function
     pub fn ed25519_from_hex(hex: &str) -> Result<Self> {
-        let bytes = hex::decode(hex).map_err(|_| {
-            Error::FailedToParse("Couldn't parse bytes from secret key hex".to_string())
+        let bytes = hex::decode(hex).map_err(|e| {
+            Error::FailedToParse(format!(
+                "Couldn't parse edd25519 secret key bytes from hex: {}",
+                e.to_string()
+            ))
         })?;
-        let ed25519_sk = ed25519_dalek::SecretKey::from_bytes(bytes.as_ref()).map_err(|_| {
-            Error::FailedToParse("Couldn't parse secret key from hex bytes".to_string())
+        let ed25519_sk = ed25519_dalek::SecretKey::from_bytes(bytes.as_ref()).map_err(|e| {
+            Error::FailedToParse(format!(
+                "Couldn't parse ed25519 secret key from bytes: {}",
+                e.to_string()
+            ))
         })?;
         Ok(Self::Ed25519(ed25519_sk))
     }

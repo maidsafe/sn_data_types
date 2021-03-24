@@ -46,9 +46,18 @@ impl PublicKey {
     /// to parse such raw strings in user-facing
     /// apps like CLI
     pub fn ed25519_from_hex(hex: &str) -> Result<Self> {
-        let bytes = hex::decode(hex).map_err(|e| Error::FailedToParse(e.to_string()))?;
-        let pk = ed25519_dalek::PublicKey::from_bytes(bytes.as_ref())
-            .map_err(|e| Error::FailedToParse(e.to_string()))?;
+        let bytes = hex::decode(hex).map_err(|e| {
+            Error::FailedToParse(format!(
+                "Couldn't parse ed25519 public key bytes from hex: {}",
+                e.to_string()
+            ))
+        })?;
+        let pk = ed25519_dalek::PublicKey::from_bytes(bytes.as_ref()).map_err(|e| {
+            Error::FailedToParse(format!(
+                "Couldn't parse ed25519 public key from bytes: {}",
+                e.to_string()
+            ))
+        })?;
         Ok(Self::from(pk))
     }
 
@@ -59,14 +68,23 @@ impl PublicKey {
     /// to parse such raw strings in user-facing
     /// apps like CLI
     pub fn bls_from_hex(hex: &str) -> Result<Self> {
-        let bytes = hex::decode(hex).map_err(|e| Error::FailedToParse(e.to_string()))?;
+        let bytes = hex::decode(hex).map_err(|e| {
+            Error::FailedToParse(format!(
+                "Couldn't parse BLS public key bytes from hex: {}",
+                e.to_string()
+            ))
+        })?;
         let bytes_fixed_len: &[u8; threshold_crypto::PK_SIZE] = bytes.as_slice().try_into()
             .map_err(|_| Error::FailedToParse(format!(
-                "Couldn't parse BLS public key from hex. The provided string must represent exactly {} bytes.",
+                "Couldn't parse BLS public key bytes from hex. The provided string must represent exactly {} bytes.",
                 threshold_crypto::PK_SIZE
             )))?;
-        let pk = threshold_crypto::PublicKey::from_bytes(bytes_fixed_len)
-            .map_err(|e| Error::FailedToParse(e.to_string()))?;
+        let pk = threshold_crypto::PublicKey::from_bytes(bytes_fixed_len).map_err(|e| {
+            Error::FailedToParse(format!(
+                "Couldn't parse BLS public key from fixed-length byte array: {}",
+                e.to_string()
+            ))
+        })?;
         Ok(Self::from(pk))
     }
 
@@ -230,8 +248,7 @@ impl LowerHex for PublicKey {
     /// Useful for displaying public key in user-facing apps
     /// E.g. in cli and in human-readable messaging like for sn_authd
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        let bytes = self.clone().to_bytes();
-        write!(f, "{}", hex::encode(bytes))
+        write!(f, "{}", hex::encode(self.to_bytes()))
     }
 }
 
@@ -239,8 +256,7 @@ impl UpperHex for PublicKey {
     /// Useful for displaying public key in user-facing apps
     /// E.g. in cli and in human-readable messaging like for sn_authd
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        let bytes = self.clone().to_bytes();
-        write!(f, "{}", hex::encode_upper(bytes))
+        write!(f, "{}", hex::encode_upper(self.to_bytes()))
     }
 }
 
