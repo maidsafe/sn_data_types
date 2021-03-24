@@ -12,6 +12,7 @@ use super::{
     token::Token,
     utils, Error, Result,
 };
+use crate::SectionElders;
 use crdts::Dot;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Debug, Display, Formatter};
@@ -28,19 +29,19 @@ pub type Msg = String;
 /// Contains info on who the replicas
 /// of this wallet are, and the wallet history at them.
 #[derive(Eq, PartialEq, Clone, Serialize, Deserialize)]
-pub struct WalletInfo {
+pub struct WalletHistory {
     ///
-    pub replicas: PublicKeySet,
+    pub replicas: SectionElders,
     ///
     pub history: ActorHistory,
 }
 
-impl Debug for WalletInfo {
+impl Debug for WalletHistory {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "WalletInfo {{ replicas: PkSet {{ public_key: {:?} }},  history: {:?} }}",
-            self.replicas.public_key(),
+            "WalletHistory {{ replicas: PkSet {{ public_key: {:?} }},  history: {:?} }}",
+            self.replicas.key_set.public_key(),
             self.history
         )
     }

@@ -48,6 +48,32 @@ impl OwnerType {
             Self::Multi(key_set) => Ok(key_set.clone()),
         }
     }
+
+    ///
+    pub fn verify<T: Serialize>(&self, signature: &Signature, data: &T) -> bool {
+        let data = match bincode::serialize(&data) {
+            Err(_) => return false,
+            Ok(data) => data,
+        };
+        match signature {
+            Signature::Bls(sig) => {
+                if let OwnerType::Multi(set) = self {
+                    set.public_key().verify(&sig, data)
+                } else {
+                    false
+                }
+            }
+            ed @ Signature::Ed25519(_) => self.public_key().verify(ed, data).is_ok(),
+            Signature::BlsShare(share) => {
+                if let OwnerType::Multi(set) = self {
+                    let pubkey_share = set.public_key_share(share.index);
+                    pubkey_share.verify(&share.share, data)
+                } else {
+                    false
+                }
+            }
+        }
+    }
 }
 
 impl Debug for OwnerType {
@@ -86,28 +112,7 @@ impl Signing for Keypair {
     }
 
     fn verify<T: Serialize>(&self, signature: &Signature, data: &T) -> bool {
-        let data = match bincode::serialize(&data) {
-            Err(_) => return false,
-            Ok(data) => data,
-        };
-        match signature {
-            Signature::Bls(sig) => {
-                if let OwnerType::Multi(set) = self.id() {
-                    set.public_key().verify(&sig, data)
-                } else {
-                    false
-                }
-            }
-            ed @ Signature::Ed25519(_) => self.public_key().verify(ed, data).is_ok(),
-            Signature::BlsShare(share) => {
-                if let OwnerType::Multi(set) = self.id() {
-                    let pubkey_share = set.public_key_share(share.index);
-                    pubkey_share.verify(&share.share, data)
-                } else {
-                    false
-                }
-            }
-        }
+        self.id().verify(signature, data)
     }
 }
 
@@ -148,13 +153,13 @@ impl PartialEq for Keypair {
 impl Eq for Keypair {}
 
 impl Keypair {
-    /// Constructs a random Ed25519 public keypair.
+    /// Constructs a random Ed25519 keypair.
     pub fn new_ed25519<T: CryptoRng + Rng>(rng: &mut T) -> Self {
         let keypair = ed25519_dalek::Keypair::generate(rng);
         Self::Ed25519(Arc::new(keypair))
     }
 
-    /// Constructs a BLS public keypair share.
+    /// Constructs a BLS keypair share.
     pub fn new_bls_share(
         index: usize,
         secret_share: threshold_crypto::SecretKeyShare,

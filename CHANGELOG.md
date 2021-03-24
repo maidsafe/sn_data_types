@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.17.1](https://github.com/maidsafe/sn_data_types/compare/v0.17.0...v0.17.1) (2021-03-23)
+
+## [0.17.0](https://github.com/maidsafe/sn_data_types/compare/v0.16.0...v0.17.0) (2021-03-22)
+
+
+### ⚠ BREAKING CHANGES
+
+* Renames walletinfo -> WalletHistory
+- and add conenience methods to sectionelders
+
+### Features
+
+* **ownertype:** add verify api ([cc15962](https://github.com/maidsafe/sn_data_types/commit/cc159626e60a06fa173f1588a62a116d12708a48))
+* **rewards:** add reward stage enum ([e15cbab](https://github.com/maidsafe/sn_data_types/commit/e15cbab888042db568e027c4c0ace7af178eacbf))
+* **section:** add section elders struct ([e6be620](https://github.com/maidsafe/sn_data_types/commit/e6be6202f1ceb3012e06ca7cd70a299d2a10a613))
+
+
+* rename walletinfo ([5ef267d](https://github.com/maidsafe/sn_data_types/commit/5ef267d0a7fc8bd9ad9c2c6475f148446e543295))
+
 ## [0.16.0](https://github.com/maidsafe/sn_data_types/compare/v0.15.3...v0.16.0) (2021-03-03)
 
 
