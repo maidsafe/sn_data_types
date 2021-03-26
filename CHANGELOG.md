@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.17.2](https://github.com/maidsafe/sn_data_types/compare/v0.17.1...v0.17.2) (2021-03-26)
+
+
+### Features
+
+* adds hex-parse for user-facing pk/sk variants and hex formatting for pk ([e152e45](https://github.com/maidsafe/sn_data_types/commit/e152e457d6dc0dab3b9b49e4d4d70ce3ca2541b2))
+
 ### [0.17.1](https://github.com/maidsafe/sn_data_types/compare/v0.17.0...v0.17.1) (2021-03-23)
 
 ## [0.17.0](https://github.com/maidsafe/sn_data_types/compare/v0.16.0...v0.17.0) (2021-03-22)
