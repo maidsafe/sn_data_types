@@ -7,30 +7,43 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
-use crate::PublicKey;
+use crate::{CreditId, SignatureShare, SignedCredit, SignedCreditShare};
 use serde::{Deserialize, Serialize};
 
 /// Node age, the number of times
 /// it has been relocated between sections.
 pub type NodeAge = u8;
 
-/// The stage of a node, with
-/// regards to eligibility for rewards.
+/// Proposed credits resulting from a churn.
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
-pub enum NodeRewardStage {
-    /// When a new node joins the network.
-    NewNode,
-    /// When a node has been relocated to us.
-    AwaitingActivation(NodeAge),
-    /// After we have received the wallet id,
-    /// the stage is `Active`.
-    Active {
-        /// The wallet of the node operator.
-        wallet: PublicKey,
-        /// The node age.
-        age: NodeAge,
-    },
-    /// After a node leaves the section
-    /// it transitions into `AwaitingRelocation` stage.
-    AwaitingRelocation(PublicKey),
+pub struct RewardProposal {
+    /// The section paying out the rewards.
+    pub section_key: crate::PublicKey,
+    /// Any proposed rewards
+    pub rewards: Vec<SignedCreditShare>,
+}
+
+/// Accumulation of proof for the churn credits.
+#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
+pub struct RewardAccumulation {
+    /// The section paying out the rewards.
+    pub section_key: crate::PublicKey,
+    /// Any agreed rewards
+    pub rewards: Vec<AccumulatingReward>,
+}
+
+///
+#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
+pub struct AccumulatingReward {
+    /// A credit .
+    pub signed_credit: SignedCredit,
+    /// An individual Elder's sig share.
+    pub sig: SignatureShare,
+}
+
+impl AccumulatingReward {
+    /// Returns the id of the signed credit.
+    pub fn id(&self) -> &CreditId {
+        self.signed_credit.id()
+    }
 }

@@ -56,7 +56,7 @@ pub use map::{
     UnseqEntries as MapUnseqEntries, UnseqEntryAction as MapUnseqEntryAction,
     UnseqEntryActions as MapUnseqEntryActions, Value as MapValue, Values as MapValues,
 };
-pub use rewards::{NodeAge, NodeRewardStage};
+pub use rewards::{AccumulatingReward, NodeAge, RewardAccumulation, RewardProposal};
 pub use section::SectionElders;
 pub use sequence::{
     Action as SequenceAction, Address as SequenceAddress, Data as Sequence, DataOp as SequenceOp,
