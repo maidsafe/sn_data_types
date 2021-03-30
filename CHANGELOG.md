@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.18.0](https://github.com/maidsafe/sn_data_types/compare/v0.17.2...v0.18.0) (2021-03-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* **rewards:** Removes NodeRewardStage and replaces it with new types.
+
+### Features
+
+* **ownertype:** add verify api ([c8ba77a](https://github.com/maidsafe/sn_data_types/commit/c8ba77a7c1d1a17f3f5a97d28e2e08a356d27aa7))
+* **rewards:** add new types ([378c1ab](https://github.com/maidsafe/sn_data_types/commit/378c1ab0b56ed49af62dc6a349bd9e7cf897eab1))
+* **section:** add section elders struct ([1e61669](https://github.com/maidsafe/sn_data_types/commit/1e616696c0a24aa0ba0897529617b14331506be9))
+
+
+### Bug Fixes
+
+* **clippy:** new warnings in latest rustc ([e111304](https://github.com/maidsafe/sn_data_types/commit/e11130452a1b01b2630f51910f9c593fc37f654d))
+
 ### [0.17.2](https://github.com/maidsafe/sn_data_types/compare/v0.17.1...v0.17.2) (2021-03-26)
 
 
