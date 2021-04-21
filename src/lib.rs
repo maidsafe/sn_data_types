@@ -32,6 +32,8 @@ mod blob;
 mod errors;
 mod keys;
 mod map;
+/// Register data type
+pub mod register;
 mod rewards;
 mod section;
 mod sequence;
@@ -69,6 +71,7 @@ pub use sequence::{
 pub use token::Token;
 pub use transfer::*;
 
+use register::Register;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use xor_name::XorName;
@@ -83,6 +86,8 @@ pub enum Data {
     Mutable(Map),
     /// Sequence.
     Sequence(Sequence),
+    /// Register.
+    Register(Register),
 }
 
 impl Data {
@@ -92,6 +97,7 @@ impl Data {
             Self::Immutable(ref idata) => idata.is_public(),
             Self::Mutable(_) => false,
             Self::Sequence(ref sequence) => sequence.is_public(),
+            Self::Register(ref register) => register.is_public(),
         }
     }
 
@@ -116,5 +122,11 @@ impl From<Map> for Data {
 impl From<Sequence> for Data {
     fn from(data: Sequence) -> Self {
         Self::Sequence(data)
+    }
+}
+
+impl From<Register> for Data {
+    fn from(data: Register) -> Self {
+        Self::Register(data)
     }
 }

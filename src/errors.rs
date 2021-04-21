@@ -7,6 +7,7 @@
 // specific language governing permissions and limitations relating to use of the SAFE Network
 // Software.
 
+use super::register::Address;
 use crate::PublicKey;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -109,6 +110,9 @@ pub enum Error {
     /// The data for a given policy could not be located, so CRDT operations cannot be applied.
     #[error("CRDT data is in an unexpected and/or inconsistent state. No data found for current policy.")]
     CrdtUnexpectedState,
+    /// The CRDT operation cannot be applied as it targets a different content address.
+    #[error("The CRDT operation cannot be applied as it targets a different content address.")]
+    CrdtWrongAddress(Address),
 }
 
 pub(crate) fn convert_bincode_error(err: bincode::Error) -> Error {
