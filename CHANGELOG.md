@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.18.2](https://github.com/maidsafe/sn_data_types/compare/v0.18.1...v0.18.2) (2021-04-21)
+
+
+### Features
+
+* **register:** adding a Register CRDT data type ([489f3c9](https://github.com/maidsafe/sn_data_types/commit/489f3c978d2786516cc3ab191c6b64d903685956))
+
 ### [0.18.1](https://github.com/maidsafe/sn_data_types/compare/v0.18.0...v0.18.1) (2021-04-21)
 
 ## [0.18.0](https://github.com/maidsafe/sn_data_types/compare/v0.17.2...v0.18.0) (2021-03-30)
