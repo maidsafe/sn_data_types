@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.18.3](https://github.com/maidsafe/sn_data_types/compare/v0.18.2...v0.18.3) (2021-04-27)
+
+
+### Features
+
+* **api:** add DataAddress enum for address of different data types ([30634d4](https://github.com/maidsafe/sn_data_types/commit/30634d460d4f7bf9bdc67aff79569d37f2041be6))
+
 ### [0.18.2](https://github.com/maidsafe/sn_data_types/compare/v0.18.1...v0.18.2) (2021-04-21)
 
 
