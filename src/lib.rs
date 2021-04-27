@@ -71,7 +71,7 @@ pub use sequence::{
 pub use token::Token;
 pub use transfer::*;
 
-use register::Register;
+use register::{Address as RegisterAddress, Register};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use xor_name::XorName;
@@ -88,6 +88,19 @@ pub enum Data {
     Sequence(Sequence),
     /// Register.
     Register(Register),
+}
+
+/// Object storing an address of data on the network
+#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug, PartialOrd, Ord)]
+pub enum DataAddress {
+    /// Blob Address
+    Blob(BlobAddress),
+    /// Map Address
+    Map(MapAddress),
+    /// Sequence Address
+    Sequence(SequenceAddress),
+    /// Register Address
+    Register(RegisterAddress),
 }
 
 impl Data {
