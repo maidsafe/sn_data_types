@@ -28,7 +28,7 @@
     unused_results
 )]
 
-mod blob;
+mod chunk;
 mod errors;
 mod keys;
 mod map;
@@ -41,9 +41,9 @@ mod token;
 mod transfer;
 mod utils;
 
-pub use blob::{
-    Address as BlobAddress, Data as Blob, Kind as BlobKind, PrivateData as PrivateBlob,
-    PublicData as PublicBlob, MAX_BLOB_SIZE_IN_BYTES,
+pub use chunk::{
+    Address as ChunkAddress, Chunk, Kind as ChunkKind, PrivateChunk, PublicChunk,
+    MAX_CHUNK_SIZE_IN_BYTES,
 };
 pub use errors::{Error, Result};
 pub use keys::{
@@ -58,6 +58,7 @@ pub use map::{
     UnseqEntries as MapUnseqEntries, UnseqEntryAction as MapUnseqEntryAction,
     UnseqEntryActions as MapUnseqEntryActions, Value as MapValue, Values as MapValues,
 };
+pub use register::Address as RegisterAddress;
 pub use rewards::{AccumulatingReward, NodeAge, RewardAccumulation, RewardProposal};
 pub use section::SectionElders;
 pub use sequence::{
@@ -71,7 +72,7 @@ pub use sequence::{
 pub use token::Token;
 pub use transfer::*;
 
-use register::{Address as RegisterAddress, Register};
+use register::Register;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use xor_name::XorName;
@@ -80,10 +81,10 @@ use xor_name::XorName;
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug)]
 pub enum Data {
-    /// Blob.
-    Immutable(Blob),
-    /// MutableData.
-    Mutable(Map),
+    /// Chunk.
+    Chunk(Chunk),
+    /// Map.
+    Map(Map),
     /// Sequence.
     Sequence(Sequence),
     /// Register.
@@ -93,8 +94,8 @@ pub enum Data {
 /// Object storing an address of data on the network
 #[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug, PartialOrd, Ord)]
 pub enum DataAddress {
-    /// Blob Address
-    Blob(BlobAddress),
+    /// Chunk Address
+    Chunk(ChunkAddress),
     /// Map Address
     Map(MapAddress),
     /// Sequence Address
@@ -107,8 +108,8 @@ impl Data {
     /// Returns true if public.
     pub fn is_public(&self) -> bool {
         match *self {
-            Self::Immutable(ref idata) => idata.is_public(),
-            Self::Mutable(_) => false,
+            Self::Chunk(ref chunk) => chunk.is_public(),
+            Self::Map(_) => false,
             Self::Sequence(ref sequence) => sequence.is_public(),
             Self::Register(ref register) => register.is_public(),
         }
@@ -120,15 +121,15 @@ impl Data {
     }
 }
 
-impl From<Blob> for Data {
-    fn from(data: Blob) -> Self {
-        Self::Immutable(data)
+impl From<Chunk> for Data {
+    fn from(chunk: Chunk) -> Self {
+        Self::Chunk(chunk)
     }
 }
 
 impl From<Map> for Data {
     fn from(data: Map) -> Self {
-        Self::Mutable(data)
+        Self::Map(data)
     }
 }
 

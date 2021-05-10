@@ -48,6 +48,7 @@ pub struct Data {
     data: SeqData,
 }
 
+#[allow(clippy::len_without_is_empty)]
 impl Data {
     /// Constructs a new Public Sequence Data.
     /// The 'authority' is assumed to be the PK which the messages were and will be

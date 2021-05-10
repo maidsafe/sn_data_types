@@ -15,25 +15,24 @@ use std::{
     u64,
 };
 
-/// Maximum allowed size for a serialised Blob to grow to.
-pub const MAX_BLOB_SIZE_IN_BYTES: u64 = 1024 * 1024 + 10 * 1024;
+/// Maximum allowed size for a serialised Chunk to grow to.
+pub const MAX_CHUNK_SIZE_IN_BYTES: u64 = 1024 * 1024 + 10 * 1024;
 
-/// Private Blob: an immutable chunk of data which can be deleted. Can only be fetched
+/// Private Chunk: an immutable chunk of data which can be deleted. Can only be fetched
 /// by the listed owner.
 #[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Clone)]
-pub struct PrivateData {
+pub struct PrivateChunk {
     /// Network address. Omitted when serialising and calculated from the `value` and `owner` when
     /// deserialising.
     address: Address,
-    /// Contained data.
+    /// Contained chunk.
     value: Vec<u8>,
-    /// Contains a set of owners of this data. DataManagers enforce that a DELETE or OWNED-GET type
-    /// of request is coming from the MaidManager Authority of the owners.
+    /// Contains a set of owners of this chunk.
     owner: PublicKey,
 }
 
-impl PrivateData {
-    /// Creates a new instance of `PrivateData`.
+impl PrivateChunk {
+    /// Creates a new instance of `PrivateChunk`.
     pub fn new(value: Vec<u8>, owner: PublicKey) -> Self {
         let address = Address::Private(XorName::from_content(&[&value, &owner.to_bytes()]));
 
@@ -69,14 +68,14 @@ impl PrivateData {
         self.value.len()
     }
 
-    /// Returns size of this data after serialisation.
+    /// Returns size of this chunk after serialisation.
     pub fn serialised_size(&self) -> u64 {
         serialized_size(&self.serialised_structure()).unwrap_or(u64::MAX)
     }
 
     /// Returns `true` if the size is valid.
     pub fn validate_size(&self) -> bool {
-        self.serialised_size() <= MAX_BLOB_SIZE_IN_BYTES
+        self.serialised_size() <= MAX_CHUNK_SIZE_IN_BYTES
     }
 
     fn serialised_structure(&self) -> (&[u8], &PublicKey) {
@@ -84,39 +83,39 @@ impl PrivateData {
     }
 }
 
-impl Serialize for PrivateData {
+impl Serialize for PrivateChunk {
     fn serialize<S: Serializer>(&self, serialiser: S) -> Result<S::Ok, S::Error> {
         // Address is omitted since it's derived from value + owner
         self.serialised_structure().serialize(serialiser)
     }
 }
 
-impl<'de> Deserialize<'de> for PrivateData {
+impl<'de> Deserialize<'de> for PrivateChunk {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let (value, owner) = Deserialize::deserialize(deserializer)?;
         Ok(Self::new(value, owner))
     }
 }
 
-impl Debug for PrivateData {
+impl Debug for PrivateChunk {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         // TODO: Output owners?
-        write!(formatter, "PrivateBlob {:?}", self.name())
+        write!(formatter, "PrivateChunk {:?}", self.name())
     }
 }
 
-/// Public Blob: an immutable chunk of data which cannot be deleted.
+/// Public Chunk: an immutable chunk of data which cannot be deleted.
 #[derive(Hash, Clone, Eq, PartialEq, Ord, PartialOrd)]
-pub struct PublicData {
+pub struct PublicChunk {
     /// Network address. Omitted when serialising and calculated from the `value` when
     /// deserialising.
     address: Address,
-    /// Contained data.
+    /// Contained chunk.
     value: Vec<u8>,
 }
 
-impl PublicData {
-    /// Creates a new instance of `Blob`.
+impl PublicChunk {
+    /// Creates a new instance of `Chunk`.
     pub fn new(value: Vec<u8>) -> Self {
         Self {
             address: Address::Public(XorName::from_content(&[&value])),
@@ -144,37 +143,37 @@ impl PublicData {
         self.value.len()
     }
 
-    /// Returns size of this data after serialisation.
+    /// Returns size of this chunk after serialisation.
     pub fn serialised_size(&self) -> u64 {
         serialized_size(self).unwrap_or(u64::MAX)
     }
 
     /// Returns true if the size is valid.
     pub fn validate_size(&self) -> bool {
-        self.serialised_size() <= MAX_BLOB_SIZE_IN_BYTES
+        self.serialised_size() <= MAX_CHUNK_SIZE_IN_BYTES
     }
 }
 
-impl Serialize for PublicData {
+impl Serialize for PublicChunk {
     fn serialize<S: Serializer>(&self, serialiser: S) -> Result<S::Ok, S::Error> {
         self.value.serialize(serialiser)
     }
 }
 
-impl<'de> Deserialize<'de> for PublicData {
+impl<'de> Deserialize<'de> for PublicChunk {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let value: Vec<u8> = Deserialize::deserialize(deserializer)?;
-        Ok(PublicData::new(value))
+        Ok(PublicChunk::new(value))
     }
 }
 
-impl Debug for PublicData {
+impl Debug for PublicChunk {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "PublicBlob {:?}", self.name())
+        write!(formatter, "PublicChunk {:?}", self.name())
     }
 }
 
-/// Kind of an Blob.
+/// Kind of an Chunk.
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Kind {
     /// Private.
@@ -204,7 +203,7 @@ impl Kind {
     }
 }
 
-/// Address of an Blob.
+/// Address of an Chunk.
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
 pub enum Address {
     /// Private namespace.
@@ -258,21 +257,21 @@ impl Address {
     }
 }
 
-/// Object storing an Blob variant.
+/// Object storing an Chunk variant.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, Debug)]
-pub enum Data {
-    /// Private Blob.
-    Private(PrivateData),
-    /// Public Blob.
-    Public(PublicData),
+pub enum Chunk {
+    /// Private Chunk.
+    Private(PrivateChunk),
+    /// Public Chunk.
+    Public(PublicChunk),
 }
 
-impl Data {
+impl Chunk {
     /// Returns the address.
     pub fn address(&self) -> &Address {
         match self {
-            Data::Private(data) => data.address(),
-            Data::Public(data) => data.address(),
+            Chunk::Private(chunk) => chunk.address(),
+            Chunk::Public(chunk) => chunk.address(),
         }
     }
 
@@ -281,10 +280,10 @@ impl Data {
         self.address().name()
     }
 
-    /// Returns the owner if private blob.
+    /// Returns the owner if private chunk.
     pub fn owner(&self) -> Option<&PublicKey> {
         match self {
-            Data::Private(data) => Some(data.owner()),
+            Chunk::Private(chunk) => Some(chunk.owner()),
             _ => None,
         }
     }
@@ -307,43 +306,43 @@ impl Data {
     /// Returns the value.
     pub fn value(&self) -> &Vec<u8> {
         match self {
-            Data::Private(data) => data.value(),
-            Data::Public(data) => data.value(),
+            Chunk::Private(chunk) => chunk.value(),
+            Chunk::Public(chunk) => chunk.value(),
         }
     }
 
     /// Returns `true` if the size is valid.
     pub fn validate_size(&self) -> bool {
         match self {
-            Data::Private(data) => data.validate_size(),
-            Data::Public(data) => data.validate_size(),
+            Chunk::Private(chunk) => chunk.validate_size(),
+            Chunk::Public(chunk) => chunk.validate_size(),
         }
     }
 
-    /// Returns size of this data after serialisation.
+    /// Returns size of this chunk after serialisation.
     pub fn serialised_size(&self) -> u64 {
         match self {
-            Data::Private(data) => data.serialised_size(),
-            Data::Public(data) => data.serialised_size(),
+            Chunk::Private(chunk) => chunk.serialised_size(),
+            Chunk::Public(chunk) => chunk.serialised_size(),
         }
     }
 }
 
-impl From<PrivateData> for Data {
-    fn from(data: PrivateData) -> Self {
-        Data::Private(data)
+impl From<PrivateChunk> for Chunk {
+    fn from(chunk: PrivateChunk) -> Self {
+        Chunk::Private(chunk)
     }
 }
 
-impl From<PublicData> for Data {
-    fn from(data: PublicData) -> Self {
-        Data::Public(data)
+impl From<PublicChunk> for Chunk {
+    fn from(chunk: PublicChunk) -> Self {
+        Chunk::Public(chunk)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Address, PrivateData, PublicData, PublicKey, XorName};
+    use super::{Address, PrivateChunk, PublicChunk, PublicKey, XorName};
     use crate::{utils, Result};
     use hex::encode;
     use rand::{self, Rng, SeedableRng};
@@ -353,32 +352,32 @@ mod tests {
 
     #[test]
     fn deterministic_name() {
-        let data1 = b"Hello".to_vec();
-        let data2 = b"Goodbye".to_vec();
+        let chunk1 = b"Hello".to_vec();
+        let chunk2 = b"Goodbye".to_vec();
 
         let owner1 = PublicKey::Bls(SecretKey::random().public_key());
         let owner2 = PublicKey::Bls(SecretKey::random().public_key());
 
-        let idata1 = PrivateData::new(data1.clone(), owner1);
-        let idata2 = PrivateData::new(data1, owner2);
-        let idata3 = PrivateData::new(data2.clone(), owner1);
-        let idata3_clone = PrivateData::new(data2, owner1);
+        let ichunk1 = PrivateChunk::new(chunk1.clone(), owner1);
+        let ichunk2 = PrivateChunk::new(chunk1, owner2);
+        let ichunk3 = PrivateChunk::new(chunk2.clone(), owner1);
+        let ichunk3_clone = PrivateChunk::new(chunk2, owner1);
 
-        assert_eq!(idata3, idata3_clone);
+        assert_eq!(ichunk3, ichunk3_clone);
 
-        assert_ne!(idata1.name(), idata2.name());
-        assert_ne!(idata1.name(), idata3.name());
-        assert_ne!(idata2.name(), idata3.name());
+        assert_ne!(ichunk1.name(), ichunk2.name());
+        assert_ne!(ichunk1.name(), ichunk3.name());
+        assert_ne!(ichunk2.name(), ichunk3.name());
     }
 
     #[test]
     fn deterministic_test() {
-        let value = "immutable data value".to_owned().into_bytes();
-        let blob = PublicData::new(value);
-        let blob_name = encode(blob.name().0.as_ref());
-        let expected_name = "fac2869677ee06277633c37ac7e8e5c655f3d652f707c7a79fab930d584a3016";
+        let value = "immutable chunk value".to_owned().into_bytes();
+        let chunk = PublicChunk::new(value);
+        let chunk_name = encode(chunk.name().0.as_ref());
+        let expected_name = "920f9a03bc90af3a7bfaf50c03abd5ff5b1579bd4006ba28eebcf240d4922519";
 
-        assert_eq!(&expected_name, &blob_name);
+        assert_eq!(&expected_name, &chunk_name);
     }
 
     #[test]
@@ -386,10 +385,10 @@ mod tests {
         let mut rng = get_rng();
         let len = rng.gen_range(1, 10_000);
         let value = iter::repeat_with(|| rng.gen()).take(len).collect();
-        let blob = PublicData::new(value);
-        let serialised = utils::serialise(&blob)?;
+        let chunk = PublicChunk::new(value);
+        let serialised = utils::serialise(&chunk)?;
         let parsed = utils::deserialise(&serialised)?;
-        assert_eq!(blob, parsed);
+        assert_eq!(chunk, parsed);
         Ok(())
     }
 
@@ -408,7 +407,7 @@ mod tests {
     }
 
     #[test]
-    fn zbase32_encode_decode_idata_address() -> Result<()> {
+    fn zbase32_encode_decode_chunk_address() -> Result<()> {
         let name = XorName::random();
         let address = Address::Public(name);
         let encoded = address.encode_to_zbase32()?;
