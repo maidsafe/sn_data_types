@@ -45,27 +45,21 @@ pub enum Error {
     /// Serialization error
     #[error("Serialisation error: {0}")]
     Serialisation(String),
-
     /// Entry already exists. Contains the current entry Key.
     #[error("Entry already exists {0}")]
     EntryExists(u8),
-
     /// Supplied actions are not valid
     #[error("Some entry actions are not valid")]
     InvalidEntryActions(BTreeMap<Vec<u8>, Error>),
-
     /// Entry could not be found on the data
     #[error("Requested entry not found")]
     NoSuchEntry,
-
     /// Key does not exist
     #[error("Key does not exist")]
     NoSuchKey,
-
     /// Owner is not valid
     #[error("Owner is not a PublicKeySet")]
     InvalidOwnerNotPublicKeySet,
-
     /// No Policy has been set to the data
     #[error("No policy has been set for this data")]
     PolicyNotSet,
@@ -73,11 +67,9 @@ pub enum Error {
     /// current data version.
     #[error("Invalid version provided: {0}")]
     InvalidSuccessor(u64),
-
     /// Invalid mutating operation as it causality dependency is currently not satisfied
     #[error("Operation is not causally ready. Ensure you have the full history of operations.")]
     OpNotCausallyReady,
-
     /// Invalid Operation such as a POST on ImmutableData
     #[error("Invalid operation")]
     InvalidOperation,
@@ -100,7 +92,6 @@ pub enum Error {
     // TODO: this should not be possible
     #[error("No such recipient key balance")]
     NoSuchRecipient,
-
     /// Expected data size exceeded.
     #[error("Size of the structure exceeds the limit")]
     ExceededSize,
