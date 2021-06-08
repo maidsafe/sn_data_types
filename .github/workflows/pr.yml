@@ -16,6 +16,7 @@ env:
 
 jobs:
   checks:
+    if: "!startsWith(github.event.pull_request.title, 'Automated version bump')"
     name: Clippy & fmt
     runs-on: ubuntu-latest
     steps:
@@ -47,6 +48,7 @@ jobs:
         run: cargo clippy --all-targets
 
   check_pr_size:
+    if: "!startsWith(github.event.pull_request.title, 'Automated version bump')"
     name: Check PR size doesn't break set limit
     runs-on: ubuntu-latest
     steps:
@@ -58,6 +60,7 @@ jobs:
           max_lines_changed: 200
   
   coverage:
+    if: "!startsWith(github.event.pull_request.title, 'Automated version bump')"
     name: Code coverage check
     runs-on: ubuntu-latest
     env: 
@@ -99,6 +102,7 @@ jobs:
           parallel-finished: true
 
   cargo-udeps:
+    if: "!startsWith(github.event.pull_request.title, 'Automated version bump')"
     name: Unused dependency check
     runs-on: ubuntu-latest
     steps:
@@ -106,17 +110,17 @@ jobs:
       # Install Rust and required components
       - uses: actions-rs/toolchain@v1
         with:
-          profile: minimal
           toolchain: nightly
           override: true
 
-      # Install and run cargo udeps to find unused cargo dependencies
-      - name: cargo-udeps duplicate dependency check
-        run: |
-          cargo install cargo-udeps --locked
-          cargo +nightly udeps --all-targets
+      - name: Run cargo-udeps
+        uses: aig787/cargo-udeps-action@v1
+        with:
+          version: 'latest'
+          args: '--all-targets'
 
   cargo-deny:
+    if: "!startsWith(github.event.pull_request.title, 'Automated version bump')"
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -128,6 +132,7 @@ jobs:
     - uses: EmbarkStudios/cargo-deny-action@v1
 
   test:
+    if: "!startsWith(github.event.pull_request.title, 'Automated version bump')"
     name: Test
     runs-on: ${{ matrix.os }}
     strategy:
@@ -160,6 +165,7 @@ jobs:
 
   # Test publish using --dry-run.
   test-publish:
+    if: "!startsWith(github.event.pull_request.title, 'Automated version bump')"
     name: Test Publish
     runs-on: ubuntu-latest
     steps:
