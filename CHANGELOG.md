@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.19.0](https://github.com/maidsafe/sn_data_types/compare/v0.18.4...v0.19.0) (2021-06-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* **chunk:** Blob is renamed to Chunk.
+
+* **chunk:** rename blob to chunk ([453dbf8](https://github.com/maidsafe/sn_data_types/commit/453dbf88869f84ce0c2f680f716d4aa541ee00ed))
+
 ### [0.18.4](https://github.com/maidsafe/sn_data_types/compare/v0.18.3...v0.18.4) (2021-06-08)
 
 ### [0.18.3](https://github.com/maidsafe/sn_data_types/compare/v0.18.2...v0.18.3) (2021-04-27)
