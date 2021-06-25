@@ -1,3 +1,8 @@
+## **PLEASE NOTE THAT THIS REPOSITORY HAS NOW BEEN ARCHIVED**
+### All data types development is now via the [safe_network](https://github.com/maidsafe/safe_network) repository
+
+#
+
 # sn_data_types
 Safe Network Data Types
 
